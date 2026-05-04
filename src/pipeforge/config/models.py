@@ -31,6 +31,13 @@ class SqlProcessorConfig(BaseModel):
 
     sql: str
 
+    @field_validator("sql")
+    @classmethod
+    def sql_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("sql must not be empty")
+        return v
+
 
 class ProcessorSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
