@@ -42,3 +42,11 @@ app.include_router(wizard_router, prefix="/api/wizard")
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+from fastapi.staticfiles import StaticFiles
+import os
+
+# mount must be last — all API routes registered above
+_static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(_static_dir):
+    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="static")
