@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel
-from generators.base import ConfigGenerator
-from core.registry import GeneratorRegistry
+from configforge.generators.base import ConfigGenerator
+from configforge.core.registry import GeneratorRegistry
 
 
 class FakeConfig(BaseModel):

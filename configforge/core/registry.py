@@ -1,5 +1,5 @@
 from typing import TypeVar
-from generators.base import ConfigGenerator
+from ..generators.base import ConfigGenerator
 
 T = TypeVar("T", bound=ConfigGenerator)
 
