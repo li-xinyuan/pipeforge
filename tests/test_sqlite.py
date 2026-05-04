@@ -10,6 +10,7 @@ class TestSQLiteManager:
         manager = SQLiteManager()
         yield manager
         manager.close()
+        manager.remove()
 
     def test_create_table(self, db):
         db.create_table("users", ["id", "name", "age"])
