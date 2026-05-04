@@ -20,5 +20,8 @@ demo/output/
 .DS_Store
 Thumbs.db
 
+# Worktrees
+.worktrees/
+
 # pytest
 .pytest_cache/
