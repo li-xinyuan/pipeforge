@@ -10,6 +10,9 @@ class FakeConfig(BaseModel):
 
 
 class TestPluginRegistry:
+    def setup_method(self):
+        PluginRegistry.clear()
+
     def test_register_and_get(self):
         @register_plugin("test_excel", "input")
         class TestExcelInput(InputPlugin):
@@ -27,6 +30,8 @@ class TestPluginRegistry:
         with pytest.raises(PluginNotFoundError) as exc:
             PluginRegistry.get("nonexistent", "input")
         assert "nonexistent" in str(exc.value)
+        assert exc.value.name == "nonexistent"
+        assert exc.value.plugin_type == "input"
 
     def test_register_duplicate_overwrites(self):
         @register_plugin("dup_plugin", "output")
@@ -51,8 +56,6 @@ class TestPluginRegistry:
         assert cls == SecondOutput
 
     def test_list_by_type(self):
-        PluginRegistry.clear()
-
         @register_plugin("list_test", "processor")
         class ListTestProc(ProcessorPlugin):
             @classmethod
