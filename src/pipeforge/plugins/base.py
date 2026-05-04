@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -9,6 +9,9 @@ C = TypeVar("C", bound=BaseModel)
 class Plugin(ABC, Generic[C]):
     """所有插件的抽象基类。name 和 label 由引擎实例化后注入。"""
 
+    name: str = ""
+    label: str = ""
+
     @classmethod
     @abstractmethod
     def config_model(cls) -> type[C]:
@@ -16,13 +19,15 @@ class Plugin(ABC, Generic[C]):
         ...
 
     @abstractmethod
-    def execute(self, context: "Context", config: C) -> None:
-        """执行插件逻辑。"""
+    def execute(self, context: Any, config: C) -> None:
+        """执行插件逻辑。Context 由 Task 6 定义，运行时注入。"""
         ...
 
 
 class InputPlugin(Plugin[C], ABC):
     """输入插件基类 — table_name 由引擎注入。"""
+
+    table_name: str = ""
 
 
 class ProcessorPlugin(Plugin[C], ABC):

@@ -20,18 +20,15 @@ class FakeInputPlugin(InputPlugin):
 class TestPluginBase:
     def test_plugin_has_name_attribute(self):
         plugin = FakeInputPlugin()
-        plugin.name = "test_plugin"
-        assert plugin.name == "test_plugin"
+        assert plugin.name == ""  # default, engine injects real value
 
     def test_plugin_has_label_attribute(self):
         plugin = FakeInputPlugin()
-        plugin.label = "Test Label"
-        assert plugin.label == "Test Label"
+        assert plugin.label == ""  # default, engine injects real value
 
     def test_input_plugin_has_table_name(self):
         plugin = FakeInputPlugin()
-        plugin.table_name = "my_table"
-        assert plugin.table_name == "my_table"
+        assert plugin.table_name == ""  # default, engine injects real value
 
     def test_config_model_returns_correct_type(self):
         assert FakeInputPlugin.config_model() == FakeConfig
