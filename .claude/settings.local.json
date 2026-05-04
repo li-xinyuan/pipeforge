@@ -24,7 +24,8 @@
       "Bash(/Users/lixinyuan/code/CCTEST/.venv/bin/pytest /Users/lixinyuan/code/CCTEST/tests/ -v)",
       "Bash(/Users/lixinyuan/code/CCTEST/.venv/bin/pytest *)",
       "Bash(echo \"exit: $?\")",
-      "Bash(.venv/bin/pipeforge *)"
+      "Bash(.venv/bin/pipeforge *)",
+      "Bash(gh auth *)"
     ]
   }
 }
