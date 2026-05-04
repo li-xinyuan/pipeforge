@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:openpyxl.readthedocs.io)",
+      "Bash(python3 -m json.tool)",
+      "Bash(/plugin marketplace *)",
+      "Read(//Users/lixinyuan/.claude/plugins/**)",
+      "Read(//Users/lixinyuan/.claude/**)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh repo *)"
+    ]
+  }
+}
