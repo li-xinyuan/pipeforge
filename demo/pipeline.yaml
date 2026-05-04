@@ -1,0 +1,67 @@
+scene:
+  name: 月度人员考勤报表
+  description: 汇总人员明细和考勤数据，生成月度统计报表
+  version: "1.0"
+
+inputs:
+  - name: 人员明细
+    plugin: excel
+    table: person
+    param_key: person_file
+    config:
+      sheet: 人员列表
+
+  - name: 考勤数据
+    plugin: excel
+    table: attendance
+    param_key: attendance_file
+    config:
+      sheet: 考勤统计
+
+processors:
+  - name: 数据合并与统计
+    plugin: sql
+    output_tables:
+      - monthly_report
+    config:
+      sql: |
+        CREATE TABLE monthly_report AS
+        SELECT
+          p.姓名,
+          p.部门,
+          p.岗位,
+          a.出勤天数,
+          a.迟到次数,
+          a.加班小时,
+          CASE
+            WHEN CAST(a.迟到次数 AS INTEGER) > 3 THEN '需关注'
+            WHEN CAST(a.迟到次数 AS INTEGER) = 0 THEN '优秀'
+            ELSE '正常'
+          END AS 考勤状态
+        FROM person p
+        LEFT JOIN attendance a ON p.工号 = a.工号
+        ORDER BY p.部门, p.姓名
+
+output:
+  plugin: excel
+  config:
+    template: templates/monthly_report_template.xlsx
+    sheet: 月度人员报表
+    output_dir: demo/output/
+    source_table: monthly_report
+    filename: "月度考勤报表_{{date:%Y%m%d}}.xlsx"
+    columns:
+      - source: 姓名
+        target: 姓名
+      - source: 部门
+        target: 部门
+      - source: 岗位
+        target: 岗位
+      - source: 出勤天数
+        target: 出勤天数
+      - source: 迟到次数
+        target: 迟到次数
+      - source: 加班小时
+        target: 加班小时
+      - source: 考勤状态
+        target: 考勤状态

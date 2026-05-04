@@ -8,7 +8,23 @@
       "Read(//Users/lixinyuan/.claude/plugins/**)",
       "Read(//Users/lixinyuan/.claude/**)",
       "WebFetch(domain:github.com)",
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "Bash(pip install *)",
+      "Bash(python3 *)",
+      "Bash(/Users/lixinyuan/code/CCTEST/.venv/bin/pip install *)",
+      "Bash(/Users/lixinyuan/code/CCTEST/.venv/bin/python *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git *)",
+      "Bash(.venv/bin/python *)",
+      "Bash(python *)",
+      "Bash(.venv/bin/pytest *)",
+      "Bash(pip3 install *)",
+      "Bash(PYTHONPATH=src python3 *)",
+      "Bash(/Users/lixinyuan/code/CCTEST/.venv/bin/pytest /Users/lixinyuan/code/CCTEST/tests/ -v)",
+      "Bash(/Users/lixinyuan/code/CCTEST/.venv/bin/pytest *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(.venv/bin/pipeforge *)"
     ]
   }
 }

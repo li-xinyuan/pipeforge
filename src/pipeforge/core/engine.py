@@ -109,6 +109,7 @@ class PipelineEngine:
         plugin_cls = PluginRegistry.get(out_spec.plugin, "output")
         plugin = plugin_cls()
         plugin.name = out_spec.plugin
+        plugin.label = "output"
         plugin.execute(context, out_spec.config)
         elapsed = (time.time() - start) * 1000
         rows = context.db.query(f'SELECT COUNT(*) FROM "{out_spec.config.source_table}"')

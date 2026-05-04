@@ -52,7 +52,6 @@ def setup_context_and_db(template_xlsx):
         db=db, params={}, yaml_dir=os.path.dirname(template_xlsx),
         scene_name="Monthly Report"
     )
-    context.output_dir = output_dir
     yield db, context, template_xlsx, output_dir
     db.close()
     db.remove()
