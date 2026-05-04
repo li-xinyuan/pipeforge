@@ -12,7 +12,7 @@ class InputStats(BaseModel):
 
 class ProcessorStats(BaseModel):
     name: str
-    tables_created: list[str]
+    tables_created: list[str] = []
     elapsed_ms: float
 
 
