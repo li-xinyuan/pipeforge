@@ -25,3 +25,7 @@ Thumbs.db
 
 # pytest
 .pytest_cache/
+
+# Node
+node_modules/
+configforge-web/dist/
