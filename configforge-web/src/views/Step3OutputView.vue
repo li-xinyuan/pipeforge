@@ -1,14 +1,34 @@
 <template>
   <div class="max-w-3xl mx-auto px-4 py-8">
     <StepIndicator :current-step="3" />
-    <div class="py-8 text-center text-slate-500 text-sm">
-      输出定义（建设中）
+
+    <div class="bg-white border border-slate-200 rounded-lg shadow-sm">
+      <!-- Tab bar -->
+      <div class="flex border-b border-slate-200">
+        <button
+          @click="activeTab = 'processor'"
+          class="flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 transition-colors"
+          :class="activeTab === 'processor' ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'"
+        >SQL 处理</button>
+        <button
+          @click="activeTab = 'output'"
+          class="flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 transition-colors"
+          :class="activeTab === 'output' ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'"
+        >输出配置</button>
+      </div>
+
+      <!-- Tab content -->
+      <div class="p-6">
+        <SqlEditorTab v-if="activeTab === 'processor'" />
+        <OutputConfigTab v-if="activeTab === 'output'" />
+      </div>
     </div>
-    <div class="flex justify-between items-center pt-6 border-t border-slate-100 mt-6">
-      <router-link
-        to="/step/2"
+
+    <div class="flex justify-between items-center pt-6 mt-6">
+      <button
+        @click="onPrev"
         class="text-sm text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-md"
-      >上一步</router-link>
+      >上一步</button>
       <button
         @click="onNext"
         :disabled="!store.canProceed"
@@ -18,12 +38,20 @@
   </div>
 </template>
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import StepIndicator from '../components/common/StepIndicator.vue'
+import SqlEditorTab from '../components/step3/SqlEditorTab.vue'
+import OutputConfigTab from '../components/step3/OutputConfigTab.vue'
 
 const router = useRouter()
 const store = useWizardStore()
+const activeTab = ref<'processor' | 'output'>('processor')
+
+function onPrev() {
+  router.push('/step/2')
+}
 
 function onNext() {
   if (store.canProceed) {
