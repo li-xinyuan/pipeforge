@@ -5,6 +5,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from configforge.api.preview import router as preview_router
 from configforge.api.files import router as files_router
+from configforge.api.ai import router as ai_router
 from configforge.models.wizard import ErrorResponse
 
 app = FastAPI(title="ConfigForge", version="0.1.0")
@@ -33,6 +34,7 @@ async def http_exception_handler(request, exc):
 
 app.include_router(preview_router, prefix="/api/preview")
 app.include_router(files_router, prefix="/api/files")
+app.include_router(ai_router, prefix="/api/ai")
 
 
 @app.get("/api/health")
