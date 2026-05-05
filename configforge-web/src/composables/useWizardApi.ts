@@ -20,7 +20,7 @@ export function useWizardApi() {
   async function initScene(fileIds: string[]) { return post<any>('/api/wizard/init-scene', { file_ids: fileIds }) }
 
   async function fetchPreview(fileId: string, sheet?: string) {
-    return post<{ columns: string[]; rows: string[][] }>('/api/preview/file', { file_id: fileId, sheet })
+    return post<{ sheets: string[]; columns: string[]; rows: string[][] }>('/api/preview/file', { file_id: fileId, sheet })
   }
 
   return { loading, error, initScene, fetchPreview }

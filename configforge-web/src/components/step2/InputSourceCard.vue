@@ -42,7 +42,16 @@
       <!-- Sheet name -->
       <div>
         <label class="block text-xs font-medium text-slate-500 mb-1">工作表</label>
+        <select
+          v-if="sheetNames.length > 0"
+          :value="input.config.sheet"
+          @change="$emit('update', { ...input, config: { ...input.config, sheet: ($event.target as HTMLSelectElement).value } })"
+          class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500 bg-white"
+        >
+          <option v-for="s in sheetNames" :key="s" :value="s">{{ s }}</option>
+        </select>
         <input
+          v-else
           :value="input.config.sheet"
           @input="$emit('update', { ...input, config: { ...input.config, sheet: ($event.target as HTMLInputElement).value } })"
           placeholder="Sheet1"
@@ -114,6 +123,15 @@ const { uploading, error: uploadError, upload } = useFileUpload()
 const fileInput = ref<HTMLInputElement>()
 const previewData = ref<{ columns: string[]; rows: string[][] } | null>(null)
 const previewLoading = ref(false)
+const sheetNames = ref<string[]>([])
+let tableSeq = 0
+
+function generateTableName(originalName: string): string {
+  const base = originalName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9一-鿿_]/g, '_')
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  tableSeq++
+  return `${base}_${date}_${tableSeq}`
+}
 
 function triggerUpload() { fileInput.value?.click() }
 
@@ -123,12 +141,24 @@ async function onFileSelected(e: Event) {
   const meta = await upload(files[0])
   if (meta) {
     store.addFileRef(meta.fileId, meta)
-    emit('update', { ...props.input, fileId: meta.fileId })
+    const data = await fetchPreview(meta.fileId)
+    if (data) {
+      sheetNames.value = data.sheets
+      emit('update', {
+        ...props.input,
+        fileId: meta.fileId,
+        config: { ...props.input.config, sheet: data.sheets[0] || 'Sheet1' },
+        table: generateTableName(meta.originalName)
+      })
+    } else {
+      emit('update', { ...props.input, fileId: meta.fileId })
+    }
   }
 }
 
 function removeFile() {
-  emit('update', { ...props.input, fileId: '', config: { ...props.input.config, sheet: '' } })
+  sheetNames.value = []
+  emit('update', { ...props.input, fileId: '', config: { ...props.input.config, sheet: '' }, table: '' })
 }
 
 async function loadPreview() {

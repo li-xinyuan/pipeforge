@@ -20,6 +20,7 @@ async def preview_file(req: dict):
         )
     info = read_excel_info(path, sheet_name=req.get("sheet"))
     return {
+        "sheets": info["sheets"],
         "columns": info["columns"],
         "rows": [
             [str(v) if v else "" for v in row] for row in info["sample_rows"]
