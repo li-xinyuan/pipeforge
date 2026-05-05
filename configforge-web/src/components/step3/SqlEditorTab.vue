@@ -37,24 +37,92 @@
         <span v-for="(t, i) in store.processor.outputTables" :key="i" class="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 text-sm rounded-full font-medium">
           {{ t }} <span class="cursor-pointer ml-1 opacity-60" @click="store.processor.outputTables.splice(i, 1)">&times;</span>
         </span>
-        <button @click="addTable" class="px-2.5 py-1 text-xs font-medium bg-white text-slate-700 border border-dashed border-slate-200 rounded-md hover:bg-slate-50">+ 添加表名</button>
+        <template v-if="showTableInput">
+          <input
+            ref="tableInputRef"
+            v-model="newTableName"
+            @keyup.enter="confirmAddTable"
+            @keyup.escape="cancelAddTable"
+            @blur="confirmAddTable"
+            placeholder="输入表名后回车"
+            class="w-40 px-2 py-1 text-sm border border-blue-300 rounded-md focus:border-blue-600 outline-none"
+          />
+        </template>
+        <button v-else @click="startAddTable" class="px-2.5 py-1 text-xs font-medium bg-white text-slate-700 border border-dashed border-slate-200 rounded-md hover:bg-slate-50">+ 添加表名</button>
       </div>
       <p class="text-xs text-slate-400 mt-1">声明此 SQL 创建的表名，供后续输出步骤引用</p>
     </div>
 
-    <AiSuggestPanel :visible="true" :content="'检测到 SELECT 语句创建了 1 个结果集，建议 output_tables 设为 monthly_report。'" />
+    <AiSuggestPanel
+      :visible="!!store.aiSuggestions['sql']"
+      :content="store.aiSuggestions['sql']?.content || ''"
+      @accept="onAcceptSuggestion"
+      @regenerate="onRegenerateSuggestion"
+    />
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, nextTick, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import AiSuggestPanel from '../common/AiSuggestPanel.vue'
 
 const store = useWizardStore()
 const sqlValid = computed(() => store.processor.sql.trim().length > 0)
+const showTableInput = ref(false)
+const newTableName = ref('')
+const tableInputRef = ref<HTMLInputElement>()
 
-function addTable() {
-  const name = prompt('表名:')
-  if (name) store.processor.outputTables.push(name)
+watch(() => store.processor.sql, (sql) => {
+  const trimmed = sql.trim()
+  if (!trimmed) {
+    delete store.aiSuggestions['sql']
+    return
+  }
+
+  const tableMatch = trimmed.match(/\bFROM\s+(\w+)/i)
+  const tableName = tableMatch ? tableMatch[1] : 'result'
+  store.setSuggestion('sql', {
+    category: 'sql',
+    status: 'pending',
+    content: `检测到 SELECT 语句创建了 1 个结果集，建议 output_tables 设为 <strong>${tableName}</strong>。`,
+    timestamp: Date.now()
+  })
+}, { immediate: true })
+
+function startAddTable() {
+  showTableInput.value = true
+  nextTick(() => tableInputRef.value?.focus())
+}
+
+function confirmAddTable() {
+  const name = newTableName.value.trim()
+  if (name && !store.processor.outputTables.includes(name)) {
+    store.processor.outputTables.push(name)
+  }
+  newTableName.value = ''
+  showTableInput.value = false
+}
+
+function cancelAddTable() {
+  newTableName.value = ''
+  showTableInput.value = false
+}
+
+function onAcceptSuggestion() {
+  const content = store.aiSuggestions['sql']?.content
+  if (!content) return
+
+  const match = content.match(/output_tables\s*(?:设为|set to|include)?\s*[：:]*\s*([a-zA-Z_]\w*)/i)
+  if (match) {
+    const name = match[1]
+    if (!store.processor.outputTables.includes(name)) {
+      store.processor.outputTables.push(name)
+    }
+  }
+  store.acceptSuggestion('sql')
+}
+
+function onRegenerateSuggestion() {
+  store.rejectSuggestion('sql')
 }
 </script>
