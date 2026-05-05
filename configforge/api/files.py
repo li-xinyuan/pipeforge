@@ -45,7 +45,7 @@ async def upload_file(file: UploadFile = File(...)):
                 recoverable=True,
             ).model_dump(),
         )
-    file_id = uuid.uuid4().hex
+    file_id = uuid.uuid4().hex + ext
     path = os.path.join(UPLOAD_DIR, file_id)
     with open(path, "wb") as f:
         f.write(content)
