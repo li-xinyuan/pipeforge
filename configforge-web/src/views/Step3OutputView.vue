@@ -6,15 +6,15 @@
       <!-- Tab bar -->
       <div class="flex border-b border-slate-200">
         <button
-          @click="activeTab = 'processor'"
-          class="flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 transition-colors"
-          :class="activeTab === 'processor' ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'"
-        >SQL 处理</button>
-        <button
           @click="activeTab = 'output'"
           class="flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 transition-colors"
           :class="activeTab === 'output' ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'"
         >输出配置</button>
+        <button
+          @click="activeTab = 'processor'"
+          class="flex-1 px-4 py-3 text-sm font-medium text-center border-b-2 transition-colors"
+          :class="activeTab === 'processor' ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'"
+        >转换/处理</button>
       </div>
 
       <!-- Tab content -->
