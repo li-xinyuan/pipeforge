@@ -16,6 +16,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import StepIndicator from '../components/common/StepIndicator.vue'
@@ -23,6 +24,8 @@ import SceneInfoForm from '../components/step1/SceneInfoForm.vue'
 
 const router = useRouter()
 const store = useWizardStore()
+
+onMounted(() => { store.currentStep = 1 })
 
 function onNext() {
   if (store.canProceed) {

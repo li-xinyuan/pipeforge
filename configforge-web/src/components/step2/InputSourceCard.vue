@@ -78,8 +78,9 @@
       >
         {{ previewLoading ? '加载中...' : previewData ? '刷新预览' : '加载列预览' }}
       </button>
+      <p v-if="error && !previewLoading" class="text-xs text-red-500 mb-2">{{ error.message }}</p>
       <ColumnPreview v-if="previewData" :columns="previewData.columns" :rows="previewData.rows" />
-      <p v-else-if="!previewLoading" class="text-xs text-slate-400 mt-2">点击上方按钮加载文件列预览</p>
+      <p v-else-if="!previewLoading && !error" class="text-xs text-slate-400 mt-2">点击上方按钮加载文件列预览</p>
     </div>
     <p v-else class="text-xs text-slate-400 mt-2">请先选择文件以加载列预览</p>
   </div>
@@ -102,7 +103,7 @@ defineEmits<{
   update: [input: InputSource]
 }>()
 
-const { fetchPreview } = useWizardApi()
+const { fetchPreview, error } = useWizardApi()
 const previewData = ref<{ columns: string[]; rows: string[][] } | null>(null)
 const previewLoading = ref(false)
 
@@ -110,7 +111,9 @@ async function loadPreview() {
   if (!props.input.fileId) return
   previewLoading.value = true
   const data = await fetchPreview(props.input.fileId, props.input.config.sheet)
-  if (data) previewData.value = data
+  if (data) {
+    previewData.value = data
+  }
   previewLoading.value = false
 }
 </script>

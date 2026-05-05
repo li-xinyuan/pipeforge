@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import StepIndicator from '../components/common/StepIndicator.vue'
@@ -39,6 +40,8 @@ import InputSourceList from '../components/step2/InputSourceList.vue'
 
 const router = useRouter()
 const store = useWizardStore()
+
+onMounted(() => { store.currentStep = 2 })
 
 function onNext() {
   if (store.canProceed) {

@@ -38,7 +38,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import StepIndicator from '../components/common/StepIndicator.vue'
@@ -48,6 +48,8 @@ import OutputConfigTab from '../components/step3/OutputConfigTab.vue'
 const router = useRouter()
 const store = useWizardStore()
 const activeTab = ref<'processor' | 'output'>('processor')
+
+onMounted(() => { store.currentStep = 3 })
 
 function onPrev() {
   router.push('/step/2')

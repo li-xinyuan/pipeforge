@@ -20,6 +20,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import StepIndicator from '../components/common/StepIndicator.vue'
@@ -28,5 +29,8 @@ import ExportActions from '../components/step4/ExportActions.vue'
 
 const router = useRouter()
 const store = useWizardStore()
+
+onMounted(() => { store.currentStep = 4 })
+
 function refreshPreview() { /* trigger re-render */ }
 </script>
