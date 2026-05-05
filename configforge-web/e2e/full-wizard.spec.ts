@@ -130,6 +130,7 @@ async function main() {
     if (!(await sqlTab.isVisible())) throw new Error('SQL tab not visible')
     if (!(await outputTab.isVisible())) throw new Error('Output tab not visible')
 
+    await page.click('button:has-text("SQL 处理")')
     await page.fill('textarea', 'SELECT * FROM person')
     await page.close()
   })
@@ -144,6 +145,7 @@ async function main() {
     await addInputSource(page)
     await page.click('button:has-text("下一步")')
     await page.waitForURL('**/step/3')
+    await page.click('button:has-text("SQL 处理")')
     await page.fill('textarea', 'SELECT * FROM person')
     await configureOutput(page)
     await page.click('button:has-text("下一步")')
@@ -168,6 +170,7 @@ async function main() {
     await addInputSource(page)
     await page.click('button:has-text("下一步")')
     await page.waitForURL('**/step/3')
+    await page.click('button:has-text("SQL 处理")')
     await page.fill('textarea', 'SELECT 1')
     await configureOutput(page)
     await page.click('button:has-text("下一步")')

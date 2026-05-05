@@ -47,7 +47,7 @@ import OutputConfigTab from '../components/step3/OutputConfigTab.vue'
 
 const router = useRouter()
 const store = useWizardStore()
-const activeTab = ref<'processor' | 'output'>('processor')
+const activeTab = ref<'processor' | 'output'>('output')
 
 onMounted(() => { store.currentStep = 3 })
 

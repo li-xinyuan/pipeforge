@@ -35,13 +35,21 @@
 
     <!-- Excel output form -->
     <div class="space-y-4">
-      <!-- Template file select -->
+      <!-- Template file upload -->
       <div>
         <label class="block text-sm font-medium text-slate-900 mb-1">模板文件</label>
-        <select v-model="outputConfig.template" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:border-blue-600 outline-none bg-white">
-          <option value="">-- 无模板 --</option>
-          <option v-for="(f, id) in store.uploadedFiles" :key="id" :value="id">{{ f.originalName }}</option>
-        </select>
+        <template v-if="outputConfig.template && store.uploadedFiles[outputConfig.template]">
+          <div class="flex items-center gap-1">
+            <span class="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 text-xs flex-1">✓ {{ store.uploadedFiles[outputConfig.template].originalName }}</span>
+            <button @click="removeTemplate" class="text-slate-400 hover:text-red-500 p-0.5" title="移除模板">&times;</button>
+          </div>
+        </template>
+        <div v-else @click="triggerTemplateUpload" class="border-2 border-dashed border-slate-200 rounded-lg p-3 text-center cursor-pointer bg-slate-50 hover:border-blue-500 hover:bg-blue-50 transition-colors">
+          <div v-if="templateUploading" class="text-sm text-slate-500">上传中...</div>
+          <div v-else class="text-sm text-slate-400">📎 点击上传 Excel 模板</div>
+          <input type="file" ref="templateInput" class="hidden" accept=".xlsx,.xls" @change="onTemplateSelected" />
+        </div>
+        <p v-if="templateUploadError" class="text-xs text-red-500 mt-1">{{ templateUploadError }}</p>
       </div>
 
       <!-- Source table dropdown -->
@@ -87,12 +95,15 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
+import { useFileUpload } from '../../composables/useFileUpload'
 import type { ExcelOutputConfig } from '../../types/wizard'
 import ColumnMapping from './ColumnMapping.vue'
 
 const store = useWizardStore()
+const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()
+const templateInput = ref<HTMLInputElement>()
 
 const outputConfig = computed<ExcelOutputConfig>(() => {
   if (!store.output) {
@@ -100,6 +111,22 @@ const outputConfig = computed<ExcelOutputConfig>(() => {
   }
   return store.output!.config as ExcelOutputConfig
 })
+
+function triggerTemplateUpload() { templateInput.value?.click() }
+
+async function onTemplateSelected(e: Event) {
+  const files = (e.target as HTMLInputElement).files
+  if (!files || files.length === 0) return
+  const meta = await uploadTemplate(files[0])
+  if (meta) {
+    store.addFileRef(meta.fileId, meta)
+    outputConfig.value.template = meta.fileId
+  }
+}
+
+function removeTemplate() {
+  outputConfig.value.template = ''
+}
 
 function addColumn() {
   outputConfig.value.columns.push({ source: '', target: '' })

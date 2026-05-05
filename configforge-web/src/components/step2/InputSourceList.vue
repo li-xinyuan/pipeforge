@@ -5,7 +5,6 @@
       :key="idx"
       :input="input"
       :index="idx"
-      :uploaded-files="store.uploadedFiles"
       @update="(val) => store.updateInput(idx, val)"
       @remove="store.removeInput(idx)"
     />
