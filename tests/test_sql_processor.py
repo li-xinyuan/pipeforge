@@ -65,3 +65,65 @@ class TestSqlProcessorPlugin:
 
         assert db.table_exists("report_a")
         assert db.table_exists("report_b")
+
+    def test_jinja2_template_rendering(self, setup_db):
+        """SQL 中的 {{param}} 被 context.params 的值替换"""
+        db, context = setup_db
+        context.params = {"source_table": "source_tbl", "target_name": "Alice"}
+
+        config = SqlProcessorConfig(
+            sql="CREATE TABLE filtered AS "
+                "SELECT * FROM {{ source_table }} WHERE name = '{{ target_name }}'"
+        )
+        plugin = SqlProcessorPlugin()
+        plugin.name = "sql"
+        plugin.label = "模板渲染"
+        plugin.execute(context, config)
+
+        assert db.table_exists("filtered")
+        rows = db.query("SELECT * FROM filtered")
+        assert len(rows) == 1
+        assert rows[0] == ("1", "Alice")
+
+    def test_jinja2_missing_param_raises(self, setup_db):
+        """引用未定义的变量抛出 StrictUndefined 错误"""
+        db, context = setup_db
+        context.params = {}
+
+        config = SqlProcessorConfig(
+            sql="SELECT * FROM {{ undefined_var }}"
+        )
+        plugin = SqlProcessorPlugin()
+        plugin.name = "sql"
+        plugin.label = "缺失参数"
+        with pytest.raises(Exception):
+            plugin.execute(context, config)
+
+    def test_jinja2_no_variables_still_works(self, setup_db):
+        """没有 {{ }} 的 SQL 正常执行（向后兼容）"""
+        db, context = setup_db
+        context.params = {"unused": "value"}
+
+        config = SqlProcessorConfig(
+            sql="CREATE TABLE copy AS SELECT * FROM source_tbl"
+        )
+        plugin = SqlProcessorPlugin()
+        plugin.name = "sql"
+        plugin.label = "无变量"
+        plugin.execute(context, config)
+        assert db.table_exists("copy")
+
+    def test_jinja2_multiple_params_in_one_sql(self, setup_db):
+        """多个模板变量在一次渲染中全部替换"""
+        db, context = setup_db
+        context.params = {"src": "source_tbl", "dest": "multi_test", "id_val": "1"}
+
+        config = SqlProcessorConfig(
+            sql="CREATE TABLE {{ dest }} AS "
+                "SELECT * FROM {{ src }} WHERE id = '{{ id_val }}'"
+        )
+        plugin = SqlProcessorPlugin()
+        plugin.name = "sql"
+        plugin.label = "多变量"
+        plugin.execute(context, config)
+        assert db.table_exists("multi_test")
