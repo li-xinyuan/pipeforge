@@ -2,6 +2,7 @@ import os
 from fastapi import APIRouter, HTTPException
 from configforge.models.wizard import ErrorResponse, PreviewRequest
 from configforge.services.excel_reader import read_excel_info
+from configforge.services.csv_reader import read_csv_info
 
 router = APIRouter()
 UPLOAD_DIR = "tmp/uploads"
@@ -18,7 +19,13 @@ async def preview_file(req: PreviewRequest):
             ).model_dump(),
         )
     with open(path, "rb") as f:
-        info = read_excel_info(f, sheet_name=req.sheet)
+        content = f.read()
+    ext = os.path.splitext(req.file_id)[1].lower()
+    if ext == ".csv":
+        info = read_csv_info(content)
+    else:
+        import io
+        info = read_excel_info(io.BytesIO(content), sheet_name=req.sheet)
     return {
         "sheets": info["sheets"],
         "columns": info["columns"],

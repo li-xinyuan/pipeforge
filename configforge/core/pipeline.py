@@ -10,6 +10,7 @@ from configforge.models.wizard import (
     ColumnMappingItem,
 )
 from configforge.services.excel_reader import read_excel_info
+from configforge.services.csv_reader import read_csv_info
 from configforge.services.yaml_builder import build_yaml
 import os
 
@@ -27,7 +28,12 @@ def infer_input(
 ) -> InputInferResponse:
     path = os.path.join(UPLOAD_DIR, req.file_id)
     with open(path, "rb") as f:
-        info = read_excel_info(f)
+        content = f.read()
+    if req.type == "csv":
+        info = read_csv_info(content)
+    else:
+        import io
+        info = read_excel_info(io.BytesIO(content))
     return InputInferResponse(
         columns=[
             {

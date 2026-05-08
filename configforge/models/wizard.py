@@ -13,13 +13,20 @@ class ExcelInputConfig(BaseModel):
     sheet: str = "Sheet1"
 
 
+class CsvInputConfig(BaseModel):
+    type: Literal["csv"] = "csv"
+    delimiter: str = ","
+    encoding: str = "utf-8"
+    has_header: bool = True
+
+
 class InputSource(BaseModel):
     name: str
-    plugin: Literal["excel"] = "excel"
+    plugin: Literal["excel", "csv"] = "excel"
     table: str
     param_key: str
     file_id: str
-    config: Annotated[ExcelInputConfig, Field(discriminator="type")] = Field(
+    config: Annotated[ExcelInputConfig | CsvInputConfig, Field(discriminator="type")] = Field(
         default_factory=ExcelInputConfig
     )
 
@@ -45,9 +52,19 @@ class ExcelOutputConfig(BaseModel):
     columns: list[ColumnMappingItem] = []
 
 
+class CsvOutputConfig(BaseModel):
+    type: Literal["csv"] = "csv"
+    source_table: str
+    output_dir: str = "./output/"
+    filename: str
+    delimiter: str = ","
+    encoding: str = "utf-8"
+    columns: list[ColumnMappingItem] = []
+
+
 class OutputTarget(BaseModel):
-    plugin: Literal["excel"] = "excel"
-    config: Annotated[ExcelOutputConfig, Field(discriminator="type")]
+    plugin: Literal["excel", "csv"] = "excel"
+    config: Annotated[ExcelOutputConfig | CsvOutputConfig, Field(discriminator="type")]
 
 
 class WizardState(BaseModel):
@@ -71,7 +88,7 @@ class SceneInitResponse(BaseModel):
 
 class InputInferRequest(BaseModel):
     file_id: str
-    type: str = "excel"
+    type: str = "excel"  # "excel" or "csv"
 
 
 class ColumnInfo(BaseModel):
