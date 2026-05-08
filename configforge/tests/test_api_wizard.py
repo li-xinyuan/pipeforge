@@ -80,3 +80,25 @@ async def test_generate():
         resp = await client.post("/api/wizard/generate", json={"state": state})
     assert resp.status_code == 200
     assert "yaml" in resp.json()
+
+
+@pytest.mark.anyio
+async def test_infer_input_csv():
+    """infer_input should work with type=csv on a CSV file."""
+    fid = uuid.uuid4().hex
+    os.makedirs("tmp/uploads", exist_ok=True)
+    with open(f"tmp/uploads/{fid}", "w") as f:
+        f.write("name,age\nAlice,30")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        resp = await client.post(
+            "/api/wizard/infer-input/test_csv",
+            json={"file_id": fid, "type": "csv"},
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "columns" in data
+    assert len(data["columns"]) == 2
+    assert data["columns"][0]["name"] == "name"
