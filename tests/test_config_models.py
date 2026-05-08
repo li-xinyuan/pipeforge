@@ -4,6 +4,8 @@ from pydantic import ValidationError
 from pipeforge.config.models import (
     SceneMeta,
     ExcelInputConfig,
+    CsvInputConfig,
+    CsvOutputConfig,
     InputSpec,
     SqlProcessorConfig,
     ProcessorSpec,
@@ -63,8 +65,32 @@ class TestInputSpec:
                 plugin="excel",
                 table="t",
                 param_key="p",
-                config={"type": "csv", "sheet": "s"},
+                config={"type": "json", "sheet": "s"},
             )
+
+    def test_csv_input_spec_accepted(self):
+        """CSV type is correctly routed by the discriminated union"""
+        spec = InputSpec(
+            name="test",
+            plugin="csv",
+            table="t",
+            param_key="p",
+            config=CsvInputConfig(delimiter=";"),
+        )
+        assert spec.config.type == "csv"
+        assert spec.config.delimiter == ";"
+
+    def test_csv_input_from_dict(self):
+        """CSV input config can be constructed from a dict"""
+        spec = InputSpec(
+            name="test",
+            plugin="csv",
+            table="t",
+            param_key="p",
+            config={"type": "csv", "delimiter": "\t", "encoding": "gbk"},
+        )
+        assert spec.config.delimiter == "\t"
+        assert spec.config.encoding == "gbk"
 
 
 
@@ -168,3 +194,47 @@ class TestSceneConfig:
             columns=[ColumnMapping(source="a", target="b")],
         )
         assert cfg.type == "excel"
+
+
+class TestCsvInputConfig:
+    def test_type_defaults_to_csv(self):
+        cfg = CsvInputConfig()
+        assert cfg.type == "csv"
+
+    def test_default_values(self):
+        cfg = CsvInputConfig()
+        assert cfg.delimiter == ","
+        assert cfg.encoding == "utf-8"
+        assert cfg.has_header is True
+
+    def test_custom_delimiter(self):
+        cfg = CsvInputConfig(delimiter=";")
+        assert cfg.delimiter == ";"
+
+    def test_custom_encoding(self):
+        cfg = CsvInputConfig(encoding="gbk")
+        assert cfg.encoding == "gbk"
+
+    def test_no_header(self):
+        cfg = CsvInputConfig(has_header=False)
+        assert cfg.has_header is False
+
+
+class TestCsvOutputConfig:
+    def test_type_defaults_to_csv(self):
+        cfg = CsvOutputConfig(
+            source_table="t",
+            columns=[ColumnMapping(source="a", target="b")],
+        )
+        assert cfg.type == "csv"
+
+    def test_default_delimiter(self):
+        cfg = CsvOutputConfig(
+            source_table="t",
+            columns=[ColumnMapping(source="a", target="b")],
+        )
+        assert cfg.delimiter == ","
+
+    def test_empty_columns_raises(self):
+        with pytest.raises(ValidationError):
+            CsvOutputConfig(source_table="t", columns=[])

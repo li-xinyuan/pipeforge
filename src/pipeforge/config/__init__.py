@@ -34,18 +34,18 @@ def _inject_type_defaults(raw: dict) -> None:
     for inp in raw.get("inputs", []):
         cfg = inp.get("config")
         if isinstance(cfg, dict) and "type" not in cfg:
-            cfg["type"] = "excel"
+            cfg["type"] = inp.get("plugin", "excel")
 
     for proc in raw.get("processors", []):
         cfg = proc.get("config")
         if isinstance(cfg, dict) and "type" not in cfg:
-            cfg["type"] = "sql"
+            cfg["type"] = proc.get("plugin", "sql")
 
     output = raw.get("output")
     if isinstance(output, dict):
         cfg = output.get("config")
         if isinstance(cfg, dict) and "type" not in cfg:
-            cfg["type"] = "excel"
+            cfg["type"] = output.get("plugin", "excel")
 
 
 def _validate_table_names(config: SceneConfig) -> None:

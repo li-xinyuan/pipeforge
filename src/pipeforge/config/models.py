@@ -19,6 +19,16 @@ class ExcelInputConfig(BaseModel):
     sheet: str = "Sheet1"
 
 
+class CsvInputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["csv"] = "csv"
+    file: str | None = None
+    delimiter: str = ","
+    encoding: str = "utf-8"
+    has_header: bool = True
+
+
 class InputSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -26,7 +36,7 @@ class InputSpec(BaseModel):
     plugin: str
     table: str
     param_key: str
-    config: Annotated[ExcelInputConfig, Field(discriminator="type")]
+    config: Annotated[ExcelInputConfig | CsvInputConfig, Field(discriminator="type")]
 
 
 class SqlProcessorConfig(BaseModel):
@@ -87,11 +97,32 @@ class ExcelOutputConfig(BaseModel):
         return v
 
 
+class CsvOutputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["csv"] = "csv"
+    source_table: str
+    output_dir: str = "./output/"
+    filename: str | None = None
+    delimiter: str = ","
+    encoding: str = "utf-8"
+    columns: list[ColumnMapping]
+
+    @field_validator("columns")
+    @classmethod
+    def columns_not_empty(cls, v: list[ColumnMapping]) -> list[ColumnMapping]:
+        if len(v) == 0:
+            raise ValueError(
+                "columns must not be empty — at least one column mapping is required"
+            )
+        return v
+
+
 class OutputSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     plugin: str
-    config: Annotated[ExcelOutputConfig, Field(discriminator="type")]
+    config: Annotated[ExcelOutputConfig | CsvOutputConfig, Field(discriminator="type")]
 
 
 class SceneConfig(BaseModel):
