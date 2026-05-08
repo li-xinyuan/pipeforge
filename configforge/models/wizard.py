@@ -105,6 +105,11 @@ class ColumnPreview(BaseModel):
     rows: list[list[str]]
 
 
+class PreviewRequest(BaseModel):
+    file_id: str
+    sheet: Optional[str] = None
+
+
 class FileUploadResponse(BaseModel):
     file_id: str
     original_name: str

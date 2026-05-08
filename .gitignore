@@ -20,6 +20,9 @@ demo/output/
 .DS_Store
 Thumbs.db
 
+# Demo screenshots
+demo/screenshots/
+
 # Worktrees
 .worktrees/
 

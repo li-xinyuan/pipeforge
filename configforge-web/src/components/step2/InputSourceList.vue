@@ -46,6 +46,10 @@
           <span class="text-sm font-semibold">API</span>
         </div>
       </div>
+      <button
+        @click="showAddSelector = false"
+        class="mt-2 w-full text-center text-sm text-slate-400 hover:text-slate-600 transition-colors py-1"
+      >取消</button>
     </template>
 
     <button

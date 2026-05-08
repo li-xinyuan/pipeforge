@@ -98,19 +98,16 @@
 import { computed, ref } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
+import { useWizardApi } from '../../composables/useWizardApi'
 import type { ExcelOutputConfig } from '../../types/wizard'
 import ColumnMapping from './ColumnMapping.vue'
 
 const store = useWizardStore()
+const { fetchPreview } = useWizardApi()
 const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()
 const templateInput = ref<HTMLInputElement>()
 
-const outputConfig = computed<ExcelOutputConfig>(() => {
-  if (!store.output) {
-    store.setOutput({ plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: 'output.xlsx', columns: [] } })
-  }
-  return store.output!.config as ExcelOutputConfig
-})
+const outputConfig = computed<ExcelOutputConfig>(() => store.output.config as ExcelOutputConfig)
 
 function triggerTemplateUpload() { templateInput.value?.click() }
 
@@ -121,11 +118,29 @@ async function onTemplateSelected(e: Event) {
   if (meta) {
     store.addFileRef(meta.fileId, meta)
     outputConfig.value.template = meta.fileId
+
+    // 解析模板文件列名，自动填充列映射
+    const preview = await fetchPreview(meta.fileId)
+    if (preview && preview.columns.length > 0) {
+      // 收集所有数据源的列名
+      const sourceCols: string[] = []
+      for (const input of store.inputs) {
+        if (input.fileId) {
+          const src = await fetchPreview(input.fileId)
+          if (src) sourceCols.push(...src.columns)
+        }
+      }
+      outputConfig.value.columns = preview.columns.map(col => ({
+        source: sourceCols.includes(col) ? col : '',
+        target: col
+      }))
+    }
   }
 }
 
 function removeTemplate() {
   outputConfig.value.template = ''
+  outputConfig.value.columns = []
 }
 
 function addColumn() {

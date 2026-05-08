@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
@@ -10,8 +11,25 @@ router = APIRouter()
 ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
 UPLOAD_DIR = "tmp/uploads"
+MAX_FILE_AGE_SECONDS = 24 * 60 * 60
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def cleanup_old_files() -> int:
+    now = time.time()
+    removed = 0
+    for name in os.listdir(UPLOAD_DIR):
+        path = os.path.join(UPLOAD_DIR, name)
+        if not os.path.isfile(path):
+            continue
+        if now - os.path.getmtime(path) > MAX_FILE_AGE_SECONDS:
+            os.remove(path)
+            removed += 1
+    return removed
+
+
+cleanup_old_files()
 
 
 @router.post("/upload", response_model=FileUploadResponse)

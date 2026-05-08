@@ -1,6 +1,12 @@
 <template>
   <div class="max-w-3xl mx-auto px-4 py-8">
     <StepIndicator :current-step="1" />
+
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-slate-900 mb-1">场景信息</h2>
+      <p class="text-sm text-slate-500">填写场景的基本信息，名称用于标识流水线配置，版本和描述便于后续管理。</p>
+    </div>
+
     <SceneInfoForm />
     <div class="flex justify-between items-center pt-6 border-t border-slate-100 mt-6">
       <router-link

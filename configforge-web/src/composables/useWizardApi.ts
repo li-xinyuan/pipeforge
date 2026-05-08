@@ -23,5 +23,9 @@ export function useWizardApi() {
     return post<{ sheets: string[]; columns: string[]; rows: string[][] }>('/api/preview/file', { file_id: fileId, sheet })
   }
 
-  return { loading, error, initScene, fetchPreview }
+  async function generateYaml(state: any) {
+    return post<{ yaml: string }>('/api/wizard/generate', { state })
+  }
+
+  return { loading, error, initScene, fetchPreview, generateYaml }
 }

@@ -91,16 +91,14 @@ async function main() {
     await page.waitForTimeout(300)
   }
 
-  // Helper: configure output on step 3 (required before "下一步" is enabled)
+  // Helper: configure output on step 4 (required before "下一步" is enabled)
   async function configureOutput(page: any) {
-    await page.click('button:has-text("输出配置")')
-    await page.waitForTimeout(300)
-    // Click "+ 添加列" to add a column mapping
+    await page.waitForURL('**/step/4')
     await page.click('button:has-text("+ 添加列")')
     await page.waitForTimeout(300)
   }
 
-  // Test 6: Back navigation step 2 -> step 1 (back is <router-link> rendered as <a>)
+  // Test 6: Back navigation step 2 -> step 1
   await test('step 2 back to step 1', async () => {
     const page = await newPage()
     await page.goto(`${BASE}/step/1`, { waitUntil: 'networkidle' })
@@ -114,8 +112,8 @@ async function main() {
     await page.close()
   })
 
-  // Test 7: Navigate to Step 3, verify tab layout
-  await test('step 3 tab layout and SQL input', async () => {
+  // Test 7: Navigate to Step 3, fill SQL directly (no tabs)
+  await test('step 3 SQL input', async () => {
     const page = await newPage()
     await page.goto(`${BASE}/step/1`, { waitUntil: 'networkidle' })
     await page.fill('#scene-name', '测试')
@@ -125,18 +123,15 @@ async function main() {
     await page.click('button:has-text("下一步")')
     await page.waitForURL('**/step/3')
 
-    const sqlTab = page.getByText('转换/处理').first()
-    const outputTab = page.getByText('输出配置').first()
-    if (!(await sqlTab.isVisible())) throw new Error('SQL tab not visible')
-    if (!(await outputTab.isVisible())) throw new Error('Output tab not visible')
+    const heading = page.locator('text=数据转换/处理').first()
+    if (!(await heading.isVisible())) throw new Error('Process step heading not visible')
 
-    await page.click('button:has-text("转换/处理")')
     await page.fill('textarea', 'SELECT * FROM person')
     await page.close()
   })
 
-  // Test 8: Complete flow to Step 4, verify YAML preview
-  await test('full flow to step 4 with YAML preview', async () => {
+  // Test 8: Complete flow to Step 5, verify YAML preview
+  await test('full flow to step 5 with YAML preview', async () => {
     const page = await newPage()
     await page.goto(`${BASE}/step/1`, { waitUntil: 'networkidle' })
     await page.fill('#scene-name', '测试场景')
@@ -145,11 +140,12 @@ async function main() {
     await addInputSource(page)
     await page.click('button:has-text("下一步")')
     await page.waitForURL('**/step/3')
-    await page.click('button:has-text("转换/处理")')
     await page.fill('textarea', 'SELECT * FROM person')
-    await configureOutput(page)
     await page.click('button:has-text("下一步")')
     await page.waitForURL('**/step/4')
+    await configureOutput(page)
+    await page.click('button:has-text("下一步")')
+    await page.waitForURL('**/step/5')
 
     const yamlBlock = page.locator('pre')
     await yamlBlock.waitFor({ state: 'visible', timeout: 5000 })
@@ -170,11 +166,12 @@ async function main() {
     await addInputSource(page)
     await page.click('button:has-text("下一步")')
     await page.waitForURL('**/step/3')
-    await page.click('button:has-text("转换/处理")')
     await page.fill('textarea', 'SELECT 1')
-    await configureOutput(page)
     await page.click('button:has-text("下一步")')
     await page.waitForURL('**/step/4')
+    await configureOutput(page)
+    await page.click('button:has-text("下一步")')
+    await page.waitForURL('**/step/5')
     await page.click('a:has-text("完成")')
     await page.waitForURL(BASE + '/')
     await page.close()

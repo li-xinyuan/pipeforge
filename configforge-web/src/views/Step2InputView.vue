@@ -4,7 +4,7 @@
 
     <div class="mb-6">
       <h2 class="text-lg font-semibold text-slate-900 mb-1">数据源配置</h2>
-      <p class="text-sm text-slate-500">配置数据输入源，选择 Excel 文件并指定工作表和列映射。</p>
+      <p class="text-sm text-slate-500">点击「添加输入源」选择 Excel 文件，上传后自动解析工作表和列信息，确认表名和参数键即可。</p>
     </div>
 
     <InputSourceList />

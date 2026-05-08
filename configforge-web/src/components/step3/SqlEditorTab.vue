@@ -65,6 +65,7 @@
 import { computed, ref, nextTick, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import AiSuggestPanel from '../common/AiSuggestPanel.vue'
+import { inferOutputTable } from '../../utils/sql'
 
 const store = useWizardStore()
 const sqlValid = computed(() => store.processor.sql.trim().length > 0)
@@ -79,12 +80,14 @@ watch(() => store.processor.sql, (sql) => {
     return
   }
 
-  const tableMatch = trimmed.match(/\bFROM\s+(\w+)/i)
-  const tableName = tableMatch ? tableMatch[1] : 'result'
+  const tableName = inferOutputTable(trimmed)
+  if (!store.processor.outputTables.includes(tableName)) {
+    store.processor.outputTables.push(tableName)
+  }
   store.setSuggestion('sql', {
     category: 'sql',
-    status: 'pending',
-    content: `检测到 SELECT 语句创建了 1 个结果集，建议 output_tables 设为 <strong>${tableName}</strong>。`,
+    status: 'accepted',
+    content: `已自动推断输出表名: <strong>${tableName}</strong>。`,
     timestamp: Date.now()
   })
 }, { immediate: true })

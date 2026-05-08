@@ -1,43 +1,70 @@
 <template>
   <div class="bg-slate-800 rounded-lg p-5 overflow-x-auto font-mono text-sm leading-relaxed">
-    <pre class="text-slate-200"><span class="text-slate-500"># {{ store.scene.name }} v{{ store.scene.version }}</span>
-<span class="text-blue-300">scene</span>:
-  <span class="text-blue-300">name</span>: <span class="text-green-300">{{ store.scene.name }}</span>
-  <span class="text-blue-300">version</span>: <span class="text-green-300">"{{ store.scene.version }}"</span>
-  <span class="text-blue-300">description</span>: <span class="text-green-300">{{ store.scene.description }}</span>
-
-<span class="text-blue-300">inputs</span>:
-<span v-for="(inp, i) in store.inputs" :key="i">  - <span class="text-blue-300">name</span>: <span class="text-green-300">{{ inp.name }}</span>
-    <span class="text-blue-300">plugin</span>: <span class="text-green-300">{{ inp.plugin }}</span>
-    <span class="text-blue-300">table</span>: <span class="text-green-300">{{ inp.table }}</span>
-    <span class="text-blue-300">param_key</span>: <span class="text-green-300">{{ inp.paramKey }}</span>
-    <span class="text-blue-300">config</span>:
-      <span class="text-blue-300">sheet</span>: <span class="text-green-300">{{ inp.config.sheet }}</span>
-</span>
-<span class="text-blue-300">processors</span>:
-  - <span class="text-blue-300">name</span>: <span class="text-green-300">{{ store.scene.name }}处理</span>
-    <span class="text-blue-300">plugin</span>: <span class="text-green-300">sql</span>
-    <span class="text-blue-300">output_tables</span>:
-      - <span class="text-green-300">{{ store.processor.outputTables.join(', ') }}</span>
-    <span class="text-blue-300">config</span>:
-      <span class="text-blue-300">sql</span>: <span class="text-green-300">|</span>
-<span class="text-green-300">        {{ store.processor.sql }}</span>
-
-<span class="text-blue-300">output</span>:
-  <span class="text-blue-300">plugin</span>: <span class="text-green-300">excel</span>
-  <span class="text-blue-300">config</span>:
-    <span class="text-blue-300">template</span>: <span class="text-green-300">templates/{{ store.scene.name }}_template.xlsx</span>
-    <span class="text-blue-300">source_table</span>: <span class="text-green-300">{{ store.output?.config.sourceTable }}</span>
-    <span class="text-blue-300">sheet</span>: <span class="text-green-300">{{ store.output?.config.sheet }}</span>
-    <span class="text-blue-300">output_dir</span>: <span class="text-green-300">{{ store.output?.config.outputDir }}</span>
-    <span class="text-blue-300">filename</span>: <span class="text-green-300">{{ store.output?.config.filename }}</span>
-    <span class="text-blue-300">columns</span>:
-      <span v-for="c in store.output?.config.columns" :key="c.source">  - <span class="text-blue-300">source</span>: <span class="text-green-300">{{ c.source }}</span>
-          <span class="text-blue-300">target</span>: <span class="text-green-300">{{ c.target }}</span>
-      </span></pre>
+    <pre v-if="yamlText" class="text-slate-200"><code>{{ yamlText }}</code></pre>
+    <p v-else-if="loading" class="text-slate-400">生成中...</p>
+    <p v-else-if="apiError" class="text-red-400">{{ apiError }}</p>
   </div>
 </template>
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
+import { useWizardApi } from '../../composables/useWizardApi'
+
 const store = useWizardStore()
+const { generateYaml } = useWizardApi()
+const yamlText = ref('')
+const loading = ref(false)
+const apiError = ref('')
+
+async function loadYaml() {
+  loading.value = true
+  apiError.value = ''
+
+  const state = {
+    current_step: store.currentStep,
+    scene: {
+      name: store.scene.name,
+      description: store.scene.description,
+      version: store.scene.version,
+    },
+    inputs: store.inputs.map(inp => ({
+      name: inp.name,
+      plugin: inp.plugin,
+      table: inp.table,
+      param_key: inp.paramKey,
+      file_id: inp.fileId,
+      config: { type: inp.config.type, sheet: inp.config.sheet },
+    })),
+    processor: {
+      plugin: store.processor.plugin,
+      sql: store.processor.sql,
+      output_tables: store.processor.outputTables,
+    },
+    output: store.output ? {
+      plugin: store.output.plugin,
+      config: {
+        type: store.output.config.type,
+        template: store.output.config.template,
+        sheet: store.output.config.sheet,
+        output_dir: store.output.config.outputDir,
+        source_table: store.output.config.sourceTable,
+        filename: store.output.config.filename,
+        columns: store.output.config.columns.map(c => ({ source: c.source, target: c.target })),
+      },
+    } : null,
+    uploaded_files: {},
+  }
+
+  const data = await generateYaml(state)
+  if (data) {
+    yamlText.value = data.yaml
+  } else {
+    apiError.value = '无法生成 YAML'
+  }
+  loading.value = false
+}
+
+onMounted(loadYaml)
+
+defineExpose({ loadYaml })
 </script>

@@ -1,6 +1,6 @@
 import os
 from fastapi import APIRouter, HTTPException
-from configforge.models.wizard import ErrorResponse
+from configforge.models.wizard import ErrorResponse, PreviewRequest
 from configforge.services.excel_reader import read_excel_info
 
 router = APIRouter()
@@ -8,9 +8,8 @@ UPLOAD_DIR = "tmp/uploads"
 
 
 @router.post("/file")
-async def preview_file(req: dict):
-    file_id = req.get("file_id", "")
-    path = os.path.join(UPLOAD_DIR, file_id)
+async def preview_file(req: PreviewRequest):
+    path = os.path.join(UPLOAD_DIR, req.file_id)
     if not os.path.exists(path):
         raise HTTPException(
             status_code=404,
@@ -18,7 +17,8 @@ async def preview_file(req: dict):
                 error="File not found", code="FILE_NOT_FOUND", recoverable=True
             ).model_dump(),
         )
-    info = read_excel_info(path, sheet_name=req.get("sheet"))
+    with open(path, "rb") as f:
+        info = read_excel_info(f, sheet_name=req.sheet)
     return {
         "sheets": info["sheets"],
         "columns": info["columns"],

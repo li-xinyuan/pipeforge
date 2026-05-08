@@ -84,23 +84,29 @@
 
     <!-- Column preview -->
     <div v-if="input.fileId">
-      <button
-        @click="loadPreview"
-        :disabled="previewLoading"
-        class="text-xs text-blue-600 hover:text-blue-700 font-medium mb-2 disabled:opacity-50"
-      >
-        {{ previewLoading ? '加载中...' : previewData ? '刷新预览' : '加载列预览' }}
-      </button>
+      <div class="flex items-center gap-2 mb-2">
+        <button
+          v-if="!previewData"
+          @click="loadPreview"
+          :disabled="previewLoading"
+          class="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+        >{{ previewLoading ? '加载中...' : '加载列预览' }}</button>
+        <template v-else>
+          <button
+            @click="previewVisible = !previewVisible"
+            class="text-xs text-blue-600 hover:text-blue-700 font-medium"
+          >{{ previewVisible ? '收起预览' : '展开预览' }}</button>
+        </template>
+      </div>
       <p v-if="error && !previewLoading" class="text-xs text-red-500 mb-2">{{ error.message }}</p>
-      <ColumnPreview v-if="previewData" :columns="previewData.columns" :rows="previewData.rows" />
-      <p v-else-if="!previewLoading && !error" class="text-xs text-slate-400 mt-2">点击上方按钮加载文件列预览</p>
+      <ColumnPreview v-if="previewData && previewVisible" :columns="previewData.columns" :rows="previewData.rows" />
     </div>
     <p v-else class="text-xs text-slate-400 mt-2">请先上传文件以加载列预览</p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import type { InputSource } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
@@ -122,9 +128,21 @@ const { fetchPreview, error } = useWizardApi()
 const { uploading, error: uploadError, upload } = useFileUpload()
 const fileInput = ref<HTMLInputElement>()
 const previewData = ref<{ columns: string[]; rows: string[][] } | null>(null)
+const previewVisible = ref(false)
 const previewLoading = ref(false)
 const sheetNames = ref<string[]>([])
 let tableSeq = 0
+
+onMounted(async () => {
+  if (props.input.fileId) {
+    const data = await fetchPreview(props.input.fileId)
+    if (data) sheetNames.value = data.sheets
+  }
+})
+
+watch(() => props.input.config.sheet, () => {
+  if (previewVisible.value) loadPreview()
+})
 
 function generateTableName(originalName: string): string {
   const base = originalName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9一-鿿_]/g, '_')
@@ -158,6 +176,8 @@ async function onFileSelected(e: Event) {
 
 function removeFile() {
   sheetNames.value = []
+  previewData.value = null
+  previewVisible.value = false
   emit('update', { ...props.input, fileId: '', config: { ...props.input.config, sheet: '' }, table: '' })
 }
 
@@ -167,6 +187,7 @@ async function loadPreview() {
   const data = await fetchPreview(props.input.fileId, props.input.config.sheet)
   if (data) {
     previewData.value = data
+    previewVisible.value = true
   }
   previewLoading.value = false
 }

@@ -1,7 +1,5 @@
 <template>
   <div class="bg-white border border-slate-200 rounded-lg p-6">
-    <h2 class="text-base font-semibold mb-5">场景信息</h2>
-    <p class="text-xs text-slate-400 mb-4" style="margin-top:-12px">定义流水线的基本信息，后续步骤中可添加数据源、配置处理逻辑和输出格式</p>
     <div class="grid grid-cols-2 gap-4 mb-4">
       <div>
         <label for="scene-name" class="block text-sm font-medium text-slate-900 mb-1">场景名称</label>
