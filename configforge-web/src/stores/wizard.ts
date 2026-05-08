@@ -32,7 +32,20 @@ export const useWizardStore = defineStore('wizard', () => {
   function nextStep() { if (canProceed.value && currentStep.value < 5) currentStep.value++ }
   function prevStep() { if (currentStep.value > 1) currentStep.value-- }
   function goToStep(n: number) { if (n >= 1 && n <= currentStep.value && n <= 5) currentStep.value = n }
-  function addInput(input: InputSource) { inputs.value.push(input) }
+  function addInput(plugin: 'excel' | 'csv' = 'excel') {
+    const config = plugin === 'csv'
+      ? { type: 'csv' as const, delimiter: ',', encoding: 'utf-8', hasHeader: true }
+      : { type: 'excel' as const, sheet: '' }
+
+    inputs.value.push({
+      name: '',
+      plugin,
+      table: '',
+      paramKey: '',
+      fileId: '',
+      config,
+    } as InputSource)
+  }
   function removeInput(index: number) { inputs.value.splice(index, 1) }
   function updateInput(index: number, input: InputSource) { inputs.value[index] = input }
   function setProcessor(p: ProcessorConfig) { processor.value = p }

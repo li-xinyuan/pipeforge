@@ -21,13 +21,20 @@ export interface ExcelInputConfig {
   sheet: string
 }
 
+export interface CsvInputConfig {
+  type: 'csv'
+  delimiter: string
+  encoding: string
+  hasHeader: boolean
+}
+
 export interface InputSource {
   name: string
-  plugin: 'excel'
+  plugin: 'excel' | 'csv'
   table: string
   paramKey: string
   fileId: string
-  config: ExcelInputConfig
+  config: ExcelInputConfig | CsvInputConfig
 }
 
 export interface ProcessorConfig {
@@ -51,9 +58,19 @@ export interface ExcelOutputConfig {
   columns: ColumnMappingItem[]
 }
 
+export interface CsvOutputConfig {
+  type: 'csv'
+  sourceTable: string
+  outputDir: string
+  filename: string
+  delimiter: string
+  encoding: string
+  columns: ColumnMappingItem[]
+}
+
 export interface OutputTarget {
-  plugin: 'excel'
-  config: ExcelOutputConfig
+  plugin: 'excel' | 'csv'
+  config: ExcelOutputConfig | CsvOutputConfig
 }
 
 export interface WizardState {
