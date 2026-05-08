@@ -1,3 +1,4 @@
+from pipeforge.plugins.input.csv import CsvInputPlugin  # noqa: F401
 from pipeforge.plugins.input.excel import ExcelInputPlugin
 
-__all__ = ["ExcelInputPlugin"]
+__all__ = ["CsvInputPlugin", "ExcelInputPlugin"]
