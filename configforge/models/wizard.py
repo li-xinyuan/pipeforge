@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional, Literal, Annotated
 
 
 class SceneInfo(BaseModel):
@@ -19,7 +19,9 @@ class InputSource(BaseModel):
     table: str
     param_key: str
     file_id: str
-    config: ExcelInputConfig = Field(default_factory=ExcelInputConfig)
+    config: Annotated[ExcelInputConfig, Field(discriminator="type")] = Field(
+        default_factory=ExcelInputConfig
+    )
 
 
 class ProcessorConfig(BaseModel):
@@ -45,7 +47,7 @@ class ExcelOutputConfig(BaseModel):
 
 class OutputTarget(BaseModel):
     plugin: Literal["excel"] = "excel"
-    config: ExcelOutputConfig
+    config: Annotated[ExcelOutputConfig, Field(discriminator="type")]
 
 
 class WizardState(BaseModel):
