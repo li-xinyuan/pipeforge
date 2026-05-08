@@ -1,6 +1,7 @@
 import tempfile
 import os
 import copy
+import csv as csv_module
 
 import pytest
 from openpyxl import Workbook
@@ -68,3 +69,18 @@ def template_xlsx():
     wb.save(path)
     yield path
     os.unlink(path)
+
+
+@pytest.fixture
+def csv_person_file():
+    """Create a temporary CSV file with person data."""
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".csv", delete=False, encoding="utf-8", newline=""
+    )
+    writer = csv_module.writer(tmp)
+    writer.writerow(["姓名", "部门", "工号"])
+    writer.writerow(["张三", "技术部", "001"])
+    writer.writerow(["李四", "市场部", "002"])
+    tmp.close()
+    yield tmp.name
+    os.unlink(tmp.name)

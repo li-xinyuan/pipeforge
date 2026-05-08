@@ -1,5 +1,6 @@
 import tempfile
 import os
+import csv as csv_module
 
 import pytest
 
@@ -273,3 +274,114 @@ output:
             for f in os.listdir(output_dir):
                 os.unlink(os.path.join(output_dir, f))
             os.rmdir(output_dir)
+
+
+class TestCsvInputPipeline:
+    """CSV input -> SQL processor -> verify data loaded."""
+
+    def test_csv_input_loads_data(self, csv_person_file):
+        output_dir = tempfile.mkdtemp()
+        fd, yaml_path = tempfile.mkstemp(suffix=".yaml")
+        os.close(fd)
+        yaml_content = f"""scene:
+  name: CSV场景
+  description: CSV输入测试
+  version: "1.0"
+
+inputs:
+  - name: csv_data
+    plugin: csv
+    table: csv_data
+    param_key: csv_file
+    config:
+      type: csv
+      delimiter: ","
+
+processors:
+  - name: process
+    plugin: sql
+    output_tables:
+      - result
+    config:
+      type: sql
+      sql: CREATE TABLE result AS SELECT * FROM csv_data WHERE 工号 = '001'
+"""
+        try:
+            _write_yaml(yaml_content, yaml_path)
+            engine = PipelineEngine(yaml_path)
+            result = engine.execute(params={"csv_file": csv_person_file})
+
+            assert result.inputs["csv_data"].rows_loaded == 2
+            assert len(result.processors) == 1
+        finally:
+            os.unlink(yaml_path)
+            import shutil
+            shutil.rmtree(output_dir, ignore_errors=True)
+
+
+class TestCsvOutputPipeline:
+    """Input -> SQL -> CSV output."""
+
+    def test_pipeline_to_csv_output(self, sample_xlsx):
+        output_dir = tempfile.mkdtemp()
+        fd, yaml_path = tempfile.mkstemp(suffix=".yaml")
+        os.close(fd)
+        yaml_content = f"""scene:
+  name: CSV输出测试
+  description: 输出CSV格式
+  version: "1.0"
+
+inputs:
+  - name: people
+    plugin: excel
+    table: person
+    param_key: person_file
+    config:
+      type: excel
+      sheet: 人员列表
+
+processors:
+  - name: process
+    plugin: sql
+    output_tables:
+      - result
+    config:
+      type: sql
+      sql: CREATE TABLE result AS SELECT * FROM person
+
+output:
+  plugin: csv
+  config:
+    type: csv
+    source_table: result
+    output_dir: "{output_dir}"
+    filename: output.csv
+    columns:
+      - source: 姓名
+        target: 姓名
+      - source: 部门
+        target: 部门
+      - source: 工号
+        target: 工号
+"""
+        try:
+            _write_yaml(yaml_content, yaml_path)
+            engine = PipelineEngine(yaml_path)
+            result = engine.execute(params={"person_file": sample_xlsx})
+
+            assert result.inputs["people"].rows_loaded > 0
+            assert result.output.rows_written > 0
+
+            # Verify CSV output exists and has correct content
+            csv_path = os.path.join(output_dir, "output.csv")
+            assert os.path.exists(csv_path)
+
+            with open(csv_path, "r", encoding="utf-8", newline="") as f:
+                reader = csv_module.reader(f)
+                rows = list(reader)
+                assert rows[0] == ["姓名", "部门", "工号"]
+                assert len(rows) > 1  # At least one data row
+        finally:
+            os.unlink(yaml_path)
+            import shutil
+            shutil.rmtree(output_dir, ignore_errors=True)
