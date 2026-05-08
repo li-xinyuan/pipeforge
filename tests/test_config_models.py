@@ -50,6 +50,23 @@ class TestInputSpec:
         )
         assert spec.plugin == "nonexistent"
 
+    def test_type_field_defaults_to_excel(self):
+        """ExcelInputConfig 的 type 字段默认为 'excel'"""
+        cfg = ExcelInputConfig(sheet="Sheet1")
+        assert cfg.type == "excel"
+
+    def test_config_rejects_wrong_type(self):
+        """discriminator 拒绝不匹配的 type 值"""
+        with pytest.raises(ValidationError):
+            InputSpec(
+                name="test",
+                plugin="excel",
+                table="t",
+                param_key="p",
+                config={"type": "csv", "sheet": "s"},
+            )
+
+
 
 class TestProcessorSpec:
     def test_valid_processor_spec(self):
@@ -69,6 +86,10 @@ class TestProcessorSpec:
             config=SqlProcessorConfig(sql="SELECT 1"),
         )
         assert spec.output_tables == []
+
+    def test_processor_config_type_defaults_to_sql(self):
+        cfg = SqlProcessorConfig(sql="SELECT 1")
+        assert cfg.type == "sql"
 
 
 class TestColumnMapping:
@@ -139,3 +160,11 @@ class TestSceneConfig:
                 source_table="t",
                 columns=[],
             )
+
+    def test_output_config_type_defaults_to_excel(self):
+        cfg = ExcelOutputConfig(
+            template="t.xlsx",
+            source_table="t",
+            columns=[ColumnMapping(source="a", target="b")],
+        )
+        assert cfg.type == "excel"

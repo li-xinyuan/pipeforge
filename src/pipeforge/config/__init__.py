@@ -18,6 +18,8 @@ def load_yaml_config(yaml_path: str) -> SceneConfig:
     if raw is None:
         raise ConfigError(f"Configuration file is empty: {yaml_path}")
 
+    _inject_type_defaults(raw)
+
     config = SceneConfig(**raw)
 
     _validate_table_names(config)
@@ -25,6 +27,25 @@ def load_yaml_config(yaml_path: str) -> SceneConfig:
     _validate_source_table(config)
 
     return config
+
+
+def _inject_type_defaults(raw: dict) -> None:
+    """向后兼容：为不含 type 字段的 config dict 注入默认 type 值。"""
+    for inp in raw.get("inputs", []):
+        cfg = inp.get("config")
+        if isinstance(cfg, dict) and "type" not in cfg:
+            cfg["type"] = "excel"
+
+    for proc in raw.get("processors", []):
+        cfg = proc.get("config")
+        if isinstance(cfg, dict) and "type" not in cfg:
+            cfg["type"] = "sql"
+
+    output = raw.get("output")
+    if isinstance(output, dict):
+        cfg = output.get("config")
+        if isinstance(cfg, dict) and "type" not in cfg:
+            cfg["type"] = "excel"
 
 
 def _validate_table_names(config: SceneConfig) -> None:

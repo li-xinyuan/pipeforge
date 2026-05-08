@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict, field_validator
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class SceneMeta(BaseModel):
@@ -12,6 +14,7 @@ class SceneMeta(BaseModel):
 class ExcelInputConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    type: Literal["excel"] = "excel"
     file: str | None = None
     sheet: str = "Sheet1"
 
@@ -23,12 +26,13 @@ class InputSpec(BaseModel):
     plugin: str
     table: str
     param_key: str
-    config: ExcelInputConfig
+    config: Annotated[ExcelInputConfig, Field(discriminator="type")]
 
 
 class SqlProcessorConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    type: Literal["sql"] = "sql"
     sql: str
 
     @field_validator("sql")
@@ -45,7 +49,7 @@ class ProcessorSpec(BaseModel):
     name: str
     plugin: str
     output_tables: list[str] = []
-    config: SqlProcessorConfig
+    config: Annotated[SqlProcessorConfig, Field(discriminator="type")]
 
 
 class ColumnMapping(BaseModel):
@@ -65,6 +69,7 @@ class ColumnMapping(BaseModel):
 class ExcelOutputConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    type: Literal["excel"] = "excel"
     template: str
     sheet: str = "Sheet1"
     output_dir: str = "./output/"
@@ -86,7 +91,7 @@ class OutputSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     plugin: str
-    config: ExcelOutputConfig
+    config: Annotated[ExcelOutputConfig, Field(discriminator="type")]
 
 
 class SceneConfig(BaseModel):
