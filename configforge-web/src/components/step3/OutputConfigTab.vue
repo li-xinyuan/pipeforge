@@ -2,12 +2,27 @@
   <div>
     <!-- Output type selector -->
     <div class="grid grid-cols-3 gap-3 mb-5">
-      <div class="p-4 border-2 border-green-600 bg-green-50 rounded-lg text-center cursor-default relative">
+      <div
+        @click="switchOutputType('excel')"
+        :class="[
+          'p-4 border-2 rounded-lg text-center cursor-pointer transition-colors relative',
+          store.output?.plugin === 'excel'
+            ? 'border-green-600 bg-green-50'
+            : 'border-2 border-dashed border-slate-200 hover:border-green-300 hover:bg-green-50'
+        ]"
+      >
         <span class="text-2xl block mb-2">📊</span>
         <span class="text-sm font-semibold">Excel</span>
       </div>
-      <div class="p-4 border-2 border-dashed border-slate-200 rounded-lg text-center opacity-55 cursor-not-allowed bg-slate-50 relative">
-        <span class="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-medium rounded-sm">v0.3</span>
+      <div
+        @click="switchOutputType('csv')"
+        :class="[
+          'p-4 border-2 rounded-lg text-center cursor-pointer transition-colors relative',
+          store.output?.plugin === 'csv'
+            ? 'border-blue-600 bg-blue-50'
+            : 'border-2 border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+        ]"
+      >
         <span class="text-2xl block mb-2">🗄</span>
         <span class="text-sm font-semibold">CSV</span>
       </div>
@@ -35,8 +50,8 @@
 
     <!-- Excel output form -->
     <div class="space-y-4">
-      <!-- Template file upload -->
-      <div>
+      <!-- Template file upload (Excel only) -->
+      <div v-if="store.output?.plugin === 'excel'">
         <label class="block text-sm font-medium text-slate-900 mb-1">模板文件</label>
         <template v-if="outputConfig.template && store.uploadedFiles[outputConfig.template]">
           <div class="flex items-center gap-1">
@@ -61,8 +76,8 @@
         </select>
       </div>
 
-      <!-- Sheet name -->
-      <div>
+      <!-- Sheet name (Excel only) -->
+      <div v-if="store.output?.plugin === 'excel'">
         <label class="block text-sm font-medium text-slate-900 mb-1">Sheet 名称</label>
         <input v-model="outputConfig.sheet" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:border-blue-600 outline-none" />
       </div>
@@ -71,6 +86,29 @@
       <div>
         <label class="block text-sm font-medium text-slate-900 mb-1">输出文件名</label>
         <input v-model="outputConfig.filename" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:border-blue-600 outline-none" />
+      </div>
+
+      <!-- Delimiter (CSV only) -->
+      <div v-if="store.output?.plugin === 'csv'">
+        <label class="block text-sm font-medium text-slate-900 mb-1">分隔符</label>
+        <input
+          :value="(store.output.config as CsvOutputConfig).delimiter"
+          @input="updateOutputConfig({ delimiter: ($event.target as HTMLInputElement).value })"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:border-blue-600 outline-none"
+        />
+      </div>
+
+      <!-- Encoding (CSV only) -->
+      <div v-if="store.output?.plugin === 'csv'">
+        <label class="block text-sm font-medium text-slate-900 mb-1">编码</label>
+        <select
+          :value="(store.output.config as CsvOutputConfig).encoding"
+          @change="updateOutputConfig({ encoding: ($event.target as HTMLSelectElement).value })"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:border-blue-600 outline-none bg-white"
+        >
+          <option value="utf-8">UTF-8</option>
+          <option value="gbk">GBK</option>
+        </select>
       </div>
 
       <!-- Output directory -->
@@ -99,7 +137,7 @@ import { computed, ref } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
 import { useWizardApi } from '../../composables/useWizardApi'
-import type { ExcelOutputConfig } from '../../types/wizard'
+import type { ExcelOutputConfig, CsvOutputConfig } from '../../types/wizard'
 import ColumnMapping from './ColumnMapping.vue'
 
 const store = useWizardStore()
@@ -107,7 +145,7 @@ const { fetchPreview } = useWizardApi()
 const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()
 const templateInput = ref<HTMLInputElement>()
 
-const outputConfig = computed<ExcelOutputConfig>(() => store.output.config as ExcelOutputConfig)
+const outputConfig = computed<ExcelOutputConfig | CsvOutputConfig>(() => store.output.config as ExcelOutputConfig | CsvOutputConfig)
 
 function triggerTemplateUpload() { templateInput.value?.click() }
 
@@ -149,5 +187,45 @@ function addColumn() {
 
 function removeColumn(index: number) {
   outputConfig.value.columns.splice(index, 1)
+}
+
+function switchOutputType(plugin: 'excel' | 'csv') {
+  if (plugin === store.output?.plugin) return
+  const common = {
+    sourceTable: outputConfig.value.sourceTable,
+    outputDir: outputConfig.value.outputDir,
+    filename: outputConfig.value.filename,
+    columns: [...outputConfig.value.columns],
+  }
+  if (plugin === 'csv') {
+    store.setOutput({
+      plugin: 'csv',
+      config: {
+        type: 'csv',
+        ...common,
+        delimiter: ',',
+        encoding: 'utf-8',
+      },
+    })
+  } else {
+    store.setOutput({
+      plugin: 'excel',
+      config: {
+        type: 'excel',
+        ...common,
+        template: '',
+        sheet: 'Sheet1',
+      },
+    })
+  }
+}
+
+function updateOutputConfig(patch: Partial<CsvOutputConfig>) {
+  if (store.output) {
+    store.setOutput({
+      ...store.output,
+      config: { ...store.output.config, ...patch },
+    })
+  }
 }
 </script>

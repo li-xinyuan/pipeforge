@@ -20,11 +20,13 @@
           <span class="text-sm font-semibold">Excel</span>
           <span class="text-xs text-slate-500 mt-1 block">.xlsx / .xls</span>
         </button>
-        <div class="p-4 border-2 border-dashed border-slate-200 rounded-lg text-center opacity-55 cursor-not-allowed bg-slate-50 relative">
-          <span class="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-medium rounded-sm">v0.3</span>
+        <button
+          @click="addInput('csv')"
+          class="p-4 border-2 border-blue-600 bg-blue-50 rounded-lg text-center cursor-pointer hover:bg-blue-100 transition-colors"
+        >
           <span class="text-2xl block mb-2">🗄</span>
           <span class="text-sm font-semibold">CSV</span>
-        </div>
+        </button>
         <div class="p-4 border-2 border-dashed border-slate-200 rounded-lg text-center opacity-55 cursor-not-allowed bg-slate-50 relative">
           <span class="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-medium rounded-sm">v0.4</span>
           <span class="text-2xl block mb-2">🔌</span>
@@ -66,18 +68,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
-import type { InputSource } from '../../types/wizard'
 import InputSourceCard from './InputSourceCard.vue'
 
 const store = useWizardStore()
 const showAddSelector = ref(false)
 
-function addInput(plugin: string) {
-  const input: InputSource = {
-    name: '', plugin: plugin as 'excel', table: '', paramKey: '', fileId: '',
-    config: { type: 'excel', sheet: '' }
-  }
-  store.addInput(input)
+function addInput(plugin: 'excel' | 'csv' = 'excel') {
+  store.addInput(plugin)
   showAddSelector.value = false
 }
 </script>

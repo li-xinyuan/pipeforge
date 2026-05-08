@@ -8,7 +8,8 @@
         placeholder="输入源名称"
         class="flex-1 text-sm font-medium text-slate-900 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:outline-none px-1 py-0.5"
       />
-      <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">Excel</span>
+      <span v-if="input.plugin === 'csv'" class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">CSV</span>
+      <span v-else class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">Excel</span>
       <button
         @click="$emit('remove')"
         class="text-slate-400 hover:text-red-500 transition-colors p-1"
@@ -33,18 +34,18 @@
         </template>
         <div v-else @click="triggerUpload" class="border-2 border-dashed border-slate-200 rounded-md p-2 text-center cursor-pointer bg-slate-50 hover:border-blue-500 hover:bg-blue-50 transition-colors">
           <div v-if="uploading" class="text-xs text-slate-500">上传中...</div>
-          <div v-else class="text-xs text-slate-400">📎 点击上传 Excel</div>
-          <input type="file" ref="fileInput" class="hidden" accept=".xlsx,.xls" @change="onFileSelected" />
+          <div v-else class="text-xs text-slate-400">{{ input.plugin === 'csv' ? '📎 点击上传 CSV' : '📎 点击上传 Excel' }}</div>
+          <input type="file" ref="fileInput" class="hidden" :accept="input.plugin === 'csv' ? '.csv' : '.xlsx,.xls'" @change="onFileSelected" />
         </div>
         <p v-if="uploadError" class="text-xs text-red-500 mt-1">{{ uploadError }}</p>
       </div>
 
-      <!-- Sheet name -->
-      <div>
+      <!-- Sheet name (Excel) -->
+      <div v-if="input.plugin === 'excel'">
         <label class="block text-xs font-medium text-slate-500 mb-1">工作表</label>
         <select
           v-if="sheetNames.length > 0"
-          :value="input.config.sheet"
+          :value="(input.config as ExcelInputConfig).sheet"
           @change="$emit('update', { ...input, config: { ...input.config, sheet: ($event.target as HTMLSelectElement).value } })"
           class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500 bg-white"
         >
@@ -52,12 +53,48 @@
         </select>
         <input
           v-else
-          :value="input.config.sheet"
+          :value="(input.config as ExcelInputConfig).sheet"
           @input="$emit('update', { ...input, config: { ...input.config, sheet: ($event.target as HTMLInputElement).value } })"
           placeholder="Sheet1"
           class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500"
         />
       </div>
+
+      <!-- CSV config fields -->
+      <template v-if="input.plugin === 'csv'">
+        <!-- Delimiter -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">分隔符</label>
+          <input
+            :value="(input.config as CsvInputConfig).delimiter"
+            @input="$emit('update', { ...input, config: { ...input.config, delimiter: ($event.target as HTMLInputElement).value } })"
+            placeholder=","
+            class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500"
+          />
+        </div>
+        <!-- Encoding -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">编码</label>
+          <select
+            :value="(input.config as CsvInputConfig).encoding"
+            @change="$emit('update', { ...input, config: { ...input.config, encoding: ($event.target as HTMLSelectElement).value } })"
+            class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500 bg-white"
+          >
+            <option value="utf-8">UTF-8</option>
+            <option value="gbk">GBK</option>
+          </select>
+        </div>
+        <!-- Has header -->
+        <div class="flex items-center gap-2 pt-5">
+          <input
+            type="checkbox"
+            :checked="(input.config as CsvInputConfig).hasHeader"
+            @change="$emit('update', { ...input, config: { ...input.config, hasHeader: ($event.target as HTMLInputElement).checked } })"
+            class="rounded border-slate-300"
+          />
+          <label class="text-xs font-medium text-slate-500">包含表头</label>
+        </div>
+      </template>
 
       <!-- Table name -->
       <div>
@@ -107,7 +144,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import type { InputSource } from '../../types/wizard'
+import type { InputSource, CsvInputConfig, ExcelInputConfig } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
 import { useFileUpload } from '../../composables/useFileUpload'
@@ -162,12 +199,20 @@ async function onFileSelected(e: Event) {
     const data = await fetchPreview(meta.fileId)
     if (data) {
       sheetNames.value = data.sheets
-      emit('update', {
-        ...props.input,
-        fileId: meta.fileId,
-        config: { ...props.input.config, sheet: data.sheets[0] || 'Sheet1' },
-        table: generateTableName(meta.originalName)
-      })
+      if (props.input.plugin === 'excel') {
+        emit('update', {
+          ...props.input,
+          fileId: meta.fileId,
+          config: { ...props.input.config, sheet: data.sheets[0] || 'Sheet1' },
+          table: generateTableName(meta.originalName)
+        })
+      } else {
+        emit('update', {
+          ...props.input,
+          fileId: meta.fileId,
+          table: generateTableName(meta.originalName)
+        })
+      }
     } else {
       emit('update', { ...props.input, fileId: meta.fileId })
     }
@@ -178,13 +223,18 @@ function removeFile() {
   sheetNames.value = []
   previewData.value = null
   previewVisible.value = false
-  emit('update', { ...props.input, fileId: '', config: { ...props.input.config, sheet: '' }, table: '' })
+  if (props.input.plugin === 'excel') {
+    emit('update', { ...props.input, fileId: '', config: { ...props.input.config, sheet: '' }, table: '' })
+  } else {
+    emit('update', { ...props.input, fileId: '', table: '' })
+  }
 }
 
 async function loadPreview() {
   if (!props.input.fileId) return
   previewLoading.value = true
-  const data = await fetchPreview(props.input.fileId, props.input.config.sheet)
+  const sheet = props.input.plugin === 'excel' ? (props.input.config as ExcelInputConfig).sheet : undefined
+  const data = await fetchPreview(props.input.fileId, sheet)
   if (data) {
     previewData.value = data
     previewVisible.value = true

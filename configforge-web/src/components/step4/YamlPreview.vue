@@ -33,7 +33,9 @@ async function loadYaml() {
       table: inp.table,
       param_key: inp.paramKey,
       file_id: inp.fileId,
-      config: { type: inp.config.type, sheet: inp.config.sheet },
+      config: inp.config.type === 'csv'
+        ? { type: 'csv', delimiter: (inp.config as any).delimiter, encoding: (inp.config as any).encoding, has_header: (inp.config as any).hasHeader }
+        : { type: inp.config.type, sheet: (inp.config as any).sheet },
     })),
     processor: {
       plugin: store.processor.plugin,
@@ -42,15 +44,25 @@ async function loadYaml() {
     },
     output: store.output ? {
       plugin: store.output.plugin,
-      config: {
-        type: store.output.config.type,
-        template: store.output.config.template,
-        sheet: store.output.config.sheet,
-        output_dir: store.output.config.outputDir,
-        source_table: store.output.config.sourceTable,
-        filename: store.output.config.filename,
-        columns: store.output.config.columns.map(c => ({ source: c.source, target: c.target })),
-      },
+      config: store.output.config.type === 'csv'
+        ? {
+            type: 'csv',
+            source_table: (store.output.config as any).sourceTable,
+            output_dir: (store.output.config as any).outputDir,
+            filename: (store.output.config as any).filename,
+            delimiter: (store.output.config as any).delimiter,
+            encoding: (store.output.config as any).encoding,
+            columns: store.output.config.columns.map(c => ({ source: c.source, target: c.target })),
+          }
+        : {
+            type: store.output.config.type,
+            template: (store.output.config as any).template,
+            sheet: (store.output.config as any).sheet,
+            output_dir: (store.output.config as any).outputDir,
+            source_table: (store.output.config as any).sourceTable,
+            filename: (store.output.config as any).filename,
+            columns: store.output.config.columns.map(c => ({ source: c.source, target: c.target })),
+          },
     } : null,
     uploaded_files: {},
   }
