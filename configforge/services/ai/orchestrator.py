@@ -34,7 +34,12 @@ SYSTEM_PROMPTS = {
 
 
 def build_prompt(category: str, context: dict) -> str:
-    system = SYSTEM_PROMPTS.get(category, "")
+    if category not in SYSTEM_PROMPTS:
+        raise ValueError(f"Unknown AI category: {category}")
+    if not isinstance(context, dict):
+        raise TypeError(f"context must be dict, got {type(context).__name__}")
+
+    system = SYSTEM_PROMPTS[category]
     prompt = system + "\n\n"
 
     if category == "scene":
@@ -62,7 +67,7 @@ def parse_response(text: str) -> str:
     try:
         json.loads(text)
         return text
-    except (json.JSONDecodeError, ValueError):
+    except json.JSONDecodeError:
         pass
     # Try extract from markdown ```json block
     m = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
@@ -71,7 +76,7 @@ def parse_response(text: str) -> str:
         try:
             json.loads(block)
             return block
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError:
             pass
     # Return wrapped so frontend knows it's non-JSON
     return json.dumps({"raw": text, "is_json": False})
