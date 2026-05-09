@@ -31,6 +31,13 @@ def test_read_csv_tab_delimiter():
     assert result["sample_rows"][0] == ["Alice", "30"]
 
 
+def test_read_csv_gbk_encoding():
+    content = "姓名,年龄\n张三,30".encode("gbk")
+    result = read_csv_info(content, encoding="gbk")
+    assert result["columns"] == ["姓名", "年龄"]
+    assert result["sample_rows"][0] == ["张三", "30"]
+
+
 def test_read_csv_empty():
     result = read_csv_info("".encode("utf-8"))
     assert result["sheets"] == []

@@ -2,9 +2,9 @@ import csv
 import io
 
 
-def read_csv_info(file_content: bytes, delimiter: str = ",") -> dict:
+def read_csv_info(file_content: bytes, delimiter: str = ",", encoding: str = "utf-8") -> dict:
     """Read CSV file content, return columns and sample_rows (same interface as read_excel_info)."""
-    text = file_content.decode("utf-8")
+    text = file_content.decode(encoding)
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
 
     rows = list(reader)
