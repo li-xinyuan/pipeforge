@@ -122,7 +122,7 @@
         <div class="flex items-center justify-between mb-2">
           <label class="text-sm font-medium text-slate-900">列映射</label>
           <div class="flex gap-2">
-            <button class="px-2 py-1 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50">🤖 AI 自动映射</button>
+            <button @click="onAiMapping" :disabled="mappingLoading" class="px-2 py-1 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-50">{{ mappingLoading ? '映射中...' : '🤖 AI 自动映射' }}</button>
             <button @click="addColumn" class="px-2 py-1 text-xs font-medium bg-white text-slate-700 border border-dashed border-slate-200 rounded-md hover:bg-slate-50">+ 添加列</button>
           </div>
         </div>
@@ -136,13 +136,14 @@
 import { computed, ref } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
-import { useWizardApi } from '../../composables/useWizardApi'
-import type { ExcelOutputConfig, CsvOutputConfig } from '../../types/wizard'
+import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
+import type { ExcelOutputConfig, CsvOutputConfig, ColumnMappingItem } from '../../types/wizard'
 import ColumnMapping from './ColumnMapping.vue'
 
 const store = useWizardStore()
 const { fetchPreview } = useWizardApi()
 const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()
+const { suggesting: mappingLoading, askSuggestion } = useAiApi()
 const templateInput = ref<HTMLInputElement>()
 
 const outputConfig = computed<ExcelOutputConfig | CsvOutputConfig>(() => store.output.config as ExcelOutputConfig | CsvOutputConfig)
@@ -179,6 +180,30 @@ async function onTemplateSelected(e: Event) {
 function removeTemplate() {
   outputConfig.value.template = ''
   outputConfig.value.columns = []
+}
+
+async function onAiMapping() {
+  const sourceCols: string[] = []
+  for (const inp of store.inputs) {
+    const fileMeta = store.uploadedFiles[inp.fileId]
+    if (fileMeta?.columns) {
+      sourceCols.push(...fileMeta.columns)
+    }
+  }
+  const targetCols = outputConfig.value.columns.map((c: ColumnMappingItem) => c.target)
+  const content = await askSuggestion('mapping', {
+    sourceColumns: sourceCols,
+    targetColumns: targetCols,
+  })
+  if (content) {
+    try {
+      const parsed = JSON.parse(content)
+      if (parsed.mappings) {
+        outputConfig.value.columns = parsed.mappings
+      }
+      store.setSuggestion('mapping', { category: 'mapping', status: 'pending', content, timestamp: Date.now() })
+    } catch { /* ignore */ }
+  }
 }
 
 function addColumn() {

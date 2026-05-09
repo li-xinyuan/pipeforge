@@ -5,6 +5,7 @@
     <div class="mb-6">
       <h2 class="text-lg font-semibold text-slate-900 mb-1">数据源配置</h2>
       <p class="text-sm text-slate-500">点击「添加输入源」选择 Excel 文件，上传后自动解析工作表和列信息，确认表名和参数键即可。</p>
+      <button @click="onRegenerate" class="mt-2 px-2.5 py-1 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50">🤖 AI 分析列</button>
     </div>
 
     <InputSourceList />
@@ -37,11 +38,20 @@ import { useWizardStore } from '../stores/wizard'
 import StepIndicator from '../components/common/StepIndicator.vue'
 import AiSuggestPanel from '../components/common/AiSuggestPanel.vue'
 import InputSourceList from '../components/step2/InputSourceList.vue'
+import { useAiApi } from '../composables/useWizardApi'
 
 const router = useRouter()
 const store = useWizardStore()
+const { askSuggestion } = useAiApi()
 
 onMounted(() => { store.currentStep = 2 })
+
+async function analyzeColumns(fileColumns: Record<string, string[]>, sampleRows: any[]) {
+  const content = await askSuggestion('columns', { fileColumns, sampleRows })
+  if (content) {
+    store.setSuggestion('columns', { category: 'columns', status: 'pending', content, timestamp: Date.now() })
+  }
+}
 
 function onNext() {
   if (store.canProceed) {
@@ -51,6 +61,12 @@ function onNext() {
 }
 
 function onRegenerate() {
-  // TODO: trigger AI column suggestion regeneration
+  const fileColumns: Record<string, string[]> = {}
+  const sampleRows: any[] = []
+  for (const [id, meta] of Object.entries(store.uploadedFiles)) {
+    if (meta.columns) fileColumns[meta.originalName || id] = meta.columns
+    if (meta.sampleRows) sampleRows.push(...meta.sampleRows)
+  }
+  analyzeColumns(fileColumns, sampleRows)
 }
 </script>

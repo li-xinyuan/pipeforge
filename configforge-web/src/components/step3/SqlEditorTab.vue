@@ -25,9 +25,18 @@
       <textarea v-model="store.processor.sql" class="w-full min-h-[160px] px-3 py-2 text-sm font-mono border border-slate-200 rounded-md focus:border-blue-600 outline-none resize-y leading-relaxed"></textarea>
     </div>
     <div class="flex gap-2 items-center mb-4">
-      <button class="px-2.5 py-1 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50">🤖 AI 生成 SQL</button>
+      <button @click="showNlInput = true" class="px-2.5 py-1 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50">🤖 AI 生成 SQL</button>
       <button class="px-2.5 py-1 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50">🧪 验证语法</button>
       <span v-if="sqlValid" class="text-xs text-green-600 font-medium">✓ 验证通过</span>
+    </div>
+
+    <div v-if="showNlInput" class="mt-3 p-3 bg-sky-50 border border-sky-200 rounded-lg">
+      <textarea v-model="nlText" placeholder="用自然语言描述你想要的查询，例如：查询每个部门有多少员工，按人数降序" rows="3" class="w-full text-sm border border-sky-200 rounded-md px-3 py-2 focus:outline-none focus:border-sky-400" />
+      <div class="flex gap-2 mt-2">
+        <button @click="onAiGenerateSql" :disabled="suggesting" class="px-3 py-1 text-xs font-medium bg-sky-600 text-white rounded-md hover:bg-sky-700 disabled:opacity-50">{{ suggesting ? '生成中...' : '生成 SQL' }}</button>
+        <button @click="showNlInput = false" class="px-3 py-1 text-xs font-medium border border-slate-200 rounded-md hover:bg-slate-50">取消</button>
+      </div>
+      <p v-if="aiError" class="text-xs text-red-500 mt-1">{{ aiError }}</p>
     </div>
 
     <!-- output_tables -->
@@ -66,12 +75,38 @@ import { computed, ref, nextTick, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import AiSuggestPanel from '../common/AiSuggestPanel.vue'
 import { inferOutputTable } from '../../utils/sql'
+import { useAiApi } from '../../composables/useWizardApi'
 
 const store = useWizardStore()
+const { suggesting, aiError, askSuggestion } = useAiApi()
 const sqlValid = computed(() => store.processor.sql.trim().length > 0)
 const showTableInput = ref(false)
 const newTableName = ref('')
 const tableInputRef = ref<HTMLInputElement>()
+const showNlInput = ref(false)
+const nlText = ref('')
+
+async function onAiGenerateSql() {
+  if (!nlText.value.trim()) return
+  const content = await askSuggestion('sql', {
+    inputs: store.inputs.map(inp => ({
+      name: inp.name, table: inp.table, columns: [],
+    })),
+    naturalLanguage: nlText.value,
+  })
+  if (content) {
+    try {
+      const parsed = JSON.parse(content)
+      store.processor.sql = parsed.sql || ''
+      if (parsed.outputTables) store.processor.outputTables = parsed.outputTables
+      store.setSuggestion('sql', { category: 'sql', status: 'pending', content: parsed.explanation || content, timestamp: Date.now() })
+    } catch {
+      store.processor.sql = content
+    }
+    showNlInput.value = false
+    nlText.value = ''
+  }
+}
 
 watch(() => store.processor.sql, (sql) => {
   const trimmed = sql.trim()

@@ -8,6 +8,11 @@
     </div>
 
     <SceneInfoForm />
+
+    <div class="mt-4">
+      <button @click="autoSuggestScene" class="px-2.5 py-1 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50">🤖 AI 推断场景</button>
+    </div>
+
     <div class="flex justify-between items-center pt-6 border-t border-slate-100 mt-6">
       <router-link
         to="/"
@@ -27,11 +32,30 @@ import { useRouter } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import StepIndicator from '../components/common/StepIndicator.vue'
 import SceneInfoForm from '../components/step1/SceneInfoForm.vue'
+import { useAiApi } from '../composables/useWizardApi'
 
 const router = useRouter()
 const store = useWizardStore()
+const { askSuggestion } = useAiApi()
 
 onMounted(() => { store.currentStep = 1 })
+
+async function autoSuggestScene() {
+  const fileNames: string[] = []
+  const columnsByFile: Record<string, string[]> = {}
+  for (const [id, meta] of Object.entries(store.uploadedFiles)) {
+    fileNames.push(meta.originalName || id)
+    if (meta.columns) columnsByFile[meta.originalName || id] = meta.columns
+  }
+  const content = await askSuggestion('scene', { fileCount: fileNames.length, fileNames, columnsByFile })
+  if (content) {
+    try {
+      const parsed = JSON.parse(content)
+      if (parsed.name) store.scene.name = parsed.name
+      if (parsed.description) store.scene.description = parsed.description
+    } catch { /* ignore */ }
+  }
+}
 
 function onNext() {
   if (store.canProceed) {

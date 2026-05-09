@@ -1,6 +1,8 @@
 export interface UploadedFileMeta {
   fileId: string
   originalName: string
+  columns?: string[]
+  sampleRows?: string[][]
 }
 
 export interface AiSuggestion {
