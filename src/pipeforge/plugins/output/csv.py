@@ -17,6 +17,14 @@ class CsvOutputPlugin(OutputPlugin[CsvOutputConfig]):
     def execute(self, context, config: CsvOutputConfig) -> None:
         source_columns = context.db.get_column_names(config.source_table)
 
+        source_to_idx = {col: i for i, col in enumerate(source_columns)}
+        for cm in config.columns:
+            if cm.source not in source_to_idx:
+                raise ValueError(
+                    f"Source column '{cm.source}' not found in table "
+                    f"'{config.source_table}'. Available: {source_columns}"
+                )
+
         target_columns = [cm.target for cm in config.columns]
 
         filename = config.filename or f"{context.scene_name}.csv"
@@ -29,10 +37,7 @@ class CsvOutputPlugin(OutputPlugin[CsvOutputConfig]):
 
             rows = context.db.query(f'SELECT * FROM "{config.source_table}"')
             for row in rows:
-                mapped = []
-                for cm in config.columns:
-                    idx = source_columns.index(cm.source)
-                    mapped.append(str(row[idx]) if row[idx] is not None else "")
+                mapped = [str(row[source_to_idx[cm.source]]) if row[source_to_idx[cm.source]] is not None else "" for cm in config.columns]
                 writer.writerow(mapped)
 
         context.output_path = output_path
