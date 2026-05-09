@@ -32,3 +32,6 @@ demo/screenshots/
 # Node
 node_modules/
 configforge-web/dist/
+
+data/
+ai_settings.json
