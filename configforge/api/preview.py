@@ -1,3 +1,4 @@
+import json
 import os
 from fastapi import APIRouter, HTTPException
 from configforge.models.wizard import ErrorResponse, PreviewRequest
@@ -6,6 +7,16 @@ from configforge.services.csv_reader import read_csv_info
 
 router = APIRouter()
 UPLOAD_DIR = "tmp/uploads"
+
+
+def _get_file_type(file_id: str) -> str:
+    """Determine file type from upload metadata, fall back to extension."""
+    meta_path = os.path.join(UPLOAD_DIR, file_id + ".meta.json")
+    if os.path.exists(meta_path):
+        with open(meta_path, "r") as f:
+            meta = json.load(f)
+        return meta.get("type", "excel")
+    return "csv" if os.path.splitext(file_id)[1].lower() == ".csv" else "excel"
 
 
 @router.post("/file")
@@ -20,8 +31,8 @@ async def preview_file(req: PreviewRequest):
         )
     with open(path, "rb") as f:
         content = f.read()
-    ext = os.path.splitext(req.file_id)[1].lower()
-    if ext == ".csv":
+    file_type = _get_file_type(req.file_id)
+    if file_type == "csv":
         info = read_csv_info(content)
     else:
         import io

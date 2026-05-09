@@ -67,4 +67,11 @@ async def upload_file(file: UploadFile = File(...)):
     path = os.path.join(UPLOAD_DIR, file_id)
     with open(path, "wb") as f:
         f.write(content)
+
+    file_type = "csv" if ext == ".csv" else "excel"
+    import json
+    meta_path = os.path.join(UPLOAD_DIR, file_id + ".meta.json")
+    with open(meta_path, "w") as f:
+        json.dump({"original_name": file.filename, "type": file_type}, f)
+
     return {"file_id": file_id, "original_name": file.filename}
