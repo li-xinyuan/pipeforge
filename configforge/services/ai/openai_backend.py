@@ -1,0 +1,26 @@
+from openai import AsyncOpenAI
+from configforge.services.ai.base import LlmBackend
+
+
+class OpenAiBackend(LlmBackend):
+    def __init__(self, settings):
+        from configforge.models.ai import AiSettings
+        kwargs = {"api_key": settings.api_key}
+        if settings.base_url:
+            kwargs["base_url"] = settings.base_url
+        self._client = AsyncOpenAI(**kwargs)
+        self._model = settings.model or "gpt-4o"
+        self._temperature = settings.temperature
+        self._max_tokens = settings.max_tokens
+
+    async def generate(self, prompt: str) -> str:
+        resp = await self._client.chat.completions.create(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant. Always respond with valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=self._temperature,
+            max_tokens=self._max_tokens,
+        )
+        return resp.choices[0].message.content or ""
