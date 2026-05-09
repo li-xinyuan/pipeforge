@@ -9,6 +9,7 @@ const router = createRouter({
     { path: '/step/3', name: 'step3', component: () => import('../views/Step3ProcessView.vue') },
     { path: '/step/4', name: 'step4', component: () => import('../views/Step4OutputView.vue') },
     { path: '/step/5', name: 'step5', component: () => import('../views/Step5ExportView.vue') },
+    { path: '/settings', name: 'Settings', component: () => import('../views/SettingsPage.vue') },
   ],
 })
 

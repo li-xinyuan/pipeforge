@@ -29,3 +29,51 @@ export function useWizardApi() {
 
   return { loading, error, initScene, fetchPreview, generateYaml }
 }
+
+export function useAiApi() {
+  const suggesting = ref(false)
+  const aiError = ref<string | null>(null)
+
+  async function askSuggestion(category: string, context: Record<string, any>): Promise<string | null> {
+    suggesting.value = true
+    aiError.value = null
+    try {
+      const resp = await fetch('/api/ai/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, context }),
+      })
+      const data = await resp.json()
+      if (resp.ok) return data.content
+      aiError.value = data.detail || data.error || '未知错误'
+    } catch (e) {
+      aiError.value = '网络请求失败'
+    } finally {
+      suggesting.value = false
+    }
+    return null
+  }
+
+  async function getAiSettings() {
+    const resp = await fetch('/api/ai/settings')
+    if (resp.ok) return await resp.json()
+    return null
+  }
+
+  async function updateAiSettings(body: Record<string, any>) {
+    const resp = await fetch('/api/ai/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return resp.ok
+  }
+
+  async function testAiConnection() {
+    const resp = await fetch('/api/ai/test', { method: 'POST' })
+    const data = await resp.json().catch(() => null)
+    return { ok: resp.ok, data }
+  }
+
+  return { suggesting, aiError, askSuggestion, getAiSettings, updateAiSettings, testAiConnection }
+}

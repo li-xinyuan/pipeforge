@@ -5,7 +5,7 @@ export interface UploadedFileMeta {
 
 export interface AiSuggestion {
   content: string
-  category: 'scene' | 'columns' | 'sql' | 'mapping'
+  category: 'scene' | 'columns' | 'sql' | 'mapping' | 'diagnose'
   status: 'pending' | 'accepted' | 'rejected'
   timestamp: number
 }
