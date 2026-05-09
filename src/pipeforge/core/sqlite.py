@@ -49,6 +49,12 @@ class SQLiteManager:
     def table_exists(self, table_name: str) -> bool:
         return table_name in self.list_tables()
 
+    def get_column_names(self, table_name: str) -> list[str]:
+        rows = self._conn.execute(
+            f'PRAGMA table_info("{table_name}")'
+        ).fetchall()
+        return [r[1] for r in rows]
+
     def close(self) -> None:
         if self._conn:
             self._conn.close()

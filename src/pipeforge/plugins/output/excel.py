@@ -50,11 +50,7 @@ class ExcelOutputPlugin(OutputPlugin):
         context.output_path = output_path
 
         rows = context.db.query(f'SELECT * FROM "{config.source_table}"')
-        source_columns = [
-            d[1] for d in context.db._conn.execute(
-                f'PRAGMA table_info("{config.source_table}")'
-            ).fetchall()
-        ]
+        source_columns = context.db.get_column_names(config.source_table)
 
         source_to_idx = {col: i for i, col in enumerate(source_columns)}
         for cm in config.columns:

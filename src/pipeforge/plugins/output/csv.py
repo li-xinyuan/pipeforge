@@ -15,12 +15,7 @@ class CsvOutputPlugin(OutputPlugin[CsvOutputConfig]):
         return CsvOutputConfig
 
     def execute(self, context, config: CsvOutputConfig) -> None:
-        source_columns = [
-            d[1]
-            for d in context.db._conn.execute(
-                f'PRAGMA table_info("{config.source_table}")'
-            ).fetchall()
-        ]
+        source_columns = context.db.get_column_names(config.source_table)
 
         target_columns = [cm.target for cm in config.columns]
 
