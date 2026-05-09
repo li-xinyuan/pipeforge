@@ -20,11 +20,15 @@ def test_read_csv_without_header():
 
 
 def test_read_csv_custom_delimiter():
-    content = "name;age\nAlice;30".encode("utf-8")
-    # read_csv_info doesn't support custom delimiter yet — it uses default comma
-    # This tests that comma-separated parsing works correctly
-    result = read_csv_info("a,b,c\n1,2,3".encode("utf-8"))
-    assert result["columns"] == ["a", "b", "c"]
+    result = read_csv_info("name;age\nAlice;30".encode("utf-8"), delimiter=";")
+    assert result["columns"] == ["name", "age"]
+    assert result["sample_rows"][0] == ["Alice", "30"]
+
+
+def test_read_csv_tab_delimiter():
+    result = read_csv_info("name\tage\nAlice\t30".encode("utf-8"), delimiter="\t")
+    assert result["columns"] == ["name", "age"]
+    assert result["sample_rows"][0] == ["Alice", "30"]
 
 
 def test_read_csv_empty():

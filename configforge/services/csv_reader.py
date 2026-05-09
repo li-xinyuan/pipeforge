@@ -2,10 +2,10 @@ import csv
 import io
 
 
-def read_csv_info(file_content: bytes) -> dict:
+def read_csv_info(file_content: bytes, delimiter: str = ",") -> dict:
     """Read CSV file content, return columns and sample_rows (same interface as read_excel_info)."""
     text = file_content.decode("utf-8")
-    reader = csv.reader(io.StringIO(text))
+    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
 
     rows = list(reader)
     if not rows:
