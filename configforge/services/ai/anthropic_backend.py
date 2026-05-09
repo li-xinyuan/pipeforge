@@ -4,8 +4,10 @@ from configforge.services.ai.base import LlmBackend
 
 class AnthropicBackend(LlmBackend):
     def __init__(self, settings):
-        from configforge.models.ai import AiSettings
-        self._client = AsyncAnthropic(api_key=settings.api_key)
+        kwargs = {"api_key": settings.api_key}
+        if settings.base_url:
+            kwargs["base_url"] = settings.base_url
+        self._client = AsyncAnthropic(**kwargs)
         self._model = settings.model or "claude-sonnet-4-6"
         self._max_tokens = settings.max_tokens
         self._temperature = settings.temperature

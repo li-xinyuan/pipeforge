@@ -4,7 +4,6 @@ from configforge.services.ai.base import LlmBackend
 
 class OpenAiBackend(LlmBackend):
     def __init__(self, settings):
-        from configforge.models.ai import AiSettings
         kwargs = {"api_key": settings.api_key}
         if settings.base_url:
             kwargs["base_url"] = settings.base_url
