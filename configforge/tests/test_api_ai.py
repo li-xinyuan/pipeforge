@@ -1,6 +1,24 @@
+import os
+import tempfile
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 from configforge.server import app
+
+
+@pytest.fixture(autouse=True)
+def _isolate_ai_settings():
+    """每个测试使用独立临时文件，防止测试间状态泄漏。"""
+    import configforge.services.ai.settings as mod
+    orig = mod.SETTINGS_FILE
+    fd, tmp = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
+    os.unlink(tmp)  # 删除空文件，让 load_settings 返回默认值
+    mod.SETTINGS_FILE = tmp
+    yield
+    mod.SETTINGS_FILE = orig
+    if os.path.exists(tmp):
+        os.unlink(tmp)
 
 
 @pytest.mark.anyio
