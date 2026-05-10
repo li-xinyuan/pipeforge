@@ -1,6 +1,9 @@
 <template>
   <div class="max-w-2xl mx-auto py-8 px-4">
-    <h1 class="text-2xl font-bold text-slate-900 mb-6">AI 设置</h1>
+    <div class="flex items-center gap-3 mb-6">
+      <router-link to="/" class="text-slate-400 hover:text-slate-600 transition-colors">&larr; 返回</router-link>
+      <h1 class="text-2xl font-bold text-slate-900">AI 设置</h1>
+    </div>
 
     <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
       <!-- Enable switch -->
