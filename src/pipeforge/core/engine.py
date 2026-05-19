@@ -30,6 +30,7 @@ class PipelineEngine:
         return [
             RequiredParam(key=inp.param_key, label=inp.name)
             for inp in self.config.inputs
+            if inp.param_key
         ]
 
     def execute(self, params: dict[str, str], cleanup: bool = False) -> ExecutionResult:
@@ -49,7 +50,7 @@ class PipelineEngine:
                 stats = self._execute_input(inp_spec, context)
                 context.result.inputs[inp_spec.name] = stats
 
-            for proc_spec in self.config.processors[:1]:
+            for proc_spec in self.config.processors:
                 stats = self._execute_processor(proc_spec, context)
                 context.result.processors.append(stats)
 
@@ -71,13 +72,18 @@ class PipelineEngine:
 
     def _execute_input(self, inp_spec, context):
         start = time.time()
+        file_path = context.params.get(inp_spec.param_key)
+        if not file_path:
+            context.logger.error(f"Skipping input '{inp_spec.name}': param '{
+                inp_spec.param_key}' not found in runtime params")
+            return InputStats(name=inp_spec.name, rows_loaded=0, elapsed_ms=0)
         plugin_cls = PluginRegistry.get(inp_spec.plugin, "input")
         plugin = plugin_cls()
         plugin.name = inp_spec.plugin
         plugin.label = inp_spec.name
         plugin.table_name = inp_spec.table
         config = inp_spec.config
-        config.file = context.params[inp_spec.param_key]
+        config.file = file_path
         plugin.execute(context, config)
         elapsed = (time.time() - start) * 1000
         rows = context.db.query(f'SELECT COUNT(*) FROM "{inp_spec.table}"')
