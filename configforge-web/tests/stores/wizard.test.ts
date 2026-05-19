@@ -42,13 +42,13 @@ describe('useWizardStore', () => {
 
   it('addInput adds to inputs array', () => {
     const store = useWizardStore()
-    store.addInput({ name: 'in1', plugin: 'excel', table: 't1', paramKey: 'f1', fileId: 'x1', config: { type: 'excel', sheet: 'Sheet1' } })
+    store.addInput()
     expect(store.inputs).toHaveLength(1)
   })
 
   it('removeInput removes by index', () => {
     const store = useWizardStore()
-    store.addInput({ name: 'in1', plugin: 'excel', table: 't1', paramKey: 'f1', fileId: 'x1', config: { type: 'excel', sheet: 'Sheet1' } })
+    store.addInput()
     store.removeInput(0)
     expect(store.inputs).toHaveLength(0)
   })

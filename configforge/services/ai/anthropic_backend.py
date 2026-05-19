@@ -1,10 +1,11 @@
+import httpx
 from anthropic import AsyncAnthropic
 from configforge.services.ai.base import LlmBackend
 
 
 class AnthropicBackend(LlmBackend):
     def __init__(self, settings):
-        kwargs = {"api_key": settings.api_key}
+        kwargs = {"api_key": settings.api_key, "http_client": httpx.AsyncClient(timeout=httpx.Timeout(60.0))}
         if settings.base_url:
             kwargs["base_url"] = settings.base_url
         self._client = AsyncAnthropic(**kwargs)

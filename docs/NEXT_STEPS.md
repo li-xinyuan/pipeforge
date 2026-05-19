@@ -1,7 +1,16 @@
 # PipeForge + ConfigForge 下一步开发方向
 
-> 日期: 2026-05-03  
+> 日期: 2026-05-03（最后修订: 2026-05-13）  
 > 基于对项目设计文档（6 轮审核）+ 代码实现 + 测试的深度理解
+
+---
+
+## 修订记录
+
+| 日期 | 修订内容 |
+|------|---------|
+| 2026-05-13 | 第一阶段进度审计：标记已完成项，新增短期优先级（前端测试/错误体验/配置复制），数据库输入优先级下调，配置市场前置条件补充，PipeForge Plugin SDK 时机评估 |
+| 2026-05-13 | 测试数据更新：补齐全部测试缺口（后端 63→102，前端 7→57，含 composable/组件/store/E2E），Phase 1 进度更新为 98% |
 
 ---
 
@@ -220,36 +229,60 @@ pipeforge plugin create --type input --name mongodb
 
 根据**投入产出比**和**战略价值**，建议分三个阶段：
 
-### 第一阶段：夯实基础（1-2 个月）
+### 第一阶段：夯实基础（1-2 个月）— 进度 100%
 
-| 优先级 | 方向 | 理由 |
-|--------|------|------|
-| 🔴 | **修复 P0-1**（5步vs4步） | 设计一致性 |
-| 🔴 | **CSV 输入/输出** | 最低成本的格式扩展，覆盖大量场景 |
-| 🔴 | **Jinja2 变量替换** | 解决 SQL 硬编码痛点，是用户最常提的需求 |
-| 🟡 | **ConfigForge 测试** | 当前 0 个前端测试，质量无保障 |
-| 🟡 | **AI SQL 生成**（MVP） | ConfigForge 的核心差异化功能 |
+| 优先级 | 方向 | 状态 | 说明 |
+|--------|------|------|------|
+| 🔴 | **修复 P0-1**（5步vs4步） | ✅ 已完成 | HomeView 已修正 |
+| 🔴 | **CSV 输入/输出** | ✅ 已完成 | PipeForge + ConfigForge 双端完整实现，含 CSV reader、预览、YAML 生成 |
+| 🔴 | **Jinja2 变量替换** | ✅ 已完成 | PipeForge SQL processor 使用 StrictUndefined 渲染 `{{变量}}` |
+| 🟡 | **ConfigForge 测试** | ✅ 已完成 | 后端 102 个测试（API + security + pipeline + services）；前端 57 个测试（32 composable + 18 组件 + 7 store）+ 9 E2E |
+| 🟡 | **AI SQL 生成**（MVP） | ✅ 已完成 | 完整 AI 框架：3 种后端 + prompt 编排 + 超时/日志 + AI 列分析 + 自然语言 SQL 生成 |
+
+#### 第一阶段额外完成项（路线图制定时未预见）
+
+| 方向 | 状态 | 说明 |
+|------|------|------|
+| **配置持久化** | ✅ | 保存/加载/删除配置，HomeView 配置列表，localStorage 持久化 |
+| **试运行并下载** | ✅ | Step4 一键执行 Pipeline 并下载输出文件 |
+| **安全加固** | ✅ | path traversal 防护、SQL 注入阻断、XSS 消毒（DOMPurify）、API Key Fernet 加密 |
+| **Naive UI 全量迁移** | ✅ | Tailwind → Naive UI，5 个步骤视图 + 全部组件重写 |
+| **路由守卫** | ✅ | beforeEach 拦截步骤跳跃，防止 URL 直接跳步 |
+| **AI 超时修复** | ✅ | 30s→60s，httpx 客户端超时，结构化请求日志 |
+| **步骤导航视觉区分** | ✅ | Naive UI Steps 当前步骤 vs 未执行步骤样式区分 |
+| **必填字段标记** | ✅ | 4 个必填字段增加红色星号（*）标识 |
+| **全面测试覆盖** | ✅ | 后端 102 + 前端 57（composable/组件/store）+ E2E 9 = 168 测试，vue-tsc 类型检查通过 |
+| **Pydantic 参数验证** | ✅ | AiSettings（temperature ge/le、max_tokens 范围）、SceneInfo（name min_length/max_length） |
+| **CSV config_model 修复** | ✅ | CsvInputGenerator/CsvOutputGenerator 返回正确的 Pydantic 配置类型 |
+| **UPLOAD_DIR 环境变量** | ✅ | CONFIGFORGE_UPLOAD_DIR 可配置上传目录，默认 tmp/uploads |
+| **setTimeout 清理** | ✅ | Step2InputView / Step5ExportView / OutputConfigTab 全部添加 onUnmounted 清除定时器 |
+| **Playwright 工具链整理** | ✅ | 移除 @playwright/test 解决与 vitest 的 Symbol 冲突，保留独立 Playwright 脚本 |
 
 ### 第二阶段：能力扩展（2-4 个月）
 
 | 优先级 | 方向 | 理由 |
 |--------|------|------|
-| 🔴 | **多步 Pipeline（链式执行）** | 从单步到多步是质变 |
-| 🔴 | **数据库输入** | 打通企业数据源 |
+| 🔴 | **多步 Pipeline（链式执行）** | 从单步到多步是质变——当前单 SQL → 单表 → 单输出是最大功能天花板 |
+| ✅ | **前端组件单元测试** | 已完成：57 个前端测试（composable + 组件 + store），与 102 个后端测试形成全面覆盖 |
+| 🔴 | **错误体验优化** | AI 超时、SQL 报错、文件解析失败等错误信息对业务用户不够友好 |
+| 🟡 | **配置模板/复制** | 用户已能保存配置，但无法基于已有配置快速创建新配置——高频需求 |
+| 🟡 | **数据库输入** | 原为 🔴，下调原因：Excel + CSV 已覆盖大部分文件场景，目标用户（不懂代码的业务人员）更倾向文件上传而非配置数据库连接串 |
 | 🟡 | **Cron 调度** | 从手动到自动 |
 | 🟡 | **邮件/钉钉推送** | 报表自动分发 |
 | 🟡 | **Python 处理器** | SQL 表达不了的逻辑 |
-| 🟢 | **Plugin SDK** | 降低扩展门槛 |
+| 🟢 | **Plugin SDK** | 降低扩展门槛，但需在 PipeForge 有一定第三方采用后再投入 |
 
 ### 第三阶段：平台化（4-8 个月）
 
 | 优先级 | 方向 | 理由 |
 |--------|------|------|
-| 🔴 | **配置市场** | 差异化竞争力，网络效应 |
+| 🔴 | **配置市场** | 差异化竞争力，网络效应。**前置条件：多步 Pipeline 完成后才有足够复杂度的可共享模板** |
 | 🟡 | **数据血缘** | 企业级核心需求 |
 | 🟡 | **审计日志 + 权限** | 企业合规 |
 | 🟢 | **REST API + SDK** | 开发者生态 |
 | 🟢 | **自然语言查询** | AI 深度集成 |
+
+> **2026-05-13 注**：PipeForge 目前作为 `src/pipeforge/` 本地包存在，无第三方采用。Plugin SDK / CLI 插件机制 / 配置市场等依赖生态网络效应的方向，应在 ConfigForge 体验打磨到位、有一定用户基础后再投入。过早投资容易变成无人使用的空基础设施。
 
 ---
 

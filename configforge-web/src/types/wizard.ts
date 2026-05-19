@@ -5,10 +5,17 @@ export interface UploadedFileMeta {
   sampleRows?: string[][]
 }
 
+export interface ConfirmedAnalysis {
+  columnTypes: Record<string, string>
+  tableName: string
+  paramKeys: string[]
+  timestamp: number
+}
+
 export interface AiSuggestion {
   content: string
   category: 'scene' | 'columns' | 'sql' | 'mapping' | 'diagnose'
-  status: 'pending' | 'accepted' | 'rejected'
+  status: 'pending' | 'accepted' | 'rejected' | 'auto'
   timestamp: number
 }
 
@@ -31,18 +38,18 @@ export interface CsvInputConfig {
 }
 
 export interface InputSource {
-  name: string
   plugin: 'excel' | 'csv'
   table: string
   paramKey: string
   fileId: string
   config: ExcelInputConfig | CsvInputConfig
+  confirmedAnalysis?: ConfirmedAnalysis
 }
 
 export interface ProcessorConfig {
   plugin: 'sql'
   sql: string
-  outputTables: string[]
+  outputTable: string
 }
 
 export interface ColumnMappingItem {
@@ -83,4 +90,15 @@ export interface WizardState {
   output: OutputTarget | null
   uploadedFiles: Record<string, UploadedFileMeta>
   aiSuggestions: Record<string, AiSuggestion>
+}
+
+export interface SavedConfig {
+  id: string
+  sceneName: string
+  description: string
+  inputCount: number
+  outputType: string
+  version: string
+  updatedAt: string
+  inputs: Array<{ name: string; paramKey: string; plugin: string }>
 }

@@ -1,62 +1,73 @@
 <template>
-  <div class="bg-white border border-slate-200 rounded-lg p-4">
-    <!-- Header -->
-    <div class="flex items-center gap-3 mb-4">
-      <input
-        :value="input.name"
-        @input="$emit('update', { ...input, name: ($event.target as HTMLInputElement).value })"
-        placeholder="输入源名称"
-        class="flex-1 text-sm font-medium text-slate-900 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:outline-none px-1 py-0.5"
-      />
-      <span v-if="input.plugin === 'csv'" class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">CSV</span>
-      <span v-else class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">Excel</span>
-      <button
-        @click="$emit('remove')"
-        class="text-slate-400 hover:text-red-500 transition-colors p-1"
-        title="删除输入源"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-      </button>
-    </div>
+  <NCard size="small">
+    <!-- Header: name + plugin badge + delete -->
+    <template #header>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-medium text-slate-600 truncate flex-1">{{ input.table || '新输入源' }}</span>
+        <NTag :type="input.plugin === 'csv' ? 'info' : 'success'" size="small">
+          {{ input.plugin === 'csv' ? 'CSV' : 'Excel' }}
+        </NTag>
+        <NTag v-if="analyzing" type="warning" size="small">AI 分析中...</NTag>
+        <NButton text type="error" size="tiny" @click="$emit('remove')">删除</NButton>
+      </div>
+    </template>
 
     <!-- Body: Configuration fields -->
-    <div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="grid grid-cols-2 gap-3 mb-4 relative">
       <!-- File upload -->
       <div>
         <label class="block text-xs font-medium text-slate-500 mb-1">文件</label>
         <template v-if="input.fileId && store.uploadedFiles[input.fileId]">
           <div class="flex items-center gap-1">
-            <span class="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 truncate flex-1">✓ {{ store.uploadedFiles[input.fileId].originalName }}</span>
-            <button @click="removeFile" class="text-slate-400 hover:text-red-500 p-0.5 flex-shrink-0" title="移除文件">&times;</button>
+            <NTag type="success" size="small" class="truncate">
+              {{ store.uploadedFiles[input.fileId].originalName }}
+            </NTag>
+            <NButton text size="tiny" type="error" :disabled="analyzing" @click="removeFile">移除</NButton>
           </div>
         </template>
-        <div v-else @click="triggerUpload" class="border-2 border-dashed border-slate-200 rounded-md p-2 text-center cursor-pointer bg-slate-50 hover:border-blue-500 hover:bg-blue-50 transition-colors">
-          <div v-if="uploading" class="text-xs text-slate-500">上传中...</div>
-          <div v-else class="text-xs text-slate-400">{{ input.plugin === 'csv' ? '📎 点击上传 CSV' : '📎 点击上传 Excel' }}</div>
-          <input type="file" ref="fileInput" class="hidden" :accept="input.plugin === 'csv' ? '.csv' : '.xlsx,.xls'" @change="onFileSelected" />
-        </div>
+        <NUpload
+          v-else
+          :custom-request="handleUpload"
+          :show-file-list="false"
+          :accept="input.plugin === 'csv' ? '.csv' : '.xlsx,.xls'"
+        >
+          <NButton :loading="uploading" size="small" dashed :disabled="analyzing">
+            {{ input.plugin === 'csv' ? '上传 CSV' : '上传 Excel' }}
+          </NButton>
+        </NUpload>
         <p v-if="uploadError" class="text-xs text-red-500 mt-1">{{ uploadError }}</p>
+      </div>
+
+      <!-- AI Analysis inline prompt (full width) -->
+      <div v-if="input.fileId && !input.confirmedAnalysis && !analyzing" class="col-span-2 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+        <span class="text-sm">⚡</span>
+        <span class="text-xs text-blue-600 flex-1">AI 可分析此文件，推荐表名、参数键和列类型</span>
+        <NButton size="tiny" type="info" @click="triggerAiAnalysis">立即分析</NButton>
+      </div>
+      <div v-if="input.fileId && !input.confirmedAnalysis && aiError && !analyzing" class="col-span-2 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
+        <span class="text-xs text-red-600 flex-1">{{ aiError }}</span>
+        <NButton size="tiny" type="error" @click="triggerAiAnalysis">重试</NButton>
       </div>
 
       <!-- Sheet name (Excel) -->
       <div v-if="input.plugin === 'excel'">
         <label class="block text-xs font-medium text-slate-500 mb-1">工作表</label>
-        <select
+        <NSelect
           v-if="sheetNames.length > 0"
           :value="(input.config as ExcelInputConfig).sheet"
-          @change="$emit('update', { ...input, config: { ...input.config, sheet: ($event.target as HTMLSelectElement).value } })"
-          class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500 bg-white"
-        >
-          <option v-for="s in sheetNames" :key="s" :value="s">{{ s }}</option>
-        </select>
-        <input
+          @update:value="$emit('update', { ...input, config: { ...input.config, sheet: $event } as ExcelInputConfig })"
+          :options="sheetOptions"
+          size="small"
+          :disabled="analyzing"
+        />
+        <NInput
           v-else
+          :id="`input-sheet-${index}`"
           :value="(input.config as ExcelInputConfig).sheet"
-          @input="$emit('update', { ...input, config: { ...input.config, sheet: ($event.target as HTMLInputElement).value } })"
+          @update:value="$emit('update', { ...input, config: { ...input.config, sheet: $event } as ExcelInputConfig })"
           placeholder="Sheet1"
-          class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500"
+          size="small"
+          :disabled="analyzing"
         />
       </div>
 
@@ -65,90 +76,146 @@
         <!-- Delimiter -->
         <div>
           <label class="block text-xs font-medium text-slate-500 mb-1">分隔符</label>
-          <input
+          <NInput
             :value="(input.config as CsvInputConfig).delimiter"
-            @input="$emit('update', { ...input, config: { ...input.config, delimiter: ($event.target as HTMLInputElement).value } })"
+            @update:value="$emit('update', { ...input, config: { ...input.config, delimiter: $event } as CsvInputConfig })"
             placeholder=","
-            class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500"
+            size="small"
+            :disabled="analyzing"
           />
         </div>
         <!-- Encoding -->
         <div>
           <label class="block text-xs font-medium text-slate-500 mb-1">编码</label>
-          <select
+          <NSelect
             :value="(input.config as CsvInputConfig).encoding"
-            @change="$emit('update', { ...input, config: { ...input.config, encoding: ($event.target as HTMLSelectElement).value } })"
-            class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500 bg-white"
-          >
-            <option value="utf-8">UTF-8</option>
-            <option value="gbk">GBK</option>
-          </select>
+            @update:value="$emit('update', { ...input, config: { ...input.config, encoding: $event } as CsvInputConfig })"
+            :options="encodingOptions"
+            size="small"
+            :disabled="analyzing"
+          />
         </div>
         <!-- Has header -->
         <div class="flex items-center gap-2 pt-5">
-          <input
-            type="checkbox"
+          <NCheckbox
             :checked="(input.config as CsvInputConfig).hasHeader"
-            @change="$emit('update', { ...input, config: { ...input.config, hasHeader: ($event.target as HTMLInputElement).checked } })"
-            class="rounded border-slate-300"
+            @update:checked="$emit('update', { ...input, config: { ...input.config, hasHeader: $event } as CsvInputConfig })"
+            :disabled="analyzing"
           />
-          <label class="text-xs font-medium text-slate-500">包含表头</label>
+          <span class="text-xs font-medium text-slate-500">包含表头</span>
         </div>
       </template>
 
       <!-- Table name -->
       <div>
         <label class="block text-xs font-medium text-slate-500 mb-1">表名</label>
-        <input
+        <NInput
+          :id="`input-table-${index}`"
           :value="input.table"
-          @input="$emit('update', { ...input, table: ($event.target as HTMLInputElement).value })"
+          @update:value="$emit('update', { ...input, table: $event })"
           placeholder="table_name"
-          class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500"
+          size="small"
+          :status="tableNameError ? 'error' : undefined"
+          :disabled="analyzing"
         />
+        <p v-if="tableNameError" class="text-xs text-red-500 mt-1">{{ tableNameError }}</p>
       </div>
 
       <!-- Param key -->
       <div>
         <label class="block text-xs font-medium text-slate-500 mb-1">参数键</label>
-        <input
+        <NInput
+          :id="`input-key-${index}`"
           :value="input.paramKey"
-          @input="$emit('update', { ...input, paramKey: ($event.target as HTMLInputElement).value })"
+          @update:value="$emit('update', { ...input, paramKey: $event })"
           placeholder="param_key"
-          class="w-full text-sm border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-blue-500"
+          size="small"
+          :disabled="analyzing"
         />
       </div>
     </div>
 
+    <!-- Confirmed AI Analysis -->
+    <div v-if="input.confirmedAnalysis" class="mb-4 border border-blue-200 bg-blue-50/40 rounded-md px-3 py-2">
+      <div class="flex items-center gap-2 mb-1.5">
+        <span class="text-xs font-medium text-blue-700">AI 分析确认</span>
+      </div>
+      <div v-if="Object.keys(input.confirmedAnalysis.columnTypes).length" class="flex flex-wrap gap-1 mb-1.5">
+        <NTag
+          v-for="(type, col) in input.confirmedAnalysis.columnTypes"
+          :key="col"
+          size="tiny"
+          :bordered="false"
+          :type="columnTypeTagType(type)"
+        >{{ col }}: {{ type }}</NTag>
+      </div>
+      <div v-if="input.confirmedAnalysis.paramKeys.length" class="flex flex-wrap gap-1">
+        <span class="text-[10px] text-slate-400 mr-0.5">Keys:</span>
+        <NTag
+          v-for="key in input.confirmedAnalysis.paramKeys"
+          :key="key"
+          size="tiny"
+          type="info"
+        >{{ key }}</NTag>
+      </div>
+    </div>
+
+    <!-- AI analysis overlay -->
+    <div v-if="analyzing" class="absolute inset-0 bg-white/65 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 rounded-md">
+      <NSpin size="medium" />
+      <span class="text-sm text-teal-600 font-medium">AI 分析中...</span>
+    </div>
+    <div v-if="analyzing" class="absolute inset-0 z-10" />
+
     <!-- Column preview -->
     <div v-if="input.fileId">
       <div class="flex items-center gap-2 mb-2">
-        <button
+        <NButton
           v-if="!previewData"
+          text
+          size="tiny"
+          :loading="previewLoading"
           @click="loadPreview"
-          :disabled="previewLoading"
-          class="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
-        >{{ previewLoading ? '加载中...' : '加载列预览' }}</button>
-        <template v-else>
-          <button
-            @click="previewVisible = !previewVisible"
-            class="text-xs text-blue-600 hover:text-blue-700 font-medium"
-          >{{ previewVisible ? '收起预览' : '展开预览' }}</button>
-        </template>
+        >{{ previewLoading ? '加载中...' : '加载列预览' }}</NButton>
+        <NButton
+          v-else
+          text
+          size="tiny"
+          @click="previewVisible = !previewVisible"
+        >{{ previewVisible ? '收起预览' : '展开预览' }}</NButton>
       </div>
       <p v-if="error && !previewLoading" class="text-xs text-red-500 mb-2">{{ error.message }}</p>
       <ColumnPreview v-if="previewData && previewVisible" :columns="previewData.columns" :rows="previewData.rows" />
     </div>
     <p v-else class="text-xs text-slate-400 mt-2">请先上传文件以加载列预览</p>
-  </div>
+
+    <!-- AI Column Confirm Modal -->
+    <AiColumnConfirmModal
+      :visible="modalVisible"
+      :analyzing="analyzing"
+      :parsed="modalParsed"
+      :raw-text="modalRawText"
+      :error-message="aiError"
+      :input="input"
+      :columns="modalColumns"
+      :conflicting-table-names="otherTableNames"
+      @confirm="handleModalConfirm"
+      @regenerate="handleModalRegenerate"
+      @close="handleModalClose"
+    />
+  </NCard>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import type { InputSource, CsvInputConfig, ExcelInputConfig } from '../../types/wizard'
+import { ref, computed, onMounted, watch } from 'vue'
+import type { InputSource, CsvInputConfig, ExcelInputConfig, ConfirmedAnalysis } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
-import { useWizardApi } from '../../composables/useWizardApi'
+import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
 import { useFileUpload } from '../../composables/useFileUpload'
+import { NCard, NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NSpin } from 'naive-ui'
+import type { UploadCustomRequestOptions } from 'naive-ui'
 import ColumnPreview from './ColumnPreview.vue'
+import AiColumnConfirmModal from './AiColumnConfirmModal.vue'
 
 const props = defineProps<{
   input: InputSource
@@ -158,64 +225,225 @@ const props = defineProps<{
 const emit = defineEmits<{
   remove: []
   update: [input: InputSource]
+  'file-ready': [fileId: string]
 }>()
 
 const store = useWizardStore()
 const { fetchPreview, error } = useWizardApi()
 const { uploading, error: uploadError, upload } = useFileUpload()
-const fileInput = ref<HTMLInputElement>()
+const { suggesting: analyzing, aiError, askSuggestion } = useAiApi()
 const previewData = ref<{ columns: string[]; rows: string[][] } | null>(null)
 const previewVisible = ref(false)
 const previewLoading = ref(false)
 const sheetNames = ref<string[]>([])
-let tableSeq = 0
+const modalVisible = ref(false)
+const modalParsed = ref<{ columnTypes: Record<string, string>; tableName: string; paramKeys: string[] } | null>(null)
+const modalRawText = ref<string | null>(null)
+const modalColumns = ref<string[]>([])
+
+const encodingOptions = [
+  { label: 'UTF-8', value: 'utf-8' },
+  { label: 'GBK', value: 'gbk' },
+]
+
+const sheetOptions = computed(() => sheetNames.value.map(s => ({ label: s, value: s })))
+
+const otherTableNames = computed(() =>
+  store.inputs
+    .filter((_, i) => i !== props.index)
+    .map(inp => inp.table.trim())
+    .filter(Boolean)
+)
+
+const tableNameError = computed(() => {
+  const name = props.input.table.trim()
+  if (!name) return ''
+  if (otherTableNames.value.includes(name)) return `表名 "${name}" 已被其他输入源使用`
+  return ''
+})
+
+function parseColumnsResponse(raw: string): {
+  columnTypes: Record<string, string>
+  tableName: string
+  paramKeys: string[]
+} | null {
+  try {
+    let json = raw
+    const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+    if (jsonMatch) json = jsonMatch[1].trim()
+
+    const parsed = JSON.parse(json)
+    const result = Array.isArray(parsed) ? parsed[0] : parsed
+
+    const columnTypes: Record<string, string> = {}
+    if (result.columnTypes && typeof result.columnTypes === 'object') {
+      for (const [col, type] of Object.entries(result.columnTypes)) {
+        columnTypes[col] = String(type)
+      }
+    } else if (Array.isArray(result.columns)) {
+      for (const col of result.columns) {
+        if (typeof col === 'string') {
+          columnTypes[col] = 'string'
+        } else if (col && typeof col === 'object') {
+          const cname = col.name || col.column || ''
+          if (cname) columnTypes[cname] = col.type || 'string'
+        }
+      }
+    }
+
+    return {
+      columnTypes,
+      tableName: result.tableName || result.table_name || result.table || '',
+      paramKeys: Array.isArray(result.paramKeys)
+        ? result.paramKeys.map(String)
+        : Array.isArray(result.param_keys)
+          ? result.param_keys.map(String)
+          : Array.isArray(result.keys)
+            ? result.keys.map(String)
+            : [],
+    }
+  } catch {
+    return null
+  }
+}
+
+async function triggerAiAnalysis() {
+  const fileMeta = store.uploadedFiles[props.input.fileId]
+  if (!fileMeta?.columns) {
+    aiError.value = '请先上传文件并等待列信息加载完成'
+    return
+  }
+
+  modalColumns.value = fileMeta.columns
+  modalParsed.value = null
+  modalRawText.value = null
+
+  try {
+    const result = await askSuggestion('columns', {
+      inputs: [{
+        name: props.input.table || fileMeta.originalName,
+        table: props.input.table,
+        columns: fileMeta.columns,
+        sampleRows: fileMeta.sampleRows || [],
+      }],
+    })
+
+    modalVisible.value = true
+
+    if (!result) return
+
+    const parsed = parseColumnsResponse(result)
+    if (!parsed) {
+      modalRawText.value = result
+      return
+    }
+
+    modalParsed.value = parsed
+  } catch (e) {
+    aiError.value = e instanceof Error ? e.message : '分析过程出现异常'
+    modalVisible.value = true
+  }
+}
+
+function handleModalConfirm(confirmed: ConfirmedAnalysis) {
+  emit('update', {
+    ...props.input,
+    table: confirmed.tableName,
+    paramKey: confirmed.paramKeys.join(','),
+    confirmedAnalysis: confirmed,
+  })
+  modalVisible.value = false
+  modalParsed.value = null
+  modalRawText.value = null
+}
+
+function handleModalRegenerate() {
+  modalParsed.value = null
+  modalRawText.value = null
+  aiError.value = null
+  triggerAiAnalysis()
+}
+
+function handleModalClose() {
+  modalVisible.value = false
+  modalParsed.value = null
+  modalRawText.value = null
+}
+
+function columnTypeTagType(type: string) {
+  switch (type) {
+    case 'string': return 'success' as const
+    case 'number': return 'info' as const
+    case 'date': return 'warning' as const
+    case 'boolean': return 'error' as const
+    default: return 'default' as const
+  }
+}
 
 onMounted(async () => {
   if (props.input.fileId) {
     const data = await fetchPreview(props.input.fileId)
-    if (data) sheetNames.value = data.sheets
+    if (data) {
+      sheetNames.value = data.sheets
+      const existing = store.uploadedFiles[props.input.fileId]
+      if (existing && (!existing.columns || !existing.sampleRows)) {
+        store.addFileRef(props.input.fileId, { ...existing, columns: data.columns, sampleRows: data.rows })
+      }
+    }
   }
 })
 
-watch(() => props.input.config.sheet, () => {
+watch(() => (props.input.config as ExcelInputConfig).sheet, () => {
   if (previewVisible.value) loadPreview()
 })
 
 function generateTableName(originalName: string): string {
   const base = originalName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9一-鿿_]/g, '_')
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  tableSeq++
-  return `${base}_${date}_${tableSeq}`
+  const existing = store.inputs.map(inp => inp.table.trim()).filter(Boolean)
+  let name = base
+  let seq = 0
+  while (existing.includes(name)) {
+    seq++
+    name = `${base}_${seq}`
+  }
+  return name
 }
 
-function triggerUpload() { fileInput.value?.click() }
-
-async function onFileSelected(e: Event) {
-  const files = (e.target as HTMLInputElement).files
-  if (!files || files.length === 0) return
-  const meta = await upload(files[0])
+async function handleUpload({ file, onFinish, onError }: UploadCustomRequestOptions) {
+  if (!file.file) return
+  const meta = await upload(file.file)
   if (meta) {
-    store.addFileRef(meta.fileId, meta)
     const data = await fetchPreview(meta.fileId)
+    store.addFileRef(meta.fileId, {
+      ...meta,
+      columns: data?.columns,
+      sampleRows: data?.rows,
+    })
     if (data) {
       sheetNames.value = data.sheets
       if (props.input.plugin === 'excel') {
         emit('update', {
           ...props.input,
           fileId: meta.fileId,
-          config: { ...props.input.config, sheet: data.sheets[0] || 'Sheet1' },
-          table: generateTableName(meta.originalName)
+          config: { ...props.input.config, sheet: data.sheets[0] || 'Sheet1' } as ExcelInputConfig,
+          table: generateTableName(meta.originalName),
+          confirmedAnalysis: undefined,
         })
       } else {
         emit('update', {
           ...props.input,
           fileId: meta.fileId,
-          table: generateTableName(meta.originalName)
+          table: generateTableName(meta.originalName),
+          confirmedAnalysis: undefined,
         })
       }
     } else {
-      emit('update', { ...props.input, fileId: meta.fileId })
+      emit('update', { ...props.input, fileId: meta.fileId, confirmedAnalysis: undefined })
     }
+    emit('file-ready', meta.fileId)
+    onFinish()
+  } else {
+    onError()
   }
 }
 
@@ -224,9 +452,9 @@ function removeFile() {
   previewData.value = null
   previewVisible.value = false
   if (props.input.plugin === 'excel') {
-    emit('update', { ...props.input, fileId: '', config: { ...props.input.config, sheet: '' }, table: '' })
+    emit('update', { ...props.input, fileId: '', config: { ...props.input.config, sheet: '' } as ExcelInputConfig, table: '', confirmedAnalysis: undefined })
   } else {
-    emit('update', { ...props.input, fileId: '', table: '' })
+    emit('update', { ...props.input, fileId: '', table: '', confirmedAnalysis: undefined })
   }
 }
 

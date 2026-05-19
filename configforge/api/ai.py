@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 from fastapi import APIRouter, HTTPException
 from configforge.models.ai import AiSuggestionRequest, AiSuggestionResponse, AiSettings, AiSettingsUpdate
@@ -7,6 +8,7 @@ from configforge.services.ai.factory import create_backend
 from configforge.services.ai.orchestrator import build_prompt, parse_response
 
 router = APIRouter()
+logger = logging.getLogger("configforge.ai")
 
 
 @router.post("/suggest", response_model=AiSuggestionResponse)
@@ -17,15 +19,23 @@ async def suggest(req: AiSuggestionRequest):
     try:
         backend = create_backend(settings)
         prompt = build_prompt(req.category, req.context)
-        result = await asyncio.wait_for(backend.generate(prompt), timeout=30.0)
+        logger.info("AI suggest request category=%s prompt_len=%d model=%s provider=%s",
+                     req.category, len(prompt), settings.model, settings.provider.value)
+        start = time.monotonic()
+        result = await asyncio.wait_for(backend.generate(prompt), timeout=90.0)
+        latency_ms = int((time.monotonic() - start) * 1000)
+        logger.info("AI suggest response category=%s latency_ms=%d response_len=%d",
+                     req.category, latency_ms, len(result))
         parsed = parse_response(result)
         return AiSuggestionResponse(content=parsed, category=req.category)
     except asyncio.TimeoutError:
+        logger.warning("AI suggest timeout category=%s model=%s", req.category, settings.model)
         raise HTTPException(status_code=503, detail="AI 响应超时，请重试")
     except Exception as e:
         msg = str(e)
         if "401" in msg or "403" in msg or "invalid" in msg.lower():
             raise HTTPException(status_code=401, detail=f"API Key 无效: {msg}")
+        logger.error("AI suggest failed category=%s error=%s", req.category, msg[:200])
         raise HTTPException(status_code=500, detail=f"AI 调用失败: {msg}")
 
 

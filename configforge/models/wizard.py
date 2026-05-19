@@ -3,7 +3,7 @@ from typing import Optional, Literal, Annotated
 
 
 class SceneInfo(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=200)
     description: str = ""
     version: str = "1.0"
 
@@ -134,7 +134,49 @@ class FileUploadResponse(BaseModel):
     original_name: str
 
 
+class SqlExecuteRequest(BaseModel):
+    sql: str
+    table_mapping: dict[str, str]  # table_name -> file_id
+
+
+class SqlExecuteResponse(BaseModel):
+    columns: list[str]
+    rows: list[list[str]]
+
+
 class ErrorResponse(BaseModel):
     error: str
     code: str
     recoverable: bool = True
+
+
+# === Config persistence models ===
+
+class ConfigInputMeta(BaseModel):
+    name: str
+    param_key: str
+    plugin: str  # "excel" | "csv"
+
+
+class ConfigMeta(BaseModel):
+    id: str
+    scene_name: str
+    description: str = ""
+    input_count: int
+    output_type: str = ""
+    version: str = "1.0"
+    updated_at: str
+    inputs: list[ConfigInputMeta] = []
+
+
+class SaveConfigRequest(BaseModel):
+    state: WizardState
+    config_id: str | None = None
+
+
+class SaveConfigResponse(BaseModel):
+    id: str
+
+
+class ExecuteConfigRequest(BaseModel):
+    files: dict[str, str]  # param_key -> file_id

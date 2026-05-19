@@ -26,6 +26,9 @@ demo/screenshots/
 # Worktrees
 .worktrees/
 
+# Superpowers (brainstorming artifacts)
+.superpowers/
+
 # pytest
 .pytest_cache/
 

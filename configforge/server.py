@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+import re
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -7,9 +8,25 @@ from configforge.api.preview import router as preview_router
 from configforge.api.files import router as files_router
 from configforge.api.ai import router as ai_router
 from configforge.api.wizard import router as wizard_router
+from configforge.api.configs import router as configs_router
 from configforge.models.wizard import ErrorResponse
 
 app = FastAPI(title="ConfigForge", version="0.1.0")
+
+# URL-encoded path traversal patterns — checked against raw_path (URL-encoded) before Starlette normalizes
+_RAW_TRAVERSAL_RE = re.compile(r"(%[2eE][%2eE]|%[2fF]|%[5cC]|%00)", re.IGNORECASE)
+
+
+@app.middleware("http")
+async def block_encoded_traversal(request: Request, call_next):
+    raw = request.scope.get("raw_path", request.url.path.encode()).decode("latin-1", errors="replace")
+    if _RAW_TRAVERSAL_RE.search(raw) or ".." in raw:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Path traversal detected", "code": "PATH_TRAVERSAL", "recoverable": False},
+        )
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,6 +54,7 @@ app.include_router(preview_router, prefix="/api/preview")
 app.include_router(files_router, prefix="/api/files")
 app.include_router(ai_router, prefix="/api/ai")
 app.include_router(wizard_router, prefix="/api/wizard")
+app.include_router(configs_router, prefix="/api/configs")
 
 
 @app.get("/api/health")

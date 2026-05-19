@@ -9,14 +9,22 @@
     </thead>
     <tbody>
       <tr v-for="(col, i) in columns" :key="i">
-        <td class="border border-slate-200"><input v-model="col.source" class="w-full px-2 py-1 text-xs border-0 outline-none" /></td>
-        <td class="border border-slate-200"><input v-model="col.target" class="w-full px-2 py-1 text-xs border-0 outline-none" /></td>
-        <td class="border border-slate-200 text-center"><button @click="$emit('remove', i)" class="text-slate-400 hover:text-red-500">&times;</button></td>
+        <td class="border border-slate-200">
+          <NInput v-if="!col.source" v-model:value="col.source" size="tiny" placeholder="输入源列名" />
+          <span v-else class="block w-full px-2 py-1 text-xs text-slate-700 bg-slate-50">{{ col.source }}</span>
+        </td>
+        <td class="border border-slate-200">
+          <NInput v-model:value="col.target" size="tiny" />
+        </td>
+        <td class="border border-slate-200 text-center">
+          <NButton text size="tiny" type="error" @click="$emit('remove', i)">删除</NButton>
+        </td>
       </tr>
     </tbody>
   </table>
 </template>
 <script setup lang="ts">
+import { NInput, NButton } from 'naive-ui'
 import type { ColumnMappingItem } from '../../types/wizard'
 defineProps<{ columns: ColumnMappingItem[] }>()
 defineEmits<{ remove: [index: number] }>()

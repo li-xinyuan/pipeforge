@@ -1,1 +1,240 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: light dark;
+
+  /* === Breakpoints (reference tokens) === */
+  --breakpoint-mobile: 768px;
+  --breakpoint-tablet: 1024px;
+
+  /* === Teal Primary Palette === */
+  --color-primary: #0d9488;
+  --color-primary-light: #14b8a6;
+  --color-primary-lighter: #5eead4;
+  --color-primary-bg: #f0fdfa;
+  --color-primary-border: #99f6e4;
+  --color-primary-bg-light: #ccfbf1;
+
+  /* === Surfaces === */
+  --color-bg: #fafdfb;
+  --color-bg-secondary: #f0fdfa;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f8fafc;
+
+  /* === Text === */
+  --color-text: #134e4a;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+
+  /* === Borders === */
+  --color-border: #d1d5db;
+  --color-border-light: #e2e8f0;
+
+  /* === Semantic === */
+  --color-success: #166534;
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #bbf7d0;
+  --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #fde68a;
+  --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-error-border: #fecaca;
+  --color-info: #0284c7;
+  --color-info-bg: #eff6ff;
+  --color-info-border: #bfdbfe;
+
+  /* === Radius === */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* === Shadows === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.04);
+  --shadow-active: 0 3px 16px rgba(13, 148, 136, 0.06);
+  --shadow-button: 0 2px 8px rgba(13, 148, 136, 0.25);
+
+  /* === Typography === */
+  --font-family: "Inter", "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 2.25rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* === Text on gradient === */
+  --text-shadow-on-gradient: 0 1px 3px rgba(0, 0, 0, 0.25);
+
+  /* === Spacing === */
+  --space-card-padding: 1.5rem;
+  --space-section-gap: 1.125rem;
+
+  /* === Transitions === */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.4s ease;
+
+  /* === AI Panel === */
+  --ai-panel-width: 340px;
+}
+
+/* === Dark Theme === */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-primary: #14b8a6;
+  --color-primary-light: #34d399;
+  --color-primary-lighter: #6ee7b7;
+  --color-primary-bg: rgba(13, 148, 136, 0.08);
+  --color-primary-bg-light: rgba(13, 148, 136, 0.12);
+  --color-primary-border: rgba(13, 148, 136, 0.2);
+
+  --color-bg: #0a1c14;
+  --color-bg-secondary: #0d241a;
+  --color-surface: rgba(255, 255, 255, 0.04);
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+
+  --color-text: #d1fae5;
+  --color-text-secondary: #999999;
+  --color-text-muted: #64748b;
+
+  --color-border: #1a3d2c;
+  --color-border-light: #164e35;
+
+  --color-success-bg: rgba(5, 150, 105, 0.1);
+  --color-success-border: rgba(5, 150, 105, 0.2);
+  --color-warning-bg: rgba(180, 83, 9, 0.1);
+  --color-warning-border: rgba(180, 83, 9, 0.2);
+  --color-error-bg: rgba(220, 38, 38, 0.1);
+  --color-error-border: rgba(220, 38, 38, 0.2);
+
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #38bdf8;
+  --color-info-bg: rgba(2, 132, 199, 0.1);
+  --color-info-border: rgba(2, 132, 199, 0.2);
+
+  --shadow-button: 0 2px 8px rgba(20, 184, 166, 0.35);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-active: 0 3px 16px rgba(13, 148, 136, 0.1);
+}
+
+/* === Keyframe Animations === */
+@keyframes cf-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cf-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cf-connector-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes cf-message-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* === Reduced Motion === */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* === Base Styles === */
+body {
+  font-family: var(--font-family);
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: background var(--transition-normal), color var(--transition-normal);
+}
+
+input,
+textarea,
+select {
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* Ensure interactive elements transition smoothly between themes */
+button,
+a,
+input,
+textarea,
+select {
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* === Focus === */
+*:focus-visible {
+  outline: 2px solid var(--color-primary-lighter);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* === Global Button Micro-interactions === */
+button:not([disabled]),
+a:not([disabled]) {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+button:active:not([disabled]) {
+  transform: scale(0.97);
+}
+
+/* === Card Hover Lift (opt-in via class) === */
+.card-lift {
+  transition: transform var(--transition-fast), box-shadow var(--transition-normal);
+}
+
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-active);
+}

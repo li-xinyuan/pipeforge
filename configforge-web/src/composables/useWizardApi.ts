@@ -27,7 +27,31 @@ export function useWizardApi() {
     return post<{ yaml: string }>('/api/wizard/generate', { state })
   }
 
-  return { loading, error, initScene, fetchPreview, generateYaml }
+  async function executeSql(sql: string, tableMapping: Record<string, string>) {
+    return post<{ columns: string[]; rows: string[][] }>('/api/preview/sql', { sql, table_mapping: tableMapping })
+  }
+
+  async function executePipeline(state: any): Promise<Blob | null> {
+    loading.value = true; error.value = null
+    try {
+      const resp = await fetch('/api/wizard/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state }),
+      })
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null)
+        error.value = { message: data?.error || data?.detail || '执行失败', code: data?.code || 'EXECUTE_ERROR' }
+        return null
+      }
+      return await resp.blob()
+    } catch {
+      error.value = { message: 'Network error', code: 'NETWORK_ERROR' }
+      return null
+    } finally { loading.value = false }
+  }
+
+  return { loading, error, initScene, fetchPreview, generateYaml, executeSql, executePipeline }
 }
 
 export function useAiApi() {
@@ -37,18 +61,24 @@ export function useAiApi() {
   async function askSuggestion(category: string, context: Record<string, any>): Promise<string | null> {
     suggesting.value = true
     aiError.value = null
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 120000)
     try {
       const resp = await fetch('/api/ai/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ category, context }),
+        signal: controller.signal,
       })
       const data = await resp.json()
       if (resp.ok) return data.content
       aiError.value = data.detail || data.error || '未知错误'
     } catch (e) {
-      aiError.value = '网络请求失败'
+      aiError.value = e instanceof DOMException && e.name === 'AbortError'
+        ? 'AI 请求超时，请重试'
+        : '网络请求失败'
     } finally {
+      clearTimeout(timer)
       suggesting.value = false
     }
     return null

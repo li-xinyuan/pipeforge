@@ -1,14 +1,16 @@
 <template>
-  <div class="bg-slate-800 rounded-lg p-5 overflow-x-auto font-mono text-sm leading-relaxed">
-    <pre v-if="yamlText" class="text-slate-200"><code>{{ yamlText }}</code></pre>
-    <p v-else-if="loading" class="text-slate-400">生成中...</p>
-    <p v-else-if="apiError" class="text-red-400">{{ apiError }}</p>
+  <div>
+    <NCode v-if="yamlText" :code="yamlText" language="yaml" word-wrap />
+    <NSkeleton v-else-if="loading" text :repeat="8" />
+    <NAlert v-else-if="apiError" type="error" :title="apiError" />
   </div>
 </template>
+
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
+import { NCode, NSkeleton, NAlert } from 'naive-ui'
 
 const store = useWizardStore()
 const { generateYaml } = useWizardApi()
@@ -28,7 +30,7 @@ async function loadYaml() {
       version: store.scene.version,
     },
     inputs: store.inputs.map(inp => ({
-      name: inp.name,
+      name: inp.table,
       plugin: inp.plugin,
       table: inp.table,
       param_key: inp.paramKey,
@@ -40,7 +42,7 @@ async function loadYaml() {
     processor: {
       plugin: store.processor.plugin,
       sql: store.processor.sql,
-      output_tables: store.processor.outputTables,
+      output_tables: [store.processor.outputTable],
     },
     output: store.output ? {
       plugin: store.output.plugin,
@@ -76,7 +78,9 @@ async function loadYaml() {
   loading.value = false
 }
 
-onMounted(loadYaml)
+onMounted(() => {
+  if (store.scene.name.trim()) loadYaml()
+})
 
-defineExpose({ loadYaml })
+defineExpose({ loadYaml, yamlText })
 </script>
