@@ -17,7 +17,8 @@ def main():
 @click.option("--param", "-p", "params", multiple=True, help="Runtime parameter in key=value format")
 @click.option("--cleanup", is_flag=True, help="Remove temporary database after execution")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
-def run(config_path, params, cleanup, verbose):
+@click.option("--log-dir", default=None, help="Directory for execution log files")
+def run(config_path, params, cleanup, verbose, log_dir):
     """Execute a pipeline from a YAML configuration file."""
     try:
         engine = PipelineEngine(config_path)
@@ -46,7 +47,7 @@ def run(config_path, params, cleanup, verbose):
         click.echo(f"Executing pipeline: {engine.config.scene.name}")
 
     try:
-        result = engine.execute(params=provided, cleanup=cleanup)
+        result = engine.execute(params=provided, cleanup=cleanup, log_dir=log_dir)
         _print_result(result)
     except Exception as e:
         click.echo(f"Pipeline error: {e}", err=True)

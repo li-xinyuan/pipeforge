@@ -10,7 +10,7 @@ router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
-UPLOAD_DIR = "tmp/uploads"
+UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
 MAX_FILE_AGE_SECONDS = 24 * 60 * 60
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -30,6 +30,28 @@ def cleanup_old_files() -> int:
 
 
 cleanup_old_files()
+
+
+LOG_DIR = os.environ.get("CONFIGFORGE_LOG_DIR", "tmp/logs")
+MAX_LOG_AGE_SECONDS = 7 * 24 * 60 * 60  # 7 days
+
+
+def cleanup_old_logs() -> int:
+    if not os.path.isdir(LOG_DIR):
+        return 0
+    now = time.time()
+    removed = 0
+    for name in os.listdir(LOG_DIR):
+        path = os.path.join(LOG_DIR, name)
+        if not os.path.isfile(path):
+            continue
+        if now - os.path.getmtime(path) > MAX_LOG_AGE_SECONDS:
+            os.remove(path)
+            removed += 1
+    return removed
+
+
+cleanup_old_logs()
 
 
 @router.post("/upload", response_model=FileUploadResponse)

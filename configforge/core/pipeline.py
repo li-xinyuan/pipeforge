@@ -8,13 +8,20 @@ from configforge.models.wizard import (
     OutputInferRequest,
     OutputInferResponse,
     ColumnMappingItem,
+    ProcessorConfig,
 )
 from configforge.services.excel_reader import read_excel_info
 from configforge.services.csv_reader import read_csv_info
 from configforge.services.yaml_builder import build_yaml
+import copy
 import os
+import re
+import shutil
+import tempfile
+from pipeforge.core.engine import PipelineEngine
 
 UPLOAD_DIR = "tmp/uploads"
+LOG_DIR = os.environ.get("CONFIGFORGE_LOG_DIR", "tmp/logs")
 
 
 def init_scene(req: SceneInitRequest) -> SceneInitResponse:
@@ -57,3 +64,110 @@ def infer_output(req: OutputInferRequest) -> OutputInferResponse:
 def generate(state: WizardState) -> dict:
     yaml = build_yaml(state)
     return {"yaml": yaml}
+
+
+def execute_pipeline(state: WizardState) -> str:
+    """使用真实数据执行 pipeline，返回输出文件路径。"""
+    exec_state = copy.deepcopy(state)
+
+    # PipeForge SQL processor 只执行 SQL 原样，不会对 SELECT 自动 CREATE TABLE。
+    if exec_state.processor.output_tables and exec_state.processor.sql.strip():
+        if not _has_ddl(exec_state.processor.sql):
+            output_table = exec_state.processor.output_tables[0]
+            exec_state.processor.sql = (
+                f'CREATE TABLE "{output_table}" AS '
+                f"SELECT * FROM ({exec_state.processor.sql})"
+            )
+
+    tmp_dir = tempfile.mkdtemp(prefix="pipeforge_exec_")
+
+    # 当 output columns 为空时，自动从输入文件推断列映射
+    if exec_state.output and exec_state.output.config.type == "excel" and not exec_state.output.config.columns:
+        inferred: list[ColumnMappingItem] = []
+        for inp in exec_state.inputs:
+            if inp.file_id:
+                path = os.path.join(UPLOAD_DIR, inp.file_id)
+                if os.path.exists(path):
+                    with open(path, "rb") as f:
+                        content = f.read()
+                    if inp.plugin == "csv":
+                        info = read_csv_info(content)
+                    else:
+                        import io
+                        info = read_excel_info(io.BytesIO(content))
+                    inferred = [ColumnMappingItem(source=c, target=c) for c in info.get("columns", [])]
+                    if inferred:
+                        break
+        if inferred:
+            exec_state.output.config.columns = inferred
+
+    # Excel 输出需要模板：拷贝已有模板，或在无模板时生成仅含表头的最小模板。
+    if exec_state.output and exec_state.output.config.type == "excel":
+        template_id = exec_state.output.config.template
+        if template_id:
+            src = os.path.join(UPLOAD_DIR, template_id)
+            if os.path.exists(src):
+                shutil.copy2(src, os.path.join(tmp_dir, template_id))
+        else:
+            from openpyxl import Workbook
+
+            gen_name = "_generated_template.xlsx"
+            wb = Workbook()
+            ws = wb.active
+            ws.title = exec_state.output.config.sheet or "Sheet1"
+            for i, col in enumerate(exec_state.output.config.columns, start=1):
+                ws.cell(row=1, column=i, value=col.target)
+            wb.save(os.path.join(tmp_dir, gen_name))
+            wb.close()
+            exec_state.output.config.template = gen_name
+
+    # 在模板就绪后再构建 YAML
+    yaml_str = build_yaml(exec_state)
+    yaml_path = os.path.join(tmp_dir, "pipeline.yaml")
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        f.write(yaml_str)
+
+    # 复制输入文件到临时目录（openpyxl 需要 .xlsx 扩展名识别格式，
+    # 如果 file_id 不含扩展名则补上）
+    params: dict[str, str] = {}
+    for inp in exec_state.inputs:
+        if inp.file_id:
+            src = os.path.join(UPLOAD_DIR, inp.file_id)
+            if os.path.exists(src):
+                ext = os.path.splitext(inp.file_id)[1].lower()
+                if ext in (".xlsx", ".xls", ".csv"):
+                    dst_name = inp.file_id
+                else:
+                    dst_name = inp.file_id + (".xlsx" if inp.plugin == "excel" else ".csv")
+                dst = os.path.join(tmp_dir, dst_name)
+                shutil.copy2(src, dst)
+                params[inp.param_key] = os.path.abspath(dst)
+
+    engine = PipelineEngine(yaml_path)
+
+    result = engine.execute(params, log_dir=LOG_DIR)
+
+    output_path = result.output.file_path if result.output else ""
+    if not output_path or not os.path.exists(output_path):
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise RuntimeError("Pipeline executed but no output file was generated")
+
+    persist_dir = tempfile.mkdtemp(prefix="pipeforge_out_")
+    output_filename = os.path.basename(output_path)
+    persisted_path = os.path.join(persist_dir, output_filename)
+    shutil.move(output_path, persisted_path)
+
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    return persisted_path
+
+
+def _has_ddl(sql: str) -> bool:
+    """检测 SQL 是否已包含 DDL（CREATE TABLE / INSERT INTO / WITH … AS）。"""
+    return bool(
+        re.search(
+            r"^\s*(CREATE\s+(?:TEMP\s+|TEMPORARY\s+)?TABLE|INSERT\s+INTO)",
+            sql,
+            re.IGNORECASE,
+        )
+    )

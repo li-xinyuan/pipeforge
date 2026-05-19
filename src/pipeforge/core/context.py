@@ -1,4 +1,6 @@
+import os
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -31,17 +33,37 @@ class ExecutionResult(BaseModel):
 @dataclass
 class Logger:
     verbose: bool = False
+    log_dir: str | None = None
     messages: list[dict[str, Any]] = field(default_factory=list)
+    _file: Any = None
+
+    def __post_init__(self):
+        if self.log_dir:
+            os.makedirs(self.log_dir, exist_ok=True)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            self._file = open(os.path.join(self.log_dir, f"pipeforge_{ts}.log"), "w")
+
+    def _write(self, level: str, msg: str) -> None:
+        self.messages.append({"level": level, "message": msg})
+        if self._file:
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self._file.write(f"[{ts}] [{level}] {msg}\n")
+            self._file.flush()
 
     def info(self, msg: str) -> None:
-        self.messages.append({"level": "INFO", "message": msg})
+        self._write("INFO", msg)
 
     def error(self, msg: str) -> None:
-        self.messages.append({"level": "ERROR", "message": msg})
+        self._write("ERROR", msg)
 
     def debug(self, msg: str) -> None:
         if self.verbose:
-            self.messages.append({"level": "DEBUG", "message": msg})
+            self._write("DEBUG", msg)
+
+    def close(self) -> None:
+        if self._file:
+            self._file.close()
+            self._file = None
 
 
 @dataclass

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from pipeforge.config import load_yaml_config
 from pipeforge.config.models import SceneConfig
-from pipeforge.core.context import Context, InputStats, ProcessorStats, OutputStats, ExecutionResult
+from pipeforge.core.context import Context, InputStats, ProcessorStats, OutputStats, ExecutionResult, Logger
 from pipeforge.core.registry import PluginRegistry
 from pipeforge.core.sqlite import SQLiteManager
 from pipeforge.plugins.base import InputPlugin
@@ -33,7 +33,7 @@ class PipelineEngine:
             if inp.param_key
         ]
 
-    def execute(self, params: dict[str, str], cleanup: bool = False) -> ExecutionResult:
+    def execute(self, params: dict[str, str], cleanup: bool = False, log_dir: str | None = None) -> ExecutionResult:
         """执行流水线。"""
         _validate_params(self.required_params(), params)
 
@@ -43,6 +43,7 @@ class PipelineEngine:
             params=params,
             yaml_dir=self._yaml_dir,
             scene_name=self.config.scene.name,
+            logger=Logger(log_dir=log_dir),
         )
 
         try:
@@ -62,6 +63,7 @@ class PipelineEngine:
             context.logger.error(f"Temporary database preserved at: {db.path}")
             raise
         finally:
+            context.logger.close()
             if cleanup:
                 db.close()
                 db.remove()
