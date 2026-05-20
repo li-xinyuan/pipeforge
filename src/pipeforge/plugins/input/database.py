@@ -1,8 +1,8 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import NullPool
-from ..base import InputPlugin
-from ...config.models import DbInputConfig
-from ...core.registry import register_plugin
+from pipeforge.plugins.base import InputPlugin
+from pipeforge.config.models import DbInputConfig
+from pipeforge.core.registry import register_plugin
 
 
 @register_plugin("database", "input")
@@ -10,14 +10,15 @@ class DatabaseInputPlugin(InputPlugin[DbInputConfig]):
     """Read data from external database (SQLite/MySQL/PostgreSQL) via SQLAlchemy."""
 
     @classmethod
-    def config_model(cls):
+    def config_model(cls) -> type[DbInputConfig]:
         return DbInputConfig
 
     def execute(self, context, config: DbInputConfig) -> None:
         pool_kwargs = {"poolclass": NullPool} if config.db_type == "sqlite" else {"pool_size": 5}
-        engine = create_engine(config.connection_string, **pool_kwargs)
 
+        engine = None
         try:
+            engine = create_engine(config.connection_string, **pool_kwargs)
             with engine.connect() as conn:
                 if config.sql.strip():
                     result = conn.execute(text(config.sql))
@@ -30,7 +31,8 @@ class DatabaseInputPlugin(InputPlugin[DbInputConfig]):
                 columns = list(result.keys())
                 rows = [tuple(row) for row in result.fetchall()]
         finally:
-            engine.dispose()
+            if engine is not None:
+                engine.dispose()
 
         if not columns:
             context.logger.warning(f"Database input '{self.label}': query returned 0 columns")
