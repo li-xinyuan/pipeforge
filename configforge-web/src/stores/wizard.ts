@@ -34,10 +34,15 @@ export const useWizardStore = defineStore('wizard', () => {
   function nextStep() { if (canProceed.value && currentStep.value < 5) currentStep.value++ }
   function prevStep() { if (currentStep.value > 1) currentStep.value-- }
   function goToStep(n: number) { if (n >= 1 && n <= currentStep.value && n <= 5) currentStep.value = n }
-  function addInput(plugin: 'excel' | 'csv' = 'excel') {
-    const config = plugin === 'csv'
-      ? { type: 'csv' as const, delimiter: ',', encoding: 'utf-8', hasHeader: true }
-      : { type: 'excel' as const, sheet: '' }
+  function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
+    let config: any
+    if (plugin === 'csv') {
+      config = { type: 'csv' as const, delimiter: ',', encoding: 'utf-8', hasHeader: true }
+    } else if (plugin === 'database') {
+      config = { type: 'database' as const, connectionId: '', queryType: 'table', tables: [], sql: '' }
+    } else {
+      config = { type: 'excel' as const, sheet: '' }
+    }
 
     inputs.value.push({
       plugin,
@@ -81,6 +86,13 @@ export const useWizardStore = defineStore('wizard', () => {
       if (cfg.type === 'csv' && cfg.has_header !== undefined) {
         cfg.hasHeader = cfg.has_header
         delete cfg.has_header
+      } else if (cfg.type === 'database') {
+        cfg.connectionId = cfg.connection_id || ''
+        cfg.queryType = cfg.query_type || 'table'
+        cfg.tables = cfg.tables || []
+        cfg.sql = cfg.sql || ''
+        delete cfg.connection_id
+        delete cfg.query_type
       }
       return {
         plugin: inp.plugin || 'excel',
