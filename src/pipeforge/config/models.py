@@ -29,6 +29,16 @@ class CsvInputConfig(BaseModel):
     has_header: bool = True
 
 
+class DbInputConfig(BaseModel):
+    """Database input configuration — connection_string is resolved by API layer before engine receives it."""
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["database"] = "database"
+    db_type: str                       # "sqlite" | "mysql" | "postgresql"
+    connection_string: str             # SQLAlchemy connection string, resolved from connectionId by API
+    tables: list[str] = []             # max 1 element; multi-table uses separate InputSources or SQL JOIN
+    sql: str = ""                      # custom SQL query (mutually exclusive with tables)
+
+
 class InputSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -36,7 +46,7 @@ class InputSpec(BaseModel):
     plugin: str
     table: str
     param_key: str
-    config: Annotated[ExcelInputConfig | CsvInputConfig, Field(discriminator="type")]
+    config: Annotated[ExcelInputConfig | CsvInputConfig | DbInputConfig, Field(discriminator="type")]
 
 
 class SqlProcessorConfig(BaseModel):
