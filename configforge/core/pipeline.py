@@ -121,6 +121,20 @@ def execute_pipeline(state: WizardState) -> str:
             wb.close()
             exec_state.output.config.template = gen_name
 
+    # Resolve database connectionIds to connection_strings before building YAML
+    from configforge.services.connection_store import ConnectionStore
+
+    for inp in exec_state.inputs:
+        cfg = inp.config
+        if hasattr(cfg, 'type') and cfg.type == "database":
+            if not cfg.connection_id:
+                raise RuntimeError("Database input is missing connection_id")
+            entry = ConnectionStore.get_with_plaintext_password(cfg.connection_id)
+            if not entry:
+                raise RuntimeError(f"Connection '{cfg.connection_id}' not found — please reconfigure")
+            cfg.connection_string = ConnectionStore.build_connection_string(entry)
+            cfg.db_type = entry["db_type"]
+
     # 在模板就绪后再构建 YAML
     yaml_str = build_yaml(exec_state)
     yaml_path = os.path.join(tmp_dir, "pipeline.yaml")
