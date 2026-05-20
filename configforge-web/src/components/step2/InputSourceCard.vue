@@ -4,8 +4,8 @@
     <template #header>
       <div class="flex items-center gap-2">
         <span class="text-xs font-medium text-slate-600 truncate flex-1">{{ input.table || '新输入源' }}</span>
-        <NTag :type="input.plugin === 'csv' ? 'info' : 'success'" size="small">
-          {{ input.plugin === 'csv' ? 'CSV' : 'Excel' }}
+        <NTag :type="input.plugin === 'csv' ? 'info' : input.plugin === 'database' ? 'warning' : 'success'" size="small">
+          {{ input.plugin === 'csv' ? 'CSV' : input.plugin === 'database' ? 'DB' : 'Excel' }}
         </NTag>
         <NTag v-if="analyzing" type="warning" size="small">AI 分析中...</NTag>
         <NButton text type="error" size="tiny" @click="$emit('remove')">删除</NButton>
@@ -15,7 +15,7 @@
     <!-- Body: Configuration fields -->
     <div class="grid grid-cols-2 gap-3 mb-4 relative">
       <!-- File upload -->
-      <div>
+      <div v-if="input.plugin !== 'database'">
         <label class="block text-xs font-medium text-slate-500 mb-1">文件</label>
         <template v-if="input.fileId && store.uploadedFiles[input.fileId]">
           <div class="flex items-center gap-1">
@@ -105,6 +105,11 @@
           <span class="text-xs font-medium text-slate-500">包含表头</span>
         </div>
       </template>
+
+      <!-- Database-specific fields -->
+      <div v-if="input.plugin === 'database'" class="pt-3 border-t border-dashed border-slate-200">
+        <DatabaseForm :input="input" :index="index" @update="handleUpdate" />
+      </div>
 
       <!-- Table name -->
       <div>
@@ -216,6 +221,7 @@ import { NCard, NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NSpin } from
 import type { UploadCustomRequestOptions } from 'naive-ui'
 import ColumnPreview from './ColumnPreview.vue'
 import AiColumnConfirmModal from './AiColumnConfirmModal.vue'
+import DatabaseForm from './DatabaseForm.vue'
 
 const props = defineProps<{
   input: InputSource
@@ -261,6 +267,10 @@ const tableNameError = computed(() => {
   if (otherTableNames.value.includes(name)) return `表名 "${name}" 已被其他输入源使用`
   return ''
 })
+
+function handleUpdate(updated: InputSource) {
+  emit('update', updated)
+}
 
 function parseColumnsResponse(raw: string): {
   columnTypes: Record<string, string>
