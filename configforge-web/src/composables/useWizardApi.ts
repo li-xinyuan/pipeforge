@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import type { DbConnectionSummary } from '../types/wizard'
 
 export function useWizardApi() {
   const loading = ref(false)
@@ -106,4 +107,78 @@ export function useAiApi() {
   }
 
   return { suggesting, aiError, askSuggestion, getAiSettings, updateAiSettings, testAiConnection }
+}
+
+export function useConnectionApi() {
+  const connecting = ref(false)
+  const connectionError = ref<string | null>(null)
+
+  async function request<T>(method: string, url: string, body?: any): Promise<T | null> {
+    try {
+      const opts: RequestInit = {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+      }
+      if (body) opts.body = JSON.stringify(body)
+      const res = await fetch(url, opts)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }))
+        connectionError.value = err.error || err.detail || 'Request failed'
+        return null
+      }
+      return await res.json()
+    } catch (e: any) {
+      connectionError.value = e.message || 'Network error'
+      return null
+    }
+  }
+
+  async function fetchConnections(): Promise<DbConnectionSummary[]> {
+    const result = await request<DbConnectionSummary[]>('GET', '/api/connections')
+    return result || []
+  }
+
+  async function createConnection(data: Record<string, any>): Promise<DbConnectionSummary | null> {
+    return request<DbConnectionSummary>('POST', '/api/connections', data)
+  }
+
+  async function updateConnection(id: string, data: Record<string, any>): Promise<DbConnectionSummary | null> {
+    return request<DbConnectionSummary>('PUT', `/api/connections/${id}`, data)
+  }
+
+  async function deleteConnection(id: string): Promise<boolean> {
+    const result = await request<{ ok: boolean }>('DELETE', `/api/connections/${id}`)
+    return result?.ok ?? false
+  }
+
+  async function testConnection(id: string): Promise<{ ok: boolean; error?: string }> {
+    connecting.value = true
+    const result = await request<{ ok: boolean; error?: string }>('POST', `/api/connections/${id}/test`)
+    connecting.value = false
+    return result || { ok: false, error: 'Request failed' }
+  }
+
+  async function fetchTables(id: string): Promise<string[]> {
+    const result = await request<{ tables: string[] }>('GET', `/api/connections/${id}/tables`)
+    return result?.tables || []
+  }
+
+  async function fetchColumns(id: string, table: string): Promise<{ name: string; type: string }[]> {
+    const result = await request<{ columns: { name: string; type: string }[] }>(
+      'GET', `/api/connections/${id}/tables/${encodeURIComponent(table)}/columns`
+    )
+    return result?.columns || []
+  }
+
+  return {
+    connecting,
+    connectionError,
+    fetchConnections,
+    createConnection,
+    updateConnection,
+    deleteConnection,
+    testConnection,
+    fetchTables,
+    fetchColumns,
+  }
 }
