@@ -37,12 +37,59 @@ export interface CsvInputConfig {
   hasHeader: boolean
 }
 
+export type DbType = 'sqlite' | 'mysql' | 'postgresql'
+
+export interface DatabaseInputConfig {
+  type: 'database'
+  connectionId: string
+  queryType: 'table' | 'sql'
+  tables: string[]    // max 1 element; multi-table → multiple InputSources or JOIN
+  sql: string
+}
+
+export type DbConnection =
+  | {
+      id: string
+      name: string
+      dbType: 'sqlite'
+      filePath: string
+      createdAt: number
+      updatedAt: number
+    }
+  | {
+      id: string
+      name: string
+      dbType: 'mysql' | 'postgresql'
+      host: string
+      port: number
+      database: string
+      username: string
+      password: string
+      createdAt: number
+      updatedAt: number
+    }
+
+export interface DbConnectionSummary {
+  id: string
+  name: string
+  dbType: DbType
+  // sqlite → filePath, mysql/postgresql → hostname/IP
+  host: string
+  port?: number
+  database?: string
+  username?: string
+  passwordSet: boolean
+  verified: boolean
+  createdAt: number
+  updatedAt: number
+}
+
 export interface InputSource {
-  plugin: 'excel' | 'csv'
+  plugin: 'excel' | 'csv' | 'database'
   table: string
   paramKey: string
   fileId: string
-  config: ExcelInputConfig | CsvInputConfig
+  config: ExcelInputConfig | CsvInputConfig | DatabaseInputConfig
   confirmedAnalysis?: ConfirmedAnalysis
 }
 
