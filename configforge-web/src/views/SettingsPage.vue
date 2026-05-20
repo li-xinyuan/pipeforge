@@ -9,7 +9,7 @@
         </div>
         <nav class="settings__nav-links">
           <router-link to="/" class="settings__nav-link">首页</router-link>
-          <span class="settings__nav-link settings__nav-link--active">AI 模型设置</span>
+          <span class="settings__nav-link settings__nav-link--active">设置</span>
         </nav>
         <button class="settings__theme-toggle" @click="toggleTheme" :title="isDark ? '切换到亮色模式' : '切换到暗色模式'">
           {{ isDark ? '☀' : '☾' }}
@@ -19,7 +19,7 @@
 
     <!-- Page content -->
     <div class="settings__body">
-      <h1 class="settings__title">AI 模型配置</h1>
+      <h1 class="settings__title">设置</h1>
 
       <div class="settings__card">
         <!-- Enable switch -->
@@ -80,6 +80,10 @@
         </p>
         <p v-if="saveMsg" class="settings__result settings__result--ok">{{ saveMsg }}</p>
       </div>
+
+      <div class="settings__card">
+        <ConnectionManager />
+      </div>
     </div>
   </div>
 </template>
@@ -90,6 +94,7 @@ import { useRouter } from 'vue-router'
 import { useAiApi } from '../composables/useWizardApi'
 import { useTheme } from '../composables/useTheme'
 import { NButton, NInput, NSelect, NSwitch, NSlider, NInputNumber } from 'naive-ui'
+import ConnectionManager from '../components/common/ConnectionManager.vue'
 
 interface AiSettingsForm {
   provider: string
