@@ -21,69 +21,75 @@
     <div class="settings__body">
       <h1 class="settings__title">设置</h1>
 
-      <div class="settings__card">
-        <!-- Enable switch -->
-        <div class="settings__row">
-          <span class="settings__label">启用 AI</span>
-          <NSwitch :value="form.enabled" @update:value="form.enabled = $event" />
-        </div>
+      <NTabs type="segment" animated>
+        <NTabPane name="ai" tab="AI 模型">
+          <div class="settings__card">
+            <!-- Enable switch -->
+            <div class="settings__row">
+              <span class="settings__label">启用 AI</span>
+              <NSwitch :value="form.enabled" @update:value="form.enabled = $event" />
+            </div>
 
-        <div class="settings__divider" />
+            <div class="settings__divider" />
 
-        <!-- Provider -->
-        <div class="settings__field">
-          <label class="settings__field-label">提供商</label>
-          <NSelect v-model:value="form.provider" :options="providerOptions" />
-        </div>
+            <!-- Provider -->
+            <div class="settings__field">
+              <label class="settings__field-label">提供商</label>
+              <NSelect v-model:value="form.provider" :options="providerOptions" />
+            </div>
 
-        <!-- Model -->
-        <div class="settings__field">
-          <label class="settings__field-label">模型</label>
-          <NInput v-model:value="form.model" :placeholder="defaultModel" />
-          <p class="settings__hint">留空使用默认：{{ defaultModel }}</p>
-        </div>
+            <!-- Model -->
+            <div class="settings__field">
+              <label class="settings__field-label">模型</label>
+              <NInput v-model:value="form.model" :placeholder="defaultModel" />
+              <p class="settings__hint">留空使用默认：{{ defaultModel }}</p>
+            </div>
 
-        <!-- API Key -->
-        <div class="settings__field">
-          <label class="settings__field-label">API Key</label>
-          <NInput v-model:value="form.api_key" type="password" placeholder="sk-..." show-password-toggle />
-          <p v-if="maskedKey" class="settings__hint">当前：{{ maskedKey }}</p>
-        </div>
+            <!-- API Key -->
+            <div class="settings__field">
+              <label class="settings__field-label">API Key</label>
+              <NInput v-model:value="form.api_key" type="password" placeholder="sk-..." show-password-toggle />
+              <p v-if="maskedKey" class="settings__hint">当前：{{ maskedKey }}</p>
+            </div>
 
-        <!-- Base URL -->
-        <div class="settings__field">
-          <label class="settings__field-label">Base URL</label>
-          <NInput v-model:value="form.base_url" :placeholder="form.provider === 'openai' ? 'https://api.openai.com/v1（默认）' : '必填'" />
-        </div>
+            <!-- Base URL -->
+            <div class="settings__field">
+              <label class="settings__field-label">Base URL</label>
+              <NInput v-model:value="form.base_url" :placeholder="form.provider === 'openai' ? 'https://api.openai.com/v1（默认）' : '必填'" />
+            </div>
 
-        <!-- Temperature -->
-        <div class="settings__field">
-          <label class="settings__field-label">Temperature: {{ form.temperature }}</label>
-          <NSlider v-model:value="form.temperature" :min="0" :max="2" :step="0.1" />
-        </div>
+            <!-- Temperature -->
+            <div class="settings__field">
+              <label class="settings__field-label">Temperature: {{ form.temperature }}</label>
+              <NSlider v-model:value="form.temperature" :min="0" :max="2" :step="0.1" />
+            </div>
 
-        <!-- Max Tokens -->
-        <div class="settings__field">
-          <label class="settings__field-label">Max Tokens</label>
-          <NInputNumber v-model:value="form.max_tokens" :min="256" :max="65536" class="w-full" />
-        </div>
+            <!-- Max Tokens -->
+            <div class="settings__field">
+              <label class="settings__field-label">Max Tokens</label>
+              <NInputNumber v-model:value="form.max_tokens" :min="256" :max="65536" class="w-full" />
+            </div>
 
-        <div class="settings__divider" />
+            <div class="settings__divider" />
 
-        <!-- Actions -->
-        <div class="settings__actions">
-          <NButton :loading="testing" @click="testConnection">测试连接</NButton>
-          <NButton type="primary" class="btn-primary" :loading="saving" @click="saveSettings">保存设置</NButton>
-        </div>
-        <p v-if="testResult" class="settings__result" :class="testResult.ok ? 'settings__result--ok' : 'settings__result--error'">
-          {{ testResult.msg }}
-        </p>
-        <p v-if="saveMsg" class="settings__result settings__result--ok">{{ saveMsg }}</p>
-      </div>
+            <!-- Actions -->
+            <div class="settings__actions">
+              <NButton :loading="testing" @click="testConnection">测试连接</NButton>
+              <NButton type="primary" class="btn-primary" :loading="saving" @click="saveSettings">保存设置</NButton>
+            </div>
+            <p v-if="testResult" class="settings__result" :class="testResult.ok ? 'settings__result--ok' : 'settings__result--error'">
+              {{ testResult.msg }}
+            </p>
+            <p v-if="saveMsg" class="settings__result settings__result--ok">{{ saveMsg }}</p>
+          </div>
+        </NTabPane>
 
-      <div class="settings__card">
-        <ConnectionManager />
-      </div>
+        <NTabPane name="database" tab="数据库连接">
+          <div class="settings__card">
+            <ConnectionManager />
+          </div>
+        </NTabPane>
+      </NTabs>
     </div>
   </div>
 </template>
@@ -93,7 +99,7 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAiApi } from '../composables/useWizardApi'
 import { useTheme } from '../composables/useTheme'
-import { NButton, NInput, NSelect, NSwitch, NSlider, NInputNumber } from 'naive-ui'
+import { NButton, NInput, NSelect, NSwitch, NSlider, NInputNumber, NTabs, NTabPane } from 'naive-ui'
 import ConnectionManager from '../components/common/ConnectionManager.vue'
 
 interface AiSettingsForm {
