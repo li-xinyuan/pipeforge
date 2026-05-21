@@ -47,6 +47,7 @@
           {{ editingId ? '保存修改' : '保存' }}
         </NButton>
         <NButton v-if="!editingId" size="small" @click="onSaveAndTest" :loading="saving">保存并测试</NButton>
+        <NButton v-if="editingId" size="small" :loading="saving" @click="onSaveAndTestEdit">保存并测试</NButton>
         <NButton v-if="editingId" size="small" @click="cancelEdit">取消</NButton>
       </div>
       <p v-if="errorMsg" class="text-xs text-red-500">{{ errorMsg }}</p>
@@ -120,6 +121,37 @@ function startEdit(conn: DbConnectionSummary) {
     form.password = ''
   }
   showForm.value = true
+}
+
+async function onSaveAndTestEdit() {
+  saving.value = true
+  errorMsg.value = null
+
+  const data: Record<string, any> = { name: form.name }
+  if (form.dbType === 'sqlite') {
+    data.file_path = form.filePath
+  } else {
+    data.host = form.host
+    data.port = form.port
+    data.database = form.database
+    data.username = form.username
+    if (form.password) data.password = form.password
+  }
+  const result = await api.updateConnection(editingId.value!, data)
+  if (!result) {
+    errorMsg.value = api.connectionError.value || '更新失败'
+    saving.value = false
+    return
+  }
+  const testResult = await api.testConnection(editingId.value!)
+  if (testResult.ok) {
+    message.success('连接已更新并验证成功')
+    cancelEdit()
+    await refresh()
+  } else {
+    message.warning(`连接已更新但验证失败: ${testResult.error}`)
+  }
+  saving.value = false
 }
 
 function cancelEdit() {
