@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class SceneMeta(BaseModel):
@@ -37,6 +37,16 @@ class DbInputConfig(BaseModel):
     connection_string: str             # SQLAlchemy connection string, resolved from connectionId by API
     tables: list[str] = []             # max 1 element; multi-table uses separate InputSources or SQL JOIN
     sql: str = ""                      # custom SQL query (mutually exclusive with tables)
+
+    @model_validator(mode="after")
+    def validate_tables_sql_mutual_exclusion(self):
+        has_tables = len(self.tables) > 0
+        has_sql = bool(self.sql.strip())
+        if has_tables and has_sql:
+            raise ValueError("tables 和 sql 互斥，只能二选一")
+        if not has_tables and not has_sql:
+            raise ValueError("tables 和 sql 必须提供一个")
+        return self
 
 
 class InputSpec(BaseModel):

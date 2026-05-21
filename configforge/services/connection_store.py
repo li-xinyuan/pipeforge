@@ -146,10 +146,33 @@ class ConnectionStore:
         raise ValueError(f"Unsupported db_type: {db_type}")
 
     @staticmethod
+    def _update_verified(conn_id: str, verified: bool):
+        store = _load()
+        entry = store["connections"].get(conn_id)
+        if entry:
+            entry["verified"] = verified
+            entry["updated_at"] = _now_iso()
+            store["connections"][conn_id] = entry
+            _save(store)
+
+    @staticmethod
     def count_references(conn_id: str) -> list[str]:
         """Check how many saved configs reference this connection. Returns list of config IDs."""
-        # Stub — will be implemented when config search is available
-        return []
+        # Search saved wizard configs for references to this connection
+        import glob
+        refs = []
+        for path in glob.glob(os.path.join(DATA_DIR, "..", "configs", "*.json")):
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+                for inp in data.get("inputs", []):
+                    cfg = inp.get("config", {})
+                    if cfg.get("connection_id") == conn_id or cfg.get("connectionId") == conn_id:
+                        refs.append(os.path.basename(path).replace(".json", ""))
+                        break
+            except (json.JSONDecodeError, IOError):
+                continue
+        return refs
 
     @staticmethod
     def _summarize(conn_id: str, entry: dict) -> dict:

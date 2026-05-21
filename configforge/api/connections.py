@@ -36,6 +36,22 @@ def create_connection(req: CreateConnectionRequest):
                 error="file_path is required for SQLite",
                 code="VALIDATION_ERROR", recoverable=True,
             ).model_dump())
+        # Validate file is a valid SQLite database
+        import os as _os
+        path = req.file_path
+        if _os.path.exists(path):
+            if not _os.path.isfile(path):
+                raise HTTPException(400, detail=ErrorResponse(
+                    error=f"Path is not a file: {path}",
+                    code="VALIDATION_ERROR", recoverable=True,
+                ).model_dump())
+            with open(path, "rb") as f:
+                header = f.read(16)
+            if header[:16] != b"SQLite format 3\0":
+                raise HTTPException(400, detail=ErrorResponse(
+                    error=f"File is not a valid SQLite database: {path}",
+                    code="VALIDATION_ERROR", recoverable=True,
+                ).model_dump())
         data["file_path"] = req.file_path
     else:
         data["host"] = req.host
@@ -106,12 +122,17 @@ def test_connection(conn_id: str):
     try:
         cs = ConnectionStore.build_connection_string(entry)
         pool_kwargs = {"poolclass": NullPool} if entry["db_type"] == "sqlite" else {"pool_size": 1}
-        engine = create_engine(cs, **pool_kwargs)
+        engine_kwargs = dict(pool_kwargs)
+        if entry["db_type"] != "sqlite":
+            engine_kwargs["connect_args"] = {"connect_timeout": 10}
+        engine = create_engine(cs, **engine_kwargs)
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         engine.dispose()
+        ConnectionStore._update_verified(conn_id, True)
         return {"ok": True, "message": "Connection successful"}
     except Exception as e:
+        ConnectionStore._update_verified(conn_id, False)
         return {"ok": False, "error": str(e)}
 
 
