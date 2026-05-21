@@ -2,8 +2,8 @@
   <div class="space-y-3">
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-semibold text-slate-700">数据库连接</h3>
-      <NButton size="tiny" @click="showForm = !showForm">
-        {{ showForm ? '取消' : '+ 新建连接' }}
+      <NButton size="tiny" @click="startCreate">
+        {{ showForm && !editingId ? '取消' : '+ 新建连接' }}
       </NButton>
     </div>
 
@@ -19,15 +19,17 @@
         <span v-if="!conn.verified" class="text-xs text-orange-500 ml-1">未验证</span>
       </div>
       <div class="flex gap-1">
+        <NButton text size="tiny" @click="startEdit(conn)">编辑</NButton>
         <NButton text size="tiny" @click="onTest(conn.id)">测试</NButton>
         <NButton text size="tiny" type="error" @click="onDelete(conn.id)">删除</NButton>
       </div>
     </div>
 
-    <!-- Add form -->
+    <!-- Add / Edit form -->
     <div v-if="showForm" class="space-y-2 p-3 border border-slate-200 rounded">
+      <p class="text-xs font-medium text-slate-500">{{ editingId ? '编辑连接' : '新建连接' }}</p>
       <NInput v-model:value="form.name" size="small" placeholder="连接名称" />
-      <NSelect v-model:value="form.dbType" size="small" :options="dbTypeOptions" placeholder="数据库类型" />
+      <NSelect v-model:value="form.dbType" size="small" :options="dbTypeOptions" placeholder="数据库类型" :disabled="!!editingId" />
       <template v-if="form.dbType === 'sqlite'">
         <NInput v-model:value="form.filePath" size="small" placeholder="文件路径（如 /data/report.db）" />
       </template>
@@ -38,11 +40,14 @@
           <NInput v-model:value="form.database" size="small" placeholder="数据库名" style="flex:2" />
         </div>
         <NInput v-model:value="form.username" size="small" placeholder="用户名" />
-        <NInput v-model:value="form.password" size="small" type="password" placeholder="密码" />
+        <NInput v-model:value="form.password" size="small" type="password" :placeholder="editingId ? '留空则不修改密码' : '密码'" />
       </template>
       <div class="flex gap-2">
-        <NButton size="small" type="primary" :loading="saving" @click="onSave">保存</NButton>
-        <NButton size="small" @click="onSaveAndTest" :loading="saving">保存并测试</NButton>
+        <NButton size="small" type="primary" :loading="saving" @click="onSave">
+          {{ editingId ? '保存修改' : '保存' }}
+        </NButton>
+        <NButton v-if="!editingId" size="small" @click="onSaveAndTest" :loading="saving">保存并测试</NButton>
+        <NButton v-if="editingId" size="small" @click="cancelEdit">取消</NButton>
       </div>
       <p v-if="errorMsg" class="text-xs text-red-500">{{ errorMsg }}</p>
     </div>
@@ -60,6 +65,7 @@ const api = useConnectionApi()
 
 const connections = ref<DbConnectionSummary[]>([])
 const showForm = ref(false)
+const editingId = ref<string | null>(null)
 const saving = ref(false)
 const errorMsg = ref<string | null>(null)
 
@@ -88,17 +94,73 @@ async function refresh() {
 
 onMounted(refresh)
 
+function startCreate() {
+  if (showForm.value && !editingId.value) {
+    showForm.value = false
+    return
+  }
+  editingId.value = null
+  Object.assign(form, emptyForm())
+  errorMsg.value = null
+  showForm.value = true
+}
+
+function startEdit(conn: DbConnectionSummary) {
+  editingId.value = conn.id
+  errorMsg.value = null
+  form.name = conn.name
+  form.dbType = conn.dbType
+  if (conn.dbType === 'sqlite') {
+    form.filePath = conn.host
+  } else {
+    form.host = conn.host
+    form.port = conn.port || 3306
+    form.database = conn.database || ''
+    form.username = conn.username || ''
+    form.password = ''
+  }
+  showForm.value = true
+}
+
+function cancelEdit() {
+  editingId.value = null
+  Object.assign(form, emptyForm())
+  showForm.value = false
+}
+
 async function onSave() {
   saving.value = true
   errorMsg.value = null
-  const result = await api.createConnection({ ...form })
-  if (result) {
-    message.success('连接已保存')
-    Object.assign(form, emptyForm())
-    showForm.value = false
-    await refresh()
+
+  if (editingId.value) {
+    const data: Record<string, any> = { name: form.name }
+    if (form.dbType === 'sqlite') {
+      data.file_path = form.filePath
+    } else {
+      data.host = form.host
+      data.port = form.port
+      data.database = form.database
+      data.username = form.username
+      if (form.password) data.password = form.password
+    }
+    const result = await api.updateConnection(editingId.value, data)
+    if (result) {
+      message.success('连接已更新')
+      cancelEdit()
+      await refresh()
+    } else {
+      errorMsg.value = api.connectionError.value || '更新失败'
+    }
   } else {
-    errorMsg.value = api.connectionError.value || '保存失败'
+    const result = await api.createConnection({ ...form })
+    if (result) {
+      message.success('连接已保存')
+      Object.assign(form, emptyForm())
+      showForm.value = false
+      await refresh()
+    } else {
+      errorMsg.value = api.connectionError.value || '保存失败'
+    }
   }
   saving.value = false
 }
@@ -137,6 +199,7 @@ async function onDelete(id: string) {
   const ok = await api.deleteConnection(id)
   if (ok) {
     message.success('连接已删除')
+    if (editingId.value === id) cancelEdit()
     await refresh()
   } else {
     message.error(api.connectionError.value || '删除失败')
