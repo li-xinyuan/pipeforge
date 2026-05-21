@@ -52,4 +52,64 @@ describe('useWizardStore', () => {
     store.removeInput(0)
     expect(store.inputs).toHaveLength(0)
   })
+
+  it('addInput(\'database\') creates database input source', () => {
+    const store = useWizardStore()
+    store.addInput('database')
+    expect(store.inputs).toHaveLength(1)
+    const inp = store.inputs[0]
+    expect(inp.plugin).toBe('database')
+    expect(inp.config.type).toBe('database')
+    expect(inp.config.connectionId).toBe('')
+    expect(inp.config.queryType).toBe('table')
+    expect(inp.config.tables).toEqual([])
+    expect(inp.config.sql).toBe('')
+  })
+
+  it('loadFromConfigState deserializes database config', () => {
+    const store = useWizardStore()
+    store.loadFromConfigState({
+      scene: { name: 'test' },
+      inputs: [{
+        plugin: 'database',
+        table: 'users',
+        param_key: 'db_param',
+        config: {
+          type: 'database',
+          connection_id: 'conn-123',
+          query_type: 'sql',
+          tables: ['users'],
+          sql: 'SELECT * FROM users',
+        },
+      }],
+      processor: { plugin: 'sql', sql: 'SELECT 1', output_tables: ['out'] },
+    })
+    expect(store.inputs).toHaveLength(1)
+    const inp = store.inputs[0]
+    expect(inp.plugin).toBe('database')
+    expect(inp.config.type).toBe('database')
+    expect(inp.config.connectionId).toBe('conn-123')
+    expect(inp.config.queryType).toBe('sql')
+    expect(inp.config.tables).toEqual(['users'])
+    expect(inp.config.sql).toBe('SELECT * FROM users')
+  })
+
+  it('loadFromConfigState handles database config with missing fields', () => {
+    const store = useWizardStore()
+    store.loadFromConfigState({
+      scene: { name: 'test' },
+      inputs: [{
+        plugin: 'database',
+        table: 't1',
+        param_key: 'p1',
+        config: { type: 'database' },
+      }],
+      processor: { plugin: 'sql', sql: '', output_tables: [] },
+    })
+    const inp = store.inputs[0]
+    expect(inp.config.connectionId).toBe('')
+    expect(inp.config.queryType).toBe('table')
+    expect(inp.config.tables).toEqual([])
+    expect(inp.config.sql).toBe('')
+  })
 })

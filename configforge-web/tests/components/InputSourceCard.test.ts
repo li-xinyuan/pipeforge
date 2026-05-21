@@ -98,7 +98,8 @@ describe('InputSourceCard', () => {
 
   it('shows AI prompt when fileId is set and no confirmedAnalysis', () => {
     const wrapper = mountCard(makeInput({ fileId: 'file-1', confirmedAnalysis: undefined }))
-    expect(wrapper.find('.input-card__ai-prompt').exists()).toBe(true)
+    expect(wrapper.text()).toContain('AI 可分析')
+    expect(wrapper.text()).toContain('立即分析')
   })
 
   it('shows AI prompt text', () => {
@@ -112,11 +113,11 @@ describe('InputSourceCard', () => {
       fileId: 'file-1',
       confirmedAnalysis: { columnTypes: { a: 'string' }, tableName: 't', paramKeys: [], timestamp: 1 },
     }))
-    expect(wrapper.find('.input-card__ai-prompt').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('立即分析')
   })
 
   it('hides AI prompt when no fileId', () => {
     const wrapper = mountCard(makeInput({ fileId: '' }))
-    expect(wrapper.find('.input-card__ai-prompt').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('立即分析')
   })
 })
