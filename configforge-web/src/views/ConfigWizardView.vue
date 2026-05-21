@@ -179,6 +179,7 @@
         :messages="aiMessages"
         :quick-actions="aiQuickActions"
         :mode="aiMode"
+        :loading="suggesting"
         @send="onAiSend"
         @quick-action="onAiQuickAction"
         @toggle="aiPanelVisible = false"
@@ -222,7 +223,7 @@ const { breakpoint } = useBreakpoint()
 const router = useRouter()
 const route = useRoute()
 const { loadConfigState } = useConfigApi()
-const { askSuggestion } = useAiApi()
+const { askSuggestion, suggesting } = useAiApi()
 
 const aiMode = computed(() => {
   if (breakpoint.value === 'mobile') return 'fullscreen'
@@ -327,18 +328,52 @@ function onFileReady(fileId: string) {
 
 async function onAiSend(text: string) {
   aiMessages.value.push({ role: 'user', content: text })
-  const result = await askSuggestion('sql', {
-    inputs: store.inputs.map(inp => ({ name: inp.table, table: inp.table, columns: [] })),
+
+  const context: Record<string, any> = {
+    currentStep: currentStep.value,
     naturalLanguage: text,
-  })
+  }
+  if (store.scene.name) {
+    context.sceneName = store.scene.name
+    context.sceneDescription = store.scene.description
+  }
+  if (store.inputs.length > 0) {
+    context.inputs = store.inputs.map(inp => {
+      const meta = store.uploadedFiles[inp.fileId]
+      return {
+        plugin: inp.plugin,
+        table: inp.table,
+        paramKey: inp.paramKey,
+        columns: meta?.columns || [],
+        config: inp.config,
+      }
+    })
+  }
+  if (store.processor.sql) {
+    context.processorSql = store.processor.sql
+  }
+  if (store.processor.outputTables?.length) {
+    context.outputTables = store.processor.outputTables
+  }
+
+  const result = await askSuggestion('chat', context)
   if (result) {
     try {
       const parsed = JSON.parse(result)
       if (parsed.sql) {
         store.processor.sql = parsed.sql
-        aiMessages.value.push({ role: 'ai', content: '已生成 SQL 并填入处理步骤。', code: parsed.sql })
+        if (parsed.outputTables?.length) {
+          store.processor.outputTables = parsed.outputTables
+        }
+        aiMessages.value.push({
+          role: 'ai',
+          content: parsed.explanation || '已生成 SQL 并填入处理步骤。',
+          code: parsed.sql,
+        })
+      } else if (parsed.raw) {
+        aiMessages.value.push({ role: 'ai', content: parsed.raw })
       } else {
-        aiMessages.value.push({ role: 'ai', content: parsed.explanation || result })
+        aiMessages.value.push({ role: 'ai', content: JSON.stringify(parsed, null, 2) })
       }
     } catch {
       aiMessages.value.push({ role: 'ai', content: result })

@@ -222,6 +222,7 @@ async function onTest(id: string) {
   const result = await api.testConnection(id)
   if (result.ok) {
     message.success('连接成功')
+    await refresh()
   } else {
     message.error(`连接失败: ${result.error}`)
   }
