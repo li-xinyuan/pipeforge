@@ -141,11 +141,13 @@ def execute_pipeline(state: WizardState) -> str:
     with open(yaml_path, "w", encoding="utf-8") as f:
         f.write(yaml_str)
 
-    # 复制输入文件到临时目录（openpyxl 需要 .xlsx 扩展名识别格式，
-    # 如果 file_id 不含扩展名则补上）
+    # 复制输入文件到临时目录，或为数据库输入源注册占位参数
     params: dict[str, str] = {}
     for inp in exec_state.inputs:
-        if inp.file_id:
+        cfg = inp.config
+        if hasattr(cfg, 'type') and cfg.type == "database":
+            params[inp.param_key] = ""  # 数据库输入不需要文件路径
+        elif inp.file_id:
             src = os.path.join(UPLOAD_DIR, inp.file_id)
             if os.path.exists(src):
                 ext = os.path.splitext(inp.file_id)[1].lower()
