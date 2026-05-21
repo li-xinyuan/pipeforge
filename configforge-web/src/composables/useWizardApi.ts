@@ -32,6 +32,14 @@ export function useWizardApi() {
     return post<{ columns: string[]; rows: string[][] }>('/api/preview/sql', { sql, table_mapping: tableMapping })
   }
 
+  async function dryRun(state: any) {
+    return post<{
+      tables: { table_name: string; columns: string[]; rows: string[][]; total_rows: number }[]
+      inputs: Record<string, any>
+      processors: any[]
+    }>('/api/wizard/dry-run', { state })
+  }
+
   async function executePipeline(state: any): Promise<Blob | null> {
     loading.value = true; error.value = null
     try {
@@ -52,7 +60,7 @@ export function useWizardApi() {
     } finally { loading.value = false }
   }
 
-  return { loading, error, initScene, fetchPreview, generateYaml, executeSql, executePipeline }
+  return { loading, error, initScene, fetchPreview, generateYaml, executeSql, dryRun, executePipeline }
 }
 
 export function useAiApi() {

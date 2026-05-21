@@ -87,6 +87,30 @@
       <p v-if="equivalenceSql" class="text-xs text-slate-400 mt-1.5 font-mono">{{ equivalenceSql }}</p>
     </div>
 
+    <!-- Dry-Run preview -->
+    <div class="sql-preview">
+      <div class="sql-preview__actions">
+        <NButton
+          type="info"
+          size="tiny"
+          :loading="dryRunRunning"
+          :disabled="!store.processor.sql.trim()"
+          @click="runDryRunPreview"
+        >{{ dryRunRunning ? '执行中...' : '🔍 预览全部结果' }}</NButton>
+        <span class="text-xs text-slate-400">执行完整流水线并预览中间表</span>
+      </div>
+      <p v-if="dryRunError" class="sql-preview__error">{{ dryRunError }}</p>
+      <div v-if="dryRunResult && dryRunVisible" class="mt-3 space-y-3">
+        <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 rounded p-2">
+          <div class="flex items-center gap-2 mb-2">
+            <NTag size="tiny" :bordered="false" type="info">{{ table.table_name }}</NTag>
+            <span class="text-xs text-slate-400">{{ table.columns.length }} 列 / {{ table.total_rows }} 行</span>
+          </div>
+          <ColumnPreview :columns="table.columns" :rows="table.rows" />
+        </div>
+      </div>
+    </div>
+
     <!-- Query preview -->
     <div class="sql-preview">
       <div class="sql-preview__actions">
@@ -144,11 +168,15 @@ const lastInferredName = ref('')
 const aiConfigured = ref(false)
 let fromAi = false
 
-const { executeSql: runSql } = useWizardApi()
+const { executeSql: runSql, dryRun: runDryRun } = useWizardApi()
 const queryRunning = ref(false)
 const queryResult = ref<{ columns: string[]; rows: string[][] } | null>(null)
 const queryError = ref('')
 const queryVisible = ref(false)
+const dryRunRunning = ref(false)
+const dryRunResult = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
+const dryRunError = ref('')
+const dryRunVisible = ref(false)
 
 function buildTableMapping(): Record<string, string> {
   const map: Record<string, string> = {}
@@ -179,6 +207,24 @@ async function runQuery() {
     queryError.value = '查询执行失败，请检查 SQL 语法'
   }
   queryRunning.value = false
+}
+
+async function runDryRunPreview() {
+  dryRunError.value = ''
+  dryRunResult.value = null
+  if (!store.processor.sql.trim()) {
+    dryRunError.value = '请先输入 SQL'
+    return
+  }
+  dryRunRunning.value = true
+  const result = await runDryRun(store.$state)
+  if (result?.tables?.length) {
+    dryRunResult.value = result.tables
+    dryRunVisible.value = true
+  } else {
+    dryRunError.value = '预览执行失败，请检查输入配置'
+  }
+  dryRunRunning.value = false
 }
 
 const aiTooltip = computed(() => {
@@ -338,6 +384,9 @@ watch(() => store.processor.sql, () => {
   queryResult.value = null
   queryError.value = ''
   queryVisible.value = false
+  dryRunResult.value = null
+  dryRunError.value = ''
+  dryRunVisible.value = false
 })
 
 function onAcceptSuggestion() {
