@@ -72,6 +72,61 @@ class PipelineEngine:
 
         return context.result
 
+    def execute_dry_run(self, params: dict[str, str], log_dir: str | None = None) -> dict:
+        """Execute input + processor phases only, return table previews.
+
+        Used by ConfigForge's dry-run mode to preview SQL results before
+        committing to full pipeline execution.
+        """
+        _validate_params(self.required_params(), params)
+
+        db = SQLiteManager()
+        context = Context(
+            db=db,
+            params=params,
+            yaml_dir=self._yaml_dir,
+            scene_name=self.config.scene.name,
+            logger=Logger(log_dir=log_dir),
+        )
+
+        try:
+            for inp_spec in self.config.inputs:
+                self._execute_input(inp_spec, context)
+
+            for proc_spec in self.config.processors:
+                self._execute_processor(proc_spec, context)
+
+            tables = []
+            for table_name in db.list_tables():
+                columns = db.get_column_names(table_name)
+                rows = db.query(
+                    f'SELECT * FROM "{table_name}" LIMIT 20'
+                )
+                total = db.query(
+                    f'SELECT COUNT(*) FROM "{table_name}"'
+                )[0][0]
+                tables.append(
+                    {
+                        "table_name": table_name,
+                        "columns": columns,
+                        "rows": [
+                            [str(v) if v is not None else "" for v in row]
+                            for row in rows
+                        ],
+                        "total_rows": total,
+                    }
+                )
+
+            return {
+                "tables": tables,
+                "inputs": context.result.inputs,
+                "processors": context.result.processors,
+            }
+        finally:
+            context.logger.close()
+            db.close()
+            db.remove()
+
     def _execute_input(self, inp_spec, context):
         start = time.time()
         file_path = context.params.get(inp_spec.param_key)

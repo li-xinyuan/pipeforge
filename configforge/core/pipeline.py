@@ -178,6 +178,68 @@ def execute_pipeline(state: WizardState) -> str:
     return persisted_path
 
 
+def dry_run(state: WizardState) -> dict:
+    """Execute input + processor phases only, return table preview data.
+
+    Used by the frontend Dry-Run button in Step 3 to preview SQL results
+    before committing to full pipeline execution and file download.
+    """
+    exec_state = copy.deepcopy(state)
+
+    if exec_state.processor.output_tables and exec_state.processor.sql.strip():
+        if not _has_ddl(exec_state.processor.sql):
+            output_table = exec_state.processor.output_tables[0]
+            exec_state.processor.sql = (
+                f'CREATE TABLE "{output_table}" AS '
+                f"SELECT * FROM ({exec_state.processor.sql})"
+            )
+
+    tmp_dir = tempfile.mkdtemp(prefix="pipeforge_dryrun_")
+
+    from configforge.services.connection_store import ConnectionStore
+
+    for inp in exec_state.inputs:
+        cfg = inp.config
+        if hasattr(cfg, 'type') and cfg.type == "database":
+            if not cfg.connection_id:
+                raise RuntimeError("Database input is missing connection_id")
+            entry = ConnectionStore.get_with_plaintext_password(cfg.connection_id)
+            if not entry:
+                raise RuntimeError(
+                    f"Connection '{cfg.connection_id}' not found — please reconfigure"
+                )
+            cfg.connection_string = ConnectionStore.build_connection_string(entry)
+            cfg.db_type = entry["db_type"]
+
+    yaml_str = build_yaml(exec_state)
+    yaml_path = os.path.join(tmp_dir, "pipeline.yaml")
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        f.write(yaml_str)
+
+    params: dict[str, str] = {}
+    for inp in exec_state.inputs:
+        cfg = inp.config
+        if hasattr(cfg, 'type') and cfg.type == "database":
+            params[inp.param_key] = ""
+        elif inp.file_id:
+            src = os.path.join(UPLOAD_DIR, inp.file_id)
+            if os.path.exists(src):
+                ext = os.path.splitext(inp.file_id)[1].lower()
+                if ext in (".xlsx", ".xls", ".csv"):
+                    dst_name = inp.file_id
+                else:
+                    dst_name = inp.file_id + (".xlsx" if inp.plugin == "excel" else ".csv")
+                dst = os.path.join(tmp_dir, dst_name)
+                shutil.copy2(src, dst)
+                params[inp.param_key] = os.path.abspath(dst)
+
+    engine = PipelineEngine(yaml_path)
+    result = engine.execute_dry_run(params, log_dir=LOG_DIR)
+
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+    return result
+
+
 def _has_ddl(sql: str) -> bool:
     """检测 SQL 是否已包含 DDL（CREATE TABLE / INSERT INTO / WITH … AS）。"""
     return bool(
