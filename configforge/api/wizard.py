@@ -13,6 +13,7 @@ from configforge.core.pipeline import (
     infer_output,
     generate,
     execute_pipeline,
+    dry_run,
 )
 
 router = APIRouter()
@@ -36,6 +37,16 @@ async def api_infer_output(req: OutputInferRequest):
 @router.post("/generate")
 async def api_generate(req: GenerateRequest):
     return generate(req.state)
+
+
+@router.post("/dry-run")
+async def api_dry_run(req: GenerateRequest):
+    """预览 SQL 处理结果 — 只执行输入和加工阶段，返回中间表数据。"""
+    try:
+        result = dry_run(req.state)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/execute")

@@ -1,7 +1,7 @@
 import io
 from configforge.models.wizard import (
     WizardState, SceneInfo, InputSource, ProcessorConfig, OutputTarget,
-    ExcelOutputConfig, ExcelInputConfig, CsvInputConfig, CsvOutputConfig, ColumnMappingItem
+    ExcelOutputConfig, ExcelInputConfig, CsvInputConfig, CsvOutputConfig, ColumnMappingItem, DatabaseInputConfig
 )
 from configforge.services.yaml_builder import build_yaml
 from configforge.services.template_builder import build_template
@@ -72,6 +72,29 @@ def test_build_yaml_with_csv_output():
     assert "encoding: gbk" in y
     assert "template:" not in y  # CSV should NOT have template
     assert "sheet:" not in y  # CSV should NOT have sheet
+
+
+def test_build_yaml_with_database_input():
+    """YAML should include database-specific fields (db_type, connection_string, tables)."""
+    state = WizardState(
+        scene=SceneInfo(name="DB测试", description="", version="1.0"),
+        inputs=[InputSource(
+            name="db_in", plugin="database", table="users", param_key="conn1", file_id="",
+            config=DatabaseInputConfig(
+                connection_id="conn-1", db_type="mysql",
+                connection_string="mysql://user:pass@localhost/db",
+                query_type="table", tables=["users"],
+            ),
+        )],
+        processor=ProcessorConfig(sql="SELECT * FROM users", output_tables=["users"]),
+        output=None,
+    )
+    y = build_yaml(state)
+    assert "type: database" in y
+    assert "db_type: mysql" in y
+    assert "connection_string:" in y
+    assert "tables:" in y
+    assert "sheet:" not in y  # DB should NOT have sheet
 
 
 def test_build_yaml_still_works_for_excel():

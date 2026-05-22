@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { SceneInfo, InputSource, ProcessorConfig, OutputTarget, UploadedFileMeta, AiSuggestion } from '../types/wizard'
+import type { SceneInfo, InputSource, ProcessorConfig, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState } from '../types/wizard'
 
 export const useWizardStore = defineStore('wizard', () => {
   const currentStep = ref(1)
@@ -16,7 +16,7 @@ export const useWizardStore = defineStore('wizard', () => {
     if (currentStep.value === 1) return scene.value.name.trim().length > 0
     if (currentStep.value === 2) return inputs.value.length > 0
     if (currentStep.value === 3) return processor.value.sql.trim().length > 0 && processor.value.outputTable.trim().length > 0
-    if (currentStep.value === 4) return (output.value.config as any)?.sourceTable && (output.value.config as any)?.columns?.length > 0
+    if (currentStep.value === 4) return output.value.config?.sourceTable && output.value.config?.columns?.length > 0
     return true
   })
 
@@ -26,18 +26,23 @@ export const useWizardStore = defineStore('wizard', () => {
     if (currentStep.value === 2 && inputs.value.length === 0) msgs.push('至少需要 1 个输入源')
     if (currentStep.value === 3 && !processor.value.sql.trim()) msgs.push('SQL 不能为空')
     if (currentStep.value === 3 && !processor.value.outputTable.trim()) msgs.push('输出表名不能为空')
-    if (currentStep.value === 4 && !(output.value.config as any)?.sourceTable) msgs.push('请选择数据源表')
-    if (currentStep.value === 4 && (output.value.config as any)?.columns?.length === 0) msgs.push('尚未配置列映射')
+    if (currentStep.value === 4 && !output.value.config?.sourceTable) msgs.push('请选择数据源表')
+    if (currentStep.value === 4 && output.value.config?.columns?.length === 0) msgs.push('尚未配置列映射')
     return msgs
   })
 
   function nextStep() { if (canProceed.value && currentStep.value < 5) currentStep.value++ }
   function prevStep() { if (currentStep.value > 1) currentStep.value-- }
   function goToStep(n: number) { if (n >= 1 && n <= currentStep.value && n <= 5) currentStep.value = n }
-  function addInput(plugin: 'excel' | 'csv' = 'excel') {
-    const config = plugin === 'csv'
-      ? { type: 'csv' as const, delimiter: ',', encoding: 'utf-8', hasHeader: true }
-      : { type: 'excel' as const, sheet: '' }
+  function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
+    let config: any
+    if (plugin === 'csv') {
+      config = { type: 'csv' as const, delimiter: ',', encoding: 'utf-8', hasHeader: true }
+    } else if (plugin === 'database') {
+      config = { type: 'database' as const, connectionId: '', queryType: 'table', tables: [], sql: '' }
+    } else {
+      config = { type: 'excel' as const, sheet: '' }
+    }
 
     inputs.value.push({
       plugin,
@@ -81,6 +86,13 @@ export const useWizardStore = defineStore('wizard', () => {
       if (cfg.type === 'csv' && cfg.has_header !== undefined) {
         cfg.hasHeader = cfg.has_header
         delete cfg.has_header
+      } else if (cfg.type === 'database') {
+        cfg.connectionId = cfg.connection_id || ''
+        cfg.queryType = cfg.query_type || 'table'
+        cfg.tables = cfg.tables || []
+        cfg.sql = cfg.sql || ''
+        delete cfg.connection_id
+        delete cfg.query_type
       }
       return {
         plugin: inp.plugin || 'excel',
@@ -112,6 +124,18 @@ export const useWizardStore = defineStore('wizard', () => {
     currentStep.value = 5
   }
 
+  function getWizardState(): WizardState {
+    return {
+      currentStep: currentStep.value,
+      scene: scene.value,
+      inputs: inputs.value,
+      processor: processor.value,
+      output: output.value,
+      uploadedFiles: uploadedFiles.value,
+      aiSuggestions: aiSuggestions.value,
+    }
+  }
+
   return {
     currentStep, scene, inputs, processor, output, uploadedFiles, aiSuggestions, configId,
     canProceed, stepValidation,
@@ -120,7 +144,7 @@ export const useWizardStore = defineStore('wizard', () => {
     setProcessor, setOutput,
     addFileRef, removeFileRef,
     setSuggestion, acceptSuggestion, rejectSuggestion,
-    setConfigId, loadFromConfigState, resetAll
+    setConfigId, loadFromConfigState, resetAll, getWizardState
   }
 }, {
   persist: { key: 'wizard_state_v1', storage: localStorage }

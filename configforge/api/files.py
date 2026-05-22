@@ -85,6 +85,28 @@ async def upload_file(file: UploadFile = File(...)):
                 recoverable=True,
             ).model_dump(),
         )
+    # Validate file content matches declared type (not just extension)
+    if ext in (".xlsx", ".xls") and content[:4] != b"PK\x03\x04":
+        raise HTTPException(
+            status_code=422,
+            detail=ErrorResponse(
+                error="File content does not match xlsx format",
+                code="FILE_FORMAT_UNSUPPORTED",
+                recoverable=True,
+            ).model_dump(),
+        )
+    if ext == ".csv":
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(
+                status_code=422,
+                detail=ErrorResponse(
+                    error="CSV file is not valid UTF-8 text",
+                    code="FILE_FORMAT_UNSUPPORTED",
+                    recoverable=True,
+                ).model_dump(),
+            )
     file_id = uuid.uuid4().hex + ext
     path = os.path.join(UPLOAD_DIR, file_id)
     with open(path, "wb") as f:

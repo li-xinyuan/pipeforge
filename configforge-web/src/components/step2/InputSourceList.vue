@@ -30,8 +30,14 @@
           <span class="text-2xl block mb-2">🗄</span>
           <span class="text-sm font-semibold">CSV</span>
         </NCard>
-        <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
-          <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
+        <NCard
+          hoverable
+          :class="[
+            'cursor-pointer text-center border-2 transition-colors',
+            showAddSelector ? 'border-dashed border-slate-200' : 'border-purple-600 bg-purple-50'
+          ]"
+          @click="addInput('database')"
+        >
           <span class="text-2xl block mb-2">🔌</span>
           <span class="text-sm font-semibold">Database</span>
         </NCard>
@@ -74,7 +80,7 @@ const showAddSelector = ref(false)
 
 const emit = defineEmits<{ 'file-ready': [fileId: string] }>()
 
-function addInput(plugin: 'excel' | 'csv' = 'excel') {
+function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
   store.addInput(plugin)
   showAddSelector.value = false
 }

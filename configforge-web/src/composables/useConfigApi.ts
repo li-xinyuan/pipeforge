@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import type { SavedConfig } from '../types/wizard'
+import { stateToSnakeCase } from '../utils/serialization'
 
 function mapConfig(raw: any): SavedConfig {
   return {
@@ -59,34 +60,7 @@ export function useConfigApi() {
   async function saveConfig(state: any, configId?: string | null): Promise<string | null> {
     const body = {
       config_id: configId || null,
-      state: {
-        current_step: state.currentStep,
-        scene: { name: state.scene.name, description: state.scene.description, version: state.scene.version },
-        inputs: state.inputs.map((inp: any) => ({
-          name: inp.table,
-          plugin: inp.plugin,
-          table: inp.table,
-          param_key: inp.paramKey,
-          file_id: inp.fileId,
-          config: inp.config,
-        })),
-        processor: {
-          plugin: state.processor.plugin,
-          sql: state.processor.sql,
-          output_tables: [state.processor.outputTable],
-        },
-        output: state.output ? {
-          plugin: state.output.plugin,
-          config: (() => {
-            const cfg = { ...state.output.config }
-            if (cfg.sourceTable) { cfg.source_table = cfg.sourceTable; delete cfg.sourceTable }
-            if (cfg.outputDir) { cfg.output_dir = cfg.outputDir; delete cfg.outputDir }
-            if (cfg.hasHeader !== undefined) { cfg.has_header = cfg.hasHeader; delete cfg.hasHeader }
-            return cfg
-          })(),
-        } : null,
-        uploaded_files: {},
-      },
+      state: stateToSnakeCase(state),
     }
     const data = await post<{ id: string }>('/api/configs', body)
     return data?.id ?? null

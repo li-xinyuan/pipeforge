@@ -145,8 +145,8 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <NButton class="btn-primary" :disabled="!(store.output?.config as any)?.columns?.length" @click="completeStep(4)">保存并继续 ↓</NButton>
-            <p v-if="currentStep === 4 && !(store.output?.config as any)?.columns?.length" class="wizard__validation-msg">请先配置列映射</p>
+            <NButton class="btn-primary" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">保存并继续 ↓</NButton>
+            <p v-if="currentStep === 4 && !store.output?.config?.columns?.length" class="wizard__validation-msg">请先配置列映射</p>
           </template>
         </WizardStepCard>
 
@@ -179,6 +179,7 @@
         :messages="aiMessages"
         :quick-actions="aiQuickActions"
         :mode="aiMode"
+        :loading="suggesting"
         @send="onAiSend"
         @quick-action="onAiQuickAction"
         @toggle="aiPanelVisible = false"
@@ -222,7 +223,7 @@ const { breakpoint } = useBreakpoint()
 const router = useRouter()
 const route = useRoute()
 const { loadConfigState } = useConfigApi()
-const { askSuggestion } = useAiApi()
+const { askSuggestion, suggesting } = useAiApi()
 
 const aiMode = computed(() => {
   if (breakpoint.value === 'mobile') return 'fullscreen'
@@ -256,7 +257,7 @@ const showStep3Tip = computed(() =>
 )
 
 const showStep4Tip = computed(() =>
-  !!store.processor.sql.trim() && !(store.output?.config as any)?.columns?.length
+  !!store.processor.sql.trim() && !store.output?.config?.columns?.length
 )
 
 const showStep5Tip = ref(false)
@@ -312,8 +313,8 @@ function scrollToStep(n: number) {
   manualScroll = true
   setTimeout(() => { manualScroll = false }, 1000)
   const el = stepRefs[n - 1]?.value
-  if (el && (el as any).$el) {
-    ;(el as any).$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  if (el?.$el instanceof HTMLElement) {
+    el.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
@@ -327,18 +328,52 @@ function onFileReady(fileId: string) {
 
 async function onAiSend(text: string) {
   aiMessages.value.push({ role: 'user', content: text })
-  const result = await askSuggestion('sql', {
-    inputs: store.inputs.map(inp => ({ name: inp.table, table: inp.table, columns: [] })),
+
+  const context: Record<string, any> = {
+    currentStep: currentStep.value,
     naturalLanguage: text,
-  })
+  }
+  if (store.scene.name) {
+    context.sceneName = store.scene.name
+    context.sceneDescription = store.scene.description
+  }
+  if (store.inputs.length > 0) {
+    context.inputs = store.inputs.map(inp => {
+      const meta = store.uploadedFiles[inp.fileId]
+      return {
+        plugin: inp.plugin,
+        table: inp.table,
+        paramKey: inp.paramKey,
+        columns: meta?.columns || [],
+        config: inp.config,
+      }
+    })
+  }
+  if (store.processor.sql) {
+    context.processorSql = store.processor.sql
+  }
+  if (store.processor.outputTables?.length) {
+    context.outputTables = store.processor.outputTables
+  }
+
+  const result = await askSuggestion('chat', context)
   if (result) {
     try {
       const parsed = JSON.parse(result)
       if (parsed.sql) {
         store.processor.sql = parsed.sql
-        aiMessages.value.push({ role: 'ai', content: '已生成 SQL 并填入处理步骤。', code: parsed.sql })
+        if (parsed.outputTables?.length) {
+          store.processor.outputTables = parsed.outputTables
+        }
+        aiMessages.value.push({
+          role: 'ai',
+          content: parsed.explanation || '已生成 SQL 并填入处理步骤。',
+          code: parsed.sql,
+        })
+      } else if (parsed.raw) {
+        aiMessages.value.push({ role: 'ai', content: parsed.raw })
       } else {
-        aiMessages.value.push({ role: 'ai', content: parsed.explanation || result })
+        aiMessages.value.push({ role: 'ai', content: JSON.stringify(parsed, null, 2) })
       }
     } catch {
       aiMessages.value.push({ role: 'ai', content: result })
@@ -388,7 +423,7 @@ async function onAiQuickAction(action: string) {
       const meta = store.uploadedFiles[inp.fileId]
       if (meta?.columns) sourceCols.push(...meta.columns)
     }
-    const targetCols = ((store.output?.config as any)?.columns || []).map((c: any) => c.target)
+    const targetCols = (store.output?.config?.columns || []).map(c => c.target)
     if (targetCols.length === 0) {
       aiMessages.value.push({ role: 'ai', content: '请先在步骤 4 上传模板文件或添加列映射的目标列。' })
       return
@@ -398,7 +433,7 @@ async function onAiQuickAction(action: string) {
       try {
         const parsed = JSON.parse(result)
         if (parsed.mappings) {
-          ;(store.output!.config as any).columns = parsed.mappings
+          store.output!.config.columns = parsed.mappings
           aiMessages.value.push({ role: 'ai', content: '已自动完成列映射，请检查步骤 4 的映射结果。' })
         } else {
           aiMessages.value.push({ role: 'ai', content: result })

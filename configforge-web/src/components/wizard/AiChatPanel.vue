@@ -26,6 +26,12 @@
           </div>
         </TransitionGroup>
 
+        <div v-if="loading" class="ai-panel__loading">
+          <span class="ai-panel__loading-dot"></span>
+          <span class="ai-panel__loading-dot"></span>
+          <span class="ai-panel__loading-dot"></span>
+        </div>
+
         <div v-if="quickActions.length" class="ai-panel__actions">
           <p class="ai-panel__actions-label">快捷操作</p>
           <button
@@ -38,16 +44,17 @@
         </div>
       </div>
 
-      <div class="ai-panel__input">
-        <span aria-hidden="true">💬</span>
+      <div class="ai-panel__input" :class="{ 'ai-panel__input--disabled': loading }">
+        <span aria-hidden="true" class="ai-panel__input-icon" :class="{ 'ai-panel__input-icon--loading': loading }">{{ loading ? '⏳' : '💬' }}</span>
         <input
           v-model="inputText"
           type="text"
           aria-label="向 AI 提问"
-          placeholder="向 AI 提问..."
+          :placeholder="loading ? 'AI 正在处理...' : '向 AI 提问...'"
+          :disabled="loading"
           @keyup.enter="sendMessage"
         />
-        <button type="button" class="ai-panel__send-btn" @click="sendMessage">发送</button>
+        <button type="button" class="ai-panel__send-btn" :disabled="loading" @click="sendMessage">发送</button>
       </div>
     </div>
   </aside>
@@ -68,6 +75,7 @@ const props = defineProps<{
   messages: ChatMessage[]
   quickActions: string[]
   mode?: 'sidebar' | 'overlay' | 'fullscreen'
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -268,6 +276,54 @@ watch(() => props.messages.length, async () => {
   font-size: var(--font-size-xs);
   font-weight: 500;
   cursor: pointer;
+}
+
+.ai-panel__send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ai-panel__input--disabled {
+  opacity: 0.7;
+}
+
+.ai-panel__input-icon--loading {
+  animation: cf-pulse 1.2s ease-in-out infinite;
+}
+
+/* ───── AI Loading indicator ───── */
+.ai-panel__loading {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, var(--color-primary-bg), var(--color-primary-bg-light));
+  border-radius: 12px 12px 12px 3px;
+  margin-top: 4px;
+}
+
+.ai-panel__loading-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  opacity: 0.3;
+  animation: cf-loading-bounce 1.2s ease-in-out infinite;
+}
+
+.ai-panel__loading-dot:nth-child(1) { animation-delay: 0s; }
+.ai-panel__loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.ai-panel__loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes cf-loading-bounce {
+  0%, 60%, 100% { opacity: 0.3; transform: scale(1); }
+  30% { opacity: 1; transform: scale(1.4); }
+}
+
+@keyframes cf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 /* ───── Message entrance animation ───── */

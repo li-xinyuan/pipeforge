@@ -36,5 +36,17 @@ demo/screenshots/
 node_modules/
 configforge-web/dist/
 
+# Runtime temp
+tmp/
+
+# Saved configs
+configforge/configs/
+
+# uv
+uv.lock
+
+# TypeScript
+*.tsbuildinfo
+
 data/
 ai_settings.json

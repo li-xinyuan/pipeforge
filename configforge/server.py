@@ -9,6 +9,7 @@ from configforge.api.files import router as files_router
 from configforge.api.ai import router as ai_router
 from configforge.api.wizard import router as wizard_router
 from configforge.api.configs import router as configs_router
+from configforge.api.connections import router as connections_router
 from configforge.models.wizard import ErrorResponse
 
 app = FastAPI(title="ConfigForge", version="0.1.0")
@@ -55,6 +56,7 @@ app.include_router(files_router, prefix="/api/files")
 app.include_router(ai_router, prefix="/api/ai")
 app.include_router(wizard_router, prefix="/api/wizard")
 app.include_router(configs_router, prefix="/api/configs")
+app.include_router(connections_router, prefix="/api")
 
 
 @app.get("/api/health")

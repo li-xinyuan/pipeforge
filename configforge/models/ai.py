@@ -31,7 +31,7 @@ class AiSettingsUpdate(BaseModel):
 
 
 class AiSuggestionRequest(BaseModel):
-    category: Literal["scene", "columns", "sql", "mapping", "diagnose"]
+    category: Literal["scene", "columns", "sql", "mapping", "diagnose", "chat"]
     context: dict
 
 

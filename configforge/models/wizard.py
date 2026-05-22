@@ -20,13 +20,23 @@ class CsvInputConfig(BaseModel):
     has_header: bool = True
 
 
+class DatabaseInputConfig(BaseModel):
+    type: Literal["database"] = "database"
+    connection_id: str = ""
+    connection_string: str = ""   # API layer fills this after resolving connectionId
+    db_type: str = ""             # API layer fills this
+    query_type: Literal["table", "sql"] = "table"
+    tables: list[str] = []        # max 1 element
+    sql: str = ""
+
+
 class InputSource(BaseModel):
     name: str
-    plugin: Literal["excel", "csv"] = "excel"
+    plugin: Literal["excel", "csv", "database"] = "excel"
     table: str
     param_key: str
     file_id: str
-    config: Annotated[ExcelInputConfig | CsvInputConfig, Field(discriminator="type")] = Field(
+    config: Annotated[ExcelInputConfig | CsvInputConfig | DatabaseInputConfig, Field(discriminator="type")] = Field(
         default_factory=ExcelInputConfig
     )
 

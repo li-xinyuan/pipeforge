@@ -13,6 +13,7 @@ from configforge.models.wizard import (
 from configforge.services.excel_reader import read_excel_info
 from configforge.services.csv_reader import read_csv_info
 from configforge.services.yaml_builder import build_yaml
+from configforge.utils.security import validate_id
 import copy
 import os
 import re
@@ -33,6 +34,7 @@ def init_scene(req: SceneInitRequest) -> SceneInitResponse:
 def infer_input(
     input_name: str, req: InputInferRequest
 ) -> InputInferResponse:
+    validate_id(req.file_id, "file_id")
     path = os.path.join(UPLOAD_DIR, req.file_id)
     with open(path, "rb") as f:
         content = f.read()
@@ -73,7 +75,7 @@ def execute_pipeline(state: WizardState) -> str:
     # PipeForge SQL processor 只执行 SQL 原样，不会对 SELECT 自动 CREATE TABLE。
     if exec_state.processor.output_tables and exec_state.processor.sql.strip():
         if not _has_ddl(exec_state.processor.sql):
-            output_table = exec_state.processor.output_tables[0]
+            output_table = exec_state.processor.output_tables[0].replace('"', '')
             exec_state.processor.sql = (
                 f'CREATE TABLE "{output_table}" AS '
                 f"SELECT * FROM ({exec_state.processor.sql})"
@@ -86,6 +88,7 @@ def execute_pipeline(state: WizardState) -> str:
         inferred: list[ColumnMappingItem] = []
         for inp in exec_state.inputs:
             if inp.file_id:
+                validate_id(inp.file_id, "file_id")
                 path = os.path.join(UPLOAD_DIR, inp.file_id)
                 if os.path.exists(path):
                     with open(path, "rb") as f:
@@ -105,6 +108,7 @@ def execute_pipeline(state: WizardState) -> str:
     if exec_state.output and exec_state.output.config.type == "excel":
         template_id = exec_state.output.config.template
         if template_id:
+            validate_id(template_id, "template_id")
             src = os.path.join(UPLOAD_DIR, template_id)
             if os.path.exists(src):
                 shutil.copy2(src, os.path.join(tmp_dir, template_id))
@@ -121,17 +125,34 @@ def execute_pipeline(state: WizardState) -> str:
             wb.close()
             exec_state.output.config.template = gen_name
 
+    # Resolve database connectionIds to connection_strings before building YAML
+    from configforge.services.connection_store import ConnectionStore
+
+    for inp in exec_state.inputs:
+        cfg = inp.config
+        if hasattr(cfg, 'type') and cfg.type == "database":
+            if not cfg.connection_id:
+                raise RuntimeError("Database input is missing connection_id")
+            entry = ConnectionStore.get_with_plaintext_password(cfg.connection_id)
+            if not entry:
+                raise RuntimeError(f"Connection '{cfg.connection_id}' not found — please reconfigure")
+            cfg.connection_string = ConnectionStore.build_connection_string(entry)
+            cfg.db_type = entry["db_type"]
+
     # 在模板就绪后再构建 YAML
     yaml_str = build_yaml(exec_state)
     yaml_path = os.path.join(tmp_dir, "pipeline.yaml")
     with open(yaml_path, "w", encoding="utf-8") as f:
         f.write(yaml_str)
 
-    # 复制输入文件到临时目录（openpyxl 需要 .xlsx 扩展名识别格式，
-    # 如果 file_id 不含扩展名则补上）
+    # 复制输入文件到临时目录，或为数据库输入源注册占位参数
     params: dict[str, str] = {}
     for inp in exec_state.inputs:
-        if inp.file_id:
+        cfg = inp.config
+        if hasattr(cfg, 'type') and cfg.type == "database":
+            params[inp.param_key] = ""  # 数据库输入不需要文件路径
+        elif inp.file_id:
+            validate_id(inp.file_id, "file_id")
             src = os.path.join(UPLOAD_DIR, inp.file_id)
             if os.path.exists(src):
                 ext = os.path.splitext(inp.file_id)[1].lower()
@@ -145,7 +166,11 @@ def execute_pipeline(state: WizardState) -> str:
 
     engine = PipelineEngine(yaml_path)
 
-    result = engine.execute(params, log_dir=LOG_DIR)
+    try:
+        result = engine.execute(params, log_dir=LOG_DIR)
+    except Exception:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
 
     output_path = result.output.file_path if result.output else ""
     if not output_path or not os.path.exists(output_path):
@@ -160,6 +185,69 @@ def execute_pipeline(state: WizardState) -> str:
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return persisted_path
+
+
+def dry_run(state: WizardState) -> dict:
+    """Execute input + processor phases only, return table preview data.
+
+    Used by the frontend Dry-Run button in Step 3 to preview SQL results
+    before committing to full pipeline execution and file download.
+    """
+    exec_state = copy.deepcopy(state)
+
+    if exec_state.processor.output_tables and exec_state.processor.sql.strip():
+        if not _has_ddl(exec_state.processor.sql):
+            output_table = exec_state.processor.output_tables[0].replace('"', '')
+            exec_state.processor.sql = (
+                f'CREATE TABLE "{output_table}" AS '
+                f"SELECT * FROM ({exec_state.processor.sql})"
+            )
+
+    tmp_dir = tempfile.mkdtemp(prefix="pipeforge_dryrun_")
+
+    from configforge.services.connection_store import ConnectionStore
+
+    for inp in exec_state.inputs:
+        cfg = inp.config
+        if hasattr(cfg, 'type') and cfg.type == "database":
+            if not cfg.connection_id:
+                raise RuntimeError("Database input is missing connection_id")
+            entry = ConnectionStore.get_with_plaintext_password(cfg.connection_id)
+            if not entry:
+                raise RuntimeError(
+                    f"Connection '{cfg.connection_id}' not found — please reconfigure"
+                )
+            cfg.connection_string = ConnectionStore.build_connection_string(entry)
+            cfg.db_type = entry["db_type"]
+
+    yaml_str = build_yaml(exec_state)
+    yaml_path = os.path.join(tmp_dir, "pipeline.yaml")
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        f.write(yaml_str)
+
+    params: dict[str, str] = {}
+    for inp in exec_state.inputs:
+        cfg = inp.config
+        if hasattr(cfg, 'type') and cfg.type == "database":
+            params[inp.param_key] = ""
+        elif inp.file_id:
+            validate_id(inp.file_id, "file_id")
+            src = os.path.join(UPLOAD_DIR, inp.file_id)
+            if os.path.exists(src):
+                ext = os.path.splitext(inp.file_id)[1].lower()
+                if ext in (".xlsx", ".xls", ".csv"):
+                    dst_name = inp.file_id
+                else:
+                    dst_name = inp.file_id + (".xlsx" if inp.plugin == "excel" else ".csv")
+                dst = os.path.join(tmp_dir, dst_name)
+                shutil.copy2(src, dst)
+                params[inp.param_key] = os.path.abspath(dst)
+
+    engine = PipelineEngine(yaml_path)
+    result = engine.execute_dry_run(params, log_dir=LOG_DIR)
+
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+    return result
 
 
 def _has_ddl(sql: str) -> bool:

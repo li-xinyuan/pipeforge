@@ -10,8 +10,8 @@
     <tbody>
       <tr v-for="(col, i) in columns" :key="i">
         <td class="border border-slate-200">
-          <NInput v-if="!col.source" v-model:value="col.source" size="tiny" placeholder="输入源列名" />
-          <span v-else class="block w-full px-2 py-1 text-xs text-slate-700 bg-slate-50">{{ col.source }}</span>
+          <NInput v-if="!col.source || editingIndex === i" v-model:value="col.source" size="tiny" placeholder="输入源列名" @blur="editingIndex = null" />
+          <span v-else class="block w-full px-2 py-1 text-xs text-slate-700 bg-slate-50 cursor-pointer" @click="editingIndex = i">{{ col.source }}</span>
         </td>
         <td class="border border-slate-200">
           <NInput v-model:value="col.target" size="tiny" />
@@ -24,8 +24,11 @@
   </table>
 </template>
 <script setup lang="ts">
+import { ref } from 'vue'
 import { NInput, NButton } from 'naive-ui'
 import type { ColumnMappingItem } from '../../types/wizard'
 defineProps<{ columns: ColumnMappingItem[] }>()
 defineEmits<{ remove: [index: number] }>()
+
+const editingIndex = ref<number | null>(null)
 </script>

@@ -14,6 +14,14 @@ def build_yaml(state: WizardState) -> str:
                 "encoding": cfg.encoding,
                 "has_header": cfg.has_header,
             }
+        elif cfg.type == "database":
+            config_dict = {
+                "type": "database",
+                "db_type": cfg.db_type,
+                "connection_string": cfg.connection_string,
+                "tables": cfg.tables,
+                "sql": cfg.sql,
+            }
         else:
             config_dict = {"type": "excel", "sheet": cfg.sheet}
         d["inputs"].append({

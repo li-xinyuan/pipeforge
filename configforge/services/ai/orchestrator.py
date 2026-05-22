@@ -35,6 +35,29 @@ SYSTEM_PROMPTS = {
         "你是一个数据管道调试专家。根据 YAML 配置和错误日志，分析失败原因并给出修复建议。"
         "返回 JSON: {\"cause\": \"根因一句话\", \"suggestions\": [\"具体修复步骤\"], \"severity\": \"error|warning\"}。"
     ),
+    "chat": (
+        "你是 ConfigForge 的 AI 助手，内嵌在一个数据管道配置平台中。"
+        "该平台通过可视化向导帮用户将多种数据源（Excel、CSV、数据库）加工转换为标准化输出。"
+        "用户当前正在一个 5 步向导中：场景信息 → 输入源 → SQL 处理 → 输出配置 → 预览导出。\n\n"
+        "## 你能做什么\n"
+        "- 根据用户的中文描述生成 SQLite 兼容的 SQL 查询（GROUP BY、JOIN、CASE WHEN、窗口函数等）\n"
+        "- 分析上传文件的列结构，推断列类型（string/number/date/boolean）和业务含义\n"
+        "- 自动推断源列与目标列的映射关系\n"
+        "- 根据流水线配置生成场景名称和描述\n\n"
+        "## 你应该如何回复\n"
+        "1. 如果用户描述了一个数据查询需求（如「统计各部门人数」「查询上月销售总额」），"
+        "请生成 SQLite SQL 并返回 JSON: {\"sql\": \"...\", \"outputTables\": [\"...\"], \"explanation\": \"...\"}。\n"
+        "2. 如果用户是打招呼、闲聊、询问你的身份或能力、问与数据管道无关的问题，"
+        "请友好地自我介绍，告诉用户你能帮他做什么，引导他在对应步骤使用你的能力。"
+        "例如：用户在第 2 步上传文件后可以让你「分析列结构」，在第 3 步描述查询需求让你「生成 SQL」。\n"
+        "3. 如果用户的问题模糊不清、缺少必要信息（如表结构），请追问澄清，不要猜测编造。\n\n"
+        "## 重要约束\n"
+        "- 生成的 SQL 必须兼容 SQLite 语法，表名用双引号包裹\n"
+        "- 列名必须来自用户提供的表结构，不要编造列名\n"
+        "- 所有计算列和函数调用必须加 AS 别名，中文别名用双引号包裹：COUNT(*) AS \"人数\"\n"
+        "- 当返回 JSON 时，不要包裹在 markdown 代码块中（不要用 ```json），直接输出纯 JSON 文本\n"
+        "- 保持回复简洁、有针对性，不要堆砌大量文字"
+    ),
 }
 
 
@@ -85,6 +108,29 @@ def build_prompt(category: str, context: dict) -> str:
     elif category == "diagnose":
         prompt += f"YAML: {context.get('yaml', '')}。"
         prompt += f"错误: {context.get('errorLog', '')}。"
+    elif category == "chat":
+        current_step = context.get("currentStep", 1)
+        scene_name = context.get("sceneName", "")
+        inputs = context.get("inputs", [])
+        sql = context.get("processorSql", "")
+        output_tables = context.get("outputTables", [])
+        prompt += f"用户当前在第 {current_step} 步。"
+        if scene_name:
+            prompt += f"场景名称: {scene_name}。"
+        if inputs:
+            input_info = []
+            for inp in inputs:
+                info: dict = {"plugin": inp.get("plugin"), "table": inp.get("table")}
+                cols = inp.get("columns")
+                if cols:
+                    info["columns"] = cols
+                input_info.append(info)
+            prompt += f"已添加的输入源: {json.dumps(input_info, ensure_ascii=False)}。"
+        if sql:
+            prompt += f"当前 SQL: {sql[:500]}。"
+        if output_tables:
+            prompt += f"输出表: {output_tables}。"
+        prompt += f"用户消息: {context.get('naturalLanguage', '')}"
 
     return prompt
 
