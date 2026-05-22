@@ -1,3 +1,4 @@
+import copy
 import time
 from pathlib import Path
 
@@ -84,7 +85,7 @@ class PipelineEngine:
         plugin.name = inp_spec.plugin
         plugin.label = inp_spec.name
         plugin.table_name = inp_spec.table
-        config = inp_spec.config
+        config = copy.deepcopy(inp_spec.config)
         config.file = file_path
         plugin.execute(context, config)
         elapsed = (time.time() - start) * 1000

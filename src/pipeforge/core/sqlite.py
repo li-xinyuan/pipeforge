@@ -63,3 +63,7 @@ class SQLiteManager:
     def remove(self) -> None:
         if os.path.exists(self.path):
             os.remove(self.path)
+        for suffix in ("-wal", "-shm"):
+            p = self.path + suffix
+            if os.path.exists(p):
+                os.remove(p)

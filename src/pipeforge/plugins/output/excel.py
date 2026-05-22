@@ -89,9 +89,13 @@ class ExcelOutputPlugin(OutputPlugin):
         ws = wb[sheet_name] if sheet_name else wb.active
 
         first_row_cells = list(ws.iter_rows(min_row=1, max_row=1))
-        template_headers = (
-            [c.value for c in first_row_cells[0]] if first_row_cells else []
-        )
+        if not first_row_cells or not first_row_cells[0]:
+            wb.close()
+            raise ValueError(
+                f"Template sheet '{sheet_name}' has no data in row 1. "
+                "The template must contain a header row."
+            )
+        template_headers = [c.value for c in first_row_cells[0]]
 
         header_styles = {}
         for cell in first_row_cells[0]:

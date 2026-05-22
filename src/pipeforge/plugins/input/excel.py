@@ -1,3 +1,4 @@
+import os
 from typing import Iterator
 
 from openpyxl import load_workbook
@@ -33,10 +34,12 @@ def read_excel_rows(file: str, sheet: str | None = None) -> tuple[list[str], Ite
     columns = [str(h) if h is not None else f"col_{i}" for i, h in enumerate(header)]
 
     def row_generator():
-        for row in rows_iter:
-            if row is not None:
-                yield row
-        wb.close()
+        try:
+            for row in rows_iter:
+                if row is not None:
+                    yield row
+        finally:
+            wb.close()
 
     return columns, row_generator()
 
@@ -50,7 +53,8 @@ class ExcelInputPlugin(InputPlugin):
         return ExcelInputConfig
 
     def execute(self, context, config: ExcelInputConfig) -> None:
-        columns, rows = read_excel_rows(config.file, config.sheet)
+        filepath = os.path.join(context.yaml_dir, config.file)
+        columns, rows = read_excel_rows(filepath, config.sheet)
         context.db.create_table(self.table_name, columns)
         with context.db.transaction():
             for row in rows:

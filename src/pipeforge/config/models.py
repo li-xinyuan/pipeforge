@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class SceneMeta(BaseModel):
@@ -29,6 +29,26 @@ class CsvInputConfig(BaseModel):
     has_header: bool = True
 
 
+class DbInputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["database"] = "database"
+    connection_string: str
+    db_type: str = ""
+    tables: list[str] = []
+    sql: str = ""
+
+    @model_validator(mode="after")
+    def validate_tables_sql_mutual_exclusion(self):
+        has_tables = len(self.tables) > 0
+        has_sql = bool(self.sql.strip())
+        if has_tables and has_sql:
+            raise ValueError("tables 和 sql 互斥，只能二选一")
+        if not has_tables and not has_sql:
+            raise ValueError("tables 和 sql 必须提供一个")
+        return self
+
+
 class InputSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -36,7 +56,14 @@ class InputSpec(BaseModel):
     plugin: str
     table: str
     param_key: str
-    config: Annotated[ExcelInputConfig | CsvInputConfig, Field(discriminator="type")]
+    config: Annotated[ExcelInputConfig | CsvInputConfig | DbInputConfig, Field(discriminator="type")]
+
+    @field_validator("param_key")
+    @classmethod
+    def param_key_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("param_key must not be empty")
+        return v
 
 
 class SqlProcessorConfig(BaseModel):
