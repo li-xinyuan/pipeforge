@@ -1,12 +1,7 @@
-import type { WizardState, SceneInfo, InputSource, ProcessorConfig, OutputTarget, UploadedFileMeta, AiSuggestion } from '../types/wizard'
+import type { WizardState, SceneInfo, InputSource, ProcessorConfig, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig } from '../types/wizard'
 
-interface ApiConfigField {
-  [key: string]: unknown
-}
-
-function getConfigField<T>(config: Record<string, unknown>, field: string): T {
-  return (config as Record<string, T>)[field]
-}
+type InputConfig = ExcelInputConfig | CsvInputConfig | DatabaseInputConfig
+type OutputConfig = ExcelOutputConfig | CsvOutputConfig
 
 export interface SnakeState {
   current_step: number
@@ -31,7 +26,11 @@ export interface SnakeState {
   uploaded_files: Record<string, unknown>
 }
 
-export function buildInputConfig(config: Record<string, unknown>) {
+function getConfigField<T>(config: InputConfig | OutputConfig, field: string): T {
+  return (config as unknown as Record<string, T>)[field]
+}
+
+export function buildInputConfig(config: InputConfig) {
   if (config.type === 'csv') {
     return {
       type: 'csv',
@@ -56,7 +55,7 @@ export function buildInputConfig(config: Record<string, unknown>) {
   }
 }
 
-export function buildOutputConfig(config: Record<string, unknown>) {
+export function buildOutputConfig(config: OutputConfig) {
   const base = {
     source_table: getConfigField<string>(config, 'sourceTable'),
     output_dir: getConfigField<string>(config, 'outputDir'),
@@ -95,7 +94,7 @@ export function stateToSnakeCase(state: WizardState): SnakeState {
       table: inp.table,
       param_key: inp.paramKey,
       file_id: inp.fileId,
-      config: buildInputConfig(inp.config as Record<string, unknown>),
+      config: buildInputConfig(inp.config),
     })),
     processor: {
       plugin: state.processor.plugin,
@@ -105,7 +104,7 @@ export function stateToSnakeCase(state: WizardState): SnakeState {
     output: state.output
       ? {
           plugin: state.output.plugin,
-          config: buildOutputConfig(state.output.config as Record<string, unknown>),
+          config: buildOutputConfig(state.output.config),
         }
       : null,
     uploaded_files: {},

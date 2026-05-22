@@ -352,8 +352,8 @@ async function onAiSend(text: string) {
   if (store.processor.sql) {
     context.processorSql = store.processor.sql
   }
-  if (store.processor.outputTables?.length) {
-    context.outputTables = store.processor.outputTables
+  if (store.processor.outputTable) {
+    context.outputTable = store.processor.outputTable
   }
 
   const result = await askSuggestion('chat', context)
@@ -362,8 +362,8 @@ async function onAiSend(text: string) {
       const parsed = JSON.parse(result)
       if (parsed.sql) {
         store.processor.sql = parsed.sql
-        if (parsed.outputTables?.length) {
-          store.processor.outputTables = parsed.outputTables
+        if (parsed.outputTable) {
+          store.processor.outputTable = parsed.outputTable
         }
         aiMessages.value.push({
           role: 'ai',
