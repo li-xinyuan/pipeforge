@@ -47,6 +47,7 @@ async def suggest(req: AiSuggestionRequest, request: Request):
     settings = load_settings()
     if not settings.enabled:
         return AiSuggestionResponse(content="AI 未配置，请先在设置中启用", category=req.category)
+    backend = None
     try:
         backend = create_backend(settings)
         prompt = build_prompt(req.category, req.context)
@@ -68,6 +69,9 @@ async def suggest(req: AiSuggestionRequest, request: Request):
         if "401" in msg or "403" in msg or "invalid" in msg.lower():
             raise HTTPException(status_code=401, detail="API Key 无效，请检查设置")
         raise HTTPException(status_code=500, detail="AI 调用失败，请稍后重试")
+    finally:
+        if backend is not None:
+            await backend.close()
 
 
 @router.get("/settings")
@@ -93,6 +97,7 @@ async def test_connection():
     settings = load_settings()
     if not settings.api_key:
         raise HTTPException(status_code=400, detail="未配置 API Key")
+    backend = None
     try:
         backend = create_backend(settings)
         start = time.monotonic()
@@ -107,3 +112,6 @@ async def test_connection():
         if "401" in msg or "403" in msg:
             raise HTTPException(status_code=401, detail="认证失败，请检查 API Key")
         raise HTTPException(status_code=500, detail="连接失败，请检查网络和设置")
+    finally:
+        if backend is not None:
+            await backend.close()
