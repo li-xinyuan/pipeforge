@@ -1,3 +1,4 @@
+import fcntl
 import json
 import os
 import uuid
@@ -38,12 +39,20 @@ def _load_index() -> list[dict]:
     if not os.path.exists(INDEX_PATH):
         return []
     with open(INDEX_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+        fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+        try:
+            return json.load(f)
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
 def _save_index(data: list[dict]) -> None:
     with open(INDEX_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
 @router.get("")

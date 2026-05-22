@@ -5,6 +5,7 @@ from pipeforge.config.models import (
     SceneMeta,
     ExcelInputConfig,
     CsvInputConfig,
+    DbInputConfig,
     CsvOutputConfig,
     InputSpec,
     SqlProcessorConfig,
@@ -238,3 +239,47 @@ class TestCsvOutputConfig:
     def test_empty_columns_raises(self):
         with pytest.raises(ValidationError):
             CsvOutputConfig(source_table="t", columns=[])
+
+
+class TestDbInputConfig:
+    def test_type_defaults_to_database(self):
+        cfg = DbInputConfig(connection_string="sqlite:///test.db", tables=["users"])
+        assert cfg.type == "database"
+
+    def test_default_tables_empty(self):
+        cfg = DbInputConfig(connection_string="sqlite:///test.db", tables=["users"])
+        assert cfg.tables == ["users"]
+
+    def test_default_sql_empty(self):
+        cfg = DbInputConfig(connection_string="sqlite:///test.db", sql="SELECT 1")
+        assert cfg.sql == "SELECT 1"
+
+    def test_tables_and_sql_mutually_exclusive(self):
+        with pytest.raises(ValidationError, match="互斥"):
+            DbInputConfig(connection_string="sqlite:///test.db", tables=["users"], sql="SELECT 1")
+
+    def test_neither_tables_nor_sql_raises(self):
+        with pytest.raises(ValidationError, match="tables 和 sql 必须提供一个"):
+            DbInputConfig(connection_string="sqlite:///test.db")
+
+    def test_empty_tables_raises(self):
+        with pytest.raises(ValidationError, match="tables 和 sql 必须提供一个"):
+            DbInputConfig(connection_string="sqlite:///test.db", tables=[])
+
+    def test_whitespace_sql_raises(self):
+        with pytest.raises(ValidationError, match="tables 和 sql 必须提供一个"):
+            DbInputConfig(connection_string="sqlite:///test.db", sql="   ")
+
+    def test_extra_field_forbidden(self):
+        with pytest.raises(ValidationError):
+            DbInputConfig(connection_string="sqlite:///test.db", tables=["users"], unknown="x")
+
+    def test_valid_with_tables(self):
+        cfg = DbInputConfig(connection_string="sqlite:///test.db", db_type="sqlite", tables=["users"])
+        assert cfg.tables == ["users"]
+        assert cfg.sql == ""
+
+    def test_valid_with_sql(self):
+        cfg = DbInputConfig(connection_string="sqlite:///test.db", db_type="sqlite", sql="SELECT * FROM users")
+        assert cfg.sql == "SELECT * FROM users"
+        assert cfg.tables == []

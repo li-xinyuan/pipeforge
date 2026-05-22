@@ -93,7 +93,8 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
                 info = read_excel_info(io.BytesIO(content))
 
             if info["columns"]:
-                safe_name = f'"{table_name}"'
+                safe_table = table_name.replace('"', '')
+                safe_name = f'"{safe_table}"'
                 col_defs = ", ".join(f'"{c}" TEXT' for c in info["columns"])
                 conn.execute(f"CREATE TABLE {safe_name} ({col_defs})")
                 placeholders = ", ".join("?" for _ in info["columns"])
@@ -117,8 +118,10 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
         # Data loaded, now enable read-only protection
         conn.execute("PRAGMA query_only=ON")
 
-        # Block DDL/DML keywords
-        if _DDL_DML_RE.search(req.sql):
+        # Strip SQL comments before DDL/DML check to prevent bypass via DR/**/OP
+        sql_clean = re.sub(r"/\*.*?\*/", "", req.sql, flags=re.DOTALL)
+        sql_clean = re.sub(r"--[^\n]*", "", sql_clean)
+        if _DDL_DML_RE.search(sql_clean):
             raise HTTPException(
                 status_code=400,
                 detail="DDL/DML statements are not allowed in preview SQL",

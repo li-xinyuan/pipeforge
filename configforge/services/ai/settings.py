@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from base64 import urlsafe_b64encode
@@ -11,7 +12,7 @@ SETTINGS_FILE = os.path.join(_SETTINGS_DIR, "ai_settings.json")
 def _get_cipher() -> Fernet:
     raw = os.environ.get("CONFIGFORGE_ENCRYPTION_KEY", "")
     if raw:
-        key = urlsafe_b64encode(raw.encode().ljust(32, b"\x00")[:32])
+        key = urlsafe_b64encode(hashlib.sha256(raw.encode()).digest())
     else:
         key_path = os.path.join(_SETTINGS_DIR, ".fernet_key")
         if os.path.exists(key_path):

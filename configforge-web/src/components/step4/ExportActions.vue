@@ -11,6 +11,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, useMessage, useDialog } from 'naive-ui'
+import { stateToSnakeCase } from '../../utils/serialization'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
 import { useConfigApi } from '../../composables/useConfigApi'
@@ -56,56 +57,12 @@ function downloadYaml() {
 async function downloadResult() {
   executing.value = true
   try {
-    const state = {
-      scene: {
-        name: store.scene.name,
-        description: store.scene.description,
-        version: store.scene.version,
-      },
-      inputs: store.inputs.map(inp => ({
-        name: inp.table,
-        plugin: inp.plugin,
-        table: inp.table,
-        param_key: inp.paramKey,
-        file_id: inp.fileId,
-        config: inp.config.type === 'csv'
-          ? { type: 'csv', delimiter: (inp.config as any).delimiter, encoding: (inp.config as any).encoding, has_header: (inp.config as any).hasHeader }
-          : { type: inp.config.type, sheet: (inp.config as any).sheet },
-      })),
-      processor: {
-        plugin: store.processor.plugin,
-        sql: store.processor.sql,
-        output_tables: [store.processor.outputTable],
-      },
-      output: store.output ? {
-        plugin: store.output.plugin,
-        config: store.output.config.type === 'csv'
-          ? {
-              type: 'csv',
-              source_table: (store.output.config as any).sourceTable,
-              output_dir: (store.output.config as any).outputDir,
-              filename: (store.output.config as any).filename,
-              delimiter: (store.output.config as any).delimiter,
-              encoding: (store.output.config as any).encoding,
-              columns: store.output.config.columns.map((c: any) => ({ source: c.source, target: c.target })),
-            }
-          : {
-              type: store.output.config.type,
-              template: (store.output.config as any).template,
-              sheet: (store.output.config as any).sheet,
-              output_dir: (store.output.config as any).outputDir,
-              source_table: (store.output.config as any).sourceTable,
-              filename: (store.output.config as any).filename,
-              columns: store.output.config.columns.map((c: any) => ({ source: c.source, target: c.target })),
-            },
-      } : null,
-    }
-
+    const state = stateToSnakeCase(store.getWizardState())
     const blob = await executePipeline(state)
     if (blob) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      const storedFilename = (store.output?.config as any)?.filename || 'output.xlsx'
+      const storedFilename = store.output?.config?.filename || 'output.xlsx'
       a.href = url; a.download = buildExecutionFilename(storedFilename); a.click()
       URL.revokeObjectURL(url)
       message.success('结果文件下载成功')

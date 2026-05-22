@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { SceneInfo, InputSource, ProcessorConfig, OutputTarget, UploadedFileMeta, AiSuggestion } from '../types/wizard'
+import type { SceneInfo, InputSource, ProcessorConfig, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState } from '../types/wizard'
 
 export const useWizardStore = defineStore('wizard', () => {
   const currentStep = ref(1)
@@ -16,7 +16,7 @@ export const useWizardStore = defineStore('wizard', () => {
     if (currentStep.value === 1) return scene.value.name.trim().length > 0
     if (currentStep.value === 2) return inputs.value.length > 0
     if (currentStep.value === 3) return processor.value.sql.trim().length > 0 && processor.value.outputTable.trim().length > 0
-    if (currentStep.value === 4) return (output.value.config as any)?.sourceTable && (output.value.config as any)?.columns?.length > 0
+    if (currentStep.value === 4) return output.value.config?.sourceTable && output.value.config?.columns?.length > 0
     return true
   })
 
@@ -26,8 +26,8 @@ export const useWizardStore = defineStore('wizard', () => {
     if (currentStep.value === 2 && inputs.value.length === 0) msgs.push('至少需要 1 个输入源')
     if (currentStep.value === 3 && !processor.value.sql.trim()) msgs.push('SQL 不能为空')
     if (currentStep.value === 3 && !processor.value.outputTable.trim()) msgs.push('输出表名不能为空')
-    if (currentStep.value === 4 && !(output.value.config as any)?.sourceTable) msgs.push('请选择数据源表')
-    if (currentStep.value === 4 && (output.value.config as any)?.columns?.length === 0) msgs.push('尚未配置列映射')
+    if (currentStep.value === 4 && !output.value.config?.sourceTable) msgs.push('请选择数据源表')
+    if (currentStep.value === 4 && output.value.config?.columns?.length === 0) msgs.push('尚未配置列映射')
     return msgs
   })
 
@@ -124,6 +124,18 @@ export const useWizardStore = defineStore('wizard', () => {
     currentStep.value = 5
   }
 
+  function getWizardState(): WizardState {
+    return {
+      currentStep: currentStep.value,
+      scene: scene.value,
+      inputs: inputs.value,
+      processor: processor.value,
+      output: output.value,
+      uploadedFiles: uploadedFiles.value,
+      aiSuggestions: aiSuggestions.value,
+    }
+  }
+
   return {
     currentStep, scene, inputs, processor, output, uploadedFiles, aiSuggestions, configId,
     canProceed, stepValidation,
@@ -132,7 +144,7 @@ export const useWizardStore = defineStore('wizard', () => {
     setProcessor, setOutput,
     addFileRef, removeFileRef,
     setSuggestion, acceptSuggestion, rejectSuggestion,
-    setConfigId, loadFromConfigState, resetAll
+    setConfigId, loadFromConfigState, resetAll, getWizardState
   }
 }, {
   persist: { key: 'wizard_state_v1', storage: localStorage }

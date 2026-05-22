@@ -145,8 +145,8 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <NButton class="btn-primary" :disabled="!(store.output?.config as any)?.columns?.length" @click="completeStep(4)">保存并继续 ↓</NButton>
-            <p v-if="currentStep === 4 && !(store.output?.config as any)?.columns?.length" class="wizard__validation-msg">请先配置列映射</p>
+            <NButton class="btn-primary" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">保存并继续 ↓</NButton>
+            <p v-if="currentStep === 4 && !store.output?.config?.columns?.length" class="wizard__validation-msg">请先配置列映射</p>
           </template>
         </WizardStepCard>
 
@@ -257,7 +257,7 @@ const showStep3Tip = computed(() =>
 )
 
 const showStep4Tip = computed(() =>
-  !!store.processor.sql.trim() && !(store.output?.config as any)?.columns?.length
+  !!store.processor.sql.trim() && !store.output?.config?.columns?.length
 )
 
 const showStep5Tip = ref(false)
@@ -313,8 +313,8 @@ function scrollToStep(n: number) {
   manualScroll = true
   setTimeout(() => { manualScroll = false }, 1000)
   const el = stepRefs[n - 1]?.value
-  if (el && (el as any).$el) {
-    ;(el as any).$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  if (el?.$el instanceof HTMLElement) {
+    el.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
@@ -423,7 +423,7 @@ async function onAiQuickAction(action: string) {
       const meta = store.uploadedFiles[inp.fileId]
       if (meta?.columns) sourceCols.push(...meta.columns)
     }
-    const targetCols = ((store.output?.config as any)?.columns || []).map((c: any) => c.target)
+    const targetCols = (store.output?.config?.columns || []).map(c => c.target)
     if (targetCols.length === 0) {
       aiMessages.value.push({ role: 'ai', content: '请先在步骤 4 上传模板文件或添加列映射的目标列。' })
       return
@@ -433,7 +433,7 @@ async function onAiQuickAction(action: string) {
       try {
         const parsed = JSON.parse(result)
         if (parsed.mappings) {
-          ;(store.output!.config as any).columns = parsed.mappings
+          store.output!.config.columns = parsed.mappings
           aiMessages.value.push({ role: 'ai', content: '已自动完成列映射，请检查步骤 4 的映射结果。' })
         } else {
           aiMessages.value.push({ role: 'ai', content: result })

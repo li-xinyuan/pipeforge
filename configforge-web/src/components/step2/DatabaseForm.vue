@@ -64,23 +64,22 @@ import { computed, onMounted, ref } from 'vue'
 import { NSelect, NButton, NRadioGroup, NRadio, NInput } from 'naive-ui'
 import { RouterLink } from 'vue-router'
 import { useConnectionApi } from '../../composables/useWizardApi'
-import type { InputSource, DbConnectionSummary } from '../../types/wizard'
+import type { InputSource, DatabaseInputConfig, DbConnectionSummary } from '../../types/wizard'
 
 const props = defineProps<{ input: InputSource; index: number }>()
 const emit = defineEmits<{ update: [input: InputSource] }>()
 
 const api = useConnectionApi()
 
-const selectedConnectionId = ref(
-  props.input.config.type === 'database' ? (props.input.config as any).connectionId || '' : ''
-)
-const queryType = ref<'table' | 'sql'>(
-  props.input.config.type === 'database' ? (props.input.config as any).queryType || 'table' : 'table'
-)
+function getDbConfig(): DatabaseInputConfig | null {
+  const cfg = props.input.config
+  return cfg.type === 'database' ? cfg : null
+}
+
+const selectedConnectionId = ref(getDbConfig()?.connectionId || '')
+const queryType = ref<'table' | 'sql'>(getDbConfig()?.queryType || 'table')
 const selectedTable = ref('')
-const sqlQuery = ref(
-  props.input.config.type === 'database' ? (props.input.config as any).sql || '' : ''
-)
+const sqlQuery = ref(getDbConfig()?.sql || '')
 const testing = ref(false)
 const loadingTables = ref(false)
 const testResult = ref<{ ok: boolean; error?: string } | null>(null)
