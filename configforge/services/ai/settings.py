@@ -1,7 +1,9 @@
 import hashlib
 import json
+import logging
 import os
 from base64 import urlsafe_b64encode
+from cryptography.fernet import Fernet
 from cryptography.fernet import Fernet
 
 
@@ -38,6 +40,10 @@ def load_settings() -> "AiSettings":
             cipher = _get_cipher()
             raw["api_key"] = cipher.decrypt(raw["api_key"].encode()).decode()
         except Exception:
+            logging.getLogger("configforge.ai").warning(
+                "Failed to decrypt stored API key — encryption key may have changed. "
+                "API key has been cleared; please reconfigure in Settings."
+            )
             raw["api_key"] = ""
     return AiSettings(**raw)
 

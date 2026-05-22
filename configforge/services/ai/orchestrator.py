@@ -1,6 +1,21 @@
 import json
 import re
 
+MAX_USER_INPUT_LENGTH = 2000
+
+
+def _sanitize_user_input(text: str) -> str:
+    """Truncate and delimit user-supplied text to prevent prompt injection."""
+    if not isinstance(text, str):
+        return str(text)
+    # Truncate to prevent prompt flooding
+    if len(text) > MAX_USER_INPUT_LENGTH:
+        text = text[:MAX_USER_INPUT_LENGTH]
+    # Strip common injection patterns
+    text = re.sub(r'(?i)(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|messages?|context)', '[FILTERED]', text)
+    text = re.sub(r'(?i)(you\s+are\s+now|from\s+now\s+on\s+you\s+are|your\s+new\s+role\s+is)', '[FILTERED]', text)
+    return text
+
 
 SYSTEM_PROMPTS = {
     "scene": (
@@ -101,7 +116,7 @@ def build_prompt(category: str, context: dict) -> str:
             prompt += f"样本数据: {context.get('sampleRows', [])}。"
     elif category == "sql":
         prompt += f"表结构: {context.get('inputs', [])}。"
-        prompt += f"需求: {context.get('naturalLanguage', '')}。"
+        prompt += f"需求: {_sanitize_user_input(context.get('naturalLanguage', ''))}。"
     elif category == "mapping":
         prompt += f"源列: {context.get('sourceColumns', [])}。"
         prompt += f"目标列: {context.get('targetColumns', [])}。"
@@ -130,7 +145,7 @@ def build_prompt(category: str, context: dict) -> str:
             prompt += f"当前 SQL: {sql[:500]}。"
         if output_tables:
             prompt += f"输出表: {output_tables}。"
-        prompt += f"用户消息: {context.get('naturalLanguage', '')}"
+        prompt += f"用户消息: {_sanitize_user_input(context.get('naturalLanguage', ''))}"
 
     return prompt
 

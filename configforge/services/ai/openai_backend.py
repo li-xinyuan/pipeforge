@@ -13,6 +13,10 @@ class OpenAiBackend(LlmBackend):
         self._temperature = settings.temperature
         self._max_tokens = settings.max_tokens
 
+    async def close(self) -> None:
+        if hasattr(self._client, "_client") and hasattr(self._client._client, "aclose"):
+            await self._client._client.aclose()
+
     async def generate(self, prompt: str) -> str:
         resp = await self._client.chat.completions.create(
             model=self._model,

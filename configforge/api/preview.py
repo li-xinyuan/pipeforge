@@ -12,6 +12,42 @@ from configforge.utils.security import validate_id
 router = APIRouter()
 UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
 
+
+def _infer_sql_type(col_name: str, col_index: int, sample_rows: list[list]) -> str:
+    """Infer SQLite column type from sample data values."""
+    samples = []
+    for row in sample_rows:
+        if col_index < len(row) and row[col_index] is not None and str(row[col_index]).strip():
+            samples.append(str(row[col_index]).strip())
+    if not samples:
+        return "TEXT"
+    # Check if all values are integers
+    if all(_is_int(v) for v in samples):
+        return "INTEGER"
+    # Check if all values are numbers
+    if all(_is_number(v) for v in samples):
+        return "REAL"
+    # Check if all values look like booleans
+    if all(v.lower() in ("true", "false", "0", "1", "yes", "no") for v in samples):
+        return "BOOLEAN"
+    return "TEXT"
+
+
+def _is_int(v: str) -> bool:
+    try:
+        int(v)
+        return True
+    except ValueError:
+        return False
+
+
+def _is_number(v: str) -> bool:
+    try:
+        float(v)
+        return True
+    except ValueError:
+        return False
+
 _DDL_DML_RE = re.compile(
     r"\b(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE|ATTACH|DETACH|REINDEX|VACUUM)\b",
     re.IGNORECASE,
@@ -32,8 +68,8 @@ def _get_file_type(file_id: str) -> str:
 async def preview_file(req: PreviewRequest):
     try:
         validate_id(req.file_id, "file_id")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid file_id format")
     path = os.path.join(UPLOAD_DIR, req.file_id)
     if not os.path.exists(path):
         raise HTTPException(
@@ -71,8 +107,8 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
         for table_name, file_id in req.table_mapping.items():
             try:
                 validate_id(file_id, "file_id")
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid file_id format")
             path = os.path.join(UPLOAD_DIR, file_id)
             if not os.path.exists(path):
                 raise HTTPException(
@@ -95,7 +131,10 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
             if info["columns"]:
                 safe_table = table_name.replace('"', '')
                 safe_name = f'"{safe_table}"'
-                col_defs = ", ".join(f'"{c}" TEXT' for c in info["columns"])
+                col_defs = ", ".join(
+                    f'"{c}" {_infer_sql_type(c, i, info.get("sample_rows", []))}'
+                    for i, c in enumerate(info["columns"])
+                )
                 conn.execute(f"CREATE TABLE {safe_name} ({col_defs})")
                 placeholders = ", ".join("?" for _ in info["columns"])
                 for row in info["sample_rows"]:

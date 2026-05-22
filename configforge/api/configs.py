@@ -25,8 +25,8 @@ router = APIRouter()
 def _validate_config_id(config_id: str) -> str:
     try:
         return validate_id(config_id, "config_id")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid config_id format")
 
 
 CONFIGS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "configs")
@@ -198,8 +198,8 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
 
     try:
         output_path = execute_pipeline(state)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Pipeline execution failed")
 
     filename = os.path.basename(output_path)
     media_type = (

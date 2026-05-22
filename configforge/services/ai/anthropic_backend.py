@@ -13,6 +13,10 @@ class AnthropicBackend(LlmBackend):
         self._max_tokens = settings.max_tokens
         self._temperature = settings.temperature
 
+    async def close(self) -> None:
+        if hasattr(self._client, "_client") and hasattr(self._client._client, "aclose"):
+            await self._client._client.aclose()
+
     async def generate(self, prompt: str) -> str:
         resp = await self._client.messages.create(
             model=self._model,

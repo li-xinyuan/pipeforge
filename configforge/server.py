@@ -75,7 +75,10 @@ if os.path.exists(_static_dir):
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         file_path = os.path.join(_static_dir, full_path)
-        if full_path and os.path.isfile(file_path):
-            return FileResponse(file_path)
+        real = os.path.realpath(file_path)
+        if not real.startswith(os.path.realpath(_static_dir) + os.sep):
+            return JSONResponse(status_code=403, content={"error": "Forbidden"})
+        if full_path and os.path.isfile(real):
+            return FileResponse(real)
         index_path = os.path.join(_static_dir, "index.html")
         return FileResponse(index_path)

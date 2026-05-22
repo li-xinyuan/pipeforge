@@ -1,4 +1,5 @@
-from jinja2 import StrictUndefined, Template
+from jinja2 import StrictUndefined
+from jinja2.sandbox import SandboxedEnvironment
 
 from pipeforge.config.models import SqlProcessorConfig
 from pipeforge.core.registry import register_plugin
@@ -14,7 +15,7 @@ class SqlProcessorPlugin(ProcessorPlugin):
         return SqlProcessorConfig
 
     def execute(self, context, config: SqlProcessorConfig) -> None:
-        rendered_sql = Template(config.sql, undefined=StrictUndefined).render(
+        rendered_sql = SandboxedEnvironment(undefined=StrictUndefined).from_string(config.sql).render(
             **context.params
         )
         context.db.execute(rendered_sql)

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from configforge.models.ai import AiSuggestionRequest, AiSuggestionResponse, AiSettings, AiSettingsUpdate
 from configforge.services.ai.settings import load_settings, save_settings, mask_key
 from configforge.services.ai.factory import create_backend
@@ -10,9 +10,40 @@ from configforge.services.ai.orchestrator import build_prompt, parse_response
 router = APIRouter()
 logger = logging.getLogger("configforge.ai")
 
+# Simple in-memory rate limiter: 10 requests per 60s window per IP
+_rate_window_sec = 60
+_rate_max_requests = 10
+_rate_store: dict[str, list[float]] = {}
+
+
+def _check_rate_limit(client_ip: str) -> None:
+    now = time.monotonic()
+    if client_ip not in _rate_store:
+        _rate_store[client_ip] = []
+    # Purge expired entries
+    window_start = now - _rate_window_sec
+    _rate_store[client_ip] = [t for t in _rate_store[client_ip] if t > window_start]
+    if len(_rate_store[client_ip]) >= _rate_max_requests:
+        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后重试")
+    _rate_store[client_ip].append(now)
+
+
+def _sanitize_error(msg: str) -> str:
+    """Redact potential key/credential fragments from error messages before forwarding to client."""
+    import re
+    # Redact API key-like patterns (sk-..., key:..., etc.)
+    msg = re.sub(r'sk-[A-Za-z0-9_\-]{10,}', '[REDACTED]', msg)
+    msg = re.sub(r'Bearer\s+[A-Za-z0-9_\-.]{10,}', 'Bearer [REDACTED]', msg)
+    msg = re.sub(r'api[_-]?key[=:]\s*["\']?\w+', 'api_key=[REDACTED]', msg, flags=re.IGNORECASE)
+    # Truncate to prevent error message abuse
+    if len(msg) > 300:
+        msg = msg[:300] + "..."
+    return msg
+
 
 @router.post("/suggest", response_model=AiSuggestionResponse)
-async def suggest(req: AiSuggestionRequest):
+async def suggest(req: AiSuggestionRequest, request: Request):
+    _check_rate_limit(request.client.host if request.client else "unknown")
     settings = load_settings()
     if not settings.enabled:
         return AiSuggestionResponse(content="AI 未配置，请先在设置中启用", category=req.category)
@@ -33,10 +64,10 @@ async def suggest(req: AiSuggestionRequest):
         raise HTTPException(status_code=503, detail="AI 响应超时，请重试")
     except Exception as e:
         msg = str(e)
-        if "401" in msg or "403" in msg or "invalid" in msg.lower():
-            raise HTTPException(status_code=401, detail=f"API Key 无效: {msg}")
         logger.error("AI suggest failed category=%s error=%s", req.category, msg[:200])
-        raise HTTPException(status_code=500, detail=f"AI 调用失败: {msg}")
+        if "401" in msg or "403" in msg or "invalid" in msg.lower():
+            raise HTTPException(status_code=401, detail="API Key 无效，请检查设置")
+        raise HTTPException(status_code=500, detail="AI 调用失败，请稍后重试")
 
 
 @router.get("/settings")
@@ -72,6 +103,7 @@ async def test_connection():
         raise HTTPException(status_code=503, detail="连接超时")
     except Exception as e:
         msg = str(e)
+        logger.error("AI connection test failed error=%s", msg[:200])
         if "401" in msg or "403" in msg:
-            raise HTTPException(status_code=401, detail=f"认证失败: {msg}")
-        raise HTTPException(status_code=500, detail=f"连接失败: {msg}")
+            raise HTTPException(status_code=401, detail="认证失败，请检查 API Key")
+        raise HTTPException(status_code=500, detail="连接失败，请检查网络和设置")
