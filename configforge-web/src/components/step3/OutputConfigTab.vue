@@ -198,10 +198,14 @@ const csvConfig = computed(() => store.output!.config as CsvOutputConfig)
 
 const sourceTableOptions = computed(() => {
   const tables: Array<{ label: string; value: string }> = []
+  const seen = new Set<string>()
   for (const proc of store.processors) {
     for (const t of proc.outputTables) {
-      if (t) tables.push({ label: t, value: t })
+      if (t && !seen.has(t)) { seen.add(t); tables.push({ label: t + ' (处理输出)', value: t }) }
     }
+  }
+  for (const inp of store.inputs) {
+    if (inp.table && !seen.has(inp.table)) { seen.add(inp.table); tables.push({ label: inp.table + ' (输入源)', value: inp.table }) }
   }
   return tables
 })

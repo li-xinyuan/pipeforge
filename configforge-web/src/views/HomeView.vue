@@ -186,13 +186,15 @@ async function onConfirmDelete() {
 
 function getMenuOptions(cfg: SavedConfig) {
   return [
+    { label: '编辑', key: 'edit' },
     { label: '下载 YAML', key: 'download' },
     { label: '删除', key: 'delete' },
   ]
 }
 
 function onMenuSelect(key: string, cfg: SavedConfig) {
-  if (key === 'download') onDownloadYaml(cfg.id)
+  if (key === 'edit') onLoadConfig(cfg.id)
+  else if (key === 'download') onDownloadYaml(cfg.id)
   else if (key === 'delete') promptDelete(cfg)
 }
 

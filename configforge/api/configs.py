@@ -24,7 +24,7 @@ router = APIRouter()
 
 def _migrate_state_dict(state_dict: dict) -> None:
     """Upgrade old format (single processor) to new format (processors list)."""
-    if "processor" in state_dict and "processors" not in state_dict:
+    if "processor" in state_dict and not state_dict.get("processors"):
         proc = state_dict.pop("processor")
         if "outputTable" in proc:
             proc["output_tables"] = [proc.pop("outputTable")]

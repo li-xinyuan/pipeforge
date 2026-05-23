@@ -17,6 +17,7 @@
           @update:value="(v: string) => $emit('update', { name: v })"
           size="small"
           placeholder="例如：数据清洗"
+          :data-testid="`processor-name-${index}`"
         />
       </div>
 
@@ -44,6 +45,7 @@
             size="small"
             placeholder="输出表名"
             class="flex-1"
+            :data-testid="`processor-output-${index}-${ti}`"
           />
           <NButton text size="tiny" type="error" @click="() => { const copy = [...proc.outputTables]; copy.splice(ti, 1); $emit('update', { outputTables: copy }) }">✕</NButton>
         </div>
@@ -64,6 +66,7 @@
           :autosize="{ minRows: 6, maxRows: 16 }"
           :placeholder="sqlPlaceholder"
           class="font-mono text-sm"
+          :data-testid="`processor-sql-${index}`"
         />
       </div>
 

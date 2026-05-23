@@ -362,11 +362,12 @@ async function onAiSend(text: string) {
       const parsed = JSON.parse(result)
       if (parsed.sql) {
         if (store.processors.length > 0) {
-          const proc = { ...store.processors[0], sql: parsed.sql }
+          const targetIndex = sqlEditorRef.value?.expandedIndex ?? store.processors.length - 1
+          const proc = { ...store.processors[targetIndex], sql: parsed.sql }
           if (parsed.outputTable) {
             proc.outputTables = [parsed.outputTable]
           }
-          store.updateProcessor(0, proc)
+          store.updateProcessor(targetIndex, proc)
         }
         aiMessages.value.push({
           role: 'ai',

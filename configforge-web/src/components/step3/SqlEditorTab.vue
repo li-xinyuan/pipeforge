@@ -238,7 +238,7 @@ function onReplaceTableName() {
   lastKnownTables.value = store.inputs.map(inp => inp.table.trim()).filter(Boolean)
 }
 
-defineExpose({ checkTableRenames })
+defineExpose({ checkTableRenames, expandedIndex })
 
 function onAcceptSuggestion() {
   store.acceptSuggestion('sql')

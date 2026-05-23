@@ -57,6 +57,9 @@ defineProps<{
 }
 .wizard-step-card--locked {
   opacity: 0.55;
+}
+.wizard-step-card--locked .wizard-step-card__body,
+.wizard-step-card--locked .wizard-step-card__footer {
   pointer-events: none;
 }
 .wizard-step-card__header {
