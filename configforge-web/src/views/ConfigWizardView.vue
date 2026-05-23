@@ -268,10 +268,11 @@ const showStep5Tip = ref(false)
 const aiMessages = ref<ChatMessage[]>([
   { role: 'ai', content: '你好！我是 ConfigForge AI 助手。我可以帮你分析数据列、生成 SQL、自动映射列，以及生成场景描述。' },
 ])
+const orchestrateMode = ref(false)
 
 const aiQuickActions = computed(() => {
   const actions = ['生成场景描述', 'AI 分析列', 'AI 生成 SQL', 'AI 自动映射']
-  if (store.inputs.length > 0 && store.processors.length > 0) {
+  if (store.inputs.length > 0) {
     actions.unshift('AI 编排步骤链')
   }
   return actions
@@ -337,7 +338,8 @@ function onFileReady(fileId: string) {
 async function onAiSend(text: string) {
   aiMessages.value.push({ role: 'user', content: text })
 
-  if (text.includes('编排') || text.includes('步骤链')) {
+  if (orchestrateMode.value || text.includes('编排') || text.includes('步骤链')) {
+    orchestrateMode.value = false
     await doOrchestrate(text)
     return
   }
@@ -495,15 +497,26 @@ function onOrchestrateAction() {
     aiMessages.value.push({ role: 'ai', content: '请先在 Step 2 添加输入源并上传文件。' })
     return
   }
+  orchestrateMode.value = true
   aiMessages.value.push({ role: 'ai', content: '请用中文描述你想要的最终报表，例如："统计各部门本月的出勤率，包含部门名称、应出勤天数、实际出勤天数"' })
 }
 
 async function doOrchestrate(naturalLanguage: string) {
-  const context = {
-    inputs: store.inputs.map(inp => {
+  const inputsContext = store.inputs
+    .filter(inp => inp.fileId)
+    .map(inp => {
       const meta = store.uploadedFiles[inp.fileId]
       return { table: inp.table, columns: meta?.columns || [] }
-    }),
+    })
+    .filter(inp => inp.table)
+
+  if (inputsContext.length === 0) {
+    aiMessages.value.push({ role: 'ai', content: '没有检测到已上传的输入源，请先在步骤 2 上传文件并确认列信息。' })
+    return
+  }
+
+  const context = {
+    inputs: inputsContext,
     outputColumns: (store.output?.config?.columns || []).map(c => c.target),
     naturalLanguage,
   }
@@ -512,8 +525,10 @@ async function doOrchestrate(naturalLanguage: string) {
     aiMessages.value.push({ role: 'ai', content: '', orchestration: result })
   } else if (result?.parse_error) {
     aiMessages.value.push({ role: 'ai', content: 'AI 返回格式异常，请重试。原始响应：' + (result.raw || '').slice(0, 500) })
+  } else if (result) {
+    aiMessages.value.push({ role: 'ai', content: result.explanation || 'AI 无法根据当前信息规划处理链，请补充更多细节后重试。' })
   } else {
-    aiMessages.value.push({ role: 'ai', content: '无法规划处理链，请确保已上传文件并加载了列信息，然后重试。' })
+    aiMessages.value.push({ role: 'ai', content: 'AI 请求失败，请确认 AI 设置正确且后端服务正在运行，然后重试。' })
   }
 }
 
@@ -537,6 +552,7 @@ function onOrchestrateConfirm(result: any) {
 }
 
 function onOrchestrateRegenerate() {
+  orchestrateMode.value = true
   aiMessages.value.push({ role: 'ai', content: '请重新描述你的需求，我会重新规划处理链。' })
 }
 
