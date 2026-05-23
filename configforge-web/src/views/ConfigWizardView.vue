@@ -829,7 +829,7 @@ onUnmounted(() => {
 }
 
 .wizard__label {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: 500;
   color: var(--color-text);
 }
@@ -839,10 +839,10 @@ onUnmounted(() => {
 }
 
 .wizard__input {
-  padding: 7px 10px;
+  padding: 5px 8px;
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-sm);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   background: var(--color-surface);
   color: var(--color-text);
   transition: border-color var(--transition-fast);
@@ -859,10 +859,10 @@ onUnmounted(() => {
 }
 
 .wizard__textarea {
-  padding: 7px 10px;
+  padding: 5px 8px;
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-sm);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   background: var(--color-surface);
   color: var(--color-text);
   transition: border-color var(--transition-fast);
