@@ -72,6 +72,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { NCard, NInput, NButton, NTag, NTooltip, NAlert } from 'naive-ui'
 import AiSuggestPanel from '../common/AiSuggestPanel.vue'
