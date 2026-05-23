@@ -502,6 +502,8 @@ function onOrchestrateAction() {
 }
 
 async function doOrchestrate(naturalLanguage: string) {
+  // Show loading message while AI works
+  const loadingIdx = aiMessages.value.push({ role: 'ai', content: 'AI 正在规划处理链...' }) - 1
   const inputsContext = store.inputs
     .filter(inp => inp.fileId)
     .map(inp => {
@@ -511,6 +513,7 @@ async function doOrchestrate(naturalLanguage: string) {
     .filter(inp => inp.table)
 
   if (inputsContext.length === 0) {
+    aiMessages.value.splice(loadingIdx, 1)
     aiMessages.value.push({ role: 'ai', content: '没有检测到已上传的输入源，请先在步骤 2 上传文件并确认列信息。' })
     return
   }
@@ -521,6 +524,7 @@ async function doOrchestrate(naturalLanguage: string) {
     naturalLanguage,
   }
   const result = await askOrchestrate(context)
+  aiMessages.value.splice(loadingIdx, 1)  // Remove loading message
   if (result && result.steps.length > 0) {
     aiMessages.value.push({ role: 'ai', content: '', orchestration: result })
   } else if (result?.parse_error) {

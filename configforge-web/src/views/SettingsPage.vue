@@ -67,7 +67,7 @@
             <!-- Max Tokens -->
             <div class="settings__field">
               <label class="settings__field-label">Max Tokens</label>
-              <NInputNumber v-model:value="form.max_tokens" :min="256" :max="65536" class="w-full" />
+              <NInputNumber v-model:value="form.max_tokens" :min="256" :max="65536" class="w-full" placeholder="最大令牌数" />
             </div>
 
             <div class="settings__divider" />

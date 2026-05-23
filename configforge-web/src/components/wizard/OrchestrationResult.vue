@@ -9,22 +9,37 @@
           入: {{ step.input_tables?.join(', ') || '源表' }} → 出: {{ step.output_tables?.join(', ') || '未指定' }}
         </span>
       </div>
-      <pre class="text-[11px] bg-slate-50 p-2 rounded font-mono overflow-x-auto"><code>{{ step.sql }}</code></pre>
+      <pre class="text-sm bg-slate-800 text-green-300 p-3 rounded font-mono overflow-x-auto" style="min-height:48px;"><code>{{ step.sql }}</code></pre>
     </div>
     <div v-if="result.parse_error" class="text-xs text-amber-600 mt-2">
       AI 返回格式异常，请尝试重新生成。原始响应：{{ (result.raw || '').slice(0, 300) }}
     </div>
     <div class="flex gap-2 mt-3">
-      <NButton size="tiny" type="primary" :disabled="!result.steps?.length" @click="$emit('confirm')">确认并填入向导</NButton>
-      <NButton size="tiny" @click="$emit('regenerate')">重新生成</NButton>
+      <NButton size="tiny" type="primary" :disabled="!result.steps?.length" @click="handleConfirm">
+        {{ confirming ? '确认替换当前步骤？' : '确认并填入向导' }}
+      </NButton>
+      <NButton v-if="!confirming" size="tiny" @click="$emit('regenerate')">重新生成</NButton>
+      <NButton v-else size="tiny" @click="confirming = false">取消</NButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { NTag, NButton } from 'naive-ui'
 import type { OrchestrationResult } from '../../types/wizard'
 
 defineProps<{ result: OrchestrationResult }>()
-defineEmits<{ confirm: []; regenerate: [] }>()
+const emit = defineEmits<{ confirm: []; regenerate: [] }>()
+
+const confirming = ref(false)
+
+function handleConfirm() {
+  if (!confirming.value) {
+    confirming.value = true
+  } else {
+    confirming.value = false
+    emit('confirm')
+  }
+}
 </script>
