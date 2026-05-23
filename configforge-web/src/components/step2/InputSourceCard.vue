@@ -3,7 +3,7 @@
     <!-- Header: name + plugin badge + delete -->
     <template #header>
       <div class="flex items-center gap-2">
-        <span class="text-xs font-medium text-slate-600 truncate flex-1">{{ (input.fileId && store.uploadedFiles[input.fileId]?.originalName) || input.table || '新输入源' }}</span>
+        <span v-if="!input.fileId" class="text-xs font-medium text-slate-600 truncate flex-1">{{ input.table || '新输入源' }}</span>
         <NTag :type="input.plugin === 'csv' ? 'info' : input.plugin === 'database' ? 'warning' : 'success'" size="small">
           {{ input.plugin === 'csv' ? 'CSV' : input.plugin === 'database' ? 'DB' : 'Excel' }}
         </NTag>
