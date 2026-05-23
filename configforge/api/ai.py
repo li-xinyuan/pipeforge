@@ -1,8 +1,9 @@
 import asyncio
+import json
 import logging
 import time
 from fastapi import APIRouter, HTTPException, Request
-from configforge.models.ai import AiSuggestionRequest, AiSuggestionResponse, AiSettings, AiSettingsUpdate
+from configforge.models.ai import AiOrchestrateRequest, AiSuggestionRequest, AiSuggestionResponse, AiSettings, AiSettingsUpdate
 from configforge.services.ai.settings import load_settings, save_settings, mask_key
 from configforge.services.ai.factory import create_backend
 from configforge.services.ai.orchestrator import build_prompt, parse_response
@@ -68,6 +69,49 @@ async def suggest(req: AiSuggestionRequest, request: Request):
         logger.error("AI suggest failed category=%s error=%s", req.category, msg[:200])
         if "401" in msg or "403" in msg or "invalid" in msg.lower():
             raise HTTPException(status_code=401, detail="API Key 无效，请检查设置")
+        raise HTTPException(status_code=500, detail="AI 调用失败，请稍后重试")
+    finally:
+        if backend is not None:
+            await backend.close()
+
+
+@router.post("/orchestrate")
+async def orchestrate(req: AiOrchestrateRequest, request: Request):
+    """AI plans multi-step SQL pipeline from natural language."""
+    _check_rate_limit(request.client.host if request.client else "unknown")
+    settings = load_settings()
+    if not settings.enabled:
+        raise HTTPException(status_code=400, detail="AI 未配置，请先在设置中启用")
+    backend = None
+    try:
+        backend = create_backend(settings)
+        prompt = build_prompt("orchestrate", req.context)
+        logger.info("AI orchestrate prompt_len=%d model=%s", len(prompt), settings.model)
+        start = time.monotonic()
+        result = await asyncio.wait_for(backend.generate(prompt), timeout=90.0)
+        latency_ms = int((time.monotonic() - start) * 1000)
+        logger.info("AI orchestrate latency_ms=%d response_len=%d", latency_ms, len(result))
+
+        parsed_text = parse_response(result)
+        try:
+            parsed = json.loads(parsed_text)
+        except json.JSONDecodeError:
+            return {"steps": [], "explanation": "", "raw": result, "parse_error": True}
+
+        # parse_response wraps non-JSON as {"raw": ..., "is_json": false}
+        if isinstance(parsed, dict) and parsed.get("is_json") is False:
+            return {"steps": [], "explanation": "", "raw": parsed.get("raw", result), "parse_error": True}
+
+        return {
+            "steps": parsed.get("steps") or [],
+            "explanation": parsed.get("explanation", ""),
+            "raw": result,
+        }
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=503, detail="AI 响应超时，请稍后重试")
+    except Exception as e:
+        msg = str(e)
+        logger.error("AI orchestrate failed error=%s", msg[:200])
         raise HTTPException(status_code=500, detail="AI 调用失败，请稍后重试")
     finally:
         if backend is not None:

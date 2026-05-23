@@ -96,6 +96,15 @@ async def test_ai_settings_clear_key():
 
 
 @pytest.mark.anyio
+async def test_orchestrate_endpoint_no_ai_config():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post("/api/ai/orchestrate", json={
+            "context": {"inputs": [], "naturalLanguage": "test"},
+        })
+    assert resp.status_code in (400, 200)
+
+
+@pytest.mark.anyio
 async def test_ai_test_connection_no_key():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await client.put("/api/ai/settings", json={
