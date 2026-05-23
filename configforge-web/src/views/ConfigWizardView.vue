@@ -199,7 +199,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, nextTick } from 'vue'
+import { computed, onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import { useConfigApi } from '../composables/useConfigApi'
@@ -235,6 +235,11 @@ const aiMode = computed(() => {
 
 // Local state
 const currentStep = ref(1)
+
+watch(() => store.inputs.length, (len) => {
+  if (len === 0 && currentStep.value > 2) currentStep.value = 2
+})
+
 const aiPanelVisible = ref(false)
 const scrollEl = ref<HTMLElement>()
 
