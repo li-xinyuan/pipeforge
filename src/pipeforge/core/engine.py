@@ -52,9 +52,15 @@ class PipelineEngine:
                 stats = self._execute_input(inp_spec, context)
                 context.result.inputs[inp_spec.name] = stats
 
-            for proc_spec in self.config.processors:
-                stats = self._execute_processor(proc_spec, context)
-                context.result.processors.append(stats)
+            if self.config.processors:
+                input_tables = {inp.table for inp in self.config.inputs}
+                sorted_processors = self._topological_sort(self.config.processors, input_tables)
+                for proc_spec in sorted_processors:
+                    for table in proc_spec.input_tables:
+                        if table not in context.db.list_tables():
+                            raise ValueError(f"Processor '{proc_spec.name}': input table '{table}' not found. Available: {context.db.list_tables()}")
+                    stats = self._execute_processor(proc_spec, context)
+                    context.result.processors.append(stats)
 
             if self.config.output is not None:
                 stats = self._execute_output(self.config.output, context)
@@ -91,9 +97,15 @@ class PipelineEngine:
                 stats = self._execute_input(inp_spec, context)
                 context.result.inputs[inp_spec.name] = stats
 
-            for proc_spec in self.config.processors:
-                stats = self._execute_processor(proc_spec, context)
-                context.result.processors.append(stats)
+            if self.config.processors:
+                input_tables = {inp.table for inp in self.config.inputs}
+                sorted_processors = self._topological_sort(self.config.processors, input_tables)
+                for proc_spec in sorted_processors:
+                    for table in proc_spec.input_tables:
+                        if table not in context.db.list_tables():
+                            raise ValueError(f"Processor '{proc_spec.name}': input table '{table}' not found. Available: {context.db.list_tables()}")
+                    stats = self._execute_processor(proc_spec, context)
+                    context.result.processors.append(stats)
 
             # Capture table data before closing the database
             tables = {}
@@ -118,6 +130,31 @@ class PipelineEngine:
             "processors": [{"name": p.name, "tables_created": p.tables_created} for p in context.result.processors],
             "tables": tables,
         }
+
+    def _topological_sort(self, processors, available_tables: set[str]) -> list:
+        """Kahn's algorithm — sort processors by input/output table dependencies."""
+        remaining = list(processors)
+        ordered = []
+        available = set(available_tables)
+        while remaining:
+            ready = [
+                p
+                for p in remaining
+                if not p.input_tables or all(t in available for t in p.input_tables)
+            ]
+            if not ready:
+                missing = []
+                for p in remaining:
+                    missing.extend(t for t in p.input_tables if t not in available)
+                raise ValueError(
+                    f"Circular dependency or missing input table(s): "
+                    f"{sorted(set(missing))}. Available tables: {sorted(available)}."
+                )
+            for p in ready:
+                ordered.append(p)
+                available.update(p.output_tables)
+                remaining.remove(p)
+        return ordered
 
     def _execute_input(self, inp_spec, context):
         start = time.time()

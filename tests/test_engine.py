@@ -108,3 +108,46 @@ output: null
     assert result["inputs"][0]["name"] == "src"
     assert "processors" in result
     assert result["processors"][0]["tables_created"] == ["result"]
+
+
+class TestTopologicalSort:
+    def test_linear_chain(self):
+        from pipeforge.core.engine import PipelineEngine
+        from pipeforge.config.models import ProcessorSpec, SqlProcessorConfig
+
+        engine = PipelineEngine.__new__(PipelineEngine)
+        procs = [
+            ProcessorSpec(name="step1", plugin="sql", input_tables=[], output_tables=["t1"], config=SqlProcessorConfig(type="sql", sql="...")),
+            ProcessorSpec(name="step2", plugin="sql", input_tables=["t1"], output_tables=["t2"], config=SqlProcessorConfig(type="sql", sql="...")),
+            ProcessorSpec(name="step3", plugin="sql", input_tables=["t2"], output_tables=["t3"], config=SqlProcessorConfig(type="sql", sql="...")),
+        ]
+        result = engine._topological_sort(procs, {"src"})
+        assert [p.name for p in result] == ["step1", "step2", "step3"]
+
+    def test_parallel_branches(self):
+        from pipeforge.core.engine import PipelineEngine
+        from pipeforge.config.models import ProcessorSpec, SqlProcessorConfig
+
+        engine = PipelineEngine.__new__(PipelineEngine)
+        procs = [
+            ProcessorSpec(name="step_b", plugin="sql", input_tables=[], output_tables=["tb"], config=SqlProcessorConfig(type="sql", sql="...")),
+            ProcessorSpec(name="step_a", plugin="sql", input_tables=[], output_tables=["ta"], config=SqlProcessorConfig(type="sql", sql="...")),
+            ProcessorSpec(name="merge", plugin="sql", input_tables=["ta", "tb"], output_tables=["tm"], config=SqlProcessorConfig(type="sql", sql="...")),
+        ]
+        result = engine._topological_sort(procs, {"src"})
+        names = [p.name for p in result]
+        assert names.index("merge") == 2
+        assert set(names[:2]) == {"step_a", "step_b"}
+
+    def test_detects_cycle(self):
+        from pipeforge.core.engine import PipelineEngine
+        from pipeforge.config.models import ProcessorSpec, SqlProcessorConfig
+        import pytest
+
+        engine = PipelineEngine.__new__(PipelineEngine)
+        procs = [
+            ProcessorSpec(name="a", plugin="sql", input_tables=["tb"], output_tables=["ta"], config=SqlProcessorConfig(type="sql", sql="...")),
+            ProcessorSpec(name="b", plugin="sql", input_tables=["ta"], output_tables=["tb"], config=SqlProcessorConfig(type="sql", sql="...")),
+        ]
+        with pytest.raises(ValueError, match="Circular dependency"):
+            engine._topological_sort(procs, {"src"})
