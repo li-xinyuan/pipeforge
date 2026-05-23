@@ -5,11 +5,11 @@
       <div class="flex items-center gap-2">
         <span v-if="!input.fileId" class="text-xs font-medium text-slate-600 truncate flex-1">{{ input.table || '新输入源' }}</span>
         <span v-else class="flex-1" />
-        <NTag :type="input.plugin === 'csv' ? 'info' : input.plugin === 'database' ? 'warning' : 'success'" size="small">
+        <NTag :type="input.plugin === 'csv' ? 'info' : input.plugin === 'database' ? 'warning' : 'success'" size="medium">
           {{ input.plugin === 'csv' ? 'CSV' : input.plugin === 'database' ? 'DB' : 'Excel' }}
         </NTag>
-        <NTag v-if="analyzing" type="warning" size="small">AI 分析中...</NTag>
-        <NButton text type="error" size="tiny" @click="$emit('remove')" style="font-size:14px;">✕</NButton>
+        <NTag v-if="analyzing" type="warning" size="medium">AI 分析中...</NTag>
+        <NButton text type="error" size="small" @click="$emit('remove')" style="font-size:18px;">✕</NButton>
       </div>
     </template>
 
