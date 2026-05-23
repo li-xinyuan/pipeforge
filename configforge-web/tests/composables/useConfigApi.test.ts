@@ -48,7 +48,7 @@ describe('useConfigApi', () => {
       currentStep: 5,
       scene: { name: '测试', description: 'desc', version: '1.0' },
       inputs: [{ plugin: 'excel', table: 't1', paramKey: 'f1', fileId: 'abc', config: { type: 'excel', sheet: 'Sheet1' } }],
-      processor: { plugin: 'sql', sql: 'SELECT 1', outputTable: 'out1' },
+      processors: [{ name: '', plugin: 'sql', sql: 'SELECT 1', inputTables: [], outputTables: ['out1'] }],
       output: { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', sourceTable: 'out1', outputDir: './output/', filename: 'out.xlsx', columns: [] } },
     }
 
@@ -69,7 +69,7 @@ describe('useConfigApi', () => {
       const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string)
       expect(body.state.scene.name).toBe('测试')
       expect(body.state.inputs[0].param_key).toBe('f1')
-      expect(body.state.processor.output_tables).toEqual(['out1'])
+      expect(body.state.processors[0].output_tables).toEqual(['out1'])
       expect(body.state.output.config.source_table).toBe('out1')
     })
 

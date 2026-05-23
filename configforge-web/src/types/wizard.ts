@@ -93,11 +93,16 @@ export interface InputSource {
   confirmedAnalysis?: ConfirmedAnalysis
 }
 
-export interface ProcessorConfig {
+export interface ProcessorStep {
+  name: string
   plugin: 'sql'
   sql: string
-  outputTable: string
+  inputTables: string[]
+  outputTables: string[]
 }
+
+/** @deprecated Use ProcessorStep */
+export type ProcessorConfig = ProcessorStep
 
 export interface ColumnMappingItem {
   source: string
@@ -133,7 +138,7 @@ export interface WizardState {
   currentStep: number
   scene: SceneInfo
   inputs: InputSource[]
-  processor: ProcessorConfig
+  processors: ProcessorStep[]
   output: OutputTarget | null
   uploadedFiles: Record<string, UploadedFileMeta>
   aiSuggestions: Record<string, AiSuggestion>

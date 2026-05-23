@@ -112,4 +112,134 @@ describe('useWizardStore', () => {
     expect(inp.config.tables).toEqual([])
     expect(inp.config.sql).toBe('')
   })
+
+  it('has processors array by default with one empty processor', () => {
+    const store = useWizardStore()
+    expect(store.processors).toHaveLength(1)
+    expect(store.processors[0].plugin).toBe('sql')
+    expect(store.processors[0].sql).toBe('')
+    expect(store.processors[0].inputTables).toEqual([])
+    expect(store.processors[0].outputTables).toEqual([])
+  })
+
+  it('addProcessor adds a new processor', () => {
+    const store = useWizardStore()
+    store.addProcessor()
+    expect(store.processors).toHaveLength(2)
+  })
+
+  it('removeProcessor removes by index (not last)', () => {
+    const store = useWizardStore()
+    store.addProcessor()
+    store.addProcessor()
+    expect(store.processors).toHaveLength(3)
+    store.removeProcessor(1)
+    expect(store.processors).toHaveLength(2)
+  })
+
+  it('removeProcessor does not remove last processor', () => {
+    const store = useWizardStore()
+    expect(store.processors).toHaveLength(1)
+    store.removeProcessor(0)
+    expect(store.processors).toHaveLength(1)
+  })
+
+  it('updateProcessor updates processor at index', () => {
+    const store = useWizardStore()
+    store.updateProcessor(0, { name: 'step1', plugin: 'sql', sql: 'SELECT 1', inputTables: [], outputTables: ['t1'] })
+    expect(store.processors[0].sql).toBe('SELECT 1')
+    expect(store.processors[0].outputTables).toEqual(['t1'])
+  })
+
+  it('loadFromConfigState upgrades old single processor format', () => {
+    const store = useWizardStore()
+    store.loadFromConfigState({
+      scene: { name: 'test' },
+      inputs: [],
+      processor: { plugin: 'sql', sql: 'SELECT 1', outputTable: 'result' },
+      output: null,
+    })
+    expect(store.processors).toHaveLength(1)
+    expect(store.processors[0].sql).toBe('SELECT 1')
+  })
+
+  it('loadFromConfigState upgrades old single processor format with output_tables', () => {
+    const store = useWizardStore()
+    store.loadFromConfigState({
+      scene: { name: 'test' },
+      inputs: [],
+      processor: { plugin: 'sql', sql: 'SELECT 1', output_tables: ['result'] },
+      output: null,
+    })
+    expect(store.processors).toHaveLength(1)
+    expect(store.processors[0].sql).toBe('SELECT 1')
+    expect(store.processors[0].outputTables).toEqual(['result'])
+  })
+
+  it('loadFromConfigState loads processors array format', () => {
+    const store = useWizardStore()
+    store.loadFromConfigState({
+      scene: { name: 'test' },
+      inputs: [],
+      processors: [
+        { name: 'step1', plugin: 'sql', sql: 'SELECT 1', inputTables: [], outputTables: ['t1'] },
+        { name: 'step2', plugin: 'sql', sql: 'SELECT 2', inputTables: ['t1'], outputTables: ['t2'] },
+      ],
+      output: null,
+    })
+    expect(store.processors).toHaveLength(2)
+    expect(store.processors[0].sql).toBe('SELECT 1')
+    expect(store.processors[1].sql).toBe('SELECT 2')
+    expect(store.processors[1].inputTables).toEqual(['t1'])
+  })
+
+  it('canProceed requires all processors to have sql and outputTables', () => {
+    const store = useWizardStore()
+    store.currentStep = 3
+    store.processors = [
+      { name: '', plugin: 'sql', sql: 'SELECT 1', inputTables: [], outputTables: ['t1'] },
+      { name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: ['t2'] },
+    ]
+    expect(store.canProceed).toBe(false)
+  })
+
+  it('canProceed is true when all processors have sql and outputTables at step 3', () => {
+    const store = useWizardStore()
+    store.currentStep = 3
+    store.processors = [
+      { name: '', plugin: 'sql', sql: 'SELECT 1', inputTables: [], outputTables: ['t1'] },
+      { name: '', plugin: 'sql', sql: 'SELECT 2', inputTables: ['t1'], outputTables: ['t2'] },
+    ]
+    expect(store.canProceed).toBe(true)
+  })
+
+  it('stepValidation reports errors for empty processors array', () => {
+    const store = useWizardStore()
+    store.currentStep = 3
+    store.processors = []
+    expect(store.stepValidation).toContain('至少需要 1 个处理步骤')
+  })
+
+  it('stepValidation reports per-step errors', () => {
+    const store = useWizardStore()
+    store.currentStep = 3
+    store.processors = [
+      { name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] },
+      { name: '', plugin: 'sql', sql: 'SELECT 2', inputTables: [], outputTables: [] },
+    ]
+    const msgs = store.stepValidation
+    expect(msgs).toContain('步骤 1: SQL 不能为空')
+    expect(msgs).toContain('步骤 1: 输出表名不能为空')
+    expect(msgs).toContain('步骤 2: 输出表名不能为空')
+  })
+
+  it('getWizardState returns processors field', () => {
+    const store = useWizardStore()
+    store.processors = [
+      { name: 'p1', plugin: 'sql', sql: 'SELECT 1', inputTables: ['a'], outputTables: ['b'] },
+    ]
+    const state = store.getWizardState()
+    expect(state.processors).toHaveLength(1)
+    expect(state.processors[0].sql).toBe('SELECT 1')
+  })
 })

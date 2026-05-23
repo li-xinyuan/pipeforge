@@ -1,4 +1,4 @@
-import type { WizardState, SceneInfo, InputSource, ProcessorConfig, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig } from '../types/wizard'
+import type { WizardState, SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig } from '../types/wizard'
 
 type InputConfig = ExcelInputConfig | CsvInputConfig | DatabaseInputConfig
 type OutputConfig = ExcelOutputConfig | CsvOutputConfig
@@ -14,11 +14,13 @@ export interface SnakeState {
     file_id: string
     config: Record<string, unknown>
   }>
-  processor: {
+  processors: Array<{
+    name: string
     plugin: string
-    sql: string
+    input_tables: string[]
     output_tables: string[]
-  }
+    config: { type: string; sql: string }
+  }>
   output: {
     plugin: string
     config: Record<string, unknown>
@@ -96,11 +98,13 @@ export function stateToSnakeCase(state: WizardState): SnakeState {
       file_id: inp.fileId,
       config: buildInputConfig(inp.config),
     })),
-    processor: {
-      plugin: state.processor.plugin,
-      sql: state.processor.sql,
-      output_tables: [state.processor.outputTable],
-    },
+    processors: state.processors.map((p) => ({
+      name: p.name,
+      plugin: p.plugin,
+      input_tables: p.inputTables,
+      output_tables: p.outputTables,
+      config: { type: 'sql', sql: p.sql },
+    })),
     output: state.output
       ? {
           plugin: state.output.plugin,

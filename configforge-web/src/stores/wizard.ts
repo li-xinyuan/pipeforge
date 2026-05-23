@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { SceneInfo, InputSource, ProcessorConfig, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState } from '../types/wizard'
+import type { SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState } from '../types/wizard'
 
 export const useWizardStore = defineStore('wizard', () => {
   const currentStep = ref(1)
   const scene = ref<SceneInfo>({ name: '', description: '', version: '1.0' })
   const inputs = ref<InputSource[]>([])
-  const processor = ref<ProcessorConfig>({ plugin: 'sql', sql: '', outputTable: '' })
+  const processors = ref<ProcessorStep[]>([{ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] }])
   const output = ref<OutputTarget>({ plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: 'output.xlsx', columns: [] } })
   const configId = ref<string | null>(null)
   const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
@@ -15,7 +15,10 @@ export const useWizardStore = defineStore('wizard', () => {
   const canProceed = computed(() => {
     if (currentStep.value === 1) return scene.value.name.trim().length > 0
     if (currentStep.value === 2) return inputs.value.length > 0
-    if (currentStep.value === 3) return processor.value.sql.trim().length > 0 && processor.value.outputTable.trim().length > 0
+    if (currentStep.value === 3) {
+      return processors.value.length > 0
+        && processors.value.every(p => p.sql.trim().length > 0 && p.outputTables.length > 0)
+    }
     if (currentStep.value === 4) return output.value.config?.sourceTable && output.value.config?.columns?.length > 0
     return true
   })
@@ -24,8 +27,13 @@ export const useWizardStore = defineStore('wizard', () => {
     const msgs: string[] = []
     if (currentStep.value === 1 && !scene.value.name.trim()) msgs.push('场景名称不能为空')
     if (currentStep.value === 2 && inputs.value.length === 0) msgs.push('至少需要 1 个输入源')
-    if (currentStep.value === 3 && !processor.value.sql.trim()) msgs.push('SQL 不能为空')
-    if (currentStep.value === 3 && !processor.value.outputTable.trim()) msgs.push('输出表名不能为空')
+    if (currentStep.value === 3) {
+      if (processors.value.length === 0) msgs.push('至少需要 1 个处理步骤')
+      processors.value.forEach((p, i) => {
+        if (!p.sql.trim()) msgs.push(`步骤 ${i + 1}: SQL 不能为空`)
+        if (p.outputTables.length === 0) msgs.push(`步骤 ${i + 1}: 输出表名不能为空`)
+      })
+    }
     if (currentStep.value === 4 && !output.value.config?.sourceTable) msgs.push('请选择数据源表')
     if (currentStep.value === 4 && output.value.config?.columns?.length === 0) msgs.push('尚未配置列映射')
     return msgs
@@ -35,11 +43,11 @@ export const useWizardStore = defineStore('wizard', () => {
   function prevStep() { if (currentStep.value > 1) currentStep.value-- }
   function goToStep(n: number) { if (n >= 1 && n <= currentStep.value && n <= 5) currentStep.value = n }
   function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
-    let config: any
+    let config: { type: 'excel'; sheet: string } | { type: 'csv'; delimiter: string; encoding: string; hasHeader: boolean } | { type: 'database'; connectionId: string; queryType: 'table'; tables: string[]; sql: string }
     if (plugin === 'csv') {
       config = { type: 'csv' as const, delimiter: ',', encoding: 'utf-8', hasHeader: true }
     } else if (plugin === 'database') {
-      config = { type: 'database' as const, connectionId: '', queryType: 'table', tables: [], sql: '' }
+      config = { type: 'database' as const, connectionId: '', queryType: 'table' as const, tables: [], sql: '' }
     } else {
       config = { type: 'excel' as const, sheet: '' }
     }
@@ -54,7 +62,15 @@ export const useWizardStore = defineStore('wizard', () => {
   }
   function removeInput(index: number) { inputs.value.splice(index, 1) }
   function updateInput(index: number, input: InputSource) { inputs.value[index] = input }
-  function setProcessor(p: ProcessorConfig) { processor.value = p }
+  function addProcessor() {
+    processors.value.push({ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] })
+  }
+  function removeProcessor(index: number) {
+    if (processors.value.length > 1) processors.value.splice(index, 1)
+  }
+  function updateProcessor(index: number, proc: ProcessorStep) {
+    processors.value[index] = proc
+  }
   function setOutput(o: OutputTarget) { output.value = o }
   function addFileRef(fileId: string, meta: UploadedFileMeta) { uploadedFiles.value[fileId] = meta }
   function removeFileRef(fileId: string) { delete uploadedFiles.value[fileId] }
@@ -67,7 +83,7 @@ export const useWizardStore = defineStore('wizard', () => {
     currentStep.value = 1
     scene.value = { name: '', description: '', version: '1.0' }
     inputs.value = []
-    processor.value = { plugin: 'sql', sql: '', outputTable: '' }
+    processors.value = [{ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] }]
     output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: 'output.xlsx', columns: [] } }
     configId.value = null
     uploadedFiles.value = {}
@@ -103,11 +119,15 @@ export const useWizardStore = defineStore('wizard', () => {
       }
     })
 
-    processor.value = {
-      plugin: stateDict.processor?.plugin || 'sql',
-      sql: stateDict.processor?.sql || '',
-      outputTable: (stateDict.processor?.output_tables || [])[0] || '',
-    }
+    // If stateDict has "processor" (singular, old format), wrap as [processor]
+    const rawProcessors = stateDict.processors || (stateDict.processor ? [stateDict.processor] : [])
+    processors.value = rawProcessors.map((raw: any) => ({
+      name: raw.name || '',
+      plugin: raw.plugin || 'sql',
+      sql: raw.config?.sql || raw.sql || '',
+      inputTables: raw.input_tables || raw.inputTables || [],
+      outputTables: raw.output_tables || raw.outputTables || (raw.outputTable ? [raw.outputTable] : []),
+    }))
 
     if (stateDict.output) {
       const cfg = { ...stateDict.output.config }
@@ -129,7 +149,7 @@ export const useWizardStore = defineStore('wizard', () => {
       currentStep: currentStep.value,
       scene: scene.value,
       inputs: inputs.value,
-      processor: processor.value,
+      processors: processors.value,
       output: output.value,
       uploadedFiles: uploadedFiles.value,
       aiSuggestions: aiSuggestions.value,
@@ -137,11 +157,11 @@ export const useWizardStore = defineStore('wizard', () => {
   }
 
   return {
-    currentStep, scene, inputs, processor, output, uploadedFiles, aiSuggestions, configId,
+    currentStep, scene, inputs, processors, output, uploadedFiles, aiSuggestions, configId,
     canProceed, stepValidation,
     nextStep, prevStep, goToStep,
     addInput, removeInput, updateInput,
-    setProcessor, setOutput,
+    addProcessor, removeProcessor, updateProcessor, setOutput,
     addFileRef, removeFileRef,
     setSuggestion, acceptSuggestion, rejectSuggestion,
     setConfigId, loadFromConfigState, resetAll, getWizardState
