@@ -28,7 +28,7 @@
     <!-- Multi-processor header -->
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-sm font-semibold text-slate-700">处理步骤</h3>
-      <NButton size="small" type="primary" dashed @click="addProcessorAndExpand">+ SQL 步骤</NButton>
+      <NButton size="small" type="primary" dashed :class="{ 'pulse-cta': pulseCta }" @click="addProcessorAndExpand">+ SQL 步骤</NButton>
     </div>
 
     <!-- Table rename prompt (checks all processors) -->
@@ -49,6 +49,7 @@
       :expanded="expandedIndex === i"
       :can-remove="store.processors.length > 1"
       :available-tables="tableOptions"
+      :pulse-sql="pulseCta && !proc.sql.trim() && proc.outputTables.length === 0"
       @toggle-expand="expandedIndex = expandedIndex === i ? -1 : i"
       @remove="store.removeProcessor(i); if (expandedIndex === i) expandedIndex = -1"
       @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p })"
@@ -83,6 +84,7 @@ import { useAiApi } from '../../composables/useWizardApi'
 const store = useWizardStore()
 const { getAiSettings } = useAiApi()
 const showProcessorChoices = ref(false)
+defineProps<{ pulseCta?: boolean }>()
 const expandedIndex = ref(0)
 const aiConfigured = ref(false)
 const lastInferredName = ref('')

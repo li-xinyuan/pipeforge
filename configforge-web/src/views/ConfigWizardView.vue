@@ -50,7 +50,7 @@
           <div class="wizard__form-grid">
             <div class="wizard__form-group">
               <label class="wizard__label">场景名称 <span class="wizard__required">*</span></label>
-              <input class="wizard__input" v-model="store.scene.name" placeholder="例如：销售报表生成" />
+              <input class="wizard__input" :class="{ 'pulse-cta-input': currentStep === 1 && !store.scene.name.trim() }" v-model="store.scene.name" placeholder="例如：销售报表生成" />
             </div>
             <div class="wizard__form-group">
               <label class="wizard__label">版本号</label>
@@ -71,7 +71,7 @@
             message="完善场景信息后，后续步骤可以使用 AI 辅助生成 SQL 和列映射"
           />
           <template #footer>
-            <NButton class="btn-primary" :disabled="!store.scene.name.trim()" @click="completeStep(1)">保存并继续 ↓</NButton>
+            <NButton class="btn-primary" :class="{ 'pulse-cta': currentStep === 1 && store.scene.name.trim() }" :disabled="!store.scene.name.trim()" @click="completeStep(1)">保存并继续 ↓</NButton>
             <p v-if="currentStep === 1 && !store.scene.name.trim()" class="wizard__validation-msg">请输入场景名称</p>
           </template>
         </WizardStepCard>
@@ -86,7 +86,7 @@
           :status="stepStatus(2)"
           :badge="stepBadge(2)"
         >
-          <InputSourceList @file-ready="onFileReady" />
+          <InputSourceList :pulse-cta="currentStep === 2 && store.inputs.length === 0" @file-ready="onFileReady" />
           <AiInlineTip
             v-if="showStep2Tip"
             message="AI 已分析列结构，点击「AI 分析列」查看详情"
@@ -95,7 +95,7 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <NButton class="btn-primary" :disabled="store.inputs.length === 0" @click="completeStep(2)">保存并继续 ↓</NButton>
+            <NButton class="btn-primary" :class="{ 'pulse-cta': currentStep === 2 && store.inputs.length > 0 }" :disabled="store.inputs.length === 0" @click="completeStep(2)">保存并继续 ↓</NButton>
             <p v-if="currentStep === 2 && store.inputs.length === 0" class="wizard__validation-msg">至少需要添加 1 个输入源</p>
           </template>
         </WizardStepCard>
@@ -110,7 +110,7 @@
           :status="stepStatus(3)"
           :badge="stepBadge(3)"
         >
-          <SqlEditorTab ref="sqlEditorRef" />
+          <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" />
           <AiInlineTip
             v-if="showStep3Tip"
             message="描述你的查询需求，AI 帮你生成 SQL"
@@ -119,7 +119,7 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" @click="completeStep(3)">保存并继续 ↓</NButton>
+            <NButton class="btn-primary" :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => p.sql.trim() && p.outputTables.length) }" :disabled="!store.processors.length || store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" @click="completeStep(3)">保存并继续 ↓</NButton>
             <p v-if="currentStep === 3 && store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" class="wizard__validation-msg">
               {{ store.processors.some(p => !p.sql.trim()) ? '请输入 SQL 查询' : '请输入输出表名' }}
             </p>
@@ -145,7 +145,7 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <NButton class="btn-primary" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">保存并继续 ↓</NButton>
+            <NButton class="btn-primary" :class="{ 'pulse-cta': currentStep === 4 && store.output?.config?.columns?.length }" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">保存并继续 ↓</NButton>
             <p v-if="currentStep === 4 && !store.output?.config?.columns?.length" class="wizard__validation-msg">请先配置列映射</p>
           </template>
         </WizardStepCard>

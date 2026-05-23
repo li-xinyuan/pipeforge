@@ -64,6 +64,7 @@
       v-if="!showAddSelector"
       dashed
       block
+      :class="{ 'pulse-cta': pulseCta }"
       @click="showAddSelector = true"
     >添加输入源</NButton>
   </div>
@@ -78,6 +79,7 @@ import InputSourceCard from './InputSourceCard.vue'
 const store = useWizardStore()
 const showAddSelector = ref(false)
 
+defineProps<{ pulseCta?: boolean }>()
 const emit = defineEmits<{ 'file-ready': [fileId: string] }>()
 
 function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {

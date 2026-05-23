@@ -44,7 +44,7 @@
             @update:value="(v: string) => { const copy = [...proc.outputTables]; copy[ti] = v; $emit('update', { outputTables: copy }) }"
             size="small"
             placeholder="输出表名"
-            class="flex-1"
+            :class="['flex-1', { 'pulse-cta-input': pulseSql }]"
             :data-testid="`processor-output-${index}-${ti}`"
           />
           <NButton text size="tiny" type="error" @click="() => { const copy = [...proc.outputTables]; copy.splice(ti, 1); $emit('update', { outputTables: copy }) }">✕</NButton>
@@ -65,7 +65,7 @@
           type="textarea"
           :autosize="{ minRows: 6, maxRows: 16 }"
           :placeholder="sqlPlaceholder"
-          class="font-mono text-sm"
+          :class="['font-mono text-sm', { 'pulse-cta-input': pulseSql }]"
           :data-testid="`processor-sql-${index}`"
         />
       </div>
@@ -132,6 +132,7 @@ const props = defineProps<{
   expanded: boolean
   canRemove: boolean
   availableTables: Array<{ label: string; value: string }>
+  pulseSql?: boolean
 }>()
 
 const emit = defineEmits<{
