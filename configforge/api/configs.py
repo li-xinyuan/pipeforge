@@ -22,6 +22,15 @@ from configforge.utils.security import validate_id
 
 router = APIRouter()
 
+def _migrate_state_dict(state_dict: dict) -> None:
+    """Upgrade old format (single processor) to new format (processors list)."""
+    if "processor" in state_dict and "processors" not in state_dict:
+        proc = state_dict.pop("processor")
+        if "outputTable" in proc:
+            proc["output_tables"] = [proc.pop("outputTable")]
+        state_dict["processors"] = [proc]
+
+
 def _validate_config_id(config_id: str) -> str:
     try:
         return validate_id(config_id, "config_id")
@@ -151,7 +160,9 @@ async def load_config(config_id: str):
             ).model_dump(),
         )
     with open(state_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        state_dict = json.load(f)
+    _migrate_state_dict(state_dict)
+    return state_dict
 
 
 @router.get("/{config_id}/yaml")
@@ -187,6 +198,8 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
 
     with open(state_path, "r", encoding="utf-8") as f:
         state_dict = json.load(f)
+
+    _migrate_state_dict(state_dict)
 
     # 用请求中的 file_id 填充各 input
     for inp in state_dict.get("inputs", []):

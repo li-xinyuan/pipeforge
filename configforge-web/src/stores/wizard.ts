@@ -167,5 +167,5 @@ export const useWizardStore = defineStore('wizard', () => {
     setConfigId, loadFromConfigState, resetAll, getWizardState
   }
 }, {
-  persist: { key: 'wizard_state_v1', storage: localStorage }
+  persist: { key: 'wizard_state_v2', storage: localStorage }
 })
