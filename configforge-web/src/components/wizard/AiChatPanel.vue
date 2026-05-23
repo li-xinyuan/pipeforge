@@ -23,6 +23,12 @@
             <div v-if="msg.code" class="ai-panel__code-block">
               <pre>{{ msg.code }}</pre>
             </div>
+            <OrchestrationResultCard
+              v-if="msg.orchestration"
+              :result="msg.orchestration"
+              @confirm="$emit('orchestrate-confirm', msg.orchestration)"
+              @regenerate="$emit('orchestrate-regenerate')"
+            />
           </div>
         </TransitionGroup>
 
@@ -63,6 +69,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
 import DOMPurify from 'dompurify'
+import OrchestrationResultCard from './OrchestrationResult.vue'
 import type { ChatMessage } from '../../types/wizard'
 
 const props = defineProps<{
@@ -77,6 +84,8 @@ const emit = defineEmits<{
   send: [text: string]
   quickAction: [action: string]
   toggle: []
+  'orchestrate-confirm': [result: any]
+  'orchestrate-regenerate': []
 }>()
 
 const currentMode = computed(() => props.mode || 'sidebar')
