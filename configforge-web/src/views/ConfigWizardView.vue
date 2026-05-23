@@ -71,7 +71,7 @@
             message="完善场景信息后，后续步骤可以使用 AI 辅助生成 SQL 和列映射"
           />
           <template #footer>
-            <NButton class="btn-primary" :class="{ 'pulse-cta': currentStep === 1 && store.scene.name.trim() }" :disabled="!store.scene.name.trim()" @click="completeStep(1)">保存并继续 ↓</NButton>
+            <span :class="{ 'pulse-cta': currentStep === 1 && store.scene.name.trim() }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.scene.name.trim()" @click="completeStep(1)">保存并继续 ↓</NButton></span>
             <p v-if="currentStep === 1 && !store.scene.name.trim()" class="wizard__validation-msg">请输入场景名称</p>
           </template>
         </WizardStepCard>
@@ -95,7 +95,7 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <NButton class="btn-primary" :class="{ 'pulse-cta': currentStep === 2 && store.inputs.length > 0 }" :disabled="store.inputs.length === 0" @click="completeStep(2)">保存并继续 ↓</NButton>
+            <span :class="{ 'pulse-cta': currentStep === 2 && store.inputs.length > 0 }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="store.inputs.length === 0" @click="completeStep(2)">保存并继续 ↓</NButton></span>
             <p v-if="currentStep === 2 && store.inputs.length === 0" class="wizard__validation-msg">至少需要添加 1 个输入源</p>
           </template>
         </WizardStepCard>
@@ -119,7 +119,7 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <NButton class="btn-primary" :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => p.sql.trim() && p.outputTables.length) }" :disabled="!store.processors.length || store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" @click="completeStep(3)">保存并继续 ↓</NButton>
+            <span :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => p.sql.trim() && p.outputTables.length) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" @click="completeStep(3)">保存并继续 ↓</NButton></span>
             <p v-if="currentStep === 3 && store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" class="wizard__validation-msg">
               {{ store.processors.some(p => !p.sql.trim()) ? '请输入 SQL 查询' : '请输入输出表名' }}
             </p>
@@ -145,7 +145,7 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <NButton class="btn-primary" :class="{ 'pulse-cta': currentStep === 4 && store.output?.config?.columns?.length }" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">保存并继续 ↓</NButton>
+            <span :class="{ 'pulse-cta': currentStep === 4 && store.output?.config?.columns?.length }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">保存并继续 ↓</NButton></span>
             <p v-if="currentStep === 4 && !store.output?.config?.columns?.length" class="wizard__validation-msg">请先配置列映射</p>
           </template>
         </WizardStepCard>
