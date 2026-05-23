@@ -13,34 +13,25 @@
     <!-- Add area -->
     <template v-if="showAddSelector">
       <div class="grid grid-cols-3 gap-3 mt-2">
-        <NCard
-          hoverable
-          class="cursor-pointer text-center border-2 border-green-600 bg-green-50"
-          @click="addInput('excel')"
-        >
-          <span class="text-2xl block mb-2">📊</span>
-          <span class="text-sm font-semibold">Excel</span>
-          <span class="text-xs text-slate-500 mt-1 block">.xlsx / .xls</span>
-        </NCard>
-        <NCard
-          hoverable
-          class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50"
-          @click="addInput('csv')"
-        >
-          <span class="text-2xl block mb-2">🗄</span>
-          <span class="text-sm font-semibold">CSV</span>
-        </NCard>
-        <NCard
-          hoverable
-          :class="[
-            'cursor-pointer text-center border-2 transition-colors',
-            showAddSelector ? 'border-dashed border-slate-200' : 'border-purple-600 bg-purple-50'
-          ]"
-          @click="addInput('database')"
-        >
-          <span class="text-2xl block mb-2">🔌</span>
-          <span class="text-sm font-semibold">Database</span>
-        </NCard>
+        <span :class="{ 'pulse-cta': pulseCta }" style="display:inline-block;border-radius:8px;">
+          <NCard hoverable class="cursor-pointer text-center border-2 border-green-600 bg-green-50" @click="addInput('excel')">
+            <span class="text-2xl block mb-2">📊</span>
+            <span class="text-sm font-semibold">Excel</span>
+            <span class="text-xs text-slate-500 mt-1 block">.xlsx / .xls</span>
+          </NCard>
+        </span>
+        <span :class="{ 'pulse-cta': pulseCta }" style="display:inline-block;border-radius:8px;">
+          <NCard hoverable class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50" @click="addInput('csv')">
+            <span class="text-2xl block mb-2">🗄</span>
+            <span class="text-sm font-semibold">CSV</span>
+          </NCard>
+        </span>
+        <span :class="{ 'pulse-cta': pulseCta }" style="display:inline-block;border-radius:8px;">
+          <NCard hoverable class="cursor-pointer text-center border-2 border-purple-600 bg-purple-50" @click="addInput('database')">
+            <span class="text-2xl block mb-2">🔌</span>
+            <span class="text-sm font-semibold">Database</span>
+          </NCard>
+        </span>
         <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
           <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.3</NTag>
           <span class="text-2xl block mb-2">📄</span>
