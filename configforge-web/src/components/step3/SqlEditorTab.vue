@@ -129,6 +129,18 @@ const tableOptions = computed(() => {
   return options
 })
 
+// Step name auto-inference from SQL content
+function inferStepName(sql: string): string {
+  if (!sql.trim()) return ''
+  if (/DELETE\s+FROM/i.test(sql)) return '数据清洗'
+  if (/CREATE\s+TABLE/i.test(sql) && /WHERE/i.test(sql)) return '数据过滤'
+  if (/GROUP\s+BY/i.test(sql)) return '数据聚合'
+  if (/JOIN/i.test(sql)) return '表连接'
+  if (/ORDER\s+BY/i.test(sql)) return '数据排序'
+  if (/CREATE\s+TABLE/i.test(sql)) return '创建中间表'
+  return 'SQL 处理'
+}
+
 // Watch input table names: fill first empty processor's SQL
 watch(inputTableNames, (tables) => {
   if (tables.length > 0) {
@@ -153,6 +165,14 @@ watch(
 
       const tableName = inferOutputTable(trimmed)
       lastInferredName.value = tableName
+
+      // Auto-infer step name if empty
+      if (!proc.name || !proc.name.trim()) {
+        const inferredName = inferStepName(trimmed)
+        if (inferredName) {
+          store.updateProcessor(i, { ...proc, name: inferredName })
+        }
+      }
 
       // Auto-fill output table if empty
       if (proc.outputTables.length === 0 || proc.outputTables.every(t => !t.trim())) {
