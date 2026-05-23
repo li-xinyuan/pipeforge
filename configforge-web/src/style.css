@@ -242,22 +242,23 @@ button:active:not([disabled]) {
 /* === CTA pulse animation === */
 @keyframes pulse-cta {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4);
+    box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.5);
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(13, 148, 136, 0);
+    box-shadow: 0 0 0 10px rgba(13, 148, 136, 0);
+    transform: scale(1.03);
   }
 }
 
 .pulse-cta {
-  animation: pulse-cta 2s ease-in-out infinite;
-  border-color: var(--color-primary);
-  transition: border-color 0.3s, box-shadow 0.3s;
+  animation: pulse-cta 3s ease-in-out infinite;
+  border-radius: 8px;
 }
 
 /* Input variant — brighter, with background tint */
 .pulse-cta-input {
-  animation: pulse-cta 2s ease-in-out infinite;
+  animation: pulse-cta 3s ease-in-out infinite;
   border-color: var(--color-primary-light) !important;
   background-color: var(--color-primary-bg) !important;
 }
