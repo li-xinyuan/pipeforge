@@ -183,6 +183,8 @@
         @send="onAiSend"
         @quick-action="onAiQuickAction"
         @toggle="aiPanelVisible = false"
+        @orchestrate-confirm="onOrchestrateConfirm"
+        @orchestrate-regenerate="onOrchestrateRegenerate"
       />
 
       <!-- FAB for AI panel on tablet/mobile -->
@@ -223,7 +225,7 @@ const { breakpoint } = useBreakpoint()
 const router = useRouter()
 const route = useRoute()
 const { loadConfigState } = useConfigApi()
-const { askSuggestion, suggesting } = useAiApi()
+const { askSuggestion, askOrchestrate, suggesting } = useAiApi()
 
 const aiMode = computed(() => {
   if (breakpoint.value === 'mobile') return 'fullscreen'
@@ -267,7 +269,13 @@ const aiMessages = ref<ChatMessage[]>([
   { role: 'ai', content: '你好！我是 ConfigForge AI 助手。我可以帮你分析数据列、生成 SQL、自动映射列，以及生成场景描述。' },
 ])
 
-const aiQuickActions = ['AI 分析列', 'AI 生成 SQL', 'AI 自动映射', '生成场景描述']
+const aiQuickActions = computed(() => {
+  const actions = ['生成场景描述', 'AI 分析列', 'AI 生成 SQL', 'AI 自动映射']
+  if (store.inputs.length > 0 && store.processors.length > 0) {
+    actions.unshift('AI 编排步骤链')
+  }
+  return actions
+})
 
 // Step status helpers
 function stepStatus(n: number): 'completed' | 'active' | 'locked' {
@@ -328,6 +336,11 @@ function onFileReady(fileId: string) {
 
 async function onAiSend(text: string) {
   aiMessages.value.push({ role: 'user', content: text })
+
+  if (text.includes('编排') || text.includes('步骤链')) {
+    await doOrchestrate(text)
+    return
+  }
 
   const context: Record<string, any> = {
     currentStep: currentStep.value,
@@ -392,6 +405,11 @@ async function onAiSend(text: string) {
 
 async function onAiQuickAction(action: string) {
   aiMessages.value.push({ role: 'user', content: action })
+
+  if (action === 'AI 编排步骤链') {
+    onOrchestrateAction()
+    return
+  }
 
   if (action === 'AI 分析列') {
     const filesWithColumns = store.inputs.filter(inp => inp.fileId && store.uploadedFiles[inp.fileId]?.columns)
@@ -469,6 +487,57 @@ async function onAiQuickAction(action: string) {
       aiMessages.value.push({ role: 'ai', content: 'AI 请求失败。请确认 AI 设置正确且后端服务正在运行。' })
     }
   }
+}
+
+// Orchestrate handlers
+function onOrchestrateAction() {
+  if (store.inputs.length === 0) {
+    aiMessages.value.push({ role: 'ai', content: '请先在 Step 2 添加输入源并上传文件。' })
+    return
+  }
+  aiMessages.value.push({ role: 'ai', content: '请用中文描述你想要的最终报表，例如："统计各部门本月的出勤率，包含部门名称、应出勤天数、实际出勤天数"' })
+}
+
+async function doOrchestrate(naturalLanguage: string) {
+  const context = {
+    inputs: store.inputs.map(inp => {
+      const meta = store.uploadedFiles[inp.fileId]
+      return { table: inp.table, columns: meta?.columns || [] }
+    }),
+    outputColumns: (store.output?.config?.columns || []).map(c => c.target),
+    naturalLanguage,
+  }
+  const result = await askOrchestrate(context)
+  if (result && result.steps.length > 0) {
+    aiMessages.value.push({ role: 'ai', content: '', orchestration: result })
+  } else if (result?.parse_error) {
+    aiMessages.value.push({ role: 'ai', content: 'AI 返回格式异常，请重试。原始响应：' + (result.raw || '').slice(0, 500) })
+  } else {
+    aiMessages.value.push({ role: 'ai', content: '无法规划处理链，请确保已上传文件并加载了列信息，然后重试。' })
+  }
+}
+
+function onOrchestrateConfirm(result: any) {
+  const processors = result.steps.map((s: any, i: number) => {
+    let inputTables = s.input_tables || []
+    if (i === 0 && inputTables.length === 0) {
+      inputTables = store.inputs.map(inp => inp.table).filter(Boolean)
+    }
+    return {
+      name: s.name || `步骤 ${i + 1}`,
+      plugin: 'sql' as const,
+      sql: s.sql || '',
+      inputTables,
+      outputTables: s.output_tables || [],
+    }
+  })
+  store.setProcessors(processors)
+  aiMessages.value.push({ role: 'ai', content: '已将处理链填入 Step 3，请检查每步的 SQL 和表名。' })
+  aiPanelVisible.value = false
+}
+
+function onOrchestrateRegenerate() {
+  aiMessages.value.push({ role: 'ai', content: '请重新描述你的需求，我会重新规划处理链。' })
 }
 
 // ── Intersection Observer ──

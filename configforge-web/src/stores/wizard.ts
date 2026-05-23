@@ -71,6 +71,20 @@ export const useWizardStore = defineStore('wizard', () => {
   function updateProcessor(index: number, proc: ProcessorStep) {
     processors.value[index] = proc
   }
+  function setProcessors(newProcessors: ProcessorStep[]) {
+    const valid = newProcessors.filter(p => p.sql.trim())
+    if (valid.length === 0) return
+    for (let i = 0; i < valid.length; i++) {
+      if (valid[i].outputTables.length === 0) {
+        valid[i].outputTables = [`step_${i + 1}_output`]
+      }
+      if (!valid[i].name) {
+        valid[i].name = `步骤 ${i + 1}`
+      }
+    }
+    processors.value = valid
+  }
+
   function setOutput(o: OutputTarget) { output.value = o }
   function addFileRef(fileId: string, meta: UploadedFileMeta) { uploadedFiles.value[fileId] = meta }
   function removeFileRef(fileId: string) { delete uploadedFiles.value[fileId] }
@@ -161,7 +175,7 @@ export const useWizardStore = defineStore('wizard', () => {
     canProceed, stepValidation,
     nextStep, prevStep, goToStep,
     addInput, removeInput, updateInput,
-    addProcessor, removeProcessor, updateProcessor, setOutput,
+    addProcessor, removeProcessor, updateProcessor, setProcessors, setOutput,
     addFileRef, removeFileRef,
     setSuggestion, acceptSuggestion, rejectSuggestion,
     setConfigId, loadFromConfigState, resetAll, getWizardState
