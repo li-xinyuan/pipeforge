@@ -15,7 +15,7 @@
     <!-- Body: Configuration fields -->
     <div class="grid grid-cols-2 gap-3 mb-4 relative">
       <!-- File upload -->
-      <div v-if="input.plugin !== 'database'">
+      <div v-if="input.plugin !== 'database'" class="col-span-2">
         <label class="block text-xs font-medium text-slate-500 mb-1">文件</label>
         <template v-if="input.fileId && store.uploadedFiles[input.fileId]">
           <div class="flex items-center gap-1">
@@ -33,7 +33,7 @@
           class="w-full"
         >
           <span :class="{ 'pulse-cta': pulseUpload }" class="block w-full">
-            <div class="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors"
+            <div class="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors"
                  :class="uploading ? 'border-slate-300 bg-slate-50' : 'border-slate-300 hover:border-teal-400 hover:bg-teal-50/30'"
             >
               <span class="text-2xl block mb-1">{{ uploading ? '⏳' : '📤' }}</span>
