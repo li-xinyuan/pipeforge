@@ -42,8 +42,10 @@ class InputSource(BaseModel):
 
 
 class ProcessorConfig(BaseModel):
+    name: str = ""
     plugin: Literal["sql"] = "sql"
     sql: str
+    input_tables: list[str] = []
     output_tables: list[str] = []
 
 
@@ -84,6 +86,7 @@ class WizardState(BaseModel):
     processor: ProcessorConfig = Field(
         default_factory=lambda: ProcessorConfig(sql="", output_tables=[])
     )
+    processors: list[ProcessorConfig] = []
     output: Optional[OutputTarget] = None
     uploaded_files: dict[str, dict] = {}
 

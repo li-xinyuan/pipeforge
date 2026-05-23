@@ -28,12 +28,25 @@ def build_yaml(state: WizardState) -> str:
             "name": inp.name, "plugin": inp.plugin, "table": inp.table,
             "param_key": inp.param_key, "config": config_dict,
         })
-    d["processors"] = [{
-        "name": state.scene.name + "处理",
-        "plugin": state.processor.plugin,
-        "output_tables": state.processor.output_tables,
-        "config": {"sql": state.processor.sql},
-    }]
+    d["processors"] = []
+    if state.processors:
+        for i, proc in enumerate(state.processors):
+            d["processors"].append({
+                "name": proc.name or f"step_{i+1}",
+                "plugin": proc.plugin,
+                "input_tables": proc.input_tables,
+                "output_tables": proc.output_tables,
+                "config": {"type": "sql", "sql": proc.sql},
+            })
+    elif state.processor.sql.strip() or state.processor.output_tables:
+        # Backward compatibility: single processor
+        d["processors"].append({
+            "name": state.processor.name or state.scene.name + "处理",
+            "plugin": state.processor.plugin,
+            "input_tables": state.processor.input_tables,
+            "output_tables": state.processor.output_tables,
+            "config": {"type": "sql", "sql": state.processor.sql},
+        })
     if state.output:
         out_cfg = state.output.config
         if out_cfg.type == "csv":

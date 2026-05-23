@@ -68,18 +68,29 @@ def generate(state: WizardState) -> dict:
     return {"yaml": yaml}
 
 
+def _get_processors(exec_state: WizardState) -> list[ProcessorConfig]:
+    """Backward-compatible: return list of processors from exec_state."""
+    if exec_state.processors:
+        return exec_state.processors
+    # Fallback: single processor (old format)
+    if exec_state.processor.sql.strip() or exec_state.processor.output_tables:
+        return [exec_state.processor]
+    return []
+
+
 def execute_pipeline(state: WizardState) -> str:
     """使用真实数据执行 pipeline，返回输出文件路径。"""
     exec_state = copy.deepcopy(state)
 
-    # PipeForge SQL processor 只执行 SQL 原样，不会对 SELECT 自动 CREATE TABLE。
-    if exec_state.processor.output_tables and exec_state.processor.sql.strip():
-        if not _has_ddl(exec_state.processor.sql):
-            output_table = exec_state.processor.output_tables[0].replace('"', '')
-            exec_state.processor.sql = (
-                f'CREATE TABLE "{output_table}" AS '
-                f"SELECT * FROM ({exec_state.processor.sql})"
-            )
+    # Auto-wrap non-DDL SQL for all processors
+    for proc in _get_processors(exec_state):
+        if proc.output_tables and proc.sql.strip():
+            if not _has_ddl(proc.sql):
+                output_table = proc.output_tables[0].replace('"', '')
+                proc.sql = (
+                    f'CREATE TABLE "{output_table}" AS '
+                    f"SELECT * FROM ({proc.sql})"
+                )
 
     tmp_dir = tempfile.mkdtemp(prefix="pipeforge_exec_")
 
@@ -195,13 +206,15 @@ def dry_run(state: WizardState) -> dict:
     """
     exec_state = copy.deepcopy(state)
 
-    if exec_state.processor.output_tables and exec_state.processor.sql.strip():
-        if not _has_ddl(exec_state.processor.sql):
-            output_table = exec_state.processor.output_tables[0].replace('"', '')
-            exec_state.processor.sql = (
-                f'CREATE TABLE "{output_table}" AS '
-                f"SELECT * FROM ({exec_state.processor.sql})"
-            )
+    # Auto-wrap non-DDL SQL for all processors
+    for proc in _get_processors(exec_state):
+        if proc.output_tables and proc.sql.strip():
+            if not _has_ddl(proc.sql):
+                output_table = proc.output_tables[0].replace('"', '')
+                proc.sql = (
+                    f'CREATE TABLE "{output_table}" AS '
+                    f"SELECT * FROM ({proc.sql})"
+                )
 
     tmp_dir = tempfile.mkdtemp(prefix="pipeforge_dryrun_")
 
