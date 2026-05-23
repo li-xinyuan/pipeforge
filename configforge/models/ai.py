@@ -35,6 +35,10 @@ class AiSuggestionRequest(BaseModel):
     context: dict
 
 
+class AiOrchestrateRequest(BaseModel):
+    context: dict  # { inputs, outputColumns, naturalLanguage }
+
+
 class AiSuggestionResponse(BaseModel):
     content: str
     category: str

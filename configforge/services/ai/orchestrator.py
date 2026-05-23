@@ -50,6 +50,22 @@ SYSTEM_PROMPTS = {
         "你是一个数据管道调试专家。根据 YAML 配置和错误日志，分析失败原因并给出修复建议。"
         "返回 JSON: {\"cause\": \"根因一句话\", \"suggestions\": [\"具体修复步骤\"], \"severity\": \"error|warning\"}。"
     ),
+    "orchestrate": (
+        "你是一个数据流水线架构师。用户提供输入源和输出目标，你需要规划 SQL 步骤链。\n\n"
+        "## 上下文\n"
+        "- 输入表及其列名\n"
+        "- 目标输出列\n"
+        "- 用户的自然语言需求\n\n"
+        "## 规则\n"
+        "- 每步必须声明 input_tables（依赖哪些表）和 output_tables（产出哪些表）\n"
+        "- 只能使用 SQLite 语法，表名和列名用双引号包裹\n"
+        "- 不要编造列名——只能使用上下文中给出的列名\n"
+        "- 步骤数 ≤ 5，尽量简洁\n\n"
+        "## 返回格式\n"
+        "返回纯 JSON（不要包裹在 markdown 代码块中，不要输出解释文字）：\n"
+        '{"steps": [{"name": "...", "input_tables": [...], "output_tables": [...], "sql": "..."}], "explanation": "..."}\n'
+        "如果没有足够的上下文信息来规划步骤，设置 steps=[] 并在 explanation 中说明需要什么信息。"
+    ),
     "chat": (
         "你是 ConfigForge 的 AI 助手，内嵌在一个数据管道配置平台中。"
         "该平台通过可视化向导帮用户将多种数据源（Excel、CSV、数据库）加工转换为标准化输出。"
@@ -146,6 +162,18 @@ def build_prompt(category: str, context: dict) -> str:
         if output_tables:
             prompt += f"输出表: {output_tables}。"
         prompt += f"用户消息: {_sanitize_user_input(context.get('naturalLanguage', ''))}"
+    elif category == "orchestrate":
+        inputs = context.get("inputs", [])
+        output_columns = context.get("outputColumns", [])
+        natural_language = _sanitize_user_input(context.get("naturalLanguage", ""))
+
+        prompt += "输入表信息：\n"
+        for inp in inputs:
+            prompt += f"- 表名: {inp.get('table', '')}, 列名: {inp.get('columns', [])}\n"
+        if output_columns:
+            prompt += f"目标输出列: {output_columns}\n"
+        prompt += f"用户需求: {natural_language}\n"
+        prompt += "请规划 SQL 步骤链，返回指定格式的 JSON。"
 
     return prompt
 
