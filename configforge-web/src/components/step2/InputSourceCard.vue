@@ -32,7 +32,7 @@
           :accept="input.plugin === 'csv' ? '.csv' : '.xlsx,.xls'"
         >
           <span :class="{ 'pulse-cta': pulseUpload }" style="display:inline-block;border-radius:8px;">
-            <NButton :loading="uploading" size="small" dashed :disabled="analyzing">
+            <NButton :loading="uploading" dashed :disabled="analyzing">
               {{ input.plugin === 'csv' ? '上传 CSV' : '上传 Excel' }}
             </NButton>
           </span>
