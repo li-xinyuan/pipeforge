@@ -106,7 +106,7 @@ class PipelineEngine:
                 }
 
         except Exception:
-            context.logger.error(f"Dry-run failed. DB preserved at: {db.path}")
+            context.logger.error("Dry-run failed.")
             raise
         finally:
             context.logger.close()

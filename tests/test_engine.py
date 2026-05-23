@@ -100,5 +100,11 @@ output: null
 """)
     engine = PipelineEngine(str(yaml_path))
     result = engine.execute_dry_run({"src_file": str(test_xlsx)})
-    # Should not crash, should return dict with intermediate table info
     assert isinstance(result, dict)
+    assert "tables" in result
+    assert "raw_data" in result["tables"]
+    assert result["tables"]["raw_data"]["row_count"] == 1
+    assert "inputs" in result
+    assert result["inputs"][0]["name"] == "src"
+    assert "processors" in result
+    assert result["processors"][0]["tables_created"] == ["result"]
