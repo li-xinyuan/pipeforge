@@ -13,7 +13,11 @@
 
     <!-- Add area -->
     <template v-if="showAddSelector">
-      <div class="grid grid-cols-3 gap-3 mt-2">
+      <div class="flex items-center justify-between mb-2 mt-2">
+        <span class="text-sm font-semibold text-slate-700">选择输入源类型</span>
+        <NButton text type="error" size="small" @click="showAddSelector = false">取消</NButton>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
         <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
           <NCard hoverable class="cursor-pointer text-center border-2 border-green-600 bg-green-50" @click="addInput('excel')">
             <span class="text-2xl block mb-2">📊</span>
@@ -51,7 +55,6 @@
           <span class="text-sm font-semibold">API</span>
         </NCard>
       </div>
-      <NButton text class="mt-2 w-full" @click="showAddSelector = false">取消</NButton>
     </template>
 
     <NButton
