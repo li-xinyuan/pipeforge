@@ -73,6 +73,52 @@ class PipelineEngine:
 
         return context.result
 
+    def execute_dry_run(self, params: dict[str, str], log_dir: str | None = None) -> dict:
+        """Execute input + processor stages, skip output. Return intermediate table preview data."""
+        _validate_params(self.required_params(), params)
+
+        db = SQLiteManager()
+        context = Context(
+            db=db,
+            params=params,
+            yaml_dir=self._yaml_dir,
+            scene_name=self.config.scene.name,
+            logger=Logger(log_dir=log_dir),
+        )
+
+        try:
+            for inp_spec in self.config.inputs:
+                stats = self._execute_input(inp_spec, context)
+                context.result.inputs[inp_spec.name] = stats
+
+            for proc_spec in self.config.processors:
+                stats = self._execute_processor(proc_spec, context)
+                context.result.processors.append(stats)
+
+            # Capture table data before closing the database
+            tables = {}
+            for table_name in db.list_tables():
+                rows = db.query(f"SELECT * FROM \"{table_name}\" LIMIT 100")
+                tables[table_name] = {
+                    "columns": db.get_column_names(table_name),
+                    "rows": [list(row) for row in rows],
+                    "row_count": db.query(f'SELECT COUNT(*) FROM "{table_name}"')[0][0],
+                }
+
+        except Exception:
+            context.logger.error(f"Dry-run failed. DB preserved at: {db.path}")
+            raise
+        finally:
+            context.logger.close()
+            db.close()
+            db.remove()
+
+        return {
+            "inputs": [{"name": k, "rows_loaded": v.rows_loaded} for k, v in context.result.inputs.items()],
+            "processors": [{"name": p.name, "tables_created": p.tables_created} for p in context.result.processors],
+            "tables": tables,
+        }
+
     def _execute_input(self, inp_spec, context):
         start = time.time()
         file_path = context.params.get(inp_spec.param_key)

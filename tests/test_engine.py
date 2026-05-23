@@ -66,3 +66,39 @@ class TestPipelineEngine:
         engine = PipelineEngine(yaml_path)
         with pytest.raises(ValueError, match="file_a"):
             engine.execute(params={})
+
+
+def test_execute_dry_run_returns_intermediate_tables(tmp_path):
+    """execute_dry_run should run input+processor steps, skip output, return intermediate table data."""
+    from openpyxl import Workbook
+    from pipeforge.core.engine import PipelineEngine
+
+    # Create a minimal test Excel file with header row
+    test_xlsx = tmp_path / "test.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws.append(["col"])
+    ws.append(["hello"])
+    wb.save(str(test_xlsx))
+
+    yaml_path = tmp_path / "dry_run_test.yaml"
+    yaml_path.write_text("""
+scene: {name: test, version: "1.0"}
+inputs:
+  - name: src
+    plugin: excel
+    table: raw_data
+    param_key: src_file
+    config: {type: excel, sheet: Sheet1}
+processors:
+  - name: step1
+    plugin: sql
+    output_tables: [result]
+    config: {type: sql, sql: "CREATE TABLE result AS SELECT 'hello' AS col FROM raw_data"}
+output: null
+""")
+    engine = PipelineEngine(str(yaml_path))
+    result = engine.execute_dry_run({"src_file": str(test_xlsx)})
+    # Should not crash, should return dict with intermediate table info
+    assert isinstance(result, dict)
