@@ -33,15 +33,15 @@
           class="w-full"
         >
           <span :class="{ 'pulse-cta': pulseUpload }" class="block w-full">
-            <div class="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors"
+            <div class="border-2 border-dashed rounded-lg py-5 px-6 text-center cursor-pointer transition-colors"
                  :class="uploading ? 'border-slate-300 bg-slate-50' : 'border-slate-300 hover:border-teal-400 hover:bg-teal-50/30'"
             >
-              <span class="text-2xl block mb-1">{{ uploading ? '⏳' : '📤' }}</span>
-              <span class="text-sm text-slate-600 block">
-                {{ uploading ? '上传中...' : '点击或拖拽文件到此处上传' }}
+              <span class="text-3xl block mb-1.5">{{ uploading ? '⏳' : '📤' }}</span>
+              <span class="text-sm text-slate-500 block">
+                {{ uploading ? '上传中...' : '将文件拖拽到此处，或点击选择文件' }}
               </span>
               <span class="text-xs text-slate-400 mt-1 block">
-                {{ input.plugin === 'csv' ? '.csv / .tsv' : '.xlsx / .xls' }}
+                支持 {{ input.plugin === 'csv' ? '.csv / .tsv' : '.xlsx / .xls' }} 格式
               </span>
             </div>
           </span>
