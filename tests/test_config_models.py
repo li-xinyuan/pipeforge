@@ -130,6 +130,27 @@ class TestColumnMapping:
             ColumnMapping(source="", target="姓名")
 
 
+class TestProcessorSpecWithInputTables:
+    def test_processor_spec_with_input_tables(self):
+        spec = ProcessorSpec(
+            name="test_step",
+            plugin="sql",
+            input_tables=["src_table"],
+            output_tables=["out_table"],
+            config=SqlProcessorConfig(type="sql", sql="SELECT * FROM src_table"),
+        )
+        assert spec.input_tables == ["src_table"]
+        assert spec.output_tables == ["out_table"]
+
+    def test_processor_spec_empty_input_tables_defaults_to_empty_list(self):
+        spec = ProcessorSpec(
+            name="first_step",
+            plugin="sql",
+            config=SqlProcessorConfig(type="sql", sql="CREATE TABLE x AS SELECT 1"),
+        )
+        assert spec.input_tables == []
+
+
 class TestSceneConfig:
     def test_full_valid_config(self):
         config = SceneConfig(

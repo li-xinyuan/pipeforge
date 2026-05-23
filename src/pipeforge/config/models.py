@@ -85,6 +85,7 @@ class ProcessorSpec(BaseModel):
 
     name: str
     plugin: str
+    input_tables: list[str] = []
     output_tables: list[str] = []
     config: Annotated[SqlProcessorConfig, Field(discriminator="type")]
 
