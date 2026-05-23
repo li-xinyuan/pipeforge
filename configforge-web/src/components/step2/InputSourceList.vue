@@ -24,12 +24,14 @@
           <NCard hoverable class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50" @click="addInput('csv')">
             <span class="text-2xl block mb-2">🗄</span>
             <span class="text-sm font-semibold">CSV</span>
+            <span class="text-xs text-slate-500 mt-1 block">.csv / .tsv</span>
           </NCard>
         </span>
         <span :class="{ 'pulse-cta': pulseCta }" style="display:inline-block;border-radius:8px;">
           <NCard hoverable class="cursor-pointer text-center border-2 border-purple-600 bg-purple-50" @click="addInput('database')">
             <span class="text-2xl block mb-2">🔌</span>
             <span class="text-sm font-semibold">Database</span>
+            <span class="text-xs text-slate-500 mt-1 block">SQLite / MySQL / PG</span>
           </NCard>
         </span>
         <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
