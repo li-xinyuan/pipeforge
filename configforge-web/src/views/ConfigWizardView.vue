@@ -86,7 +86,7 @@
           :status="stepStatus(2)"
           :badge="stepBadge(2)"
         >
-          <InputSourceList :pulse-cta="currentStep === 2 && store.inputs.length === 0" @file-ready="onFileReady" />
+          <InputSourceList :pulse-cta="currentStep === 2 && !store.inputs.some(inp => inp.fileId)" @file-ready="onFileReady" />
           <AiInlineTip
             v-if="showStep2Tip"
             message="AI 已分析列结构，点击「AI 分析列」查看详情"
@@ -95,7 +95,7 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 2 && store.inputs.length > 0 }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="store.inputs.length === 0" @click="completeStep(2)">保存并继续 ↓</NButton></span>
+            <span :class="{ 'pulse-cta': currentStep === 2 && store.inputs.some(inp => inp.fileId) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="store.inputs.length === 0" @click="completeStep(2)">保存并继续 ↓</NButton></span>
             <p v-if="currentStep === 2 && store.inputs.length === 0" class="wizard__validation-msg">至少需要添加 1 个输入源</p>
           </template>
         </WizardStepCard>
