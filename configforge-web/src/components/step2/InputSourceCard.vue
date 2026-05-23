@@ -9,7 +9,7 @@
           {{ input.plugin === 'csv' ? 'CSV' : input.plugin === 'database' ? 'DB' : 'Excel' }}
         </NTag>
         <NTag v-if="analyzing" type="warning" size="medium">AI 分析中...</NTag>
-        <NButton text type="error" size="small" @click="$emit('remove')" style="font-size:18px;">✕</NButton>
+        <NButton text type="error" size="small" @click="$emit('remove')">删除</NButton>
       </div>
     </template>
 
