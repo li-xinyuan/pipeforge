@@ -14,9 +14,31 @@ export interface ConfirmedAnalysis {
 
 export interface AiSuggestion {
   content: string
-  category: 'scene' | 'columns' | 'sql' | 'mapping' | 'diagnose'
+  category: 'scene' | 'columns' | 'sql' | 'mapping' | 'diagnose' | 'chat' | 'orchestrate'
   status: 'pending' | 'accepted' | 'rejected' | 'auto'
   timestamp: number
+}
+
+export interface OrchestrationStep {
+  name: string
+  input_tables: string[]
+  output_tables: string[]
+  sql: string
+}
+
+export interface OrchestrationResult {
+  steps: OrchestrationStep[]
+  explanation: string
+  raw?: string
+  parse_error?: boolean
+}
+
+/** ChatMessage — single source of truth (used by AiChatPanel, ConfigWizardView, etc.) */
+export interface ChatMessage {
+  role: 'user' | 'ai'
+  content: string
+  code?: string
+  orchestration?: OrchestrationResult
 }
 
 export interface SceneInfo {

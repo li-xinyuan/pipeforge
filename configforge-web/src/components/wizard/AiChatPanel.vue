@@ -63,12 +63,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
 import DOMPurify from 'dompurify'
-
-export interface ChatMessage {
-  role: 'ai' | 'user'
-  content: string
-  code?: string
-}
+import type { ChatMessage } from '../../types/wizard'
 
 const props = defineProps<{
   visible: boolean

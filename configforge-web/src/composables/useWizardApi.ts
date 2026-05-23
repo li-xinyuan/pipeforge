@@ -114,7 +114,38 @@ export function useAiApi() {
     return { ok: resp.ok, data }
   }
 
-  return { suggesting, aiError, askSuggestion, getAiSettings, updateAiSettings, testAiConnection }
+  async function askOrchestrate(context: Record<string, unknown>): Promise<{
+    steps: Array<{ name: string; input_tables: string[]; output_tables: string[]; sql: string }>
+    explanation: string
+    raw?: string
+    parse_error?: boolean
+  } | null> {
+    suggesting.value = true
+    aiError.value = null
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 120000)
+    try {
+      const resp = await fetch('/api/ai/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context }),
+        signal: controller.signal,
+      })
+      const data = await resp.json()
+      if (resp.ok) return data
+      aiError.value = data.detail || data.error || '未知错误'
+    } catch (e) {
+      aiError.value = e instanceof DOMException && e.name === 'AbortError'
+        ? 'AI 请求超时，请重试'
+        : '网络请求失败'
+    } finally {
+      clearTimeout(timer)
+      suggesting.value = false
+    }
+    return null
+  }
+
+  return { suggesting, aiError, askSuggestion, askOrchestrate, getAiSettings, updateAiSettings, testAiConnection }
 }
 
 export function useConnectionApi() {
