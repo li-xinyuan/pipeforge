@@ -16,7 +16,6 @@
     <div class="grid grid-cols-2 gap-3 mb-4 relative">
       <!-- File upload -->
       <div v-if="input.plugin !== 'database'" class="col-span-2">
-        <label class="block text-xs font-medium text-slate-500 mb-1">文件</label>
         <template v-if="input.fileId && store.uploadedFiles[input.fileId]">
           <div class="flex items-center gap-1">
             <NTag type="success" size="small" class="truncate">
