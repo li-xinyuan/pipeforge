@@ -60,7 +60,12 @@ export const useWizardStore = defineStore('wizard', () => {
       config,
     } as InputSource)
   }
-  function removeInput(index: number) { inputs.value.splice(index, 1) }
+  function removeInput(index: number) {
+  inputs.value.splice(index, 1)
+  if (inputs.value.length === 0 && currentStep.value > 2) {
+    currentStep.value = 2
+  }
+}
   function updateInput(index: number, input: InputSource) { inputs.value[index] = input }
   function addProcessor() {
     processors.value.push({ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] })
