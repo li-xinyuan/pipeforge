@@ -5,6 +5,7 @@
       :key="idx"
       :input="input"
       :index="idx"
+      :pulse-upload="pulseCta && input.plugin && !input.fileId"
       @update="(val) => store.updateInput(idx, val)"
       @remove="store.removeInput(idx)"
       @file-ready="(fileId) => emit('file-ready', fileId)"
@@ -13,21 +14,21 @@
     <!-- Add area -->
     <template v-if="showAddSelector">
       <div class="grid grid-cols-3 gap-3 mt-2">
-        <span :class="{ 'pulse-cta': pulseCta }" style="display:inline-block;border-radius:8px;">
+        <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
           <NCard hoverable class="cursor-pointer text-center border-2 border-green-600 bg-green-50" @click="addInput('excel')">
             <span class="text-2xl block mb-2">📊</span>
             <span class="text-sm font-semibold">Excel</span>
             <span class="text-xs text-slate-500 mt-1 block">.xlsx / .xls</span>
           </NCard>
         </span>
-        <span :class="{ 'pulse-cta': pulseCta }" style="display:inline-block;border-radius:8px;">
+        <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
           <NCard hoverable class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50" @click="addInput('csv')">
             <span class="text-2xl block mb-2">🗄</span>
             <span class="text-sm font-semibold">CSV</span>
             <span class="text-xs text-slate-500 mt-1 block">.csv / .tsv</span>
           </NCard>
         </span>
-        <span :class="{ 'pulse-cta': pulseCta }" style="display:inline-block;border-radius:8px;">
+        <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
           <NCard hoverable class="cursor-pointer text-center border-2 border-purple-600 bg-purple-50" @click="addInput('database')">
             <span class="text-2xl block mb-2">🔌</span>
             <span class="text-sm font-semibold">Database</span>
@@ -57,7 +58,7 @@
       v-if="!showAddSelector"
       dashed
       block
-      :class="{ 'pulse-cta': pulseCta }"
+      :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }"
       @click="showAddSelector = true"
     >添加输入源</NButton>
   </div>

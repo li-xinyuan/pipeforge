@@ -25,16 +25,18 @@
             <NButton text size="tiny" type="error" :disabled="analyzing" @click="removeFile">移除</NButton>
           </div>
         </template>
-        <NUpload
-          v-else
-          :custom-request="handleUpload"
-          :show-file-list="false"
-          :accept="input.plugin === 'csv' ? '.csv' : '.xlsx,.xls'"
-        >
-          <NButton :loading="uploading" size="small" dashed :disabled="analyzing">
-            {{ input.plugin === 'csv' ? '上传 CSV' : '上传 Excel' }}
-          </NButton>
-        </NUpload>
+        <span :class="{ 'pulse-cta': pulseUpload }" style="display:inline-block;border-radius:8px;">
+          <NUpload
+            v-else
+            :custom-request="handleUpload"
+            :show-file-list="false"
+            :accept="input.plugin === 'csv' ? '.csv' : '.xlsx,.xls'"
+          >
+            <NButton :loading="uploading" size="small" dashed :disabled="analyzing">
+              {{ input.plugin === 'csv' ? '上传 CSV' : '上传 Excel' }}
+            </NButton>
+          </NUpload>
+        </span>
         <p v-if="uploadError" class="text-xs text-red-500 mt-1">{{ uploadError }}</p>
       </div>
 
@@ -226,6 +228,7 @@ import DatabaseForm from './DatabaseForm.vue'
 const props = defineProps<{
   input: InputSource
   index: number
+  pulseUpload?: boolean
 }>()
 
 const emit = defineEmits<{

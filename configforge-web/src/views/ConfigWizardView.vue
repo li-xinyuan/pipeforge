@@ -86,7 +86,7 @@
           :status="stepStatus(2)"
           :badge="stepBadge(2)"
         >
-          <InputSourceList :pulse-cta="currentStep === 2 && !store.inputs.some(inp => inp.fileId)" @file-ready="onFileReady" />
+          <InputSourceList :pulse-cta="currentStep === 2" @file-ready="onFileReady" />
           <AiInlineTip
             v-if="showStep2Tip"
             message="AI 已分析列结构，点击「AI 分析列」查看详情"
