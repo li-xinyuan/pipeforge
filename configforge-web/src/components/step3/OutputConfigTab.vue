@@ -197,8 +197,13 @@ const excelConfig = computed(() => store.output!.config as ExcelOutputConfig)
 const csvConfig = computed(() => store.output!.config as CsvOutputConfig)
 
 const sourceTableOptions = computed(() => {
-  if (store.processor.outputTable) return [{ label: store.processor.outputTable, value: store.processor.outputTable }]
-  return []
+  const tables: Array<{ label: string; value: string }> = []
+  for (const proc of store.processors) {
+    for (const t of proc.outputTables) {
+      if (t) tables.push({ label: t, value: t })
+    }
+  }
+  return tables
 })
 
 const outputTypeInfo = computed(() => {
@@ -222,31 +227,47 @@ watch(() => store.inputs, (inputs) => {
   }
 }, { deep: true })
 
-watch(() => store.processor.sql, (sql) => {
-  if (prevSql.value === sql) return
-  prevSql.value = sql
-  if (store.output?.plugin !== 'csv') return
-  if (inferTimer) clearTimeout(inferTimer)
-  inferTimer = setTimeout(() => {
-    if (store.output?.plugin === 'csv') {
-      onInferColumns()
-    }
-  }, 800)
-})
+watch(
+  () => store.processors.map(p => p.sql),
+  (sqls) => {
+    // Use the first processor's SQL for column inference
+    const sql = sqls[0] || ''
+    if (prevSql.value === sql) return
+    prevSql.value = sql
+    if (store.output?.plugin !== 'csv') return
+    if (inferTimer) clearTimeout(inferTimer)
+    inferTimer = setTimeout(() => {
+      if (store.output?.plugin === 'csv') {
+        onInferColumns()
+      }
+    }, 800)
+  },
+  { deep: true }
+)
 
 function syncSourceTable() {
-  const ot = store.processor.outputTable
-  if (ot && !outputConfig.value.sourceTable) {
-    outputConfig.value.sourceTable = ot
+  // Use the first available output table from any processor
+  for (const proc of store.processors) {
+    for (const ot of proc.outputTables) {
+      if (ot && !outputConfig.value.sourceTable) {
+        outputConfig.value.sourceTable = ot
+        return
+      }
+    }
   }
 }
 
-watch(() => store.processor.outputTable, syncSourceTable)
+watch(
+  () => store.processors.map(p => [...p.outputTables]),
+  () => syncSourceTable(),
+  { deep: true }
+)
 
 onMounted(() => {
   syncSourceTable()
-  if (store.output?.plugin === 'csv' && outputConfig.value.columns.length === 0 && store.processor.sql.trim()) {
-    prevSql.value = store.processor.sql
+  if (store.output?.plugin === 'csv' && outputConfig.value.columns.length === 0
+      && store.processors.length > 0 && store.processors[0].sql.trim()) {
+    prevSql.value = store.processors[0].sql
     onInferColumns()
   }
 })
@@ -291,7 +312,9 @@ function removeTemplate() {
 }
 
 async function onInferColumns() {
-  const cols = inferSelectColumns(store.processor.sql)
+  // Use the first processor's SQL for column inference
+  const sql = store.processors.length > 0 ? store.processors[0].sql : ''
+  const cols = inferSelectColumns(sql)
   if (cols.length === 0) {
     const tableMapping: Record<string, string> = {}
     for (const inp of store.inputs) {
@@ -301,7 +324,7 @@ async function onInferColumns() {
       message.warning('无法从当前 SQL 中提取列名，且没有可用的输入文件来执行查询。请手动添加列映射。')
       return
     }
-    const result = await executeSql(store.processor.sql, tableMapping)
+    const result = await executeSql(sql, tableMapping)
     if (result && result.columns.length > 0) {
       outputConfig.value.columns = result.columns.map(col => ({ source: col, target: col }))
       lastAutoInferred = true

@@ -119,9 +119,9 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <NButton class="btn-primary" :disabled="!store.processor.sql.trim() || !store.processor.outputTable.trim()" @click="completeStep(3)">保存并继续 ↓</NButton>
-            <p v-if="currentStep === 3 && (!store.processor.sql.trim() || !store.processor.outputTable.trim())" class="wizard__validation-msg">
-              {{ !store.processor.sql.trim() ? '请输入 SQL 查询' : '请输入输出表名' }}
+            <NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" @click="completeStep(3)">保存并继续 ↓</NButton>
+            <p v-if="currentStep === 3 && store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" class="wizard__validation-msg">
+              {{ store.processors.some(p => !p.sql.trim()) ? '请输入 SQL 查询' : '请输入输出表名' }}
             </p>
           </template>
         </WizardStepCard>
@@ -253,11 +253,11 @@ const showStep2Tip = computed(() =>
 )
 
 const showStep3Tip = computed(() =>
-  store.inputs.length > 0 && !store.processor.sql.trim()
+  store.inputs.length > 0 && store.processors.every(p => !p.sql.trim())
 )
 
 const showStep4Tip = computed(() =>
-  !!store.processor.sql.trim() && !store.output?.config?.columns?.length
+  store.processors.some(p => !!p.sql.trim()) && !store.output?.config?.columns?.length
 )
 
 const showStep5Tip = ref(false)
@@ -349,11 +349,11 @@ async function onAiSend(text: string) {
       }
     })
   }
-  if (store.processor.sql) {
-    context.processorSql = store.processor.sql
-  }
-  if (store.processor.outputTable) {
-    context.outputTable = store.processor.outputTable
+  if (store.processors.length > 0) {
+    context.processorsSql = store.processors.map(p => p.sql).filter(Boolean)
+    context.outputTables = store.processors.flatMap(p => p.outputTables).filter(Boolean)
+    context.processorSql = store.processors[0]?.sql || ''
+    context.outputTable = store.processors[0]?.outputTables[0] || ''
   }
 
   const result = await askSuggestion('chat', context)
@@ -361,9 +361,12 @@ async function onAiSend(text: string) {
     try {
       const parsed = JSON.parse(result)
       if (parsed.sql) {
-        store.processor.sql = parsed.sql
-        if (parsed.outputTable) {
-          store.processor.outputTable = parsed.outputTable
+        if (store.processors.length > 0) {
+          const proc = { ...store.processors[0], sql: parsed.sql }
+          if (parsed.outputTable) {
+            proc.outputTables = [parsed.outputTable]
+          }
+          store.updateProcessor(0, proc)
         }
         aiMessages.value.push({
           role: 'ai',

@@ -1,0 +1,283 @@
+<template>
+  <NCard size="small" class="processor-card">
+    <template #header>
+      <div class="flex items-center gap-2">
+        <NTag size="tiny" type="info">SQL</NTag>
+        <span class="text-sm font-medium truncate flex-1">{{ proc.name || '步骤 ' + (index + 1) }}</span>
+        <NButton text size="tiny" @click="$emit('toggleExpand')">{{ expanded ? '收起' : '展开' }}</NButton>
+        <NButton text size="tiny" type="error" @click="$emit('remove')" :disabled="!canRemove">删除</NButton>
+      </div>
+    </template>
+    <div v-if="expanded" class="space-y-3">
+      <!-- Step name -->
+      <div>
+        <label class="block text-sm font-medium text-slate-900 mb-1">步骤名称</label>
+        <NInput
+          :value="proc.name"
+          @update:value="(v: string) => $emit('update', { name: v })"
+          size="small"
+          placeholder="例如：数据清洗"
+        />
+      </div>
+
+      <!-- Input tables -->
+      <div>
+        <label class="block text-sm font-medium text-slate-900 mb-1">输入表</label>
+        <NSelect
+          :value="proc.inputTables"
+          :options="availableTables"
+          multiple
+          placeholder="选择输入表（可选，留空则自动使用所有可用表）"
+          @update:value="(v: string[]) => $emit('update', { inputTables: v })"
+        />
+      </div>
+
+      <!-- Output tables -->
+      <div>
+        <label class="block text-sm font-medium text-slate-900 mb-1">
+          <span class="text-red-500">*</span> 输出表名
+        </label>
+        <div v-for="(t, ti) in proc.outputTables" :key="ti" class="flex items-center gap-1 mb-1">
+          <NInput
+            :value="t"
+            @update:value="(v: string) => { const copy = [...proc.outputTables]; copy[ti] = v; $emit('update', { outputTables: copy }) }"
+            size="small"
+            placeholder="输出表名"
+            class="flex-1"
+          />
+          <NButton text size="tiny" type="error" @click="() => { const copy = [...proc.outputTables]; copy.splice(ti, 1); $emit('update', { outputTables: copy }) }">✕</NButton>
+        </div>
+        <NButton size="tiny" dashed @click="() => { $emit('update', { outputTables: [...proc.outputTables, ''] }) }">+ 添加输出表</NButton>
+        <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
+        <p v-if="equivalenceSql" class="text-xs text-slate-400 mt-1.5 font-mono">{{ equivalenceSql }}</p>
+      </div>
+
+      <!-- SQL textarea -->
+      <div>
+        <label class="block text-sm font-medium text-slate-900 mb-1">
+          <span class="text-red-500">*</span> SQL
+        </label>
+        <NInput
+          :value="proc.sql"
+          @update:value="(v: string) => $emit('update', { sql: v })"
+          type="textarea"
+          :autosize="{ minRows: 6, maxRows: 16 }"
+          :placeholder="sqlPlaceholder"
+          class="font-mono text-sm"
+        />
+      </div>
+
+      <!-- AI generate inline -->
+      <div v-if="showNlInput" class="p-3 bg-sky-50 border border-sky-200 rounded-lg">
+        <NInput
+          v-model:value="nlText"
+          type="textarea"
+          :autosize="{ minRows: 3, maxRows: 6 }"
+          placeholder="用自然语言描述你想要的查询，例如：查询每个部门有多少员工，按人数降序"
+        />
+        <div class="flex gap-2 mt-2">
+          <NButton size="small" type="primary" :loading="suggesting" @click="onAiGenerateSql">生成 SQL</NButton>
+          <NButton size="small" @click="showNlInput = false">取消</NButton>
+        </div>
+        <p v-if="aiError" class="text-xs text-red-500 mt-1">{{ aiError }}</p>
+      </div>
+
+      <!-- Query execution -->
+      <div class="flex gap-2 items-center flex-wrap">
+        <NButton size="tiny" :loading="queryRunning" :disabled="!proc.sql.trim()" @click="runQuery">▶ 运行查询</NButton>
+        <NButton size="tiny" type="info" :loading="dryRunRunning" :disabled="!proc.sql.trim()" @click="runDryRun">🔍 预览全部</NButton>
+        <NButton size="tiny" :disabled="!aiConfigured" @click="showNlInput = !showNlInput">✨ AI 生成 SQL</NButton>
+        <span v-if="queryResult" class="text-xs text-slate-400">
+          返回 {{ queryResult.rows.length }} 行 / {{ queryResult.columns.length }} 列
+        </span>
+      </div>
+
+      <p v-if="queryError" class="text-xs text-red-500">{{ queryError }}</p>
+
+      <ColumnPreview
+        v-if="queryResult && queryVisible"
+        :columns="queryResult.columns"
+        :rows="queryResult.rows"
+      />
+
+      <p v-if="dryRunError" class="text-xs text-red-500">{{ dryRunError }}</p>
+
+      <div v-if="dryRunResult && dryRunVisible" class="space-y-2">
+        <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 rounded p-2">
+          <div class="flex items-center gap-2 mb-2">
+            <NTag size="tiny" :bordered="false" type="info">{{ table.table_name }}</NTag>
+            <span class="text-xs text-slate-400">{{ table.columns.length }} 列 / {{ table.total_rows }} 行</span>
+          </div>
+          <ColumnPreview :columns="table.columns" :rows="table.rows" />
+        </div>
+      </div>
+    </div>
+  </NCard>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { NCard, NButton, NTag, NInput, NSelect, NTooltip } from 'naive-ui'
+import ColumnPreview from '../step2/ColumnPreview.vue'
+import type { ProcessorStep } from '../../types/wizard'
+import { useWizardStore } from '../../stores/wizard'
+import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
+
+const props = defineProps<{
+  proc: ProcessorStep
+  index: number
+  expanded: boolean
+  canRemove: boolean
+  availableTables: Array<{ label: string; value: string }>
+}>()
+
+const emit = defineEmits<{
+  remove: []
+  toggleExpand: []
+  update: [partial: Partial<ProcessorStep>]
+}>()
+
+const store = useWizardStore()
+const { executeSql: runSql, dryRun: runDryRunApi } = useWizardApi()
+const { suggesting, aiError, askSuggestion, getAiSettings } = useAiApi()
+
+const showNlInput = ref(false)
+const nlText = ref('')
+const aiConfigured = ref(false)
+
+const queryRunning = ref(false)
+const queryResult = ref<{ columns: string[]; rows: string[][] } | null>(null)
+const queryError = ref('')
+const queryVisible = ref(false)
+
+const dryRunRunning = ref(false)
+const dryRunResult = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
+const dryRunError = ref('')
+const dryRunVisible = ref(false)
+
+onMounted(async () => {
+  const settings = await getAiSettings()
+  aiConfigured.value = !!(settings?.enabled && settings?.api_key)
+})
+
+const sqlPlaceholder = computed(() => {
+  const tables = props.availableTables.map(o => o.value)
+  return tables.length > 0 ? `SELECT * FROM "${tables[0]}"` : '输入 SQL 查询语句...'
+})
+
+const inputTableNames = computed(() =>
+  store.inputs.map(inp => inp.table.trim()).filter(Boolean)
+)
+
+const outputTableError = computed(() => {
+  for (const name of props.proc.outputTables) {
+    if (!name.trim()) continue
+    if (inputTableNames.value.includes(name.trim())) {
+      return `表名 "${name.trim()}" 已被输入源使用，请换一个名称`
+    }
+  }
+  return ''
+})
+
+const isPlainSelect = computed(() => {
+  const sql = props.proc.sql.trim()
+  if (!sql) return false
+  return !(
+    /\bCREATE\s+(?:TEMP\s+|TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?\w+\s+AS\b/i.test(sql) ||
+    /\bINSERT\s+INTO\s+\w+\b/i.test(sql) ||
+    /\bWITH\s+\w+\s+AS\s*\(/i.test(sql)
+  )
+})
+
+const equivalenceSql = computed(() => {
+  if (!isPlainSelect.value) return ''
+  let sql = props.proc.sql.trim()
+  if (sql.endsWith(';')) sql = sql.slice(0, -1).trim()
+  const name = props.proc.outputTables[0] || 'result'
+  return `等效语句: SELECT * FROM (${sql}) AS ${name}`
+})
+
+function buildTableMapping(): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const inp of store.inputs) {
+    if (inp.table && inp.fileId) map[inp.table] = inp.fileId
+  }
+  return map
+}
+
+async function runQuery() {
+  queryError.value = ''
+  queryResult.value = null
+  const sql = props.proc.sql.trim()
+  if (!sql) return
+
+  const tableMapping = buildTableMapping()
+  if (Object.keys(tableMapping).length === 0) {
+    queryError.value = '请先在步骤 2 上传数据文件并设置表名'
+    return
+  }
+
+  queryRunning.value = true
+  const result = await runSql(sql, tableMapping)
+  if (result) {
+    queryResult.value = result
+    queryVisible.value = true
+  } else {
+    queryError.value = '查询执行失败，请检查 SQL 语法'
+  }
+  queryRunning.value = false
+}
+
+async function runDryRun() {
+  dryRunError.value = ''
+  dryRunResult.value = null
+  if (!props.proc.sql.trim()) {
+    dryRunError.value = '请先输入 SQL'
+    return
+  }
+  dryRunRunning.value = true
+  const result = await runDryRunApi(store.$state)
+  if (result?.tables?.length) {
+    dryRunResult.value = result.tables
+    dryRunVisible.value = true
+  } else {
+    dryRunError.value = '预览执行失败，请检查输入配置'
+  }
+  dryRunRunning.value = false
+}
+
+async function onAiGenerateSql() {
+  if (!nlText.value.trim()) return
+  const content = await askSuggestion('sql', {
+    inputs: store.inputs.map(inp => ({
+      name: inp.table, table: inp.table, columns: [],
+    })),
+    naturalLanguage: nlText.value,
+  })
+  if (content) {
+    try {
+      const parsed = JSON.parse(content)
+      let sql = (parsed.sql || '').trim()
+      if (sql.endsWith(';')) sql = sql.slice(0, -1).trim()
+      const update: Partial<ProcessorStep> = { sql }
+      if (parsed.outputTables?.length) {
+        const clean = parsed.outputTables.filter((t: string) => !inputTableNames.value.includes(t))
+        if (clean.length) update.outputTables = clean
+      }
+      emit('update', update)
+    } catch {
+      let sql = content.trim()
+      if (sql.endsWith(';')) sql = sql.slice(0, -1).trim()
+      emit('update', { sql })
+    }
+    showNlInput.value = false
+    nlText.value = ''
+  }
+}
+</script>
+
+<style scoped>
+.processor-card {
+  margin-bottom: 8px;
+}
+</style>

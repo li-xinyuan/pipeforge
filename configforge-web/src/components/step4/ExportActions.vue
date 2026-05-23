@@ -92,11 +92,13 @@ async function saveConfigHandler() {
         fileId: inp.fileId,
         config: inp.config,
       })),
-      processor: {
-        plugin: store.processor.plugin,
-        sql: store.processor.sql,
-        outputTable: store.processor.outputTable,
-      },
+      processors: store.processors.map(p => ({
+        plugin: p.plugin,
+        sql: p.sql,
+        outputTables: p.outputTables,
+        inputTables: p.inputTables,
+        name: p.name,
+      })),
       output: store.output,
     }
     const id = await saveConfig(state, store.configId)
