@@ -252,7 +252,11 @@ const uploadRef = ref<InstanceType<typeof NUpload>>()
 watch(() => props.input.plugin, (plugin, prev) => {
   if (!prev && (plugin === 'excel' || plugin === 'csv') && !props.input.fileId) {
     nextTick(() => {
-      uploadRef.value?.openOpenFileDialog?.()
+      const el = (uploadRef.value as any)?.$el
+      if (el) {
+        const input = el.querySelector('input[type="file"]') as HTMLInputElement | null
+        input?.click()
+      }
     })
   }
 })
