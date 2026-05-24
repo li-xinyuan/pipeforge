@@ -207,6 +207,11 @@ def dry_run(state: WizardState) -> dict:
     exec_state = copy.deepcopy(state)
     exec_state.output = None  # dry-run skips output, avoid output validation errors
 
+    # Auto-fill empty param_keys for dry-run (PipeForge requires non-empty)
+    for inp in exec_state.inputs:
+        if not inp.param_key.strip():
+            inp.param_key = inp.table or f"input_{id(inp)}"
+
     # Auto-wrap non-DDL SQL for all processors
     for proc in _get_processors(exec_state):
         if proc.output_tables and proc.sql.strip():
