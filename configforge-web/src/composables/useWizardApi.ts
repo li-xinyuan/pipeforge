@@ -10,7 +10,7 @@ export function useWizardApi() {
     try {
       const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await resp.json()
-      if (!resp.ok) { error.value = { message: data.error, code: data.code }; return null }
+      if (!resp.ok) { error.value = { message: data.error || data.detail || 'Unknown error', code: data.code || 'ERROR' }; return null }
       return data as T
     } catch {
       error.value = { message: 'Network error', code: 'NETWORK_ERROR' }

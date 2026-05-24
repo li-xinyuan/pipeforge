@@ -142,7 +142,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useWizardStore()
-const { executeSql: runSql, dryRun: runDryRunApi } = useWizardApi()
+const { executeSql: runSql, dryRun: runDryRunApi, error: wizardApiError } = useWizardApi()
 const { suggesting, aiError, askSuggestion, getAiSettings } = useAiApi()
 
 const showNlInput = ref(false)
@@ -245,7 +245,8 @@ async function runDryRun() {
     dryRunResult.value = result.tables
     dryRunVisible.value = true
   } else {
-    dryRunError.value = '预览执行失败，请检查输入配置'
+    const apiMsg = wizardApiError.value?.message || wizardApiError.value?.error || ''
+    dryRunError.value = apiMsg ? `预览执行失败: ${apiMsg}` : '预览执行失败，请检查输入配置'
   }
   dryRunRunning.value = false
 }

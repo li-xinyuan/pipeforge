@@ -205,6 +205,7 @@ def dry_run(state: WizardState) -> dict:
     before committing to full pipeline execution and file download.
     """
     exec_state = copy.deepcopy(state)
+    exec_state.output = None  # dry-run skips output, avoid output validation errors
 
     # Auto-wrap non-DDL SQL for all processors
     for proc in _get_processors(exec_state):

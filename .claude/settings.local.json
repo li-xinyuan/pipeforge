@@ -143,7 +143,10 @@
       "Bash(/Users/lixinyuan/code/CCTEST/.venv/bin/python3 *)",
       "Bash(echo \"vue-tsc EXIT: $?\")",
       "Bash(echo \"vue-tsc: $?\")",
-      "Bash(echo \"tsc: $?\")"
+      "Bash(echo \"tsc: $?\")",
+      "Bash(echo \"---EXIT: $?\")",
+      "Bash(/plugin install *)",
+      "Bash(uipro init *)"
     ]
   }
 }
