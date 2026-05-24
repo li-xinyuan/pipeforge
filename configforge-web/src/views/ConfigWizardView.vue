@@ -103,8 +103,8 @@
         <!-- Step 3: SQL Processing -->
         <WizardStepCard
           ref="step3El"
-          title="SQL 处理"
-          description="编写 SQL 查询处理输入数据"
+          title="处理步骤"
+          description="对输入数据进行加工和转换"
           icon="⚡"
           icon-bg="#fef3c7"
           :status="stepStatus(3)"
@@ -300,7 +300,7 @@ function stepBadge(n: number): string {
 const progressSteps = computed<StepState[]>(() => [
   { label: '场景信息', status: stepStatus(1) },
   { label: '输入源', status: stepStatus(2) },
-  { label: 'SQL 处理', status: stepStatus(3) },
+  { label: '处理步骤', status: stepStatus(3) },
   { label: '输出配置', status: stepStatus(4) },
   { label: '预览导出', status: stepStatus(5) },
 ])
