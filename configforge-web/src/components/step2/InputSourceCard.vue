@@ -123,6 +123,28 @@
         <DatabaseForm :input="input" :index="index" @update="handleUpdate" />
       </div>
 
+      <!-- Column preview (moved before table name) -->
+      <div v-if="input.fileId" class="col-span-2">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-medium text-slate-500">列预览</span>
+          <NButton
+            v-if="!previewData"
+            text
+            size="tiny"
+            :loading="previewLoading"
+            @click="loadPreview"
+          >{{ previewLoading ? '加载中...' : '加载' }}</NButton>
+          <NButton
+            v-else
+            text
+            size="tiny"
+            @click="previewVisible = !previewVisible"
+          >{{ previewVisible ? '收起' : '展开' }}</NButton>
+        </div>
+        <p v-if="error && !previewLoading" class="text-xs text-red-500 mb-2">{{ error.message }}</p>
+        <ColumnPreview v-if="previewData && previewVisible" :columns="previewData.columns" :rows="previewData.rows" />
+      </div>
+
       <!-- Table name -->
       <div>
         <label class="block text-xs font-medium text-slate-500 mb-1">表名</label>
@@ -184,27 +206,7 @@
     </div>
     <div v-if="analyzing" class="absolute inset-0 z-10" />
 
-    <!-- Column preview -->
-    <div v-if="input.fileId">
-      <div class="flex items-center gap-2 mb-2">
-        <NButton
-          v-if="!previewData"
-          text
-          size="tiny"
-          :loading="previewLoading"
-          @click="loadPreview"
-        >{{ previewLoading ? '加载中...' : '加载列预览' }}</NButton>
-        <NButton
-          v-else
-          text
-          size="tiny"
-          @click="previewVisible = !previewVisible"
-        >{{ previewVisible ? '收起预览' : '展开预览' }}</NButton>
-      </div>
-      <p v-if="error && !previewLoading" class="text-xs text-red-500 mb-2">{{ error.message }}</p>
-      <ColumnPreview v-if="previewData && previewVisible" :columns="previewData.columns" :rows="previewData.rows" />
-    </div>
-    <p v-else class="text-xs text-slate-400 mt-2">请先上传文件以加载列预览</p>
+    <p v-if="!input.fileId" class="text-xs text-slate-400 mt-2">请先上传文件以加载列预览</p>
 
     <!-- AI Column Confirm Modal -->
     <AiColumnConfirmModal
@@ -428,6 +430,9 @@ onMounted(async () => {
       if (existing && (!existing.columns || !existing.sampleRows)) {
         store.addFileRef(props.input.fileId, { ...existing, columns: data.columns, sampleRows: data.rows })
       }
+      // Auto-load and expand preview when file is uploaded
+      previewData.value = data
+      previewVisible.value = true
     }
   }
 })
