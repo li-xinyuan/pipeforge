@@ -248,9 +248,11 @@ const emit = defineEmits<{
 }>()
 
 const uploadRef = ref<InstanceType<typeof NUpload>>()
+let autoOpened = false
 
-watch(() => props.input.plugin, (plugin, prev) => {
-  if (!prev && (plugin === 'excel' || plugin === 'csv') && !props.input.fileId) {
+onMounted(() => {
+  if (!autoOpened && (props.input.plugin === 'excel' || props.input.plugin === 'csv') && !props.input.fileId) {
+    autoOpened = true
     nextTick(() => {
       const el = (uploadRef.value as any)?.$el
       if (el) {
