@@ -110,7 +110,7 @@ class PipelineEngine:
             # Capture table data before closing the database
             tables = []
             for table_name in db.list_tables():
-                rows = db.query(f"SELECT * FROM \"{table_name}\" LIMIT 100")
+                rows = db.query(f"SELECT * FROM \"{table_name}\" LIMIT 10000")
                 tables.append({
                     "table_name": table_name,
                     "columns": db.get_column_names(table_name),
