@@ -139,10 +139,18 @@ for proc in _get_processors(exec_state):
 class ProcessorConfig(BaseModel):
     plugin: Literal["sql", "python"] = "sql"
     name: str = ""
-    sql: str = ""     # SQL 步骤时必填
-    script: str = ""  # Python 步骤时必填
+    sql: str = ""
+    script: str = ""
     input_tables: list[str] = []
     output_tables: list[str] = []
+
+    @model_validator(mode="after")
+    def validate_plugin_fields(self):
+        if self.plugin == "sql" and not self.sql.strip():
+            raise ValueError("SQL 步骤的 sql 字段不能为空")
+        if self.plugin == "python" and not self.script.strip():
+            raise ValueError("Python 步骤的 script 字段不能为空")
+        return self
 ```
 
 后端使用扁平结构（非 discriminated union），由 `plugin` 字段区分。
@@ -177,7 +185,10 @@ export type ProcessorStep =
 | `ConfigWizardView.vue:552` | `onOrchestrateConfirm` | `s.plugin \|\| 'sql'` 预留 Python |
 | `ExportActions.vue:101` | 保存配置 | `p.plugin=='sql'?{sql:p.sql}:{script:p.script}` |
 | `serialization.ts:103-107` | `stateToSnakeCase` | 分支处理 `p.plugin` |
-| `OutputConfigTab.vue` | watch SQL | `p.plugin=='sql'p.sql:p.script` |
+| `OutputConfigTab.vue:235` | watch SQL | `p.plugin==='sql'?p.sql:p.script` |
+| `OutputConfigTab.vue:273` | onMounted | `store.processors[0].plugin==='sql'?store.processors[0].sql.trim():store.processors[0].script.trim()` |
+| `OutputConfigTab.vue:274` | prevSql | 同上 |
+| `OutputConfigTab.vue:320` | 推断 SQL | 同上 |
 
 ---
 
@@ -204,6 +215,22 @@ src/components/step3/
 
 ## 八、YAML 序列化
 
+**向后兼容分支也需适配**：
+```python
+# yaml_builder.py 向后兼容单处理器分支
+elif state.processor.plugin == "python" and state.processor.script.strip():
+    d["processors"].append({
+        "name": state.processor.name or state.scene.name + "处理",
+        "plugin": "python",
+        "input_tables": state.processor.input_tables,
+        "output_tables": state.processor.output_tables,
+        "config": {"type": "python", "script": state.processor.script},
+    })
+elif state.processor.sql.strip() or state.processor.output_tables:
+    # 原有 SQL 分支不变
+```
+
+**主分支**：
 ```python
 elif proc.plugin == "python":
     d["processors"].append({
@@ -239,7 +266,8 @@ yaml.add_representer(LiteralStr, lambda d, s: d.represent_scalar('tag:yaml.org,2
 | PipeForge | `src/pipeforge/plugins/processor/python.py` | **新建** |
 | ConfigForge | `configforge/models/wizard.py` | `ProcessorConfig.plugin` + `script` 字段 |
 | ConfigForge | `configforge/core/pipeline.py` | SQL 自动包装跳过 Python 步骤 |
-| ConfigForge | `configforge/services/yaml_builder.py` | Python 步骤序列化 |
+| ConfigForge | `configforge/services/yaml_builder.py` | Python 序列化 + 向后兼容分支适配 |
+| ConfigForge | `configforge/generators/processor/python_processor.py` | **新建** PythonGenerator（AST 校验 process 函数） |
 | Frontend | `configforge-web/src/types/wizard.ts` | `ProcessorStep` discrim union |
 | Frontend | `configforge-web/src/stores/wizard.ts` | 6 处 `.sql` 适配 |
 | Frontend | `configforge-web/src/utils/serialization.ts` | `stateToSnakeCase` 分支 |
@@ -249,6 +277,7 @@ yaml.add_representer(LiteralStr, lambda d, s: d.represent_scalar('tag:yaml.org,2
 | Frontend | `configforge-web/src/components/step3/SqlEditorTab.vue` | "+ Python 步骤"按钮 |
 | Frontend | `configforge-web/src/views/ConfigWizardView.vue` | 5 处 `.sql` 适配 + `onOrchestrateConfirm` 预留 |
 | Frontend | `configforge-web/src/components/step4/ExportActions.vue` | `.sql` 适配 |
+| Frontend | `configforge-web/src/components/step3/OutputConfigTab.vue` | 4 处 `.sql` 适配 |
 | 测试 | `tests/test_python_processor.py` | 插件测试 |
 | 测试 | `configforge/tests/test_yaml_builder.py` | YAML 序列化 |
 | 测试 | 前端 vitest | 类型适配 |
