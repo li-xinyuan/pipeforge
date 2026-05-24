@@ -68,16 +68,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { NCard, NButton, NTag } from 'naive-ui'
 import InputSourceCard from './InputSourceCard.vue'
 
 const store = useWizardStore()
-const showAddSelector = ref(false)
+const showAddSelector = ref(store.inputs.length === 0)
 
 defineProps<{ pulseCta?: boolean }>()
 const emit = defineEmits<{ 'file-ready': [fileId: string] }>()
+
+watch(() => store.inputs.length, (len) => {
+  if (len === 0) showAddSelector.value = true
+})
 
 function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
   store.addInput(plugin)
