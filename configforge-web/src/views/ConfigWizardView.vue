@@ -110,7 +110,7 @@
           :status="stepStatus(3)"
           :badge="stepBadge(3)"
         >
-          <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" />
+          <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) || !p.outputTables.length)" />
           <AiInlineTip
             v-if="showStep3Tip"
             message="描述你的查询需求，AI 帮你生成 SQL"
@@ -119,9 +119,9 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => p.sql.trim() && p.outputTables.length) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" @click="completeStep(3)">保存并继续 ↓</NButton></span>
-            <p v-if="currentStep === 3 && store.processors.some(p => !p.sql.trim() || !p.outputTables.length)" class="wizard__validation-msg">
-              {{ store.processors.some(p => !p.sql.trim()) ? '请输入 SQL 查询' : '请输入输出表名' }}
+            <span :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() || !p.outputTables.length : !p.script.trim() || !p.outputTables.length))" @click="completeStep(3)">保存并继续 ↓</NButton></span>
+            <p v-if="currentStep === 3 && store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) || !p.outputTables.length)" class="wizard__validation-msg">
+              {{ store.processors.some(p => p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) ? '请输入代码' : '请输入输出表名' }}
             </p>
           </template>
         </WizardStepCard>
@@ -210,7 +210,7 @@ import WizardProgress from '../components/wizard/WizardProgress.vue'
 import type { StepState } from '../components/wizard/WizardProgress.vue'
 import WizardStepCard from '../components/wizard/WizardStepCard.vue'
 import AiChatPanel from '../components/wizard/AiChatPanel.vue'
-import type { ChatMessage } from '../types/wizard'
+import type { ChatMessage, ProcessorStep } from '../types/wizard'
 import AiInlineTip from '../components/wizard/AiInlineTip.vue'
 import InputSourceList from '../components/step2/InputSourceList.vue'
 import SqlEditorTab from '../components/step3/SqlEditorTab.vue'
@@ -260,11 +260,11 @@ const showStep2Tip = computed(() =>
 )
 
 const showStep3Tip = computed(() =>
-  store.inputs.length > 0 && store.processors.every(p => !p.sql.trim())
+  store.inputs.length > 0 && store.processors.every(p => p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim())
 )
 
 const showStep4Tip = computed(() =>
-  store.processors.some(p => !!p.sql.trim()) && !store.output?.config?.columns?.length
+  store.processors.some(p => p.plugin === 'sql' ? !!p.sql.trim() : !!p.script.trim()) && !store.output?.config?.columns?.length
 )
 
 const showStep5Tip = ref(false)
@@ -370,9 +370,9 @@ async function onAiSend(text: string) {
     })
   }
   if (store.processors.length > 0) {
-    context.processorsSql = store.processors.map(p => p.sql).filter(Boolean)
+    context.processorsSql = store.processors.map(p => p.plugin === 'sql' ? p.sql : p.script).filter(Boolean)
     context.outputTables = store.processors.flatMap(p => p.outputTables).filter(Boolean)
-    context.processorSql = store.processors[0]?.sql || ''
+    context.processorSql = store.processors[0] ? (store.processors[0].plugin === 'sql' ? store.processors[0].sql : store.processors[0].script) : ''
     context.outputTable = store.processors[0]?.outputTables[0] || ''
   }
 
@@ -382,12 +382,22 @@ async function onAiSend(text: string) {
       const parsed = JSON.parse(result)
       if (parsed.sql) {
         if (store.processors.length > 0) {
-          const targetIndex = sqlEditorRef.value?.expandedIndex ?? store.processors.length - 1
-          const proc = { ...store.processors[targetIndex], sql: parsed.sql }
-          if (parsed.outputTable) {
-            proc.outputTables = [parsed.outputTable]
+          let targetIndex = sqlEditorRef.value?.expandedIndex ?? store.processors.length - 1
+          const targetProc = store.processors[targetIndex]
+          if (targetProc && targetProc.plugin !== 'sql') {
+            // Find the last SQL processor
+            targetIndex = -1
+            for (let i = store.processors.length - 1; i >= 0; i--) {
+              if (store.processors[i].plugin === 'sql') { targetIndex = i; break }
+            }
           }
-          store.updateProcessor(targetIndex, proc)
+          if (targetIndex >= 0) {
+            const proc = { ...store.processors[targetIndex], sql: parsed.sql } as ProcessorStep
+            if (parsed.outputTable) {
+              proc.outputTables = [parsed.outputTable]
+            }
+            store.updateProcessor(targetIndex, proc)
+          }
         }
         aiMessages.value.push({
           role: 'ai',
@@ -550,21 +560,19 @@ async function doOrchestrate(naturalLanguage: string) {
 }
 
 function onOrchestrateConfirm(result: any) {
-  const processors = result.steps.map((s: any, i: number) => {
+  const processors: ProcessorStep[] = result.steps.map((s: any, i: number) => {
     let inputTables = s.input_tables || []
     if (i === 0 && inputTables.length === 0) {
       inputTables = store.inputs.map(inp => inp.table).filter(Boolean)
     }
-    return {
-      name: s.name || `步骤 ${i + 1}`,
-      plugin: 'sql' as const,
-      sql: s.sql || '',
-      inputTables,
-      outputTables: s.output_tables || [],
+    const plugin = (s.plugin || 'sql') as 'sql' | 'python'
+    if (plugin === 'python') {
+      return { name: s.name || `步骤 ${i + 1}`, plugin, script: s.script || s.sql || '', inputTables, outputTables: s.output_tables || [] }
     }
+    return { name: s.name || `步骤 ${i + 1}`, plugin, sql: s.sql || '', inputTables, outputTables: s.output_tables || [] }
   })
   store.setProcessors(processors)
-  aiMessages.value.push({ role: 'ai', content: '已将处理链填入 Step 3，请检查每步的 SQL 和表名。' })
+  aiMessages.value.push({ role: 'ai', content: '已将处理链填入 Step 3，请检查每步的 SQL/Python 脚本和表名。' })
   aiPanelVisible.value = false
 }
 

@@ -228,7 +228,7 @@ describe('useWizardStore', () => {
       { name: '', plugin: 'sql', sql: 'SELECT 2', inputTables: [], outputTables: [] },
     ]
     const msgs = store.stepValidation
-    expect(msgs).toContain('步骤 1: SQL 不能为空')
+    expect(msgs).toContain('步骤 1: 代码不能为空')
     expect(msgs).toContain('步骤 1: 输出表名不能为空')
     expect(msgs).toContain('步骤 2: 输出表名不能为空')
   })

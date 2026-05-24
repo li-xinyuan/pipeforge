@@ -98,7 +98,7 @@ async function saveConfigHandler() {
       })),
       processors: store.processors.map(p => ({
         plugin: p.plugin,
-        sql: p.sql,
+        ...(p.plugin === 'python' ? { script: p.script } : { sql: p.sql }),
         outputTables: p.outputTables,
         inputTables: p.inputTables,
         name: p.name,

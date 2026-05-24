@@ -1,0 +1,140 @@
+<template>
+  <div class="space-y-3">
+    <!-- Step name -->
+    <div>
+      <label class="block text-sm font-medium text-slate-900 mb-1">步骤名称</label>
+      <NInput
+        :value="proc.name"
+        @update:value="(v: string) => $emit('update', { name: v })"
+        size="small"
+        placeholder="例如：数据清洗"
+      />
+    </div>
+
+    <!-- Input tables -->
+    <div>
+      <label class="block text-sm font-medium text-slate-900 mb-1">输入表</label>
+      <NSelect
+        :value="proc.inputTables"
+        :options="availableTables"
+        multiple
+        placeholder="选择输入表（可选，留空则自动使用所有可用表）"
+        @update:value="(v: string[]) => $emit('update', { inputTables: v })"
+      />
+    </div>
+
+    <!-- Output tables -->
+    <div>
+      <label class="block text-sm font-medium text-slate-900 mb-1">
+        <span class="text-red-500">*</span> 输出表名
+      </label>
+      <div v-for="(t, ti) in proc.outputTables" :key="ti" class="flex items-center gap-1 mb-1">
+        <NInput
+          :value="t"
+          @update:value="(v: string) => { const copy = [...proc.outputTables]; copy[ti] = v; $emit('update', { outputTables: copy }) }"
+          size="small"
+          placeholder="输出表名"
+          class="flex-1"
+        />
+        <NButton text size="tiny" type="error" @click="() => { const copy = [...proc.outputTables]; copy.splice(ti, 1); $emit('update', { outputTables: copy }) }">✕</NButton>
+      </div>
+      <NButton size="tiny" dashed @click="() => { $emit('update', { outputTables: [...proc.outputTables, ''] }) }">+ 添加输出表</NButton>
+    </div>
+
+    <!-- Python script textarea -->
+    <div>
+      <label class="block text-sm font-medium text-slate-900 mb-1">
+        <span class="text-red-500">*</span> Python 脚本
+      </label>
+      <NInput
+        :value="pyProc.script"
+        @update:value="(v: string) => $emit('update', { script: v })"
+        type="textarea"
+        :autosize="{ minRows: 6, maxRows: 20 }"
+        placeholder="def process(ctx):&#10;    conn = ctx.db.connection&#10;    conn.execute('CREATE TABLE result AS SELECT * FROM source')"
+        class="font-mono text-sm"
+      />
+    </div>
+
+    <!-- Preview execution -->
+    <div class="flex gap-2 items-center flex-wrap">
+      <NButton v-if="!dryRunVisible || !dryRunResult" size="tiny" type="info" :loading="dryRunRunning" :disabled="!pyProc.script.trim()" @click="runPreview">▶ 预览结果</NButton>
+      <NButton v-else size="tiny" type="info" @click="dryRunVisible = false">收起结果</NButton>
+      <NButton size="tiny" :disabled="!aiConfigured" @click="$emit('ai-generate')">✨ AI 生成</NButton>
+    </div>
+
+    <p v-if="dryRunError" class="text-xs text-red-500">{{ dryRunError }}</p>
+
+    <div v-if="dryRunResult && dryRunVisible" class="space-y-2 mt-2">
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-slate-400">共 {{ dryRunResult.length }} 个表</span>
+      </div>
+      <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 rounded p-2">
+        <div class="flex items-center gap-2 mb-2">
+          <NTag size="tiny" :bordered="false" type="info">{{ table.table_name }}</NTag>
+          <span class="text-xs text-slate-400">{{ table.columns.length }} 列 / {{ table.total_rows }} 行</span>
+        </div>
+        <ColumnPreview :columns="table.columns" :rows="table.rows" />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { NButton, NTag, NInput, NSelect } from 'naive-ui'
+import ColumnPreview from '../step2/ColumnPreview.vue'
+import type { ProcessorStep } from '../../types/wizard'
+import { useWizardStore } from '../../stores/wizard'
+import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
+
+const props = defineProps<{
+  proc: ProcessorStep
+  index: number
+  availableTables: Array<{ label: string; value: string }>
+}>()
+
+defineEmits<{
+  update: [partial: Partial<ProcessorStep>]
+  'ai-generate': []
+}>()
+
+const pyProc = computed(() => props.proc as { plugin: 'python'; script: string; name: string; inputTables: string[]; outputTables: string[] })
+
+const store = useWizardStore()
+const { dryRun: runDryRunApi, error: wizardApiError } = useWizardApi()
+const { getAiSettings } = useAiApi()
+
+const aiConfigured = ref(false)
+
+const dryRunRunning = ref(false)
+const dryRunResult = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
+const dryRunError = ref('')
+const dryRunVisible = ref(false)
+
+onMounted(async () => {
+  const settings = await getAiSettings()
+  aiConfigured.value = !!(settings?.enabled && settings?.api_key)
+})
+
+async function runPreview() {
+  dryRunError.value = ''
+  dryRunResult.value = null
+  if (!pyProc.value.script.trim()) {
+    dryRunError.value = '请先输入 Python 脚本'
+    return
+  }
+  dryRunRunning.value = true
+  const result = await runDryRunApi(store.$state)
+  if (result?.tables?.length) {
+    const inputTables = new Set(store.inputs.map(inp => inp.table).filter(Boolean))
+    const outputTables = result.tables.filter(t => !inputTables.has(t.table_name))
+    dryRunResult.value = outputTables.length ? outputTables : result.tables
+    dryRunVisible.value = true
+  } else {
+    const apiMsg = wizardApiError.value?.message || ''
+    dryRunError.value = apiMsg ? `预览执行失败: ${apiMsg}` : '预览执行失败，请检查输入配置'
+  }
+  dryRunRunning.value = false
+}
+</script>

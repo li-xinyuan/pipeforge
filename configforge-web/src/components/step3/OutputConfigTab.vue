@@ -232,7 +232,7 @@ watch(() => store.inputs, (inputs) => {
 }, { deep: true })
 
 watch(
-  () => store.processors.map(p => p.sql),
+  () => store.processors.map(p => p.plugin === 'sql' ? p.sql : p.script),
   (sqls) => {
     // Use the first processor's SQL for column inference
     const sql = sqls[0] || ''
@@ -269,9 +269,9 @@ watch(
 
 onMounted(() => {
   syncSourceTable()
-  if (store.output?.plugin === 'csv' && outputConfig.value.columns.length === 0
-      && store.processors.length > 0 && store.processors[0].sql.trim()) {
-    prevSql.value = store.processors[0].sql
+  const p0 = store.processors[0]; const hasCode = p0 && (p0.plugin === 'sql' ? p0.sql.trim() : p0.script.trim())
+  if (store.output?.plugin === 'csv' && outputConfig.value.columns.length === 0 && hasCode) {
+    prevSql.value = p0.plugin === 'sql' ? p0.sql : p0.script
     onInferColumns()
   }
 })
@@ -316,8 +316,9 @@ function removeTemplate() {
 }
 
 async function onInferColumns() {
-  // Use the first processor's SQL for column inference
-  const sql = store.processors.length > 0 ? store.processors[0].sql : ''
+  // Use the first processor's code for column inference
+  const p0 = store.processors[0]
+  const sql = p0 ? (p0.plugin === 'sql' ? p0.sql : p0.script) : ''
   const cols = inferSelectColumns(sql)
   if (cols.length === 0) {
     const tableMapping: Record<string, string> = {}

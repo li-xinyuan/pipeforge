@@ -28,7 +28,8 @@
     <!-- Multi-processor header -->
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-sm font-semibold text-slate-700">处理管道</h3>
-      <NButton size="small" type="primary" dashed :class="{ 'pulse-cta': pulseCta && store.processors.every(p => p.sql.trim() && p.outputTables.length) }" @click="addProcessorAndExpand">+ SQL 步骤</NButton>
+      <NButton size="small" type="primary" dashed :class="{ 'pulse-cta': pulseCta && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }" @click="addProcessorAndExpand">+ SQL 步骤</NButton>
+      <NButton size="small" type="warning" dashed class="ml-2" @click="addPythonProcessor">+ Python 步骤</NButton>
     </div>
 
     <!-- Table rename prompt (checks all processors) -->
@@ -49,10 +50,10 @@
       :expanded="expandedIndex === i"
       :can-remove="store.processors.length > 1"
       :available-tables="tableOptions"
-      :pulse-sql="pulseCta && !proc.sql.trim() && proc.outputTables.length === 0"
+      :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
       @toggle-expand="expandedIndex = expandedIndex === i ? -1 : i"
       @remove="store.removeProcessor(i); if (expandedIndex === i) expandedIndex = -1"
-      @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p })"
+      @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
     />
 
     <!-- Validation -->
@@ -97,6 +98,11 @@ onMounted(async () => {
 
 function addProcessorAndExpand() {
   store.addProcessor()
+  expandedIndex.value = store.processors.length - 1
+}
+
+function addPythonProcessor() {
+  store.addProcessor('python')
   expandedIndex.value = store.processors.length - 1
 }
 
@@ -147,7 +153,7 @@ function inferStepName(sql: string): string {
 watch(inputTableNames, (tables) => {
   if (tables.length > 0) {
     for (const proc of store.processors) {
-      if (!proc.sql.trim()) {
+      if (proc.plugin === 'sql' && !proc.sql.trim()) {
         proc.sql = `SELECT * FROM "${tables[0]}"`
         break
       }
@@ -157,11 +163,12 @@ watch(inputTableNames, (tables) => {
 
 // Watch all processors' SQL for inference and auto-suggestion
 watch(
-  () => store.processors.map(p => ({ sql: p.sql, outputTables: [...p.outputTables] })),
+  () => store.processors.map(p => ({ code: p.plugin === 'sql' ? p.sql : p.script, outputTables: [...p.outputTables] })),
   (newVal, oldVal) => {
     if (!oldVal) return
     for (let i = 0; i < newVal.length; i++) {
       const proc = store.processors[i]
+      if (proc.plugin !== 'sql') continue
       const trimmed = proc.sql.trim()
       if (!trimmed) continue
 
@@ -231,6 +238,7 @@ function checkTableRenames() {
 
     // Check all processors' SQL
     for (const proc of store.processors) {
+      if (proc.plugin !== 'sql') continue
       const sql = proc.sql.trim()
       if (!sql) continue
 
@@ -254,7 +262,9 @@ function onReplaceTableName() {
   const { oldName, newName } = renamePrompt.value
   const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   for (const proc of store.processors) {
-    proc.sql = proc.sql.replace(new RegExp(`"${escaped}"`, 'g'), `"${newName}"`)
+    if (proc.plugin === 'sql') {
+      proc.sql = proc.sql.replace(new RegExp(`"${escaped}"`, 'g'), `"${newName}"`)
+    }
   }
   renamePrompt.value = null
   lastKnownTables.value = store.inputs.map(inp => inp.table.trim()).filter(Boolean)

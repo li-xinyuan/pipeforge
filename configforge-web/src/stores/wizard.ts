@@ -17,7 +17,10 @@ export const useWizardStore = defineStore('wizard', () => {
     if (currentStep.value === 2) return inputs.value.length > 0
     if (currentStep.value === 3) {
       return processors.value.length > 0
-        && processors.value.every(p => p.sql.trim().length > 0 && p.outputTables.length > 0)
+        && processors.value.every(p => {
+          const hasCode = p.plugin === 'sql' ? p.sql.trim().length > 0 : p.script.trim().length > 0
+          return hasCode && p.outputTables.length > 0
+        })
     }
     if (currentStep.value === 4) return output.value.config?.sourceTable && output.value.config?.columns?.length > 0
     return true
@@ -30,7 +33,8 @@ export const useWizardStore = defineStore('wizard', () => {
     if (currentStep.value === 3) {
       if (processors.value.length === 0) msgs.push('至少需要 1 个处理步骤')
       processors.value.forEach((p, i) => {
-        if (!p.sql.trim()) msgs.push(`步骤 ${i + 1}: SQL 不能为空`)
+        const codeEmpty = p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()
+        if (codeEmpty) msgs.push(`步骤 ${i + 1}: 代码不能为空`)
         if (p.outputTables.length === 0) msgs.push(`步骤 ${i + 1}: 输出表名不能为空`)
       })
     }
@@ -62,8 +66,12 @@ export const useWizardStore = defineStore('wizard', () => {
   }
   function removeInput(index: number) { inputs.value.splice(index, 1) }
   function updateInput(index: number, input: InputSource) { inputs.value[index] = input }
-  function addProcessor() {
-    processors.value.push({ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] })
+  function addProcessor(plugin: 'sql' | 'python' = 'sql') {
+    if (plugin === 'python') {
+      processors.value.push({ name: '', plugin: 'python', script: '', inputTables: [], outputTables: [] })
+    } else {
+      processors.value.push({ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] })
+    }
   }
   function removeProcessor(index: number) {
     if (processors.value.length > 1) processors.value.splice(index, 1)
@@ -72,7 +80,7 @@ export const useWizardStore = defineStore('wizard', () => {
     processors.value[index] = proc
   }
   function setProcessors(newProcessors: ProcessorStep[]) {
-    const valid = newProcessors.filter(p => p.sql.trim())
+    const valid = newProcessors.filter(p => p.plugin === 'sql' ? p.sql.trim() : p.script.trim())
     if (valid.length === 0) return
     for (let i = 0; i < valid.length; i++) {
       if (valid[i].outputTables.length === 0) {
@@ -135,13 +143,19 @@ export const useWizardStore = defineStore('wizard', () => {
 
     // If stateDict has "processor" (singular, old format), wrap as [processor]
     const rawProcessors = stateDict.processors || (stateDict.processor ? [stateDict.processor] : [])
-    processors.value = rawProcessors.map((raw: any) => ({
-      name: raw.name || '',
-      plugin: raw.plugin || 'sql',
-      sql: raw.config?.sql || raw.sql || '',
-      inputTables: raw.input_tables || raw.inputTables || [],
-      outputTables: raw.output_tables || raw.outputTables || (raw.outputTable ? [raw.outputTable] : []),
-    }))
+    processors.value = rawProcessors.map((raw: any) => {
+      const plugin = raw.plugin || 'sql'
+      const base = {
+        name: raw.name || '',
+        plugin,
+        inputTables: raw.input_tables || raw.inputTables || [],
+        outputTables: raw.output_tables || raw.outputTables || (raw.outputTable ? [raw.outputTable] : []),
+      }
+      if (plugin === 'python') {
+        return { ...base, script: raw.config?.script || raw.script || '' } as ProcessorStep
+      }
+      return { ...base, sql: raw.config?.sql || raw.sql || '' } as ProcessorStep
+    })
 
     if (stateDict.output) {
       const cfg = { ...stateDict.output.config }

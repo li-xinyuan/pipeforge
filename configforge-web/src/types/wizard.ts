@@ -115,13 +115,9 @@ export interface InputSource {
   confirmedAnalysis?: ConfirmedAnalysis
 }
 
-export interface ProcessorStep {
-  name: string
-  plugin: 'sql'
-  sql: string
-  inputTables: string[]
-  outputTables: string[]
-}
+export type ProcessorStep =
+  | { name: string; plugin: 'sql'; sql: string; inputTables: string[]; outputTables: string[] }
+  | { name: string; plugin: 'python'; script: string; inputTables: string[]; outputTables: string[] }
 
 /** @deprecated Use ProcessorStep */
 export type ProcessorConfig = ProcessorStep
