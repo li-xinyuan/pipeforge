@@ -85,21 +85,10 @@
         <p v-if="aiError" class="text-xs text-red-500 mt-1">{{ aiError }}</p>
       </div>
 
-      <!-- Query execution -->
+      <!-- Preview execution -->
       <div class="flex gap-2 items-center flex-wrap">
-        <NButton size="tiny" :loading="queryRunning" :disabled="!proc.sql.trim()" @click="runQuery">▶ 运行查询</NButton>
-        <NButton size="tiny" type="info" :loading="dryRunRunning" :disabled="!proc.sql.trim()" @click="runDryRun">🔍 预览全部</NButton>
+        <NButton size="tiny" type="info" :loading="dryRunRunning" :disabled="!proc.sql.trim()" @click="runDryRun">▶ 预览结果</NButton>
         <NButton size="tiny" :disabled="!aiConfigured" @click="showNlInput = !showNlInput">✨ AI 生成 SQL</NButton>
-      </div>
-
-      <p v-if="queryError" class="text-xs text-red-500">{{ queryError }}</p>
-
-      <div v-if="queryResult && queryVisible" class="mt-2">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-xs text-slate-400">返回 {{ queryResult.rows.length }} 行 / {{ queryResult.columns.length }} 列</span>
-          <NButton text size="tiny" @click="queryVisible = false">收起</NButton>
-        </div>
-        <ColumnPreview :columns="queryResult.columns" :rows="queryResult.rows" />
       </div>
 
       <p v-if="dryRunError" class="text-xs text-red-500">{{ dryRunError }}</p>
@@ -145,17 +134,12 @@ const emit = defineEmits<{
 }>()
 
 const store = useWizardStore()
-const { executeSql: runSql, dryRun: runDryRunApi, error: wizardApiError } = useWizardApi()
+const { dryRun: runDryRunApi, error: wizardApiError } = useWizardApi()
 const { suggesting, aiError, askSuggestion, getAiSettings } = useAiApi()
 
 const showNlInput = ref(false)
 const nlText = ref('')
 const aiConfigured = ref(false)
-
-const queryRunning = ref(false)
-const queryResult = ref<{ columns: string[]; rows: string[][] } | null>(null)
-const queryError = ref('')
-const queryVisible = ref(false)
 
 const dryRunRunning = ref(false)
 const dryRunResult = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
@@ -203,37 +187,6 @@ const equivalenceSql = computed(() => {
   const name = props.proc.outputTables[0] || 'result'
   return `等效语句: SELECT * FROM (${sql}) AS ${name}`
 })
-
-function buildTableMapping(): Record<string, string> {
-  const map: Record<string, string> = {}
-  for (const inp of store.inputs) {
-    if (inp.table && inp.fileId) map[inp.table] = inp.fileId
-  }
-  return map
-}
-
-async function runQuery() {
-  queryError.value = ''
-  queryResult.value = null
-  const sql = props.proc.sql.trim()
-  if (!sql) return
-
-  const tableMapping = buildTableMapping()
-  if (Object.keys(tableMapping).length === 0) {
-    queryError.value = '请先在步骤 2 上传数据文件并设置表名'
-    return
-  }
-
-  queryRunning.value = true
-  const result = await runSql(sql, tableMapping)
-  if (result) {
-    queryResult.value = result
-    queryVisible.value = true
-  } else {
-    queryError.value = '查询执行失败，请检查 SQL 语法'
-  }
-  queryRunning.value = false
-}
 
 async function runDryRun() {
   dryRunError.value = ''
