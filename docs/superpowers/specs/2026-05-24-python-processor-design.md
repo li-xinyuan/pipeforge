@@ -1,6 +1,6 @@
 # ConfigForge Python 处理器 v0.4.0 设计
 
-> 日期: 2026-05-24（审查修订）
+> 日期: 2026-05-24（第二轮审查修订）
 > 当前基线: v0.3.1（SQL 多步管道 + AI 编排）
 
 ---
@@ -11,16 +11,17 @@
 
 ---
 
-## 二、执行模型与实现方案（P3）
+## 二、执行模型与实现方案
 
 ### 2.1 加载与执行
 
-采用 `exec()` + 受限 `__builtins__` + `signal.alarm` 超时：
+采用 **纯信任模型**：不限制 `__builtins__`，用户可使用任意 Python 语法和模块。通过 `signal.alarm` 做超时控制。
+
+> **信任模型风险文档化**：用户 Python 代码可以访问文件系统、网络、导入任意模块。适用于内部工具/可信团队场景。
 
 ```python
 class PythonProcessorPlugin(ProcessorPlugin):
     """Python 代码处理器 — 信任执行模型。"""
-
     TIMEOUT_SECONDS = 30
 
     @classmethod
@@ -28,92 +29,68 @@ class PythonProcessorPlugin(ProcessorPlugin):
         return PythonProcessorConfig
 
     def execute(self, context, config: PythonProcessorConfig):
-        # 受限内置函数 + print → logger 重定向
-        restricted_builtins = {
-            "print": lambda *a: context.logger.info(" ".join(str(x) for x in a)),
-            "len": len, "range": range, "enumerate": enumerate,
-            "dict": dict, "list": list, "set": set, "tuple": tuple,
-            "str": str, "int": int, "float": float, "bool": bool,
-            "sorted": sorted, "reversed": reversed, "zip": zip,
-            "sum": sum, "min": min, "max": max, "abs": abs, "round": round,
-            "isinstance": isinstance, "hasattr": hasattr, "getattr": getattr,
-            "ValueError": ValueError, "TypeError": TypeError, "KeyError": KeyError,
-            "RuntimeError": RuntimeError, "Exception": Exception,
-        }
-
-        globals_ns = {"__builtins__": restricted_builtins}
         local_ns = {}
-        exec(config.script, globals_ns, local_ns)
+        exec(config.script, {}, local_ns)
 
         process_fn = local_ns.get("process")
         if not process_fn or not callable(process_fn):
             raise ValueError("Python 脚本必须定义 process(ctx) 函数")
 
-        # 超时控制
-        import signal
-        def timeout_handler(signum, frame):
-            raise TimeoutError(f"Python 脚本执行超时（{self.TIMEOUT_SECONDS}秒）")
+        import sys, signal
+        if sys.platform != "win32":
+            def timeout_handler(signum, frame):
+                raise TimeoutError(f"Python 脚本执行超时（{self.TIMEOUT_SECONDS}秒）")
+            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(self.TIMEOUT_SECONDS)
 
-        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(self.TIMEOUT_SECONDS)
         try:
             process_fn(context)
         finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
+            if sys.platform != "win32":
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old_handler)
+            # 确保 Python 脚本中的写操作已提交
+            context.db.connection.commit()
 ```
 
-### 2.2 信任边界
+### 2.2 平台兼容性
 
-"信任执行"意味着 Python 代码可以使用任意 Python 语法和导入任意模块。这对内部工具是可接受的。同时通过受限 `__builtins__` 降低误操作风险。
+`signal.SIGALRM` 仅 Unix/macOS 可用。Windows 跳过超时控制（后续用 `threading.Timer` 补充）。
 
 ---
 
-## 三、ctx API（P2）
+## 三、ctx API
 
-### 3.1 暴露能力
-
-Python 脚本通过 `context` 参数（PipeForge 的 `Context` 对象）与管道交互：
+Python 脚本通过 `context` 参数与管道交互：
 
 ```python
 def process(ctx):
     # ctx.db — SQLiteManager 实例
-    conn = ctx.db.connection        # 原始 sqlite3.Connection（最灵活）
-    ctx.db.execute("SQL ...")       # 执行 SQL
-    ctx.db.list_tables()            # 列出所有表
-    ctx.db.query("SELECT ...")      # 返回 list[tuple]（当前方法）
+    conn = ctx.db.connection        # 原始 sqlite3.Connection
+    ctx.db.execute("CREATE TABLE result AS ...")
+    rows = ctx.db.query("SELECT * FROM person")
+    tables = ctx.db.list_tables()
 
     # ctx.params — dict[str, str]，运行时参数
     threshold = int(ctx.params.get("min_age", 18))
 
-    # ctx.yaml_dir — str，YAML 所在目录（读参考文件）
-    # ctx.scene_name — str，场景名称
-    # ctx.logger — Logger 实例
-    ctx.logger.info("处理完成")
-    ctx.logger.error("处理失败")
+    # ctx.yaml_dir — YAML 所在目录
+    # ctx.scene_name — 场景名称
+    # ctx.logger — 日志
+    ctx.logger.info(f"处理了 {len(rows)} 行")
 ```
 
-**关键决策：**
-- `ctx.db.connection` 暴露原始 `sqlite3.Connection`，Python 用户可直接使用完整的 SQLite API
-- 输出表通过 YAML 的 `output_tables` 声明（与 SQL 步骤一致），无需 `ctx.declare_output()`
-- Python 脚本通过 `CREATE TABLE` 写入数据（与 SQL Processor 模式一致）
-
-### 3.2 异常传播
-
-Python 脚本抛出异常时：引擎捕获 → 记录到 `ExecutionResult` → 标记该步骤失败 → 停止后续步骤。`try/finally` 确保数据库连接正确关闭。
+**关键决策**：输出表通过 YAML `output_tables` 声明，Python 脚本通过 `CREATE TABLE` 写入。
 
 ---
 
-## 四、PipeForge 模型（P1）
+## 四、PipeForge 模型
 
 ### 4.1 PythonProcessorConfig
 
 ```python
-# src/pipeforge/config/models.py
-
 class PythonProcessorConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     type: Literal["python"] = "python"
     script: str
 
@@ -128,23 +105,12 @@ class PythonProcessorConfig(BaseModel):
 ### 4.2 ProcessorSpec 扩展
 
 ```python
-class ProcessorSpec(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    name: str
-    plugin: str
-    input_tables: list[str] = []
-    output_tables: list[str] = []
-    config: Annotated[SqlProcessorConfig | PythonProcessorConfig, Field(discriminator="type")]
+config: Annotated[SqlProcessorConfig | PythonProcessorConfig, Field(discriminator="type")]
 ```
 
-**`plugin` vs `config.type` 关系**：`plugin` 决定使用哪个插件类（`PluginRegistry.get("python", "processor")`），`config.type` 决定配置模型的 discriminator。两者必须一致——`plugin="python"` 则 `config.type="python"`。
-
-### 4.3 _inject_type_defaults 更新
+### 4.3 _inject_type_defaults
 
 ```python
-# src/pipeforge/config/__init__.py
-
 def _inject_type_defaults(config_dict: dict, plugin: str) -> None:
     if plugin == "sql" and "type" not in config_dict:
         config_dict["type"] = "sql"
@@ -152,63 +118,93 @@ def _inject_type_defaults(config_dict: dict, plugin: str) -> None:
         config_dict["type"] = "python"
 ```
 
+### 4.4 pipeline.py SQL 自动包装 — 跳过 Python 步骤
+
+`execute_pipeline()` 和 `dry_run()` 中两处 SQL 自动包装循环需添加 `plugin` 判断：
+
+```python
+for proc in _get_processors(exec_state):
+    if proc.plugin == "python":
+        continue  # Python 步骤不需要 SQL 自动包装
+    if proc.output_tables and proc.sql.strip():
+        if not _has_ddl(proc.sql):
+            ...
+```
+
 ---
 
-## 五、前端类型（P4）
+## 五、后端模型（ConfigForge wizard.py）
 
-`ProcessorStep` 改为 discriminated union：
+```python
+class ProcessorConfig(BaseModel):
+    plugin: Literal["sql", "python"] = "sql"
+    name: str = ""
+    sql: str = ""     # SQL 步骤时必填
+    script: str = ""  # Python 步骤时必填
+    input_tables: list[str] = []
+    output_tables: list[str] = []
+```
+
+后端使用扁平结构（非 discriminated union），由 `plugin` 字段区分。
+
+---
+
+## 六、前端类型
+
+### 6.1 ProcessorStep — discriminated union
 
 ```typescript
 export type ProcessorStep =
-  | {
-      name: string
-      plugin: 'sql'
-      sql: string
-      inputTables: string[]
-      outputTables: string[]
-    }
-  | {
-      name: string
-      plugin: 'python'
-      script: string
-      inputTables: string[]
-      outputTables: string[]
-    }
+  | { name: string; plugin: 'sql'; sql: string; inputTables: string[]; outputTables: string[] }
+  | { name: string; plugin: 'python'; script: string; inputTables: string[]; outputTables: string[] }
 ```
+
+### 6.2 散落的 `.sql` 引用适配（共约 16 处）
+
+| 文件 | 位置 | 适配方式 |
+|------|------|---------|
+| `stores/wizard.ts:20` | `canProceed` | `p.plugin==='sql'?p.sql.trim():p.script.trim()` |
+| `stores/wizard.ts:33` | `stepValidation` | 同上 |
+| `stores/wizard.ts:75` | `setProcessors` | 检查 `p.plugin` 分别验证 |
+| `stores/wizard.ts:9)` | `addProcessor` | 新增 `addProcessor('python')` |
+| `stores/wizard.ts:100` | `resetAll` | 默认 SQL 步骤 |
+| `stores/wizard.ts:141` | `loadFromConfigState` | 检查 `raw.plugin` 反序列化 |
+| `ConfigWizardView.vue:113` | 脉冲 CTA | `p.plugin==='sql'?p.sql:p.script` |
+| `ConfigWizardView.vue:122` | disabled | 同上 |
+| `ConfigWizardView.vue:123-124` | 校验消息 | 同上 |
+| `ConfigWizardView.vue:263` | AI 提示条件 | `p.plugin==='sql'?!p.sql.trim():!p.script.trim()` |
+| `ConfigWizardView.vue:373` | AI 上下文 | `p.plugin=='sql'?p.sql:p.script` |
+| `ConfigWizardView.vue:552` | `onOrchestrateConfirm` | `s.plugin \|\| 'sql'` 预留 Python |
+| `ExportActions.vue:101` | 保存配置 | `p.plugin=='sql'?{sql:p.sql}:{script:p.script}` |
+| `serialization.ts:103-107` | `stateToSnakeCase` | 分支处理 `p.plugin` |
+| `OutputConfigTab.vue` | watch SQL | `p.plugin=='sql'p.sql:p.script` |
 
 ---
 
-## 六、前端 UI（P5）
+## 七、前端 UI
 
-### 6.1 组件拆分
-
-采用方案 B——抽取子组件：
+### 7.1 组件拆分
 
 ```
 src/components/step3/
-├── ProcessorCard.vue        # 卡片容器（类型标签、展开/删除）【修改】
-├── SqlProcessorContent.vue  # SQL 编辑器区域（已有逻辑）【抽取】
-└── PythonProcessorContent.vue # Python 编辑器区域【新建】
+├── ProcessorCard.vue           # 卡片容器（v-if 分支渲染）【修改】
+├── SqlProcessorContent.vue     # SQL 编辑器【从 ProcessorCard 抽取】
+└── PythonProcessorContent.vue  # Python 编辑器【新建】
 ```
 
-`ProcessorCard.vue` 通过 `v-if="proc.plugin === 'sql'"` / `v-else-if="proc.plugin === 'python'"` 渲染对应子组件。
+### 7.2 Python 编辑器
 
-### 6.2 Python 代码编辑器
+`<NInput type="textarea">` + `highlight.js` 语法高亮（项目已有依赖），Monaco Editor 延后至 v0.4.1。
 
-用 `<NInput type="textarea">` + `highlight.js` 做基本语法高亮（项目已依赖 highlight.js）。
+### 7.3 按钮栏
 
-### 6.3 按钮栏
-
-Step 3 新增"+ Python 步骤"按钮（橙色边框），与"+ SQL 步骤"并列。
+新增"+ Python 步骤"（橙色 `type="warning"`），与"+ SQL 步骤"并列。
 
 ---
 
-## 七、YAML 序列化（P6）
-
-Python 脚本使用 YAML `|` 块标量：
+## 八、YAML 序列化
 
 ```python
-# yaml_builder.py
 elif proc.plugin == "python":
     d["processors"].append({
         "name": proc.name or f"step_{i+1}",
@@ -219,50 +215,58 @@ elif proc.plugin == "python":
     })
 ```
 
-YAML 库会自动将多行字符串序列化为块标量格式。
+多行字符串处理：Python 脚本通过 `yaml.dump` 序列化。如需强制块标量（`|`），用自定义 Representer：
+
+```python
+class LiteralStr(str): pass
+yaml.add_representer(LiteralStr, lambda d, s: d.represent_scalar('tag:yaml.org,2002:str', s, style='|'))
+```
 
 ---
 
-## 八、预览执行 API（P7）
+## 九、预览执行
 
-复用现有 dry-run 端点。Python 步骤的预览执行通过 `/api/wizard/dry-run` 走完整管道（与 SQL 一致），无需单独 API。`execute_dry_run()` 方法调用 `PythonProcessorPlugin` 执行脚本。
+复用 `/api/wizard/dry-run`——`execute_dry_run()` 通过插件注册自动路由到 `PythonProcessorPlugin.execute()`。
 
 ---
 
-## 九、改动清单（P8 补全后）
+## 十、改动清单（完整）
 
 | 层 | 文件 | 改动 |
 |-----|------|------|
-| PipeForge | `src/pipeforge/config/models.py` | 新增 `PythonProcessorConfig`，`ProcessorSpec.config` → union |
-| PipeForge | `src/pipeforge/config/__init__.py` | `_inject_type_defaults` 添加 python 分支 |
-| PipeForge | `src/pipeforge/plugins/processor/python.py` | **新建** Python Processor（exec + timeout + restricted builtins） |
-| ConfigForge | `configforge/models/wizard.py` | `ProcessorConfig.plugin` 扩展 `"python"` |
+| PipeForge | `src/pipeforge/config/models.py` | 新增 `PythonProcessorConfig`，`ProcessorSpec` union 扩展 |
+| PipeForge | `src/pipeforge/config/__init__.py` | `_inject_type_defaults` 添加 python |
+| PipeForge | `src/pipeforge/plugins/processor/python.py` | **新建** |
+| ConfigForge | `configforge/models/wizard.py` | `ProcessorConfig.plugin` + `script` 字段 |
+| ConfigForge | `configforge/core/pipeline.py` | SQL 自动包装跳过 Python 步骤 |
 | ConfigForge | `configforge/services/yaml_builder.py` | Python 步骤序列化 |
-| Frontend | `configforge-web/src/types/wizard.ts` | `ProcessorStep` → discriminated union |
-| Frontend | `configforge-web/src/stores/wizard.ts` | `addProcessor("python")`，`canProceed` 适配 |
-| Frontend | `configforge-web/src/components/step3/ProcessorCard.vue` | 抽取内容，`v-if` 分支渲染 |
-| Frontend | `configforge-web/src/components/step3/SqlProcessorContent.vue` | **新建** SQL 编辑器子组件（从 ProcessorCard 抽取） |
-| Frontend | `configforge-web/src/components/step3/PythonProcessorContent.vue` | **新建** Python 编辑器子组件 |
-| Frontend | `configforge-web/src/components/step3/SqlEditorTab.vue` | 新增"+ Python 步骤"按钮 |
-| Frontend | `configforge-web/src/utils/serialization.ts` | `stateToSnakeCase` 适配 discriminated union |
-| 测试 | `tests/test_python_processor.py` | Python 插件测试 |
-| 测试 | `configforge/tests/test_yaml_builder.py` | Python 步骤 YAML 序列化 |
-| 测试 | `configforge-web/tests/...` | Python 卡片渲染测试 |
+| Frontend | `configforge-web/src/types/wizard.ts` | `ProcessorStep` discrim union |
+| Frontend | `configforge-web/src/stores/wizard.ts` | 6 处 `.sql` 适配 |
+| Frontend | `configforge-web/src/utils/serialization.ts` | `stateToSnakeCase` 分支 |
+| Frontend | `configforge-web/src/components/step3/ProcessorCard.vue` | v-if 分支渲染 |
+| Frontend | `configforge-web/src/components/step3/SqlProcessorContent.vue` | **新建（抽取）** |
+| Frontend | `configforge-web/src/components/step3/PythonProcessorContent.vue` | **新建** |
+| Frontend | `configforge-web/src/components/step3/SqlEditorTab.vue` | "+ Python 步骤"按钮 |
+| Frontend | `configforge-web/src/views/ConfigWizardView.vue` | 5 处 `.sql` 适配 + `onOrchestrateConfirm` 预留 |
+| Frontend | `configforge-web/src/components/step4/ExportActions.vue` | `.sql` 适配 |
+| 测试 | `tests/test_python_processor.py` | 插件测试 |
+| 测试 | `configforge/tests/test_yaml_builder.py` | YAML 序列化 |
+| 测试 | 前端 vitest | 类型适配 |
 
 ---
 
-## 十、非目标
+## 十一、非目标
 
-- 沙箱/安全隔离（采用信任模型 + 受限 builtins）
-- Monaco Editor 代码编辑器（v0.4.1）
-- AI 编排生成 Python 步骤（v0.4.1，先支持 SQL 编排）
-- Python 步骤独立预览 API（复用 dry-run）
+- 沙箱/安全隔离（纯信任模型）
+- Monaco Editor（v0.4.1）
+- AI 编排生成 Python 步骤（v0.4.1）
+- Windows 超时控制（后续补 `threading.Timer`）
 
 ---
 
-## 十一、验证策略
+## 十二、验证策略
 
 - PipeForge：Python 插件注册、exec 超时、异常传播
-- ConfigForge：YAML Python 步骤序列化/反序列化
-- Frontend：Python 卡片渲染、与 SQL 步骤混合链、预览结果保持一致
-- 全量回归：现有 257 backend + 113 frontend tests
+- ConfigForge：SQL 自动包装跳过 Python、YAML 序列化
+- Frontend：TypeScript 编译 0 errors（discriminated union 强制所有 `.sql` 引用正确适配）
+- 全量回归：257 backend + 113 frontend tests
