@@ -198,7 +198,10 @@ async function runDryRun() {
   dryRunRunning.value = true
   const result = await runDryRunApi(store.$state)
   if (result?.tables?.length) {
-    dryRunResult.value = result.tables
+    // Only show output tables (processor results), not input tables
+    const inputTables = new Set(store.inputs.map(inp => inp.table).filter(Boolean))
+    const outputTables = result.tables.filter(t => !inputTables.has(t.table_name))
+    dryRunResult.value = outputTables.length ? outputTables : result.tables
     dryRunVisible.value = true
   } else {
     const apiMsg = wizardApiError.value?.message || ''
