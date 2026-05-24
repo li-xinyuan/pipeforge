@@ -465,6 +465,8 @@ async function handleUpload({ file, onFinish, onError }: UploadCustomRequestOpti
     })
     if (data) {
       sheetNames.value = data.sheets
+      previewData.value = data
+      previewVisible.value = true
       if (props.input.plugin === 'excel') {
         emit('update', {
           ...props.input,
