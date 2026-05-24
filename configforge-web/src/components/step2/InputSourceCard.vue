@@ -26,6 +26,7 @@
           </div>
         </template>
         <NUpload
+          ref="uploadRef"
           v-else
           :custom-request="handleUpload"
           :show-file-list="false"
@@ -223,7 +224,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import type { InputSource, CsvInputConfig, ExcelInputConfig, ConfirmedAnalysis } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
@@ -245,6 +246,16 @@ const emit = defineEmits<{
   update: [input: InputSource]
   'file-ready': [fileId: string]
 }>()
+
+const uploadRef = ref<InstanceType<typeof NUpload>>()
+
+watch(() => props.input.plugin, (plugin, prev) => {
+  if (!prev && (plugin === 'excel' || plugin === 'csv') && !props.input.fileId) {
+    nextTick(() => {
+      uploadRef.value?.openOpenFileDialog?.()
+    })
+  }
+})
 
 const store = useWizardStore()
 const { fetchPreview, error } = useWizardApi()
