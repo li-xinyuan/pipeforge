@@ -87,16 +87,16 @@
 
       <!-- Preview execution -->
       <div class="flex gap-2 items-center flex-wrap">
-        <NButton size="tiny" type="info" :loading="dryRunRunning" :disabled="!proc.sql.trim()" @click="runDryRun">▶ 预览结果</NButton>
+        <NButton v-if="!dryRunVisible || !dryRunResult" size="tiny" type="info" :loading="dryRunRunning" :disabled="!proc.sql.trim()" @click="runDryRun">▶ 预览结果</NButton>
+        <NButton v-else size="tiny" type="info" @click="dryRunVisible = false">收起结果</NButton>
         <NButton size="tiny" :disabled="!aiConfigured" @click="showNlInput = !showNlInput">✨ AI 生成 SQL</NButton>
       </div>
 
       <p v-if="dryRunError" class="text-xs text-red-500">{{ dryRunError }}</p>
 
       <div v-if="dryRunResult && dryRunVisible" class="space-y-2 mt-2">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
           <span class="text-xs text-slate-400">共 {{ dryRunResult.length }} 个表</span>
-          <NButton text size="tiny" @click="dryRunVisible = false">收起全部</NButton>
         </div>
         <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 rounded p-2">
           <div class="flex items-center gap-2 mb-2">
