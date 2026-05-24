@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Literal, Annotated
 
 
@@ -42,11 +42,13 @@ class InputSource(BaseModel):
 
 
 class ProcessorConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     name: str = ""
     plugin: Literal["sql"] = "sql"
     sql: str
-    input_tables: list[str] = []
-    output_tables: list[str] = []
+    input_tables: list[str] = Field(default=[], alias="inputTables")
+    output_tables: list[str] = Field(default=[], alias="outputTables")
 
 
 class ColumnMappingItem(BaseModel):
