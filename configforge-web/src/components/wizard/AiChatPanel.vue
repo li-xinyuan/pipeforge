@@ -19,7 +19,7 @@
             class="ai-panel__bubble"
             :class="msg.role === 'ai' ? 'ai-panel__bubble--ai' : 'ai-panel__bubble--user'"
           >
-            <div class="ai-panel__bubble-content" v-html="sanitize(msg.content)" />
+            <div class="ai-panel__bubble-content" v-html="sanitize(getDisplayContent(msg, i))" />
             <div v-if="msg.code" class="ai-panel__code-block">
               <pre>{{ msg.code }}</pre>
             </div>
@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick, computed, onUnmounted } from 'vue'
 import DOMPurify from 'dompurify'
 import OrchestrationResultCard from './OrchestrationResult.vue'
 import type { ChatMessage } from '../../types/wizard'
@@ -92,6 +92,45 @@ const currentMode = computed(() => props.mode || 'sidebar')
 
 const inputText = ref('')
 const messagesEl = ref<HTMLElement>()
+
+// Typewriter state
+const typedTexts = ref<Record<number, string>>({})
+const typingTimers = new Map<number, ReturnType<typeof setInterval>>()
+
+watch(() => props.messages.length, (newLen, oldLen) => {
+  if (newLen > 0 && newLen > (oldLen || 0)) {
+    const idx = newLen - 1
+    const msg = props.messages[idx]
+    if (msg.role === 'ai' && msg.content && !msg.orchestration) {
+      startTyping(idx, msg.content)
+    }
+  }
+})
+
+function startTyping(idx: number, text: string) {
+  stopTyping(idx)
+  typedTexts.value[idx] = ''
+  let i = 0
+  typingTimers.set(idx, setInterval(() => {
+    i++
+    typedTexts.value[idx] = text.slice(0, i)
+    if (i >= text.length) stopTyping(idx)
+  }, 15))
+}
+
+function stopTyping(idx: number) {
+  const t = typingTimers.get(idx)
+  if (t) { clearInterval(t); typingTimers.delete(idx) }
+}
+
+function getDisplayContent(msg: ChatMessage, idx: number): string {
+  if (typedTexts.value[idx] !== undefined) {
+    return typedTexts.value[idx] + (typedTexts.value[idx].length < msg.content.length ? '<span class="typing-cursor">|</span>' : '')
+  }
+  return msg.content
+}
+
+onUnmounted(() => typingTimers.forEach(t => clearInterval(t)))
 
 function sanitize(html: string): string {
   return DOMPurify.sanitize(html)
@@ -386,5 +425,14 @@ watch(() => props.messages.length, async () => {
   .ai-panel {
     --ai-panel-width: 100vw;
   }
+}
+.typing-cursor {
+  animation: blink 0.7s infinite;
+  color: var(--color-primary);
+  font-weight: bold;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 </style>
