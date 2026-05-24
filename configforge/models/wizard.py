@@ -14,28 +14,34 @@ class ExcelInputConfig(BaseModel):
 
 
 class CsvInputConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     type: Literal["csv"] = "csv"
     delimiter: str = ","
     encoding: str = "utf-8"
-    has_header: bool = True
+    has_header: bool = Field(default=True, alias="hasHeader")
 
 
 class DatabaseInputConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     type: Literal["database"] = "database"
-    connection_id: str = ""
+    connection_id: str = Field(default="", alias="connectionId")
     connection_string: str = ""   # API layer fills this after resolving connectionId
     db_type: str = ""             # API layer fills this
-    query_type: Literal["table", "sql"] = "table"
+    query_type: Literal["table", "sql"] = Field(default="table", alias="queryType")
     tables: list[str] = []        # max 1 element
     sql: str = ""
 
 
 class InputSource(BaseModel):
-    name: str
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str = ""
     plugin: Literal["excel", "csv", "database"] = "excel"
-    table: str
-    param_key: str
-    file_id: str
+    table: str = ""
+    param_key: str = Field(default="", alias="paramKey")
+    file_id: str = Field(default="", alias="fileId")
     config: Annotated[ExcelInputConfig | CsvInputConfig | DatabaseInputConfig, Field(discriminator="type")] = Field(
         default_factory=ExcelInputConfig
     )
@@ -57,19 +63,23 @@ class ColumnMappingItem(BaseModel):
 
 
 class ExcelOutputConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     type: Literal["excel"] = "excel"
     template: str = ""
     sheet: str = "Sheet1"
-    output_dir: str = "./output/"
-    source_table: str
+    output_dir: str = Field(default="./output/", alias="outputDir")
+    source_table: str = Field(default="", alias="sourceTable")
     filename: str
     columns: list[ColumnMappingItem] = []
 
 
 class CsvOutputConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     type: Literal["csv"] = "csv"
-    source_table: str
-    output_dir: str = "./output/"
+    source_table: str = Field(default="", alias="sourceTable")
+    output_dir: str = Field(default="./output/", alias="outputDir")
     filename: str
     delimiter: str = ","
     encoding: str = "utf-8"
