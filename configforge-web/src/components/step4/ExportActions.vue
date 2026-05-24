@@ -1,4 +1,5 @@
 <template>
+  <ConfettiBurst ref="confettiRef" />
   <div class="flex gap-2 mt-4">
     <NButton size="small" @click="copyYaml">复制</NButton>
     <NButton size="small" type="primary" @click="downloadYaml">下载 YAML</NButton>
@@ -15,6 +16,7 @@ import { stateToSnakeCase } from '../../utils/serialization'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
 import { useConfigApi } from '../../composables/useConfigApi'
+import ConfettiBurst from '../ConfettiBurst.vue'
 
 const props = defineProps<{ yaml?: string }>()
 const message = useMessage()
@@ -25,6 +27,7 @@ const { executePipeline, error: apiError } = useWizardApi()
 const { saveConfig } = useConfigApi()
 const executing = ref(false)
 const saving = ref(false)
+const confettiRef = ref<InstanceType<typeof ConfettiBurst>>()
 
 function buildExecutionFilename(storedFilename: string): string {
   const now = new Date()
@@ -65,6 +68,7 @@ async function downloadResult() {
       const storedFilename = store.output?.config?.filename || 'output.xlsx'
       a.href = url; a.download = buildExecutionFilename(storedFilename); a.click()
       URL.revokeObjectURL(url)
+      confettiRef.value?.burst()
       message.success('结果文件下载成功')
     } else {
       message.error(apiError.value?.message || '执行失败，请检查配置')
