@@ -108,14 +108,15 @@ class PipelineEngine:
                     context.result.processors.append(stats)
 
             # Capture table data before closing the database
-            tables = {}
+            tables = []
             for table_name in db.list_tables():
                 rows = db.query(f"SELECT * FROM \"{table_name}\" LIMIT 100")
-                tables[table_name] = {
+                tables.append({
+                    "table_name": table_name,
                     "columns": db.get_column_names(table_name),
                     "rows": [list(row) for row in rows],
-                    "row_count": db.query(f'SELECT COUNT(*) FROM "{table_name}"')[0][0],
-                }
+                    "total_rows": db.query(f'SELECT COUNT(*) FROM "{table_name}"')[0][0],
+                })
 
         except Exception:
             context.logger.error("Dry-run failed.")

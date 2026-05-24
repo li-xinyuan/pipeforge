@@ -102,8 +102,9 @@ output: null
     result = engine.execute_dry_run({"src_file": str(test_xlsx)})
     assert isinstance(result, dict)
     assert "tables" in result
-    assert "raw_data" in result["tables"]
-    assert result["tables"]["raw_data"]["row_count"] == 1
+    tables = {t["table_name"]: t for t in result["tables"]}
+    assert "raw_data" in tables
+    assert tables["raw_data"]["total_rows"] == 1
     assert "inputs" in result
     assert result["inputs"][0]["name"] == "src"
     assert "processors" in result
