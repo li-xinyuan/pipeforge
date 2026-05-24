@@ -90,22 +90,25 @@
         <NButton size="tiny" :loading="queryRunning" :disabled="!proc.sql.trim()" @click="runQuery">▶ 运行查询</NButton>
         <NButton size="tiny" type="info" :loading="dryRunRunning" :disabled="!proc.sql.trim()" @click="runDryRun">🔍 预览全部</NButton>
         <NButton size="tiny" :disabled="!aiConfigured" @click="showNlInput = !showNlInput">✨ AI 生成 SQL</NButton>
-        <span v-if="queryResult" class="text-xs text-slate-400">
-          返回 {{ queryResult.rows.length }} 行 / {{ queryResult.columns.length }} 列
-        </span>
       </div>
 
       <p v-if="queryError" class="text-xs text-red-500">{{ queryError }}</p>
 
-      <ColumnPreview
-        v-if="queryResult && queryVisible"
-        :columns="queryResult.columns"
-        :rows="queryResult.rows"
-      />
+      <div v-if="queryResult && queryVisible" class="mt-2">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs text-slate-400">返回 {{ queryResult.rows.length }} 行 / {{ queryResult.columns.length }} 列</span>
+          <NButton text size="tiny" @click="queryVisible = false">收起</NButton>
+        </div>
+        <ColumnPreview :columns="queryResult.columns" :rows="queryResult.rows" />
+      </div>
 
       <p v-if="dryRunError" class="text-xs text-red-500">{{ dryRunError }}</p>
 
-      <div v-if="dryRunResult && dryRunVisible" class="space-y-2">
+      <div v-if="dryRunResult && dryRunVisible" class="space-y-2 mt-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-slate-400">共 {{ dryRunResult.length }} 个表</span>
+          <NButton text size="tiny" @click="dryRunVisible = false">收起全部</NButton>
+        </div>
         <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 rounded p-2">
           <div class="flex items-center gap-2 mb-2">
             <NTag size="tiny" :bordered="false" type="info">{{ table.table_name }}</NTag>
@@ -245,7 +248,7 @@ async function runDryRun() {
     dryRunResult.value = result.tables
     dryRunVisible.value = true
   } else {
-    const apiMsg = wizardApiError.value?.message || wizardApiError.value?.error || ''
+    const apiMsg = wizardApiError.value?.message || ''
     dryRunError.value = apiMsg ? `预览执行失败: ${apiMsg}` : '预览执行失败，请检查输入配置'
   }
   dryRunRunning.value = false
