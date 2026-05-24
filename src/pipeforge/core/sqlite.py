@@ -27,6 +27,11 @@ class SQLiteManager:
     def query(self, sql: str) -> list[tuple]:
         return self._conn.execute(sql).fetchall()
 
+    @property
+    def connection(self):
+        """Expose the underlying SQLite connection for use by Python processors."""
+        return self._conn
+
     def execute(self, sql: str) -> None:
         self._conn.executescript(sql)
         self._conn.commit()

@@ -34,12 +34,20 @@ def _inject_type_defaults(raw: dict) -> None:
     for inp in raw.get("inputs", []):
         cfg = inp.get("config")
         if isinstance(cfg, dict) and "type" not in cfg:
-            cfg["type"] = inp.get("plugin", "excel")
+            plugin = inp.get("plugin", "excel")
+            if plugin == "sql":
+                cfg["type"] = "sql"
+            else:
+                cfg["type"] = plugin
 
     for proc in raw.get("processors", []):
         cfg = proc.get("config")
         if isinstance(cfg, dict) and "type" not in cfg:
-            cfg["type"] = proc.get("plugin", "sql")
+            plugin = proc.get("plugin", "sql")
+            if plugin == "sql":
+                cfg["type"] = "sql"
+            elif plugin == "python":
+                cfg["type"] = "python"
 
     output = raw.get("output")
     if isinstance(output, dict):

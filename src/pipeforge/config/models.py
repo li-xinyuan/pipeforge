@@ -80,6 +80,20 @@ class SqlProcessorConfig(BaseModel):
         return v
 
 
+class PythonProcessorConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["python"] = "python"
+    script: str
+
+    @field_validator("script")
+    @classmethod
+    def script_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("script must not be empty")
+        return v
+
+
 class ProcessorSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -87,7 +101,7 @@ class ProcessorSpec(BaseModel):
     plugin: str
     input_tables: list[str] = []
     output_tables: list[str] = []
-    config: Annotated[SqlProcessorConfig, Field(discriminator="type")]
+    config: Annotated[SqlProcessorConfig | PythonProcessorConfig, Field(discriminator="type")]
 
 
 class ColumnMapping(BaseModel):
