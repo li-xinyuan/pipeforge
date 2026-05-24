@@ -31,13 +31,31 @@ def build_yaml(state: WizardState) -> str:
     d["processors"] = []
     if state.processors:
         for i, proc in enumerate(state.processors):
-            d["processors"].append({
-                "name": proc.name or f"step_{i+1}",
-                "plugin": proc.plugin,
-                "input_tables": proc.input_tables,
-                "output_tables": proc.output_tables,
-                "config": {"type": "sql", "sql": proc.sql},
-            })
+            if proc.plugin == "python":
+                d["processors"].append({
+                    "name": proc.name or f"step_{i+1}",
+                    "plugin": "python",
+                    "input_tables": proc.input_tables,
+                    "output_tables": proc.output_tables,
+                    "config": {"type": "python", "script": proc.script},
+                })
+            else:
+                d["processors"].append({
+                    "name": proc.name or f"step_{i+1}",
+                    "plugin": proc.plugin,
+                    "input_tables": proc.input_tables,
+                    "output_tables": proc.output_tables,
+                    "config": {"type": "sql", "sql": proc.sql},
+                })
+    elif state.processor.plugin == "python" and state.processor.script.strip():
+        # Backward compatibility: single Python processor
+        d["processors"].append({
+            "name": state.processor.name or state.scene.name + "处理",
+            "plugin": "python",
+            "input_tables": state.processor.input_tables,
+            "output_tables": state.processor.output_tables,
+            "config": {"type": "python", "script": state.processor.script},
+        })
     elif state.processor.sql.strip() or state.processor.output_tables:
         # Backward compatibility: single processor
         d["processors"].append({

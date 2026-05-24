@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Optional, Literal, Annotated
 
 
@@ -51,10 +51,26 @@ class ProcessorConfig(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     name: str = ""
-    plugin: Literal["sql"] = "sql"
-    sql: str
+    plugin: Literal["sql", "python"] = "sql"
+    sql: str = Field(default="", alias="sql")
+    script: str = Field(default="", alias="script")
     input_tables: list[str] = Field(default=[], alias="inputTables")
     output_tables: list[str] = Field(default=[], alias="outputTables")
+
+    @model_validator(mode="after")
+    def validate_plugin_fields(self):
+        # Only validate when the processor has meaningful configuration
+        # (has output_tables or non-empty sql/script).
+        # Empty ProcessorConfig (default/placeholder) is always valid.
+        has_config = bool(self.output_tables) or bool(self.sql.strip()) or bool(self.script.strip())
+        if not has_config:
+            return self
+
+        if self.plugin == "sql" and not self.sql.strip():
+            raise ValueError("SQL 步骤的 sql 字段不能为空")
+        if self.plugin == "python" and not self.script.strip():
+            raise ValueError("Python 步骤的 script 字段不能为空")
+        return self
 
 
 class ColumnMappingItem(BaseModel):

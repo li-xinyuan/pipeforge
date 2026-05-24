@@ -84,6 +84,8 @@ def execute_pipeline(state: WizardState) -> str:
 
     # Auto-wrap non-DDL SQL for all processors
     for proc in _get_processors(exec_state):
+        if proc.plugin == "python":
+            continue  # Python 步骤不需要 SQL 自动包装
         if proc.output_tables and proc.sql.strip():
             if not _has_ddl(proc.sql):
                 output_table = proc.output_tables[0].replace('"', '')
@@ -214,6 +216,8 @@ def dry_run(state: WizardState) -> dict:
 
     # Auto-wrap non-DDL SQL for all processors
     for proc in _get_processors(exec_state):
+        if proc.plugin == "python":
+            continue  # Python 步骤不需要 SQL 自动包装
         if proc.output_tables and proc.sql.strip():
             if not _has_ddl(proc.sql):
                 output_table = proc.output_tables[0].replace('"', '')
