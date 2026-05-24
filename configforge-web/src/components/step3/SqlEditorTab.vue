@@ -28,7 +28,7 @@
     <!-- Multi-processor header -->
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-sm font-semibold text-slate-700">处理步骤</h3>
-      <NButton size="small" type="primary" dashed :class="{ 'pulse-cta': pulseCta }" @click="addProcessorAndExpand">+ SQL 步骤</NButton>
+      <NButton size="small" type="primary" dashed :class="{ 'pulse-cta': pulseCta && store.processors.every(p => p.sql.trim() && p.outputTables.length) }" @click="addProcessorAndExpand">+ SQL 步骤</NButton>
     </div>
 
     <!-- Table rename prompt (checks all processors) -->
