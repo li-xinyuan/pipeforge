@@ -28,6 +28,24 @@
           <span v-if="availableTables.length === 0" class="text-xs text-slate-400">暂无可用表，请先在步骤 2 上传文件</span>
         </div>
       </div>
+
+      <!-- Available columns -->
+      <div v-if="currentFromTable">
+        <label class="block text-xs font-medium text-slate-500 mb-1">{{ currentFromTable }} 的字段</label>
+        <div class="flex flex-wrap gap-1">
+          <NTag
+            v-for="col in currentTableColumns"
+            :key="col.name"
+            size="tiny"
+            :bordered="true"
+            :class="colTypeBgClass(col.type)"
+          >
+            <span :class="colTypeTextClass(col.type)" class="text-[11px] font-medium">{{ col.name }}</span>
+            <span :class="colTypeBadgeClass(col.type)" class="text-[9px] px-1 py-0.5 rounded ml-1">{{ col.type }}</span>
+          </NTag>
+          <span v-if="currentTableColumns.length === 0" class="text-xs text-slate-400">加载列信息中...</span>
+        </div>
+      </div>
     </div>
 
     <!-- SQL textarea -->
@@ -169,6 +187,43 @@ const currentFromTable = computed(() => {
   const m = props.proc.sql.trim().match(/FROM\s+"(\w+)"/i)
   return m ? m[1] : ''
 })
+
+const datePattern = /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$|^\d{8}$|^\d{4}年\d{1,2}月\d{1,2}日$|^\d{1,2}[-\/]\d{1,2}[-\/]\d{4}$/
+
+function inferColType(values: string[]): string {
+  const v = values.filter(x => x != null && String(x).trim())
+  if (v.length === 0) return 'TEXT'
+  if (v.every(x => /^(true|false|yes|no|0|1)$/i.test(String(x)))) return 'BOOL'
+  if (v.every(x => /^-?\d+$/.test(String(x)))) return 'INT'
+  if (v.every(x => /^-?\d+\.?\d*$/.test(String(x)) && !isNaN(Number(x)))) return 'NUM'
+  if (v.every(x => datePattern.test(String(x)))) return 'DATE'
+  return 'TEXT'
+}
+
+const typeBgMap: Record<string, string> = { INT: 'bg-blue-50', NUM: 'bg-purple-50', BOOL: 'bg-amber-50', DATE: 'bg-green-50', TEXT: '' }
+const typeTextMap: Record<string, string> = { INT: 'text-blue-700', NUM: 'text-purple-700', BOOL: 'text-amber-700', DATE: 'text-green-700', TEXT: 'text-slate-600' }
+const typeBadgeMap: Record<string, string> = { INT: 'bg-blue-200/60 text-blue-800', NUM: 'bg-purple-200/60 text-purple-800', BOOL: 'bg-amber-200/60 text-amber-800', DATE: 'bg-green-200/60 text-green-800', TEXT: 'bg-slate-200/60 text-slate-700' }
+
+const currentTableColumns = computed(() => {
+  if (!currentFromTable.value) return []
+  // Find matching input source
+  for (const inp of store.inputs) {
+    if (inp.table === currentFromTable.value && inp.fileId) {
+      const meta = store.uploadedFiles[inp.fileId]
+      if (meta?.columns) {
+        return meta.columns.map((name, ci) => {
+          const samples = (meta.sampleRows || []).slice(0, 10).map(r => r[ci]).filter(v => v != null)
+          return { name, type: inferColType(samples.map(String)) }
+        })
+      }
+    }
+  }
+  return []
+})
+
+function colTypeBgClass(t: string) { return typeBgMap[t] || '' }
+function colTypeTextClass(t: string) { return typeTextMap[t] || '' }
+function colTypeBadgeClass(t: string) { return typeBadgeMap[t] || '' }
 
 function switchTable(table: string) {
   const sql = props.proc.sql.trim()
