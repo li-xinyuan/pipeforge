@@ -7,7 +7,7 @@
         <NInput
           :value="proc.name"
           @update:value="(v: string) => $emit('update', { name: v })"
-          size="small"
+          size="tiny"
           placeholder="例如：数据清洗"
           :data-testid="`processor-name-${index}`"
         />
@@ -18,7 +18,7 @@
           :value="proc.inputTables"
           :options="availableTables"
           multiple
-          size="tiny"
+          size="small"
           placeholder="选择输入表（可选）"
           @update:value="(v: string[]) => $emit('update', { inputTables: v })"
         />
@@ -50,8 +50,8 @@
         placeholder="用自然语言描述你想要的查询，例如：查询每个部门有多少员工，按人数降序"
       />
       <div class="flex gap-2 mt-2">
-        <NButton size="small" type="primary" :loading="suggesting" @click="onAiGenerateSql">生成 SQL</NButton>
-        <NButton size="small" @click="showNlInput = false">取消</NButton>
+        <NButton size="tiny" type="primary" :loading="suggesting" @click="onAiGenerateSql">生成 SQL</NButton>
+        <NButton size="tiny" @click="showNlInput = false">取消</NButton>
       </div>
       <p v-if="aiError" class="text-xs text-red-500 mt-1">{{ aiError }}</p>
     </div>
@@ -64,7 +64,7 @@
       <NInput
         :value="proc.outputTables[0] || ''"
         @update:value="(v: string) => $emit('update', { outputTables: [v] })"
-        size="small"
+        size="tiny"
         placeholder="例如：monthly_report"
       />
       <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
