@@ -7,7 +7,6 @@
         <NInput
           :value="proc.name"
           @update:value="(v: string) => $emit('update', { name: v })"
-          size="tiny"
           placeholder="例如：数据清洗"
           :data-testid="`processor-name-${index}`"
         />
@@ -64,7 +63,6 @@
       <NInput
         :value="proc.outputTables[0] || ''"
         @update:value="(v: string) => $emit('update', { outputTables: [v] })"
-        size="tiny"
         placeholder="例如：monthly_report"
       />
       <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
