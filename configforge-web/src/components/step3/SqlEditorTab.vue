@@ -143,11 +143,25 @@ function pickProcessor(plugin: 'sql' | 'python') {
     store.processors[store.processors.length - 1] = step
   }
   showAddSelector.value = false
-  // Trigger SQL fill for the newly created processor
-  const tables = inputTableNames.value
-  const last = store.processors[store.processors.length - 1]
-  if (plugin === 'sql' && tables.length > 0 && last.plugin === 'sql' && !last.sql.trim()) {
-    last.sql = `SELECT * FROM "${tables[0]}"`
+  // Fill SQL and auto-name output for the new processor
+  const idx = store.processors.length - 1
+  const last = store.processors[idx]
+  if (last.plugin === 'sql') {
+    // Pick FROM source: previous step output if exists, else first input table
+    let fromTable = ''
+    if (idx > 0) {
+      const prev = store.processors[idx - 1]
+      fromTable = prev.outputTables[0] || ''
+    }
+    if (!fromTable) fromTable = inputTableNames.value[0] || ''
+    if (fromTable && !last.sql.trim()) {
+      last.sql = `SELECT * FROM "${fromTable}"`
+    }
+    // Auto-name output to avoid collision
+    const baseName = `result${idx + 1}`
+    if (!last.outputTables[0] || last.outputTables[0] === baseName || last.outputTables[0] === 'result') {
+      last.outputTables = [baseName]
+    }
   }
 }
 
