@@ -3,7 +3,12 @@
     <table class="text-sm border-collapse min-w-max">
       <thead>
         <tr class="bg-slate-50">
-          <th v-for="col in columns" :key="col" class="px-3 py-1.5 text-left text-xs font-medium text-slate-500 border-b border-slate-200 whitespace-nowrap sticky top-0 bg-slate-50">{{ col }}</th>
+          <th v-for="(col, ci) in columns" :key="col" class="px-3 py-1.5 text-left border-b border-slate-200 whitespace-nowrap sticky top-0 bg-slate-50">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-medium text-slate-700">{{ col }}</span>
+              <span :class="typeBadgeClass(ci)" class="text-[10px] px-1.5 py-0.5 rounded font-medium">{{ columnTypes[ci] }}</span>
+            </div>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -29,4 +34,19 @@ const page = ref(1)
 const ps = computed(() => props.pageSize ?? 25)
 const totalPages = computed(() => Math.ceil(props.rows.length / ps.value))
 const pagedRows = computed(() => props.rows.slice((page.value - 1) * ps.value, page.value * ps.value))
+
+const columnTypes = computed(() =>
+  props.columns.map((_, ci) => {
+    const samples = props.rows.slice(0, 10).map(r => r[ci]).filter(v => v != null && String(v).trim())
+    if (samples.length === 0) return 'TEXT'
+    if (samples.every(v => /^(true|false|yes|no|0|1)$/i.test(String(v)))) return 'BOOL'
+    if (samples.every(v => /^-?\d+$/.test(String(v)))) return 'INT'
+    if (samples.every(v => /^-?\d+\.?\d*$/.test(String(v)) && !isNaN(Number(v)))) return 'NUM'
+    return 'TEXT'
+  })
+)
+
+const typeColors: Record<string, string> = { INT: 'bg-blue-100 text-blue-700', NUM: 'bg-purple-100 text-purple-700', BOOL: 'bg-amber-100 text-amber-700', TEXT: 'bg-slate-100 text-slate-600' }
+
+function typeBadgeClass(ci: number) { return typeColors[columnTypes.value[ci]] || typeColors.TEXT }
 </script>
