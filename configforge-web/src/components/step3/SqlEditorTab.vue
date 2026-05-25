@@ -85,7 +85,8 @@ import { useAiApi } from '../../composables/useWizardApi'
 
 const store = useWizardStore()
 const { getAiSettings } = useAiApi()
-const showAddSelector = ref(store.processors.length === 0)
+const hasNoSteps = computed(() => store.processors.length === 0 || store.processors.every(p => p.plugin === 'sql' ? !p.sql.trim() && !p.name.trim() && p.outputTables.length === 0 : !p.script.trim() && !p.name.trim() && p.outputTables.length === 0))
+const showAddSelector = ref(hasNoSteps.value)
 const props = defineProps<{ pulseCta?: boolean }>()
 const aiConfigured = ref(false)
 const lastInferredName = ref('')
@@ -241,8 +242,8 @@ defineExpose({ checkTableRenames })
 function onAcceptSuggestion() { store.acceptSuggestion('sql') }
 function onRegenerateSuggestion() { store.rejectSuggestion('sql') }
 
-// Auto-show selector when no processors (e.g. all deleted)
-watch(() => store.processors.length, (len) => {
-  if (len === 0) showAddSelector.value = true
+// Auto-show selector when all processors become empty (e.g. all deleted)
+watch(() => hasNoSteps.value, (v) => {
+  if (v) showAddSelector.value = true
 })
 </script>
