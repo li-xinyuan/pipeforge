@@ -149,6 +149,22 @@ function inferStepName(sql: string): string {
   return 'SQL 处理'
 }
 
+function inferPythonStepName(script: string): string {
+  if (!script.trim()) return ''
+  if (/DELETE\s+FROM/i.test(script)) return '数据清洗'
+  if (/CREATE\s+TABLE/i.test(script) && /WHERE/i.test(script)) return '数据过滤'
+  if (/GROUP\s+BY/i.test(script)) return '数据聚合'
+  if (/JOIN/i.test(script)) return '表连接'
+  if (/import\s+re|re\.sub|re\.match|re\.findall/i.test(script)) return '正则提取'
+  if (/import\s+requests|urllib|httpx/i.test(script)) return 'API 调用'
+  return 'Python 处理'
+}
+
+function inferPythonOutputTable(script: string): string | null {
+  const m = script.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?(\w+)["']?/i)
+  return m ? m[1] : null
+}
+
 // Watch input table names: fill first empty processor's SQL
 watch(inputTableNames, (tables) => {
   if (tables.length > 0) {
@@ -168,6 +184,23 @@ watch(
     if (!oldVal) return
     for (let i = 0; i < newVal.length; i++) {
       const proc = store.processors[i]
+      if (proc.plugin === 'python') {
+        const script = proc.script.trim()
+        if (!script) continue
+
+        // Auto-infer Python step name
+        if (!proc.name || !proc.name.trim()) {
+          const name = inferPythonStepName(script)
+          if (name) store.updateProcessor(i, { ...proc, name })
+        }
+
+        // Auto-infer Python output table from CREATE TABLE
+        if (proc.outputTables.length === 0 || proc.outputTables.every(t => !t.trim())) {
+          const tableName = inferPythonOutputTable(script) || `step_${i + 1}_output`
+          store.updateProcessor(i, { ...proc, outputTables: [tableName] })
+        }
+        continue
+      }
       if (proc.plugin !== 'sql') continue
       const trimmed = proc.sql.trim()
       if (!trimmed) continue

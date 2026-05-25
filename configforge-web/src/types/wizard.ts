@@ -21,9 +21,11 @@ export interface AiSuggestion {
 
 export interface OrchestrationStep {
   name: string
+  plugin?: 'sql' | 'python'
   input_tables: string[]
   output_tables: string[]
   sql: string
+  script?: string
 }
 
 export interface OrchestrationResult {

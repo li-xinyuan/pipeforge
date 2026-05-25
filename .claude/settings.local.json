@@ -146,7 +146,9 @@
       "Bash(echo \"tsc: $?\")",
       "Bash(echo \"---EXIT: $?\")",
       "Bash(/plugin install *)",
-      "Bash(uipro init *)"
+      "Bash(uipro init *)",
+      "Bash(echo \"TS: $?\")",
+      "Bash(pkill -9 -f uvicorn)"
     ]
   }
 }

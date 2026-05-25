@@ -19,7 +19,8 @@ export interface SnakeState {
     plugin: string
     input_tables: string[]
     output_tables: string[]
-    config: { type: string; sql?: string; script?: string }
+    sql?: string
+    script?: string
   }>
   output: {
     plugin: string
@@ -106,9 +107,9 @@ export function stateToSnakeCase(state: WizardState): SnakeState {
         output_tables: p.outputTables,
       }
       if (p.plugin === 'python') {
-        return { ...base, config: { type: 'python', script: p.script } }
+        return { ...base, script: p.script }
       }
-      return { ...base, config: { type: 'sql', sql: p.sql } }
+      return { ...base, sql: p.sql }
     }),
     output: state.output
       ? {

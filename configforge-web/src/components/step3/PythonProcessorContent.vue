@@ -60,7 +60,6 @@
     <div class="flex gap-2 items-center flex-wrap">
       <NButton v-if="!dryRunVisible || !dryRunResult" size="tiny" type="info" :loading="dryRunRunning" :disabled="!pyProc.script.trim()" @click="runPreview">▶ 预览结果</NButton>
       <NButton v-else size="tiny" type="info" @click="dryRunVisible = false">收起结果</NButton>
-      <NButton size="tiny" :disabled="!aiConfigured" @click="$emit('ai-generate')">✨ AI 生成</NButton>
     </div>
 
     <p v-if="dryRunError" class="text-xs text-red-500">{{ dryRunError }}</p>
@@ -81,12 +80,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { NButton, NTag, NInput, NSelect } from 'naive-ui'
 import ColumnPreview from '../step2/ColumnPreview.vue'
 import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
-import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
+import { useWizardApi } from '../../composables/useWizardApi'
 
 const props = defineProps<{
   proc: ProcessorStep
@@ -96,26 +95,20 @@ const props = defineProps<{
 
 defineEmits<{
   update: [partial: Partial<ProcessorStep>]
-  'ai-generate': []
 }>()
 
-const pyProc = computed(() => props.proc as { plugin: 'python'; script: string; name: string; inputTables: string[]; outputTables: string[] })
+const pyProc = computed(() => {
+  if (props.proc.plugin !== 'python') throw new Error('PythonProcessorContent received non-Python step')
+  return props.proc
+})
 
 const store = useWizardStore()
 const { dryRun: runDryRunApi, error: wizardApiError } = useWizardApi()
-const { getAiSettings } = useAiApi()
-
-const aiConfigured = ref(false)
 
 const dryRunRunning = ref(false)
 const dryRunResult = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
 const dryRunError = ref('')
 const dryRunVisible = ref(false)
-
-onMounted(async () => {
-  const settings = await getAiSettings()
-  aiConfigured.value = !!(settings?.enabled && settings?.api_key)
-})
 
 async function runPreview() {
   dryRunError.value = ''

@@ -3,13 +3,13 @@
     <p class="text-xs font-medium text-green-700 mb-2">{{ result.explanation || 'AI 规划了以下处理链：' }}</p>
     <div v-for="(step, i) in result.steps" :key="i" class="mb-2 last:mb-0 border border-green-100 bg-white rounded p-2">
       <div class="flex items-center gap-2 mb-1">
-        <NTag size="tiny" type="info">SQL</NTag>
+        <NTag size="tiny" :type="step.plugin === 'python' ? 'warning' : 'info'">{{ step.plugin === 'python' ? 'Python' : 'SQL' }}</NTag>
         <span class="text-xs font-medium">{{ step.name || '步骤 ' + (i + 1) }}</span>
         <span class="text-[10px] text-slate-400">
           入: {{ step.input_tables?.join(', ') || '源表' }} → 出: {{ step.output_tables?.join(', ') || '未指定' }}
         </span>
       </div>
-      <pre class="text-sm bg-slate-800 text-green-300 p-3 rounded font-mono overflow-x-auto" style="min-height:48px;"><code>{{ step.sql }}</code></pre>
+      <pre class="text-sm bg-slate-800 text-green-300 p-3 rounded font-mono overflow-x-auto" style="min-height:48px;"><code>{{ step.script || step.sql }}</code></pre>
     </div>
     <div v-if="result.parse_error" class="text-xs text-amber-600 mt-2">
       AI 返回格式异常，请尝试重新生成。原始响应：{{ (result.raw || '').slice(0, 300) }}
