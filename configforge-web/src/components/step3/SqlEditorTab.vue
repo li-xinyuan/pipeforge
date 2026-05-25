@@ -1,29 +1,5 @@
 <template>
   <div>
-    <!-- Processor type selector (matching Step 2 pattern) -->
-    <template v-if="showAddSelector">
-      <div class="flex items-center justify-between mb-2 mt-2">
-        <span class="text-sm font-semibold text-slate-700">选择处理方式</span>
-        <NButton text type="error" size="small" @click="showAddSelector = false">取消</NButton>
-      </div>
-      <div class="grid grid-cols-2 gap-3 mb-5">
-        <span :class="{ 'pulse-cta': pulseCta && hasNoSteps }" style="display:inline-block;border-radius:8px;">
-          <NCard hoverable class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50" @click="addProcessor('sql')">
-            <span class="text-2xl block mb-2">🧪</span>
-            <span class="text-sm font-semibold">SQL</span>
-            <span class="text-xs text-slate-500 mt-1 block">SQLite 查询处理</span>
-          </NCard>
-        </span>
-        <span :class="{ 'pulse-cta': pulseCta && hasNoSteps }" style="display:inline-block;border-radius:8px;">
-          <NCard hoverable class="cursor-pointer text-center border-2 border-orange-500 bg-orange-50" @click="addProcessor('python')">
-            <span class="text-2xl block mb-2">🐍</span>
-            <span class="text-sm font-semibold">Python</span>
-            <span class="text-xs text-slate-500 mt-1 block">Python 脚本处理</span>
-          </NCard>
-        </span>
-      </div>
-    </template>
-
     <!-- Table rename prompt -->
     <div v-if="renamePrompt" class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
       <span class="text-sm text-amber-700 leading-relaxed">
@@ -33,45 +9,67 @@
       <NButton size="tiny" @click="renamePrompt = null">忽略</NButton>
     </div>
 
-    <!-- Content when not in type selector -->
-    <template v-if="!showAddSelector">
-      <!-- Processor cards (always expanded) -->
-      <ProcessorCard
-        v-for="(proc, i) in store.processors"
-        :key="i"
-        :proc="proc"
-        :index="i"
-        :expanded="true"
-        :can-remove="store.processors.length > 1"
-        :available-tables="tableOptions"
-        :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
-        @remove="store.removeProcessor(i)"
-        @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
-      />
+    <!-- Processor cards (always visible, matching Step 2) -->
+    <ProcessorCard
+      v-for="(proc, i) in store.processors"
+      :key="i"
+      :proc="proc"
+      :index="i"
+      :expanded="true"
+      :can-remove="store.processors.length > 1"
+      :available-tables="tableOptions"
+      :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
+      @remove="store.removeProcessor(i)"
+      @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
+    />
 
-      <!-- Add button (matching Step 2) -->
-      <NButton
-        dashed
-        block
-        class="mt-3"
-        :class="{ 'pulse-cta': pulseCta && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }"
-        @click="showAddSelector = true"
-      >添加处理步骤</NButton>
-
-      <!-- Validation -->
-      <NAlert v-if="store.stepValidation.length" type="warning" class="mt-3">
-        <ul class="list-disc pl-4 text-xs">
-          <li v-for="msg in store.stepValidation" :key="msg">{{ msg }}</li>
-        </ul>
-      </NAlert>
-
-      <AiSuggestPanel
-        :visible="!!store.aiSuggestions['sql'] && store.aiSuggestions['sql'].status !== 'auto'"
-        :content="store.aiSuggestions['sql']?.content || ''"
-        @accept="onAcceptSuggestion"
-        @regenerate="onRegenerateSuggestion"
-      />
+    <!-- Type selector (between cards and button, matching Step 2) -->
+    <template v-if="showAddSelector">
+      <div class="flex items-center justify-between mb-2 mt-3">
+        <span class="text-sm font-semibold text-slate-700">选择处理方式</span>
+        <NButton text type="error" size="small" @click="showAddSelector = false">取消</NButton>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <span :class="{ 'pulse-cta': pulseCta && hasNoSteps }" style="display:inline-block;border-radius:8px;">
+          <NCard hoverable class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50" @click="pickProcessor('sql')">
+            <span class="text-2xl block mb-2">🧪</span>
+            <span class="text-sm font-semibold">SQL</span>
+            <span class="text-xs text-slate-500 mt-1 block">SQLite 查询处理</span>
+          </NCard>
+        </span>
+        <span :class="{ 'pulse-cta': pulseCta && hasNoSteps }" style="display:inline-block;border-radius:8px;">
+          <NCard hoverable class="cursor-pointer text-center border-2 border-orange-500 bg-orange-50" @click="pickProcessor('python')">
+            <span class="text-2xl block mb-2">🐍</span>
+            <span class="text-sm font-semibold">Python</span>
+            <span class="text-xs text-slate-500 mt-1 block">Python 脚本处理</span>
+          </NCard>
+        </span>
+      </div>
     </template>
+
+    <!-- Add button (matching Step 2) -->
+    <NButton
+      v-if="!showAddSelector"
+      dashed
+      block
+      class="mt-3"
+      :class="{ 'pulse-cta': pulseCta && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }"
+      @click="showAddSelector = true"
+    >添加处理步骤</NButton>
+
+    <!-- Validation -->
+    <NAlert v-if="store.stepValidation.length" type="warning" class="mt-3">
+      <ul class="list-disc pl-4 text-xs">
+        <li v-for="msg in store.stepValidation" :key="msg">{{ msg }}</li>
+      </ul>
+    </NAlert>
+
+    <AiSuggestPanel
+      :visible="!!store.aiSuggestions['sql'] && store.aiSuggestions['sql'].status !== 'auto'"
+      :content="store.aiSuggestions['sql']?.content || ''"
+      @accept="onAcceptSuggestion"
+      @regenerate="onRegenerateSuggestion"
+    />
   </div>
 </template>
 
@@ -87,22 +85,41 @@ import { useAiApi } from '../../composables/useWizardApi'
 
 const store = useWizardStore()
 const { getAiSettings } = useAiApi()
-const hasNoSteps = computed(() => store.processors.length === 0 || store.processors.every(p => p.plugin === 'sql' ? !p.sql.trim() && !p.name.trim() && p.outputTables.length === 0 : !p.script.trim() && !p.name.trim() && p.outputTables.length === 0))
-const showAddSelector = ref(hasNoSteps.value)
 const props = defineProps<{ pulseCta?: boolean }>()
 const aiConfigured = ref(false)
 const lastInferredName = ref('')
+
+const hasNoSteps = computed(() =>
+  store.processors.length === 0 || store.processors.every(p =>
+    (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) &&
+    !p.name.trim() &&
+    p.outputTables.length === 0
+  )
+)
+
+const defaultEmpty = computed(() =>
+  store.processors.length === 1 && hasNoSteps.value
+)
+
+const showAddSelector = ref(defaultEmpty.value)
+
+function pickProcessor(plugin: 'sql' | 'python') {
+  if (defaultEmpty.value) {
+    // Replace the empty default step
+    store.processors[0] = plugin === 'python'
+      ? { name: '', plugin: 'python', script: '', inputTables: [], outputTables: [] }
+      : { name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] }
+  } else {
+    store.addProcessor(plugin)
+  }
+  showAddSelector.value = false
+}
 
 onMounted(async () => {
   lastKnownTables.value = store.inputs.map(inp => inp.table.trim()).filter(Boolean)
   const settings = await getAiSettings()
   aiConfigured.value = !!(settings?.enabled && settings?.api_key)
 })
-
-function addProcessor(plugin: 'sql' | 'python' = 'sql') {
-  store.addProcessor(plugin)
-  showAddSelector.value = false
-}
 
 const inputTableNames = computed(() =>
   store.inputs.map(inp => inp.table.trim()).filter(Boolean)
@@ -150,7 +167,6 @@ function inferPythonOutputTable(script: string): string | null {
   return m ? m[1] : null
 }
 
-// Watch input table names: fill first empty SQL processor
 watch(inputTableNames, (tables) => {
   if (tables.length > 0) {
     for (const proc of store.processors) {
@@ -162,7 +178,6 @@ watch(inputTableNames, (tables) => {
   }
 })
 
-// Watch all processors for inference
 watch(
   () => store.processors.map(p => ({ code: p.plugin === 'sql' ? p.sql : p.script, outputTables: [...p.outputTables] })),
   (newVal, oldVal) => {
@@ -209,7 +224,6 @@ watch(
   { deep: true }
 )
 
-// Table rename detection
 const renamePrompt = ref<{ oldName: string; newName: string } | null>(null)
 const lastKnownTables = ref<string[]>([])
 
@@ -244,7 +258,6 @@ defineExpose({ checkTableRenames })
 function onAcceptSuggestion() { store.acceptSuggestion('sql') }
 function onRegenerateSuggestion() { store.rejectSuggestion('sql') }
 
-// Auto-show selector when all processors become empty (e.g. all deleted)
 watch(() => hasNoSteps.value, (v) => {
   if (v) showAddSelector.value = true
 })
