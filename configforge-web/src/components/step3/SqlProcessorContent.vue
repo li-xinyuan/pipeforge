@@ -6,21 +6,27 @@
         <label class="block text-xs font-medium text-slate-500 mb-1">步骤名称</label>
         <NInput
           :value="proc.name"
-          @update:value="(v: string) => $emit('update', { name: v })"
+          @update:value="(v: string) => emit('update', { name: v })"
           placeholder="例如：数据清洗"
           :data-testid="`processor-name-${index}`"
         />
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1">输入表</label>
-        <NSelect
-          :value="proc.inputTables"
-          :options="availableTables"
-          multiple
-          size="small"
-          placeholder="选择输入表（可选）"
-          @update:value="(v: string[]) => $emit('update', { inputTables: v })"
-        />
+        <label class="block text-xs font-medium text-slate-500 mb-1">可用表</label>
+        <div class="flex flex-wrap gap-1">
+          <NTag
+            v-for="tbl in availableTables"
+            :key="tbl.value"
+            :type="currentFromTable === tbl.value ? 'info' : 'default'"
+            size="tiny"
+            :bordered="true"
+            checkable
+            :checked="currentFromTable === tbl.value"
+            class="cursor-pointer"
+            @click="switchTable(tbl.value)"
+          >{{ tbl.label }}</NTag>
+          <span v-if="availableTables.length === 0" class="text-xs text-slate-400">暂无可用表，请先在步骤 2 上传文件</span>
+        </div>
       </div>
     </div>
 
@@ -31,7 +37,7 @@
       </label>
       <NInput
         :value="proc.sql"
-        @update:value="(v: string) => $emit('update', { sql: v })"
+        @update:value="(v: string) => emit('update', { sql: v })"
         type="textarea"
         :autosize="{ minRows: 6, maxRows: 16 }"
         :placeholder="sqlPlaceholder"
@@ -62,7 +68,7 @@
       </label>
       <NInput
         :value="proc.outputTables[0] || ''"
-        @update:value="(v: string) => $emit('update', { outputTables: [v] })"
+        @update:value="(v: string) => emit('update', { outputTables: [v] })"
         placeholder="例如：monthly_report"
       />
       <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
@@ -158,6 +164,26 @@ const isPlainSelect = computed(() => {
     /\bWITH\s+\w+\s+AS\s*\(/i.test(sql)
   )
 })
+
+const currentFromTable = computed(() => {
+  const m = props.proc.sql.trim().match(/FROM\s+"(\w+)"/i)
+  return m ? m[1] : ''
+})
+
+function switchTable(table: string) {
+  const sql = props.proc.sql.trim()
+  if (!sql) return
+  // If it's the default SELECT * pattern, replace the table name
+  if (/^SELECT\s+\*\s+FROM\s+"\w+"/i.test(sql)) {
+    emit('update', { sql: `SELECT * FROM "${table}"` })
+  } else {
+    // For custom SQL, replace all occurrences of the old table
+    const oldTable = currentFromTable.value
+    if (oldTable && oldTable !== table) {
+      emit('update', { sql: sql.replace(new RegExp(`"${oldTable}"`, 'g'), `"${table}"`) })
+    }
+  }
+}
 
 const equivalenceSql = computed(() => {
   if (!isPlainSelect.value) return ''
