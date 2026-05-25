@@ -24,27 +24,6 @@
       />
     </div>
 
-    <!-- Output tables -->
-    <div>
-      <label class="block text-sm font-medium text-slate-900 mb-1">
-        <span class="text-red-500">*</span> 输出表名
-      </label>
-      <div v-for="(t, ti) in proc.outputTables" :key="ti" class="flex items-center gap-1 mb-1">
-        <NInput
-          :value="t"
-          @update:value="(v: string) => { const copy = [...proc.outputTables]; copy[ti] = v; $emit('update', { outputTables: copy }) }"
-          size="small"
-          placeholder="输出表名"
-          :class="['flex-1', { 'pulse-cta-input': pulseSql }]"
-          :data-testid="`processor-output-${index}-${ti}`"
-        />
-        <NButton text size="tiny" type="error" @click="() => { const copy = [...proc.outputTables]; copy.splice(ti, 1); $emit('update', { outputTables: copy }) }">✕</NButton>
-      </div>
-      <NButton size="tiny" dashed @click="() => { $emit('update', { outputTables: [...proc.outputTables, ''] }) }">+ 添加输出表</NButton>
-      <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
-      <p v-if="equivalenceSql" class="text-xs text-slate-400 mt-1.5 font-mono">{{ equivalenceSql }}</p>
-    </div>
-
     <!-- SQL textarea -->
     <div>
       <label class="block text-sm font-medium text-slate-900 mb-1">
@@ -74,6 +53,27 @@
         <NButton size="small" @click="showNlInput = false">取消</NButton>
       </div>
       <p v-if="aiError" class="text-xs text-red-500 mt-1">{{ aiError }}</p>
+    </div>
+
+    <!-- Output tables -->
+    <div>
+      <label class="block text-sm font-medium text-slate-900 mb-1">
+        <span class="text-red-500">*</span> 输出表名
+      </label>
+      <div v-for="(t, ti) in proc.outputTables" :key="ti" class="flex items-center gap-1 mb-1">
+        <NInput
+          :value="t"
+          @update:value="(v: string) => { const copy = [...proc.outputTables]; copy[ti] = v; $emit('update', { outputTables: copy }) }"
+          size="small"
+          placeholder="输出表名"
+          :class="['flex-1', { 'pulse-cta-input': pulseSql }]"
+          :data-testid="`processor-output-${index}-${ti}`"
+        />
+        <NButton text size="tiny" type="error" @click="() => { const copy = [...proc.outputTables]; copy.splice(ti, 1); $emit('update', { outputTables: copy }) }">✕</NButton>
+      </div>
+      <NButton size="tiny" dashed @click="() => { $emit('update', { outputTables: [...proc.outputTables, ''] }) }">+ 添加输出表</NButton>
+      <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
+      <p v-if="equivalenceSql" class="text-xs text-slate-400 mt-1.5 font-mono">{{ equivalenceSql }}</p>
     </div>
 
     <!-- Preview execution -->
