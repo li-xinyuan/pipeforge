@@ -18,6 +18,7 @@
           :value="proc.inputTables"
           :options="availableTables"
           multiple
+          size="tiny"
           placeholder="选择输入表（可选）"
           @update:value="(v: string[]) => $emit('update', { inputTables: v })"
         />
