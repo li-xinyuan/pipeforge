@@ -118,7 +118,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref, type Ref } from 'vue'
 import { NButton, NTag, NInput, NSelect } from 'naive-ui'
 import ColumnPreview from '../step2/ColumnPreview.vue'
 import type { ProcessorStep } from '../../types/wizard'
@@ -137,6 +137,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useWizardStore()
+const columnsCache = inject<Ref<Record<string, Array<{ name: string; type: string }>>>>('tableColumnsCache', ref({}))
 const { dryRun: runDryRunApi, error: wizardApiError } = useWizardApi()
 const { suggesting, aiError, askSuggestion, getAiSettings } = useAiApi()
 
@@ -234,10 +235,12 @@ const currentTableColumns = computed(() => {
 })
 
 function findSourceColumns(procIndex: number): { name: string; type: string }[] | null {
-  // Walk back to find the original input source columns
   const proc = store.processors[procIndex]
   if (!proc) return null
-  // Check if this processor's input tables come from input sources
+  // Check cache first (from dry-run results)
+  const cached = columnsCache.value[proc.outputTables[0] || '']
+  if (cached) return cached
+  // Walk back to find the original input source columns
   for (const inp of store.inputs) {
     if (proc.inputTables?.includes(inp.table) || (!proc.inputTables?.length && inp.table)) {
       const meta = store.uploadedFiles[inp.fileId]
@@ -292,6 +295,13 @@ async function runDryRun() {
     const inputTables = new Set(store.inputs.map(inp => inp.table).filter(Boolean))
     const outputTables = result.tables.filter(t => !inputTables.has(t.table_name))
     dryRunResult.value = outputTables.length ? outputTables : result.tables
+    // Cache column info for downstream steps
+    for (const t of result.tables) {
+      columnsCache.value[t.table_name] = t.columns.map((name: string, ci: number) => {
+        const samples = t.rows.slice(0, 10).map((r: any) => r[ci]).filter((v: any) => v != null)
+        return { name, type: inferColType(samples.map(String)) }
+      })
+    }
     dryRunVisible.value = true
   } else {
     const apiMsg = wizardApiError.value?.message || ''

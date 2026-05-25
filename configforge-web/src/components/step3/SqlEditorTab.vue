@@ -100,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, provide, ref, watch } from 'vue'
 import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { NCard, NButton, NTag, NAlert } from 'naive-ui'
@@ -126,6 +126,10 @@ const hasNoSteps = computed(() =>
 const defaultEmpty = computed(() =>
   store.processors.length === 1 && hasNoSteps.value
 )
+
+// Cache of table column info from dry-run results (table_name → {name, type}[])
+const tableColumnsCache = ref<Record<string, Array<{ name: string; type: string }>>>({})
+provide('tableColumnsCache', tableColumnsCache)
 
 const showAddSelector = ref(defaultEmpty.value)
 
