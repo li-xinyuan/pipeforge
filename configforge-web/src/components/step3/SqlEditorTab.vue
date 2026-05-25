@@ -143,6 +143,12 @@ function pickProcessor(plugin: 'sql' | 'python') {
     store.processors[store.processors.length - 1] = step
   }
   showAddSelector.value = false
+  // Trigger SQL fill for the newly created processor
+  const tables = inputTableNames.value
+  const last = store.processors[store.processors.length - 1]
+  if (plugin === 'sql' && tables.length > 0 && last.plugin === 'sql' && !last.sql.trim()) {
+    last.sql = `SELECT * FROM "${tables[0]}"`
+  }
 }
 
 onMounted(async () => {
@@ -198,7 +204,7 @@ function inferPythonOutputTable(script: string): string | null {
 }
 
 watch(inputTableNames, (tables) => {
-  if (tables.length > 0 && !showAddSelector.value) {
+  if (tables.length > 0 && !defaultEmpty.value) {
     for (const proc of store.processors) {
       if (proc.plugin === 'sql' && !proc.sql.trim()) {
         proc.sql = `SELECT * FROM "${tables[0]}"`
