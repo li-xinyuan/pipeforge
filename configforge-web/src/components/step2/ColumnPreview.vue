@@ -2,8 +2,8 @@
   <div class="overflow-x-auto mt-2 rounded-md border border-slate-200">
     <table class="text-sm border-collapse min-w-max">
       <thead>
-        <tr class="bg-slate-50">
-          <th v-for="(col, ci) in columns" :key="col" class="px-3 py-1.5 text-left border-b border-slate-200 whitespace-nowrap sticky top-0 bg-slate-50">
+        <tr>
+          <th v-for="(col, ci) in columns" :key="col" :class="[typeBgColors[columnTypes[ci]] || '', 'px-3 py-1.5 text-left border-b border-slate-200 whitespace-nowrap sticky top-0']">
             <div class="flex items-center gap-1.5">
               <span class="text-xs font-medium text-slate-700">{{ col }}</span>
               <span :class="typeBadgeClass(ci)" class="text-[10px] px-1.5 py-0.5 rounded font-medium">{{ columnTypes[ci] }}</span>
@@ -13,7 +13,7 @@
       </thead>
       <tbody>
         <tr v-for="(row, ri) in pagedRows" :key="ri" class="border-b border-slate-100 last:border-0">
-          <td v-for="(cell, ci) in row" :key="ci" class="px-3 py-1 text-xs text-slate-700 whitespace-nowrap">{{ cell }}</td>
+          <td v-for="(cell, ci) in row" :key="ci" :class="[typeBgColors[columnTypes[ci]] || '', 'px-3 py-1 text-xs text-slate-700 whitespace-nowrap']">{{ cell }}</td>
         </tr>
       </tbody>
     </table>
@@ -50,6 +50,7 @@ const columnTypes = computed(() =>
 )
 
 const typeColors: Record<string, string> = { INT: 'bg-blue-100 text-blue-700', NUM: 'bg-purple-100 text-purple-700', BOOL: 'bg-amber-100 text-amber-700', DATE: 'bg-green-100 text-green-700', TEXT: 'bg-slate-100 text-slate-600' }
+const typeBgColors: Record<string, string> = { INT: 'bg-blue-50/50', NUM: 'bg-purple-50/50', BOOL: 'bg-amber-50/50', DATE: 'bg-green-50/50', TEXT: '' }
 
 function typeBadgeClass(ci: number) { return typeColors[columnTypes.value[ci]] || typeColors.TEXT }
 </script>
