@@ -567,7 +567,7 @@ function onOrchestrateConfirm(result: any) {
     }
     const plugin = (s.plugin || 'sql') as 'sql' | 'python'
     if (plugin === 'python') {
-      return { name: s.name || `步骤 ${i + 1}`, plugin, script: s.script || s.sql || '', inputTables, outputTables: s.output_tables || [] }
+      return { name: s.name || `步骤 ${i + 1}`, plugin, script: s.script || '', inputTables, outputTables: s.output_tables || [] }
     }
     return { name: s.name || `步骤 ${i + 1}`, plugin, sql: s.sql || '', inputTables, outputTables: s.output_tables || [] }
   })

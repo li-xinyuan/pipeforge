@@ -15,7 +15,7 @@ class PythonProcessorPlugin(ProcessorPlugin):
 
     def execute(self, context, config: PythonProcessorConfig) -> None:
         local_ns = {}
-        exec(config.script, {}, local_ns)
+        exec(config.script, {"__builtins__": __builtins__}, local_ns)
         process_fn = local_ns.get("process")
         if not process_fn or not callable(process_fn):
             raise ValueError("Python 脚本必须定义 process(ctx) 函数")

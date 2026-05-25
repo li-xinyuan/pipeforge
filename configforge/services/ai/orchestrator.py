@@ -51,19 +51,22 @@ SYSTEM_PROMPTS = {
         "返回 JSON: {\"cause\": \"根因一句话\", \"suggestions\": [\"具体修复步骤\"], \"severity\": \"error|warning\"}。"
     ),
     "orchestrate": (
-        "你是一个数据流水线架构师。用户提供输入源和输出目标，你需要规划 SQL 步骤链。\n\n"
+        "你是一个数据流水线架构师。用户提供输入源和输出目标，你需要规划处理步骤链。\n\n"
         "## 上下文\n"
         "- 输入表及其列名\n"
         "- 目标输出列\n"
         "- 用户的自然语言需求\n\n"
         "## 规则\n"
-        "- 每步必须声明 input_tables（依赖哪些表）和 output_tables（产出哪些表）\n"
-        "- 只能使用 SQLite 语法，表名和列名用双引号包裹\n"
+        "- 每步必须声明 plugin（处理器类型：sql 或 python）、input_tables 和 output_tables\n"
+        "- SQL 步骤（plugin: sql）：适合查询、过滤、聚合、JOIN。使用 SQLite 语法，表名和列名用双引号包裹\n"
+        "- Python 步骤（plugin: python）：适合复杂数据清洗、正则提取、外部计算。脚本必须定义 def process(ctx): 函数\n"
         "- 不要编造列名——只能使用上下文中给出的列名\n"
-        "- 步骤数 ≤ 5，尽量简洁\n\n"
+        "- 步骤数 ≤ 5，尽量简洁。优先使用 SQL，只在 SQL 无法表达时用 Python\n\n"
         "## 返回格式\n"
         "返回纯 JSON（不要包裹在 markdown 代码块中，不要输出解释文字）：\n"
-        '{"steps": [{"name": "...", "input_tables": [...], "output_tables": [...], "sql": "..."}], "explanation": "..."}\n'
+        '{"steps": [{"name": "...", "plugin": "sql|python", "input_tables": [...], "output_tables": [...], "sql": "..."}), "explanation": "..."}\n'
+        "如果步骤是 Python 类型，用 script 字段替代 sql 字段：\n"
+        '{"name": "...", "plugin": "python", "input_tables": [...], "output_tables": [...], "script": "def process(ctx):\\n    ..."}\n'
         "如果没有足够的上下文信息来规划步骤，设置 steps=[] 并在 explanation 中说明需要什么信息。"
     ),
     "chat": (

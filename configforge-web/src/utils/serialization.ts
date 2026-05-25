@@ -14,14 +14,10 @@ export interface SnakeState {
     file_id: string
     config: Record<string, unknown>
   }>
-  processors: Array<{
-    name: string
-    plugin: string
-    input_tables: string[]
-    output_tables: string[]
-    sql?: string
-    script?: string
-  }>
+  processors: Array<
+    | { name: string; plugin: 'sql'; input_tables: string[]; output_tables: string[]; sql: string }
+    | { name: string; plugin: 'python'; input_tables: string[]; output_tables: string[]; script: string }
+  >
   output: {
     plugin: string
     config: Record<string, unknown>
@@ -100,16 +96,18 @@ export function stateToSnakeCase(state: WizardState): SnakeState {
       config: buildInputConfig(inp.config),
     })),
     processors: state.processors.map((p) => {
-      const base = {
-        name: p.name,
-        plugin: p.plugin,
-        input_tables: p.inputTables,
-        output_tables: p.outputTables,
-      }
       if (p.plugin === 'python') {
-        return { ...base, script: p.script }
+        return {
+          name: p.name, plugin: 'python' as const,
+          input_tables: p.inputTables, output_tables: p.outputTables,
+          script: p.script,
+        }
       }
-      return { ...base, sql: p.sql }
+      return {
+        name: p.name, plugin: 'sql' as const,
+        input_tables: p.inputTables, output_tables: p.outputTables,
+        sql: p.sql,
+      }
     }),
     output: state.output
       ? {
