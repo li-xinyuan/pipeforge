@@ -305,6 +305,31 @@ function onReplaceTableName() {
   lastKnownTables.value = store.inputs.map(inp => inp.table.trim()).filter(Boolean)
 }
 
+// Propagate output table renames to downstream steps
+const prevOutputs = ref<string[]>([])
+
+watch(
+  () => store.processors.map(p => p.outputTables[0] || ''),
+  (names) => {
+    if (!prevOutputs.value.length) { prevOutputs.value = [...names]; return }
+    for (let i = 0; i < Math.min(names.length, prevOutputs.value.length); i++) {
+      const oldName = prevOutputs.value[i]; const newName = names[i]
+      if (!oldName || !newName || oldName === newName) continue
+      // Update downstream processors that reference the old name
+      for (let j = i + 1; j < store.processors.length; j++) {
+        const proc = store.processors[j]
+        if (proc.plugin !== 'sql') continue
+        if (proc.sql.trim() === `SELECT * FROM "${oldName}"`) {
+          proc.sql = `SELECT * FROM "${newName}"`
+        } else {
+          proc.sql = proc.sql.replace(new RegExp(`"${oldName}"`, 'g'), `"${newName}"`)
+        }
+      }
+    }
+    prevOutputs.value = [...names]
+  }
+)
+
 defineExpose({ checkTableRenames })
 
 function onAcceptSuggestion() { store.acceptSuggestion('sql') }
