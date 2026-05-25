@@ -35,6 +35,8 @@ const ps = computed(() => props.pageSize ?? 25)
 const totalPages = computed(() => Math.ceil(props.rows.length / ps.value))
 const pagedRows = computed(() => props.rows.slice((page.value - 1) * ps.value, page.value * ps.value))
 
+const datePattern = /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$|^\d{8}$|^\d{4}年\d{1,2}月\d{1,2}日$|^\d{1,2}[-\/]\d{1,2}[-\/]\d{4}$/
+
 const columnTypes = computed(() =>
   props.columns.map((_, ci) => {
     const samples = props.rows.slice(0, 10).map(r => r[ci]).filter(v => v != null && String(v).trim())
@@ -42,11 +44,12 @@ const columnTypes = computed(() =>
     if (samples.every(v => /^(true|false|yes|no|0|1)$/i.test(String(v)))) return 'BOOL'
     if (samples.every(v => /^-?\d+$/.test(String(v)))) return 'INT'
     if (samples.every(v => /^-?\d+\.?\d*$/.test(String(v)) && !isNaN(Number(v)))) return 'NUM'
+    if (samples.every(v => datePattern.test(String(v)))) return 'DATE'
     return 'TEXT'
   })
 )
 
-const typeColors: Record<string, string> = { INT: 'bg-blue-100 text-blue-700', NUM: 'bg-purple-100 text-purple-700', BOOL: 'bg-amber-100 text-amber-700', TEXT: 'bg-slate-100 text-slate-600' }
+const typeColors: Record<string, string> = { INT: 'bg-blue-100 text-blue-700', NUM: 'bg-purple-100 text-purple-700', BOOL: 'bg-amber-100 text-amber-700', DATE: 'bg-green-100 text-green-700', TEXT: 'bg-slate-100 text-slate-600' }
 
 function typeBadgeClass(ci: number) { return typeColors[columnTypes.value[ci]] || typeColors.TEXT }
 </script>
