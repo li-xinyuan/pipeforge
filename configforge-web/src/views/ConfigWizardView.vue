@@ -382,7 +382,7 @@ async function onAiSend(text: string) {
       const parsed = JSON.parse(result)
       if (parsed.sql) {
         if (store.processors.length > 0) {
-          let targetIndex = sqlEditorRef.value?.expandedIndex ?? store.processors.length - 1
+          let targetIndex = store.processors.length - 1
           const targetProc = store.processors[targetIndex]
           if (targetProc && targetProc.plugin !== 'sql') {
             // Find the last SQL processor

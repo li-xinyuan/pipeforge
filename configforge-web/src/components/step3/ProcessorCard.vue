@@ -4,11 +4,10 @@
       <div class="flex items-center gap-2">
         <NTag size="tiny" :type="proc.plugin === 'python' ? 'warning' : 'info'">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }}</NTag>
         <span class="text-sm font-medium truncate flex-1">{{ proc.name || '步骤 ' + (index + 1) }}</span>
-        <NButton text size="tiny" @click="$emit('toggleExpand')">{{ expanded ? '收起' : '展开' }}</NButton>
         <NButton text size="tiny" type="error" @click="$emit('remove')" :disabled="!canRemove">删除</NButton>
       </div>
     </template>
-    <div v-if="expanded" class="space-y-3">
+    <div class="space-y-3">
       <SqlProcessorContent
         v-if="proc.plugin === 'sql'"
         :proc="proc"
@@ -37,7 +36,6 @@ import PythonProcessorContent from './PythonProcessorContent.vue'
 defineProps<{
   proc: ProcessorStep
   index: number
-  expanded: boolean
   canRemove: boolean
   availableTables: Array<{ label: string; value: string }>
   pulseSql?: boolean
@@ -45,7 +43,6 @@ defineProps<{
 
 defineEmits<{
   remove: []
-  toggleExpand: []
   update: [partial: Partial<ProcessorStep>]
 }>()
 </script>
