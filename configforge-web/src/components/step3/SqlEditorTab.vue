@@ -161,16 +161,27 @@ const inputTableNames = computed(() =>
   store.inputs.map(inp => inp.table.trim()).filter(Boolean)
 )
 
+// Collect all output tables from processors (to exclude as self-input)
+const allOutputTables = computed(() => {
+  const s = new Set<string>()
+  for (const proc of store.processors) {
+    for (const t of proc.outputTables) if (t) s.add(t)
+  }
+  return s
+})
+
 const tableOptions = computed(() => {
   const seen = new Set<string>()
   const options: Array<{ label: string; value: string }> = []
+  // Input source tables
   for (const inp of store.inputs) {
     const t = inp.table.trim()
     if (t && !seen.has(t)) { seen.add(t); options.push({ label: t, value: t }) }
   }
+  // Previous processor output tables (not current step's own output)
   for (const proc of store.processors) {
     for (const t of proc.outputTables) {
-      if (t && !seen.has(t)) { seen.add(t); options.push({ label: t + ' (输出)', value: t }) }
+      if (t && !seen.has(t)) { seen.add(t); options.push({ label: t + ' (上一步输出)', value: t }) }
     }
   }
   return options
