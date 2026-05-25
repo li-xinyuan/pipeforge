@@ -130,13 +130,14 @@ const defaultEmpty = computed(() =>
 const showAddSelector = ref(defaultEmpty.value)
 
 function pickProcessor(plugin: 'sql' | 'python') {
+  const step = plugin === 'python'
+    ? { name: 'Python 脚本', plugin: 'python' as const, script: '', inputTables: [], outputTables: [] }
+    : { name: 'SQL 查询', plugin: 'sql' as const, sql: '', inputTables: [], outputTables: [] }
   if (defaultEmpty.value) {
-    // Replace the empty default step
-    store.processors[0] = plugin === 'python'
-      ? { name: '', plugin: 'python', script: '', inputTables: [], outputTables: [] }
-      : { name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] }
+    store.processors[0] = step
   } else {
     store.addProcessor(plugin)
+    store.processors[store.processors.length - 1] = step
   }
   showAddSelector.value = false
 }
