@@ -1,27 +1,27 @@
 <template>
   <div class="space-y-3">
-    <!-- Step name -->
-    <div>
-      <label class="block text-sm font-medium text-slate-900 mb-1">步骤名称</label>
-      <NInput
-        :value="proc.name"
-        @update:value="(v: string) => $emit('update', { name: v })"
-        size="small"
-        placeholder="例如：数据清洗"
-        :data-testid="`processor-name-${index}`"
-      />
-    </div>
-
-    <!-- Input tables -->
-    <div>
-      <label class="block text-sm font-medium text-slate-900 mb-1">输入表</label>
-      <NSelect
-        :value="proc.inputTables"
-        :options="availableTables"
-        multiple
-        placeholder="选择输入表（可选，留空则自动使用所有可用表）"
-        @update:value="(v: string[]) => $emit('update', { inputTables: v })"
-      />
+    <!-- Step name + Input tables in one row -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">步骤名称</label>
+        <NInput
+          :value="proc.name"
+          @update:value="(v: string) => $emit('update', { name: v })"
+          size="small"
+          placeholder="例如：数据清洗"
+          :data-testid="`processor-name-${index}`"
+        />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">输入表</label>
+        <NSelect
+          :value="proc.inputTables"
+          :options="availableTables"
+          multiple
+          placeholder="选择输入表（可选）"
+          @update:value="(v: string[]) => $emit('update', { inputTables: v })"
+        />
+      </div>
     </div>
 
     <!-- SQL textarea -->
