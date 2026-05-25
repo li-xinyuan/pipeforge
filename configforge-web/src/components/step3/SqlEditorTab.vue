@@ -194,7 +194,7 @@ function inferPythonOutputTable(script: string): string | null {
 }
 
 watch(inputTableNames, (tables) => {
-  if (tables.length > 0) {
+  if (tables.length > 0 && !showAddSelector.value) {
     for (const proc of store.processors) {
       if (proc.plugin === 'sql' && !proc.sql.trim()) {
         proc.sql = `SELECT * FROM "${tables[0]}"`
