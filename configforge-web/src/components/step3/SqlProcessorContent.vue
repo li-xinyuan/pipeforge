@@ -292,9 +292,9 @@ async function runDryRun() {
   dryRunRunning.value = true
   const result = await runDryRunApi(store.$state)
   if (result?.tables?.length) {
-    const inputTables = new Set(store.inputs.map(inp => inp.table).filter(Boolean))
-    const outputTables = result.tables.filter(t => !inputTables.has(t.table_name))
-    dryRunResult.value = outputTables.length ? outputTables : result.tables
+    // Only show this step's output table(s)
+    const myOutputs = new Set(props.proc.outputTables.filter(Boolean))
+    dryRunResult.value = result.tables.filter(t => myOutputs.has(t.table_name))
     // Cache column info for downstream steps
     for (const t of result.tables) {
       columnsCache.value[t.table_name] = t.columns.map((name: string, ci: number) => {
