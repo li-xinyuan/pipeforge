@@ -23,22 +23,17 @@
       />
     </div>
 
-    <!-- Output tables -->
+    <!-- Output table -->
     <div>
       <label class="block text-sm font-medium text-slate-900 mb-1">
         <span class="text-red-500">*</span> 输出表名
       </label>
-      <div v-for="(t, ti) in proc.outputTables" :key="ti" class="flex items-center gap-1 mb-1">
-        <NInput
-          :value="t"
-          @update:value="(v: string) => { const copy = [...proc.outputTables]; copy[ti] = v; $emit('update', { outputTables: copy }) }"
-          size="small"
-          placeholder="输出表名"
-          class="flex-1"
-        />
-        <NButton text size="tiny" type="error" @click="() => { const copy = [...proc.outputTables]; copy.splice(ti, 1); $emit('update', { outputTables: copy }) }">✕</NButton>
-      </div>
-      <NButton size="tiny" dashed @click="() => { $emit('update', { outputTables: [...proc.outputTables, ''] }) }">+ 添加输出表</NButton>
+      <NInput
+        :value="proc.outputTables[0] || ''"
+        @update:value="(v: string) => $emit('update', { outputTables: [v] })"
+        size="small"
+        placeholder="例如：clean_data"
+      />
     </div>
 
     <!-- Python script textarea -->
