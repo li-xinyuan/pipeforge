@@ -30,8 +30,8 @@
       </div>
 
       <!-- Available columns -->
-      <div v-if="currentFromTable">
-        <label class="block text-xs font-medium text-slate-500 mb-1">{{ currentFromTable }} 的字段</label>
+      <div v-if="displayTable">
+        <label class="block text-xs font-medium text-slate-500 mb-1">{{ displayTable }} 的字段</label>
         <div class="flex flex-wrap gap-1">
           <NTag
             v-for="col in currentTableColumns"
@@ -188,6 +188,8 @@ const currentFromTable = computed(() => {
   return m ? m[1] : ''
 })
 
+const displayTable = computed(() => currentFromTable.value || props.availableTables[0]?.value || '')
+
 const datePattern = /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$|^\d{8}$|^\d{4}年\d{1,2}月\d{1,2}日$|^\d{1,2}[-\/]\d{1,2}[-\/]\d{4}$/
 
 function inferColType(values: string[]): string {
@@ -205,10 +207,10 @@ const typeTextMap: Record<string, string> = { INT: 'text-blue-700', NUM: 'text-p
 const typeBadgeMap: Record<string, string> = { INT: 'bg-blue-200/60 text-blue-800', NUM: 'bg-purple-200/60 text-purple-800', BOOL: 'bg-amber-200/60 text-amber-800', DATE: 'bg-green-200/60 text-green-800', TEXT: 'bg-slate-200/60 text-slate-700' }
 
 const currentTableColumns = computed(() => {
-  if (!currentFromTable.value) return []
+  if (!displayTable.value) return []
   // Find matching input source
   for (const inp of store.inputs) {
-    if (inp.table === currentFromTable.value && inp.fileId) {
+    if (inp.table === displayTable.value && inp.fileId) {
       const meta = store.uploadedFiles[inp.fileId]
       if (meta?.columns) {
         return meta.columns.map((name, ci) => {
