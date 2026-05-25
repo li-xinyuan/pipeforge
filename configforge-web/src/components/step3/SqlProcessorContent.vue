@@ -208,7 +208,7 @@ const typeBadgeMap: Record<string, string> = { INT: 'bg-blue-200/60 text-blue-80
 
 const currentTableColumns = computed(() => {
   if (!displayTable.value) return []
-  // Find matching input source
+  // Check input sources first
   for (const inp of store.inputs) {
     if (inp.table === displayTable.value && inp.fileId) {
       const meta = store.uploadedFiles[inp.fileId]
@@ -220,8 +220,37 @@ const currentTableColumns = computed(() => {
       }
     }
   }
+  // Check if it's a previous processor's output table
+  for (let i = 0; i < props.index; i++) {
+    const proc = store.processors[i]
+    if (proc.outputTables.includes(displayTable.value)) {
+      // Try to get columns from cached dry-run result or previously known columns
+      // For now, return existing column info if we can derive it from the source
+      const sourceMeta = findSourceColumns(i)
+      if (sourceMeta) return sourceMeta
+    }
+  }
   return []
 })
+
+function findSourceColumns(procIndex: number): { name: string; type: string }[] | null {
+  // Walk back to find the original input source columns
+  const proc = store.processors[procIndex]
+  if (!proc) return null
+  // Check if this processor's input tables come from input sources
+  for (const inp of store.inputs) {
+    if (proc.inputTables?.includes(inp.table) || (!proc.inputTables?.length && inp.table)) {
+      const meta = store.uploadedFiles[inp.fileId]
+      if (meta?.columns) {
+        return meta.columns.map((name, ci) => {
+          const samples = (meta.sampleRows || []).slice(0, 10).map(r => r[ci]).filter(v => v != null)
+          return { name, type: inferColType(samples.map(String)) }
+        })
+      }
+    }
+  }
+  return null
+}
 
 function colTypeBgClass(t: string) { return typeBgMap[t] || '' }
 function colTypeTextClass(t: string) { return typeTextMap[t] || '' }
