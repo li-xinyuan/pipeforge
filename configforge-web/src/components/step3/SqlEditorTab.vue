@@ -33,43 +33,45 @@
       <NButton size="tiny" @click="renamePrompt = null">忽略</NButton>
     </div>
 
-    <!-- Processor cards (always expanded) -->
-    <ProcessorCard
-      v-for="(proc, i) in store.processors"
-      :key="i"
-      :proc="proc"
-      :index="i"
-      :expanded="true"
-      :can-remove="store.processors.length > 1"
-      :available-tables="tableOptions"
-      :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
-      @remove="store.removeProcessor(i)"
-      @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
-    />
+    <!-- Content when not in type selector -->
+    <template v-if="!showAddSelector">
+      <!-- Processor cards (always expanded) -->
+      <ProcessorCard
+        v-for="(proc, i) in store.processors"
+        :key="i"
+        :proc="proc"
+        :index="i"
+        :expanded="true"
+        :can-remove="store.processors.length > 1"
+        :available-tables="tableOptions"
+        :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
+        @remove="store.removeProcessor(i)"
+        @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
+      />
 
-    <!-- Add button (matching Step 2) -->
-    <NButton
-      v-if="!showAddSelector"
-      dashed
-      block
-      class="mt-3"
-      :class="{ 'pulse-cta': pulseCta && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }"
-      @click="showAddSelector = true"
-    >添加处理步骤</NButton>
+      <!-- Add button (matching Step 2) -->
+      <NButton
+        dashed
+        block
+        class="mt-3"
+        :class="{ 'pulse-cta': pulseCta && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }"
+        @click="showAddSelector = true"
+      >添加处理步骤</NButton>
 
-    <!-- Validation -->
-    <NAlert v-if="store.stepValidation.length" type="warning" class="mt-3">
-      <ul class="list-disc pl-4 text-xs">
-        <li v-for="msg in store.stepValidation" :key="msg">{{ msg }}</li>
-      </ul>
-    </NAlert>
+      <!-- Validation -->
+      <NAlert v-if="store.stepValidation.length" type="warning" class="mt-3">
+        <ul class="list-disc pl-4 text-xs">
+          <li v-for="msg in store.stepValidation" :key="msg">{{ msg }}</li>
+        </ul>
+      </NAlert>
 
-    <AiSuggestPanel
-      :visible="!!store.aiSuggestions['sql'] && store.aiSuggestions['sql'].status !== 'auto'"
-      :content="store.aiSuggestions['sql']?.content || ''"
-      @accept="onAcceptSuggestion"
-      @regenerate="onRegenerateSuggestion"
-    />
+      <AiSuggestPanel
+        :visible="!!store.aiSuggestions['sql'] && store.aiSuggestions['sql'].status !== 'auto'"
+        :content="store.aiSuggestions['sql']?.content || ''"
+        @accept="onAcceptSuggestion"
+        @regenerate="onRegenerateSuggestion"
+      />
+    </template>
   </div>
 </template>
 
