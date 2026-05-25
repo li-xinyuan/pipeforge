@@ -7,14 +7,14 @@
         <NButton text type="error" size="small" @click="showAddSelector = false">取消</NButton>
       </div>
       <div class="grid grid-cols-2 gap-3 mb-5">
-        <span :class="{ 'pulse-cta': pulseCta && store.processors.length === 0 }" style="display:inline-block;border-radius:8px;">
+        <span :class="{ 'pulse-cta': pulseCta && hasNoSteps }" style="display:inline-block;border-radius:8px;">
           <NCard hoverable class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50" @click="addProcessor('sql')">
             <span class="text-2xl block mb-2">🧪</span>
             <span class="text-sm font-semibold">SQL</span>
             <span class="text-xs text-slate-500 mt-1 block">SQLite 查询处理</span>
           </NCard>
         </span>
-        <span :class="{ 'pulse-cta': pulseCta && store.processors.length === 0 }" style="display:inline-block;border-radius:8px;">
+        <span :class="{ 'pulse-cta': pulseCta && hasNoSteps }" style="display:inline-block;border-radius:8px;">
           <NCard hoverable class="cursor-pointer text-center border-2 border-orange-500 bg-orange-50" @click="addProcessor('python')">
             <span class="text-2xl block mb-2">🐍</span>
             <span class="text-sm font-semibold">Python</span>
