@@ -42,7 +42,7 @@
         :index="i"
         :expanded="true"
         :can-remove="store.processors.length > 1"
-        :available-tables="tableOptions"
+        :available-tables="tableOptionsFor(i)"
         :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
         @remove="store.removeProcessor(i)"
         @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
@@ -161,16 +161,22 @@ const inputTableNames = computed(() =>
   store.inputs.map(inp => inp.table.trim()).filter(Boolean)
 )
 
-const tableOptions = computed(() => {
+function tableOptionsFor(currentIndex: number) {
   const seen = new Set<string>()
   const options: Array<{ label: string; value: string }> = []
-  // Only show input source tables — a step cannot query its own output
+  // Input source tables
   for (const inp of store.inputs) {
     const t = inp.table.trim()
     if (t && !seen.has(t)) { seen.add(t); options.push({ label: t, value: t }) }
   }
+  // Previous processors' output tables (not current or later ones)
+  for (let i = 0; i < currentIndex; i++) {
+    for (const t of store.processors[i].outputTables) {
+      if (t && !seen.has(t)) { seen.add(t); options.push({ label: t + ' (上一步)', value: t }) }
+    }
+  }
   return options
-})
+}
 
 function inferStepName(sql: string): string {
   if (!sql.trim()) return ''
