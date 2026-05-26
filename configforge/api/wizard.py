@@ -56,8 +56,10 @@ async def api_execute(req: GenerateRequest):
     """执行 pipeline 并返回生成的输出文件。"""
     try:
         output_path = execute_pipeline(req.state)
-    except Exception:
-        raise HTTPException(status_code=500, detail="Pipeline execution failed")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {e}")
     filename = os.path.basename(output_path)
     media_type = "text/csv" if filename.endswith(".csv") else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return FileResponse(

@@ -82,6 +82,11 @@ def execute_pipeline(state: WizardState) -> str:
     """使用真实数据执行 pipeline，返回输出文件路径。"""
     exec_state = copy.deepcopy(state)
 
+    # Auto-fill empty param_keys (PipeForge requires non-empty)
+    for inp in exec_state.inputs:
+        if not inp.param_key.strip():
+            inp.param_key = inp.table or f"input_{id(inp)}"
+
     # Auto-wrap non-DDL SQL for all processors
     for proc in _get_processors(exec_state):
         if proc.plugin == "python":
