@@ -268,13 +268,6 @@ const filenameParts = computed(() => {
   return parts
 })
 
-function commitPlainText() {
-  const v = plainText.value.trim()
-  if (!v) return
-  outputConfig.value.filename = baseFilename.value + v + fileExtension.value
-  plainText.value = ''
-}
-
 function insertAtPos(text: string) {
   const parts = filenameParts.value
   const before = parts.slice(0, insertPos.value).map(p => p.text).join('')
