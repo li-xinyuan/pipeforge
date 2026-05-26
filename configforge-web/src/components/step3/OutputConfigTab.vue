@@ -99,9 +99,19 @@
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
-        <div class="flex items-center">
-          <NInput ref="filenameInputRef" :value="baseFilename" @update:value="setBaseFilename" class="flex-1" />
-          <NButton v-if="baseFilename" text size="tiny" type="error" class="ml-1" @click="clearFilename">✕</NButton>
+        <div class="flex items-center flex-wrap gap-1 border border-slate-200 rounded px-2 py-1.5 min-h-[32px] bg-white">
+          <template v-for="(part, i) in filenameParts" :key="i">
+            <NTag v-if="part.tag" size="tiny" type="info" closable @close="removeTagPart(i)">{{ part.text }}</NTag>
+            <span v-else class="text-sm text-slate-700">{{ part.text }}</span>
+          </template>
+          <input
+            ref="plainInputRef"
+            :value="plainText"
+            @input="setPlainText(($event.target as HTMLInputElement).value)"
+            class="flex-1 min-w-[40px] outline-none text-sm bg-transparent"
+            placeholder="输入文字"
+          />
+          <NButton v-if="baseFilename" text size="tiny" type="error" class="ml-auto" @click="clearFilename">✕</NButton>
         </div>
         <span class="text-sm text-slate-400 font-medium">{{ fileExtension }}</span>
       </div>
@@ -235,14 +245,46 @@ const outputTypeInfo = computed(() => {
 
 const prevFileIds = ref<string[]>([])
 const prevSql = ref('')
-const filenameInputRef = ref<HTMLInputElement>()
+const plainInputRef = ref<HTMLInputElement>()
+const plainText = ref('')
+
+const filenameParts = computed(() => {
+  const fn = baseFilename.value
+  const parts: Array<{ text: string; tag: boolean }> = []
+  const re = /\{\{.+?\}\}/g
+  let last = 0; let m
+  while ((m = re.exec(fn)) !== null) {
+    if (m.index > last) parts.push({ text: fn.slice(last, m.index), tag: false })
+    parts.push({ text: m[0], tag: true })
+    last = m.index + m[0].length
+  }
+  if (last < fn.length) parts.push({ text: fn.slice(last), tag: false })
+  return parts
+})
+
+function syncFilename() {
+  const tags = filenameParts.value.filter(p => p.tag).map(p => p.text).join('')
+  outputConfig.value.filename = tags + plainText.value + fileExtension.value
+}
 
 function insertTag(tag: string) {
   outputConfig.value.filename = baseFilename.value + tag + fileExtension.value
 }
 
+function removeTagPart(idx: number) {
+  const parts = filenameParts.value
+  const removed = parts[idx].text
+  outputConfig.value.filename = baseFilename.value.replace(removed, '') + fileExtension.value
+}
+
+function setPlainText(v: string) {
+  plainText.value = v
+  syncFilename()
+}
+
 function clearFilename() {
   outputConfig.value.filename = fileExtension.value
+  plainText.value = ''
 }
 let lastAutoInferred = false
 let inferTimer: ReturnType<typeof setTimeout> | null = null
