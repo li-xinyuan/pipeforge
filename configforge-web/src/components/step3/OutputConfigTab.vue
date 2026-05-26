@@ -101,14 +101,15 @@
         </div>
         <div class="flex items-center flex-wrap gap-1 border border-slate-200 rounded px-2 py-1.5 min-h-[32px] bg-white">
           <template v-for="(part, i) in filenameParts" :key="i">
-            <NTag v-if="part.tag" size="tiny" type="info" closable @close="removeTagPart(i)">{{ part.text }}</NTag>
+            <NTag size="tiny" :type="part.tag ? 'info' : 'default'" :bordered="true" closable @close="removeTagPart(i)">{{ part.text }}</NTag>
           </template>
           <input
             ref="plainInputRef"
-            :value="plainText"
-            @input="setPlainText(($event.target as HTMLInputElement).value)"
+            v-model="plainText"
             class="flex-1 min-w-[40px] outline-none text-sm bg-transparent"
-            :placeholder="filenameParts.filter(p => p.tag).length === 0 ? '输入文件名' : ''"
+            :placeholder="filenameParts.length === 0 ? '输入文件名' : ''"
+            @keyup.enter="commitPlainText"
+            @blur="commitPlainText"
           />
           <NButton v-if="baseFilename" text size="tiny" type="error" class="ml-auto" @click="clearFilename">✕</NButton>
         </div>
@@ -247,12 +248,6 @@ const prevSql = ref('')
 const plainInputRef = ref<HTMLInputElement>()
 const plainText = ref('')
 
-// Initialize plainText from existing filename (extract non-tag parts)
-watch(() => baseFilename.value, (fn) => {
-  const re = /\{\{.+?\}\}/g
-  plainText.value = fn.replace(re, '')
-}, { immediate: true })
-
 const filenameParts = computed(() => {
   const fn = baseFilename.value
   const parts: Array<{ text: string; tag: boolean }> = []
@@ -267,25 +262,21 @@ const filenameParts = computed(() => {
   return parts
 })
 
-function fullFilename(): string {
-  const tags = filenameParts.value.filter(p => p.tag).map(p => p.text).join('')
-  return tags + plainText.value + fileExtension.value
+function commitPlainText() {
+  const v = plainText.value.trim()
+  if (!v) return
+  outputConfig.value.filename = baseFilename.value + v + fileExtension.value
+  plainText.value = ''
 }
 
 function insertTag(tag: string) {
-  const tags = filenameParts.value.filter(p => p.tag).map(p => p.text).join('')
-  outputConfig.value.filename = tags + tag + plainText.value + fileExtension.value
+  outputConfig.value.filename = baseFilename.value + tag + fileExtension.value
 }
 
 function removeTagPart(idx: number) {
   const parts = filenameParts.value
   const removed = parts[idx].text
   outputConfig.value.filename = baseFilename.value.replace(removed, '') + fileExtension.value
-}
-
-function setPlainText(v: string) {
-  plainText.value = v
-  outputConfig.value.filename = fullFilename()
 }
 
 function clearFilename() {
