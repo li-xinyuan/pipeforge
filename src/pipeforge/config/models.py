@@ -132,11 +132,7 @@ class ExcelOutputConfig(BaseModel):
     @field_validator("columns")
     @classmethod
     def columns_not_empty(cls, v: list[ColumnMapping]) -> list[ColumnMapping]:
-        if len(v) == 0:
-            raise ValueError(
-                "columns must not be empty — at least one column mapping is required"
-            )
-        return v
+        return v  # Allow empty — pipeline auto-infers columns from input
 
 
 class CsvOutputConfig(BaseModel):
@@ -153,11 +149,7 @@ class CsvOutputConfig(BaseModel):
     @field_validator("columns")
     @classmethod
     def columns_not_empty(cls, v: list[ColumnMapping]) -> list[ColumnMapping]:
-        if len(v) == 0:
-            raise ValueError(
-                "columns must not be empty — at least one column mapping is required"
-            )
-        return v
+        return v  # Allow empty — pipeline auto-infers columns from input
 
 
 class OutputSpec(BaseModel):

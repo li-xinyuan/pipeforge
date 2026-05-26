@@ -99,6 +99,12 @@ def execute_pipeline(state: WizardState) -> str:
                     f"SELECT * FROM ({proc.sql})"
                 )
 
+    # Auto-fill output source_table from last processor if empty
+    if exec_state.output and not getattr(exec_state.output.config, 'source_table', None):
+        procs = _get_processors(exec_state)
+        if procs and procs[-1].output_tables:
+            exec_state.output.config.source_table = procs[-1].output_tables[0]
+
     tmp_dir = tempfile.mkdtemp(prefix="pipeforge_exec_")
 
     # 当 output columns 为空时，自动从输入文件推断列映射
