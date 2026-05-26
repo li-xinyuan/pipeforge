@@ -101,7 +101,7 @@
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
         <div class="flex items-center">
-          <NInput ref="filenameInputRef" v-model:value="outputConfig.filename" class="flex-1" />
+          <NInput ref="filenameInputRef" :value="baseFilename" @update:value="setBaseFilename" class="flex-1" />
           <span class="ml-2 text-sm text-slate-400 font-medium whitespace-nowrap">{{ fileExtension }}</span>
         </div>
       </div>
@@ -191,8 +191,9 @@ function buildFilename(ext: string): string {
 
 function applyAutoFilename(ext: string) {
   const name = buildFilename(ext)
-  outputConfig.value.filename = name
-  lastAutoFilename.value = name
+  // Strip extension — setBaseFilename will append the correct one
+  outputConfig.value.filename = name.endsWith('.' + ext) ? name.slice(0, -ext.length - 1) + fileExtension.value : name + fileExtension.value
+  lastAutoFilename.value = outputConfig.value.filename
 }
 
 const encodingOptions = [
@@ -202,6 +203,14 @@ const encodingOptions = [
 
 const outputConfig = computed(() => store.output!.config as ExcelOutputConfig | CsvOutputConfig)
 const fileExtension = computed(() => store.output?.plugin === 'csv' ? '.csv' : '.xlsx')
+const baseFilename = computed(() => {
+  const fn = outputConfig.value.filename || ''
+  const ext = fileExtension.value
+  return fn.endsWith(ext) ? fn.slice(0, -ext.length) : fn
+})
+function setBaseFilename(v: string) {
+  outputConfig.value.filename = v + fileExtension.value
+}
 const excelConfig = computed(() => store.output!.config as ExcelOutputConfig)
 const csvConfig = computed(() => store.output!.config as CsvOutputConfig)
 
