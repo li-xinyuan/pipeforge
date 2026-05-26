@@ -99,9 +99,9 @@
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
-        <div class="flex items-center gap-1 flex-wrap border border-slate-200 rounded px-2 py-1.5 min-h-[32px] bg-white">
+        <div class="flex items-center gap-1 flex-wrap border border-slate-200 rounded px-2 py-1.5 min-h-[32px] bg-white relative">
           <template v-for="(part, i) in filenameParts" :key="i">
-            <NTag v-if="part.tag" size="tiny" type="info">{{ part.text }}</NTag>
+            <NTag v-if="part.tag" size="tiny" type="info" closable @close="removeTag(part.text)">{{ part.text }}</NTag>
             <span v-else class="text-sm text-slate-700">{{ part.text }}</span>
           </template>
           <input
@@ -111,6 +111,7 @@
             class="flex-1 min-w-[60px] outline-none text-sm bg-transparent"
             placeholder="输入文件名"
           />
+          <span v-if="baseFilename" class="absolute top-0.5 right-0.5 text-xs text-slate-400 hover:text-red-500 cursor-pointer px-1" @click="clearFilename">✕</span>
         </div>
         <span class="text-sm text-slate-400 font-medium">{{ fileExtension }}</span>
       </div>
@@ -263,6 +264,14 @@ const filenameParts = computed(() => {
 
 function insertTag(tag: string) {
   outputConfig.value.filename = baseFilename.value + tag + fileExtension.value
+}
+
+function removeTag(tag: string) {
+  outputConfig.value.filename = baseFilename.value.replace(tag, '') + fileExtension.value
+}
+
+function clearFilename() {
+  outputConfig.value.filename = fileExtension.value
 }
 let lastAutoInferred = false
 let inferTimer: ReturnType<typeof setTimeout> | null = null
