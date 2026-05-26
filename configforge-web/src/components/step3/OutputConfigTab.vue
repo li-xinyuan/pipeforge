@@ -318,7 +318,12 @@ function removeTemplate() {
 async function onInferColumns() {
   // Use the first processor's code for column inference
   const p0 = store.processors[0]
-  const sql = p0 ? (p0.plugin === 'sql' ? p0.sql : p0.script) : ''
+  if (!p0) return
+  if (p0.plugin === 'python') {
+    message.info('Python 步骤请在下方手动添加列映射，或点击预览结果后自动填充')
+    return
+  }
+  const sql = p0.sql
   const cols = inferSelectColumns(sql)
   if (cols.length === 0) {
     const tableMapping: Record<string, string> = {}

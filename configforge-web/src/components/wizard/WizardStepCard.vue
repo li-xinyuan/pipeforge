@@ -26,6 +26,12 @@
     <div v-if="$slots.footer" class="wizard-step-card__footer">
       <slot name="footer" />
     </div>
+
+    <!-- Locked overlay -->
+    <div v-if="status === 'locked'" class="wizard-step-card__lock-overlay">
+      <span class="wizard-step-card__lock-icon">🔒</span>
+      <span class="wizard-step-card__lock-text">请先完成上一步</span>
+    </div>
   </section>
 </template>
 
@@ -56,11 +62,32 @@ defineProps<{
   box-shadow: var(--shadow-active);
 }
 .wizard-step-card--locked {
-  opacity: 0.55;
+  opacity: 0.35;
 }
 .wizard-step-card--locked .wizard-step-card__body,
 .wizard-step-card--locked .wizard-step-card__footer {
   pointer-events: none;
+}
+.wizard-step-card__lock-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.4);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.wizard-step-card__lock-icon {
+  font-size: 28px;
+  opacity: 0.6;
+}
+.wizard-step-card__lock-text {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-weight: 500;
 }
 .wizard-step-card__header {
   display: flex;

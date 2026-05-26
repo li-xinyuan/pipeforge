@@ -52,6 +52,15 @@
       />
     </div>
 
+    <!-- Quick templates -->
+    <div class="flex flex-wrap gap-1">
+      <span class="text-[10px] text-slate-400 mr-1 self-center">模板:</span>
+      <NTag size="tiny" class="cursor-pointer" @click="$emit('update', { script: templates.clean })">数据清洗</NTag>
+      <NTag size="tiny" class="cursor-pointer" @click="$emit('update', { script: templates.filter })">数据过滤</NTag>
+      <NTag size="tiny" class="cursor-pointer" @click="$emit('update', { script: templates.aggregate })">数据聚合</NTag>
+      <NTag size="tiny" class="cursor-pointer" @click="$emit('update', { script: templates.api })">API 调用</NTag>
+    </div>
+
     <!-- Preview execution -->
     <div class="flex gap-2 items-center flex-wrap">
       <NButton v-if="!dryRunVisible || !dryRunResult" size="tiny" type="info" :loading="dryRunRunning" :disabled="!pyProc.script.trim()" @click="runPreview">▶ 预览结果</NButton>
@@ -100,6 +109,13 @@ const pyProc = computed(() => {
 
 const store = useWizardStore()
 const { dryRun: runDryRunApi, error: wizardApiError } = useWizardApi()
+
+const templates = {
+  clean: 'def process(ctx):\n    conn = ctx.db.connection\n    # 删除空行和无效数据\n    conn.execute("DELETE FROM source WHERE name IS NULL")\n    conn.execute("CREATE TABLE result AS SELECT * FROM source WHERE name IS NOT NULL")\n',
+  filter: 'def process(ctx):\n    conn = ctx.db.connection\n    # 过滤符合条件的数据\n    conn.execute("CREATE TABLE result AS SELECT * FROM source WHERE date >= \'2024-01-01\'")\n',
+  aggregate: 'def process(ctx):\n    conn = ctx.db.connection\n    # 按部门聚合统计\n    conn.execute("CREATE TABLE result AS SELECT dept, COUNT(*) AS cnt, AVG(salary) AS avg_salary FROM source GROUP BY dept")\n',
+  api: 'def process(ctx):\n    import requests\n    # 调用外部 API 获取数据\n    resp = requests.get("https://api.example.com/data")\n    data = resp.json()\n    conn = ctx.db.connection\n    conn.execute("CREATE TABLE result (name TEXT, value REAL)")\n    for item in data:\n        conn.execute("INSERT INTO result VALUES (?, ?)", [item["name"], item["value"]])\n    conn.commit()\n',
+}
 
 const dryRunRunning = ref(false)
 const dryRunResult = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
