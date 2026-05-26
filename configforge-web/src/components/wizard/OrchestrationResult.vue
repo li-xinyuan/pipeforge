@@ -9,7 +9,7 @@
           入: {{ step.input_tables?.join(', ') || '源表' }} → 出: {{ step.output_tables?.join(', ') || '未指定' }}
         </span>
       </div>
-      <pre class="text-sm bg-slate-800 text-green-300 p-3 rounded font-mono overflow-x-auto" style="min-height:48px;"><code>{{ step.script || step.sql }}</code></pre>
+      <pre class="text-sm bg-slate-800 text-green-300 p-3 rounded font-mono overflow-x-auto" style="min-height:48px;"><code>{{ step.plugin === 'python' ? step.script : step.sql }}</code></pre>
     </div>
     <div v-if="result.parse_error" class="text-xs text-amber-600 mt-2">
       AI 返回格式异常，请尝试重新生成。原始响应：{{ (result.raw || '').slice(0, 300) }}

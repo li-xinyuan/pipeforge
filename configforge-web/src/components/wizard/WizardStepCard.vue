@@ -48,6 +48,7 @@ defineProps<{
 
 <style scoped>
 .wizard-step-card {
+  position: relative;
   background: var(--color-surface);
   border-radius: var(--radius-xl);
   padding: var(--space-card-padding);

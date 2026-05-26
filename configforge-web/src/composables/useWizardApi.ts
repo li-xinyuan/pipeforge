@@ -115,7 +115,10 @@ export function useAiApi() {
   }
 
   async function askOrchestrate(context: Record<string, unknown>): Promise<{
-    steps: Array<{ name: string; input_tables: string[]; output_tables: string[]; sql: string }>
+    steps: Array<
+      | { name: string; plugin: 'sql'; input_tables: string[]; output_tables: string[]; sql: string }
+      | { name: string; plugin: 'python'; input_tables: string[]; output_tables: string[]; script: string }
+    >
     explanation: string
     raw?: string
     parse_error?: boolean
