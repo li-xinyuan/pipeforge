@@ -96,13 +96,23 @@
       <div>
         <div class="flex items-center gap-1 mb-1">
           <label class="block text-sm font-medium text-slate-900">输出文件名</label>
-          <NTag size="tiny" :type="tagsSelected.date ? 'info' : 'default'" :class="{ 'opacity-50': tagsSelected.date }" class="cursor-pointer" @click="!tagsSelected.date && insertTag('{{date:%Y%m%d}}')">年月日</NTag>
-          <NTag size="tiny" :type="tagsSelected.time ? 'info' : 'default'" :class="{ 'opacity-50': tagsSelected.time }" class="cursor-pointer" @click="!tagsSelected.time && insertTag('{{time:%H%M%S}}')">时分秒</NTag>
+          <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
+          <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
-        <div class="flex items-center">
-          <NInput ref="filenameInputRef" :value="baseFilename" @update:value="setBaseFilename" class="flex-1" />
-          <span class="ml-2 text-sm text-slate-400 font-medium whitespace-nowrap">{{ fileExtension }}</span>
+        <div class="flex items-center gap-1 flex-wrap border border-slate-200 rounded px-2 py-1.5 min-h-[32px] bg-white">
+          <template v-for="(part, i) in filenameParts" :key="i">
+            <NTag v-if="part.tag" size="tiny" type="info">{{ part.text }}</NTag>
+            <span v-else class="text-sm text-slate-700">{{ part.text }}</span>
+          </template>
+          <input
+            ref="filenameInputRef"
+            :value="baseFilename"
+            @input="setBaseFilename(($event.target as HTMLInputElement).value)"
+            class="flex-1 min-w-[60px] outline-none text-sm bg-transparent"
+            placeholder="输入文件名"
+          />
         </div>
+        <span class="text-sm text-slate-400 font-medium">{{ fileExtension }}</span>
       </div>
 
       <!-- Delimiter (CSV only) -->
@@ -157,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
@@ -185,7 +195,7 @@ function safeSceneName(): string {
 }
 
 function buildFilename(ext: string): string {
-  return `${safeSceneName()}_${getDateStr()}.${ext}`
+  return `${safeSceneName()}.${ext}`
 }
 
 function applyAutoFilename(ext: string) {
@@ -235,21 +245,24 @@ const outputTypeInfo = computed(() => {
 const prevFileIds = ref<string[]>([])
 const prevSql = ref('')
 const filenameInputRef = ref<HTMLInputElement>()
-const tagsSelected = reactive({ date: false, time: false })
+
+const filenameParts = computed(() => {
+  const fn = baseFilename.value
+  const parts: Array<{ text: string; tag: boolean }> = []
+  const re = /\{\{.+?\}\}/g
+  let last = 0
+  let m
+  while ((m = re.exec(fn)) !== null) {
+    if (m.index > last) parts.push({ text: fn.slice(last, m.index), tag: false })
+    parts.push({ text: m[0], tag: true })
+    last = m.index + m[0].length
+  }
+  if (last < fn.length) parts.push({ text: fn.slice(last), tag: false })
+  return parts
+})
 
 function insertTag(tag: string) {
-  if (tag.includes('date:')) tagsSelected.date = true
-  if (tag.includes('time:')) tagsSelected.time = true
-  const el = filenameInputRef.value?.$el?.querySelector('input') as HTMLInputElement | null
-  if (el) {
-    const start = el.selectionStart ?? outputConfig.value.filename.length
-    const end = el.selectionEnd ?? start
-    const v = outputConfig.value.filename
-    outputConfig.value.filename = v.slice(0, start) + tag + v.slice(end)
-    setTimeout(() => { el.selectionStart = el.selectionEnd = start + tag.length }, 50)
-  } else {
-    outputConfig.value.filename += tag
-  }
+  outputConfig.value.filename = baseFilename.value + tag + fileExtension.value
 }
 let lastAutoInferred = false
 let inferTimer: ReturnType<typeof setTimeout> | null = null
