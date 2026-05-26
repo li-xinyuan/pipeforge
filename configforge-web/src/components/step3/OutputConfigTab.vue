@@ -100,7 +100,10 @@
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
-        <NInput ref="filenameInputRef" v-model:value="outputConfig.filename" />
+        <div class="flex items-center">
+          <NInput ref="filenameInputRef" v-model:value="outputConfig.filename" class="flex-1" />
+          <span class="ml-2 text-sm text-slate-400 font-medium whitespace-nowrap">{{ fileExtension }}</span>
+        </div>
       </div>
 
       <!-- Delimiter (CSV only) -->
@@ -198,6 +201,7 @@ const encodingOptions = [
 ]
 
 const outputConfig = computed(() => store.output!.config as ExcelOutputConfig | CsvOutputConfig)
+const fileExtension = computed(() => store.output?.plugin === 'csv' ? '.csv' : '.xlsx')
 const excelConfig = computed(() => store.output!.config as ExcelOutputConfig)
 const csvConfig = computed(() => store.output!.config as CsvOutputConfig)
 
