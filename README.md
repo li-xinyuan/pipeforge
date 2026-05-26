@@ -6,7 +6,7 @@
 
 ```
 configforge-web (Vue 3)  →  configforge (FastAPI)  →  pipeforge (Python 引擎)
-  向导 UI / 配置管理          API 服务 / 编排            YAML 驱动的流水线运行时
+  向导 UI / 配置管理          API 服务 / AI 编排          YAML 驱动的流水线运行时
 ```
 
 - **PipeForge** — CLI 数据管道框架，YAML 配置 → SQLite 中间层 → openpyxl/CSV 输出
@@ -53,17 +53,25 @@ cd configforge-web && npm run dev
 | CSV | 支持自定义分隔符和编码（UTF-8/GBK） |
 | Database | 连接外部数据库（SQLite/MySQL/PostgreSQL），选择表或编写 SQL 查询 |
 
-### SQL 处理
+### 处理步骤
 
-- 编写 SQL 查询语句对输入数据进行加工
-- 支持 CREATE TABLE AS SELECT、INSERT INTO 等 DDL
-- 裸 SELECT 语句自动包装为 CREATE TABLE AS
+| 类型 | 说明 |
+|------|------|
+| SQL | SQLite 查询/过滤/聚合/JOIN，支持多步 DAG 链式执行 |
+| Python | 自定义 Python 脚本（`def process(ctx):`），支持数据清洗/API 调用/正则提取 |
+
+### 多步管道
+
+- 多个处理步骤自由串联，引擎按拓扑排序自动执行
+- 每个步骤声明输入表/输出表，自动构建依赖关系
+- 上一步输出自动作为下一步输入
 
 ### AI 辅助
 
-- AI 生成 SQL — 自然语言描述查询需求
-- 场景推断 — 自动识别字段含义
-- 列映射建议 — 智能匹配输入/输出列
+- **AI 编排步骤链** — 自然语言描述需求，AI 自动规划多步 SQL 处理链
+- **AI 生成 SQL** — 描述查询需求，AI 生成 SQLite SQL
+- **AI 分析列** — 分析文件列结构，推荐列类型和表名
+- **AI 列映射** — 智能匹配输入/输出列
 
 支持 OpenAI、Anthropic 及兼容接口。
 
@@ -79,7 +87,6 @@ cd configforge-web && npm run dev
 - 支持 SQLite（文件路径）、MySQL、PostgreSQL
 - 密码使用 Fernet 加密存储
 - 连接测试一键验证
-- 连接可被多个配置引用
 
 ## 项目结构
 
@@ -87,28 +94,40 @@ cd configforge-web && npm run dev
 ├── src/pipeforge/         # PipeForge 运行时引擎
 │   ├── config/            # YAML 配置模型
 │   ├── core/              # 引擎、SQLite 管理器、上下文
-│   └── plugins/           # 输入/处理/输出插件
+│   └── plugins/           # 输入/处理/输出插件 (excel/csv/sql/python/database)
 ├── configforge/           # ConfigForge API 服务
 │   ├── api/               # REST API 路由
 │   ├── core/              # 流水线编排
 │   ├── generators/        # 配置生成器
 │   ├── models/            # Pydantic 数据模型
-│   └── services/          # 连接存储、AI 设置、YAML 构建
+│   └── services/          # AI 设置、YAML 构建、连接存储、CSV/Excel 读取
 ├── configforge-web/       # Vue 3 前端
 │   ├── src/
-│   │   ├── components/    # UI 组件
-│   │   ├── composables/   # API 封装
-│   │   ├── stores/        # Pinia 状态管理
-│   │   └── types/         # TypeScript 类型定义
+│   │   ├── components/    # UI 组件 (wizard/step2/step3/step4)
+│   │   ├── composables/   # API 封装 (useWizardApi/useConfigApi/useFileUpload)
+│   │   ├── stores/        # Pinia 状态管理 (wizard)
+│   │   ├── types/         # TypeScript 类型定义 (wizard)
+│   │   └── utils/         # 工具函数 (serialization/sql)
 │   └── tests/             # Vitest 测试
+├── tests/                 # PipeForge pytest
 └── docs/                  # 设计文档和规格说明
 ```
+
+## 版本历史
+
+| 版本 | 内容 |
+|------|------|
+| v0.4.0 | Python 处理器（exec + 超时）、SQL+Python 混合链、filename 标签 |
+| v0.3.1 | AI 编排步骤链（自然语言 → 多步 SQL）、错误体验优化 |
+| v0.3.0 | 多步 SQL Pipeline + DAG 拓扑排序、处理步骤卡片列表 |
+| v0.2.1 | 数据库输入源、安全加固（31 项缺陷修复） |
+| v0.2.0 | 前端重设计（单页滚动）、AI SQL 生成、暗色模式、配置管理 |
 
 ## 测试
 
 ```bash
 # 后端测试
-uv run pytest configforge/tests/ -v
+uv run pytest configforge/tests/ tests/ -v
 
 # 前端测试
 cd configforge-web && npx vitest run
@@ -122,4 +141,4 @@ cd configforge-web && npx vue-tsc --noEmit
 - **后端**: Python 3.13, FastAPI, Pydantic v2, SQLAlchemy, openpyxl, Jinja2
 - **前端**: Vue 3, TypeScript, Naive UI, Pinia, Vite, Vitest
 - **AI**: OpenAI / Anthropic SDK
-- **安全**: Fernet 加密 (cryptography), 路径遍历防护
+- **安全**: Fernet 加密 (cryptography), 路径遍历防护, SQL 注入防护, Prompt Injection 过滤
