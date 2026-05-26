@@ -101,8 +101,10 @@
         </div>
         <div class="flex items-center flex-wrap gap-1 border border-slate-200 rounded px-2 py-1.5 min-h-[32px] bg-white">
           <template v-for="(part, i) in filenameParts" :key="i">
-            <NTag size="tiny" :type="part.tag ? 'info' : 'default'" :bordered="true" closable @close="removeTagPart(i)">{{ part.text }}</NTag>
+            <span v-if="insertPos === i" class="inline-block w-0.5 h-4 bg-blue-500 animate-pulse align-middle mx-0.5"></span>
+            <NTag size="tiny" :type="part.tag ? 'info' : 'default'" :bordered="true" closable @close="removeTagPart(i)" @click="insertPos = i + 1" class="cursor-pointer">{{ part.text }}</NTag>
           </template>
+          <span v-if="insertPos >= filenameParts.length" class="inline-block w-0.5 h-4 bg-blue-500 animate-pulse align-middle mx-0.5"></span>
           <input
             ref="plainInputRef"
             v-model="plainText"
@@ -247,6 +249,10 @@ const prevFileIds = ref<string[]>([])
 const prevSql = ref('')
 const plainInputRef = ref<HTMLInputElement>()
 const plainText = ref('')
+const insertPos = ref(0)
+
+// Init insertPos to end of parts
+watch(() => filenameParts.value.length, (len) => { insertPos.value = len }, { immediate: true })
 
 const filenameParts = computed(() => {
   const fn = baseFilename.value
@@ -269,8 +275,24 @@ function commitPlainText() {
   plainText.value = ''
 }
 
+function insertAtPos(text: string) {
+  const parts = filenameParts.value
+  const before = parts.slice(0, insertPos.value).map(p => p.text).join('')
+  const after = parts.slice(insertPos.value).map(p => p.text).join('')
+  outputConfig.value.filename = before + text + after + fileExtension.value
+}
+
 function insertTag(tag: string) {
-  outputConfig.value.filename = baseFilename.value + tag + fileExtension.value
+  insertAtPos(tag)
+  insertPos.value++
+}
+
+function commitPlainText() {
+  const v = plainText.value.trim()
+  if (!v) return
+  insertAtPos(v)
+  insertPos.value++
+  plainText.value = ''
 }
 
 function removeTagPart(idx: number) {
