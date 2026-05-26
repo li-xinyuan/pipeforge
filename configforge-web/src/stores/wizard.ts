@@ -7,7 +7,7 @@ export const useWizardStore = defineStore('wizard', () => {
   const scene = ref<SceneInfo>({ name: '', description: '', version: '1.0' })
   const inputs = ref<InputSource[]>([])
   const processors = ref<ProcessorStep[]>([{ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] }])
-  const output = ref<OutputTarget>({ plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: 'output.xlsx', columns: [] } })
+  const output = ref<OutputTarget>({ plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}.xlsx', columns: [] } })
   const configId = ref<string | null>(null)
   const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
   const aiSuggestions = ref<Record<string, AiSuggestion>>({})
@@ -106,7 +106,7 @@ export const useWizardStore = defineStore('wizard', () => {
     scene.value = { name: '', description: '', version: '1.0' }
     inputs.value = []
     processors.value = [{ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] }]
-    output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: 'output.xlsx', columns: [] } }
+    output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}.xlsx', columns: [] } }
     configId.value = null
     uploadedFiles.value = {}
     aiSuggestions.value = {}
@@ -166,7 +166,7 @@ export const useWizardStore = defineStore('wizard', () => {
         config: cfg,
       }
     } else {
-      output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: 'output.xlsx', columns: [] } }
+      output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}.xlsx', columns: [] } }
     }
 
     currentStep.value = 5

@@ -96,9 +96,8 @@
       <div>
         <div class="flex items-center gap-1 mb-1">
           <label class="block text-sm font-medium text-slate-900">输出文件名</label>
-          <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{scene_name}}')">场景名</NTag>
-          <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
-          <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
+          <NTag size="tiny" :type="tagsSelected.date ? 'info' : 'default'" :class="{ 'opacity-50': tagsSelected.date }" class="cursor-pointer" @click="!tagsSelected.date && insertTag('{{date:%Y%m%d}}')">年月日</NTag>
+          <NTag size="tiny" :type="tagsSelected.time ? 'info' : 'default'" :class="{ 'opacity-50': tagsSelected.time }" class="cursor-pointer" @click="!tagsSelected.time && insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
         <div class="flex items-center">
           <NInput ref="filenameInputRef" :value="baseFilename" @update:value="setBaseFilename" class="flex-1" />
@@ -158,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
@@ -236,8 +235,11 @@ const outputTypeInfo = computed(() => {
 const prevFileIds = ref<string[]>([])
 const prevSql = ref('')
 const filenameInputRef = ref<HTMLInputElement>()
+const tagsSelected = reactive({ date: false, time: false })
 
 function insertTag(tag: string) {
+  if (tag.includes('date:')) tagsSelected.date = true
+  if (tag.includes('time:')) tagsSelected.time = true
   const el = filenameInputRef.value?.$el?.querySelector('input') as HTMLInputElement | null
   if (el) {
     const start = el.selectionStart ?? outputConfig.value.filename.length
