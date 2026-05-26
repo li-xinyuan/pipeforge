@@ -94,8 +94,13 @@
 
       <!-- Filename template -->
       <div>
-        <label class="block text-sm font-medium text-slate-900 mb-1">输出文件名</label>
-        <NInput v-model:value="outputConfig.filename" />
+        <div class="flex items-center gap-1 mb-1">
+          <label class="block text-sm font-medium text-slate-900">输出文件名</label>
+          <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{scene_name}}')">场景名</NTag>
+          <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
+          <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
+        </div>
+        <NInput ref="filenameInputRef" v-model:value="outputConfig.filename" />
       </div>
 
       <!-- Delimiter (CSV only) -->
@@ -217,6 +222,20 @@ const outputTypeInfo = computed(() => {
 
 const prevFileIds = ref<string[]>([])
 const prevSql = ref('')
+const filenameInputRef = ref<HTMLInputElement>()
+
+function insertTag(tag: string) {
+  const el = filenameInputRef.value?.$el?.querySelector('input') as HTMLInputElement | null
+  if (el) {
+    const start = el.selectionStart ?? outputConfig.value.filename.length
+    const end = el.selectionEnd ?? start
+    const v = outputConfig.value.filename
+    outputConfig.value.filename = v.slice(0, start) + tag + v.slice(end)
+    setTimeout(() => { el.selectionStart = el.selectionEnd = start + tag.length }, 50)
+  } else {
+    outputConfig.value.filename += tag
+  }
+}
 let lastAutoInferred = false
 let inferTimer: ReturnType<typeof setTimeout> | null = null
 

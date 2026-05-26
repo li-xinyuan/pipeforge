@@ -26,6 +26,7 @@ def resolve_filename(filename_template: str | None, scene_name: str) -> str:
         return now.strftime(fmt)
 
     result = re.sub(r"\{\{date:(.+?)\}\}", replace_date, result)
+    result = re.sub(r"\{\{time:(.+?)\}\}", replace_date, result)
     return result
 
 
