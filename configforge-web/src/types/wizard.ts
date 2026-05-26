@@ -19,14 +19,9 @@ export interface AiSuggestion {
   timestamp: number
 }
 
-export interface OrchestrationStep {
-  name: string
-  plugin?: 'sql' | 'python'
-  input_tables: string[]
-  output_tables: string[]
-  sql: string
-  script?: string
-}
+export type OrchestrationStep =
+  | { name: string; plugin: 'sql'; input_tables: string[]; output_tables: string[]; sql: string }
+  | { name: string; plugin: 'python'; input_tables: string[]; output_tables: string[]; script: string }
 
 export interface OrchestrationResult {
   steps: OrchestrationStep[]

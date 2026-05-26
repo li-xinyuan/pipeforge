@@ -209,12 +209,16 @@ function inferStepName(sql: string): string {
 
 function inferPythonStepName(script: string): string {
   if (!script.trim()) return ''
+  // Python-specific patterns first
+  if (/import\s+requests|urllib|httpx|aiohttp/i.test(script)) return 'API 调用'
+  if (/import\s+re|re\.sub|re\.match|re\.findall|re\.search/i.test(script)) return '正则提取'
+  if (/import\s+json|json\.loads|json\.dumps/i.test(script)) return 'JSON 处理'
+  if (/import\s+csv|pd\.read_csv|csv\.reader/i.test(script)) return '文件解析'
+  // SQL-in-Python patterns (secondary)
   if (/DELETE\s+FROM/i.test(script)) return '数据清洗'
   if (/CREATE\s+TABLE/i.test(script) && /WHERE/i.test(script)) return '数据过滤'
   if (/GROUP\s+BY/i.test(script)) return '数据聚合'
   if (/JOIN/i.test(script)) return '表连接'
-  if (/import\s+re|re\.sub|re\.match|re\.findall/i.test(script)) return '正则提取'
-  if (/import\s+requests|urllib|httpx/i.test(script)) return 'API 调用'
   return 'Python 处理'
 }
 
