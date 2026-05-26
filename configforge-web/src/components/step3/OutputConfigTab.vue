@@ -186,7 +186,7 @@ function safeSceneName(): string {
 }
 
 function buildFilename(ext: string): string {
-  return `${safeSceneName()}.${ext}`
+  return `${safeSceneName()}-${getDateStr()}.${ext}`
 }
 
 function applyAutoFilename(ext: string) {
