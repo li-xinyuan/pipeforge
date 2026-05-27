@@ -398,9 +398,26 @@ async function handleTemplateUpload({ file, onFinish, onError }: UploadCustomReq
   }
 }
 
-function updateExcelConfig(partial: Partial<ExcelOutputConfig>) {
+async function updateExcelConfig(partial: Partial<ExcelOutputConfig>) {
   const cfg = store.output!.config as ExcelOutputConfig
   Object.assign(cfg, partial)
+  // Re-fetch preview when sheet changes to update column mapping
+  if (partial.sheet && cfg.template) {
+    const preview = await fetchPreview(cfg.template, partial.sheet)
+    if (preview?.columns?.length) {
+      const sourceCols: string[] = []
+      for (const input of store.inputs) {
+        if (input.fileId) {
+          const src = await fetchPreview(input.fileId)
+          if (src) sourceCols.push(...src.columns)
+        }
+      }
+      cfg.columns = preview.columns.map(col => ({
+        source: sourceCols.includes(col) ? col : '',
+        target: col
+      }))
+    }
+  }
 }
 
 function removeTemplate() {
