@@ -97,7 +97,7 @@
         <NSelect
           v-if="templateSheets.length > 0"
           :value="excelConfig.sheet"
-          @update:value="v => updateExcelConfig({ sheet: v })"
+          @update:value="(v: string) => { excelConfig.sheet = v; onSheetChange(v) }"
           :options="templateSheets.map(s => ({ label: s, value: s }))"
           placeholder="选择 Sheet"
         />
@@ -398,25 +398,27 @@ async function handleTemplateUpload({ file, onFinish, onError }: UploadCustomReq
   }
 }
 
-async function updateExcelConfig(partial: Partial<ExcelOutputConfig>) {
+function updateExcelConfig(partial: Partial<ExcelOutputConfig>) {
   const cfg = store.output!.config as ExcelOutputConfig
   Object.assign(cfg, partial)
-  // Re-fetch preview when sheet changes to update column mapping
-  if (partial.sheet && cfg.template) {
-    const preview = await fetchPreview(cfg.template, partial.sheet)
-    if (preview?.columns?.length) {
-      const sourceCols: string[] = []
-      for (const input of store.inputs) {
-        if (input.fileId) {
-          const src = await fetchPreview(input.fileId)
-          if (src) sourceCols.push(...src.columns)
-        }
+}
+
+async function onSheetChange(sheet: string) {
+  const cfg = store.output!.config as ExcelOutputConfig
+  if (!cfg.template) return
+  const preview = await fetchPreview(cfg.template, sheet)
+  if (preview?.columns?.length) {
+    const sourceCols: string[] = []
+    for (const input of store.inputs) {
+      if (input.fileId) {
+        const src = await fetchPreview(input.fileId)
+        if (src) sourceCols.push(...src.columns)
       }
-      cfg.columns = preview.columns.map(col => ({
-        source: sourceCols.includes(col) ? col : '',
-        target: col
-      }))
     }
+    cfg.columns = preview.columns.map(col => ({
+      source: sourceCols.includes(col) ? col : '',
+      target: col
+    }))
   }
 }
 
