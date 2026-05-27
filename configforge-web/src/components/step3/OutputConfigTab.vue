@@ -53,7 +53,7 @@
     </div>
 
     <!-- Output form -->
-    <div class="space-y-4">
+    <div v-if="!showOutputTypeChoices" class="space-y-4">
       <!-- Template file upload (Excel only) -->
       <div v-if="store.output?.plugin === 'excel'">
         <label class="block text-sm font-medium text-slate-900 mb-1">模板文件</label>
