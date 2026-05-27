@@ -3,8 +3,7 @@ import os
 import re
 from datetime import datetime
 
-from openpyxl import Workbook, load_workbook
-from openpyxl.cell import WriteOnlyCell
+from openpyxl import load_workbook
 
 from pipeforge.config.models import ExcelOutputConfig
 from pipeforge.core.registry import register_plugin
@@ -65,8 +64,12 @@ class ExcelOutputPlugin(OutputPlugin):
             template_path, config.sheet, config.columns
         )
 
-        wb = Workbook(write_only=True)
-        ws = wb.create_sheet(title=config.sheet)
+        # Load template, replace target sheet, copy other sheets as-is
+        wb = load_workbook(template_path)
+        target_sheet = config.sheet or wb.active.title
+        if target_sheet in wb.sheetnames:
+            del wb[target_sheet]
+        ws = wb.create_sheet(title=target_sheet)
 
         if freeze_panes:
             ws.freeze_panes = freeze_panes
@@ -132,18 +135,16 @@ class ExcelOutputPlugin(OutputPlugin):
         return header_styles, column_widths, freeze_panes
 
     def _write_header(self, ws, columns, header_styles):
-        header_row = []
-        for cm in columns:
-            cell = WriteOnlyCell(ws, value=cm.target)
+        from openpyxl.styles import Font, PatternFill, Border, Alignment
+        for col_idx, cm in enumerate(columns, start=1):
+            cell = ws.cell(row=1, column=col_idx, value=cm.target)
             style = header_styles.get(cm.target)
             if style:
-                cell.font = style["font"]
-                cell.fill = style["fill"]
-                cell.border = style["border"]
-                cell.alignment = style["alignment"]
-                cell.number_format = style["number_format"]
-            header_row.append(cell)
-        ws.append(header_row)
+                if style.get("font"): cell.font = style["font"]
+                if style.get("fill"): cell.fill = style["fill"]
+                if style.get("border"): cell.border = style["border"]
+                if style.get("alignment"): cell.alignment = style["alignment"]
+                if style.get("number_format"): cell.number_format = style["number_format"]
 
     def _restore_column_widths(self, output_path, column_widths):
         if not column_widths:
