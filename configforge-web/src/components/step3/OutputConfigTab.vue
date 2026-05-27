@@ -378,8 +378,7 @@ async function handleTemplateUpload({ file, onFinish, onError }: UploadCustomReq
     if (preview) {
       templateSheets.value = preview.sheets || []
       if (preview.sheets?.length) excelCfg.sheet = preview.sheets[0]
-    }
-    if (preview && preview.columns.length > 0) {
+      // Auto-fill columns
       const sourceCols: string[] = []
       for (const input of store.inputs) {
         if (input.fileId) {
@@ -387,10 +386,15 @@ async function handleTemplateUpload({ file, onFinish, onError }: UploadCustomReq
           if (src) sourceCols.push(...src.columns)
         }
       }
-      excelCfg.columns = preview.columns.map(col => ({
-        source: sourceCols.includes(col) ? col : '',
-        target: col
-      }))
+      if (preview.columns?.length) {
+        excelCfg.columns = preview.columns.map(col => ({
+          source: sourceCols.includes(col) ? col : '',
+          target: col
+        }))
+      } else if (sourceCols.length) {
+        excelCfg.columns = sourceCols.map(col => ({ source: col, target: col }))
+        message.info('这个sheet页没有找到表头信息，将直接用数据源字段作为表头，你可以修改或删除列')
+      }
     }
     onFinish()
   } else {
@@ -408,17 +412,30 @@ async function onSheetChange(sheet: string) {
   if (!cfg.template) return
   const preview = await fetchPreview(cfg.template, sheet)
   if (!preview) return
-  const sourceCols: string[] = []
-  for (const input of store.inputs) {
-    if (input.fileId) {
-      const src = await fetchPreview(input.fileId)
-      if (src) sourceCols.push(...src.columns)
+  if (preview.columns?.length) {
+    const sourceCols: string[] = []
+    for (const input of store.inputs) {
+      if (input.fileId) {
+        const src = await fetchPreview(input.fileId)
+        if (src) sourceCols.push(...src.columns)
+      }
     }
+    cfg.columns = preview.columns.map(col => ({
+      source: sourceCols.includes(col) ? col : '',
+      target: col
+    }))
+  } else {
+    // Empty sheet — fall back to all source columns
+    const allCols: string[] = []
+    for (const input of store.inputs) {
+      if (input.fileId) {
+        const src = await fetchPreview(input.fileId)
+        if (src) allCols.push(...src.columns)
+      }
+    }
+    cfg.columns = allCols.map(col => ({ source: col, target: col }))
+    message.info('这个sheet页没有找到表头信息，将直接用数据源字段作为表头，你可以修改或删除列')
   }
-  cfg.columns = (preview.columns || []).map(col => ({
-    source: sourceCols.includes(col) ? col : '',
-    target: col
-  }))
 }
 
 function removeTemplate() {
