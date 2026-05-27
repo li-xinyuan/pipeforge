@@ -97,6 +97,10 @@ class ExcelOutputPlugin(OutputPlugin):
                 "The template must contain a header row."
             )
         template_headers = [c.value for c in first_row_cells[0]]
+        # If the first row is completely empty, use column mapping as-is
+        if all(h is None for h in template_headers):
+            wb.close()
+            return {}, None, None
 
         header_styles = {}
         for cell in first_row_cells[0]:
