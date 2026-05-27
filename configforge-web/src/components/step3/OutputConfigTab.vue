@@ -183,7 +183,8 @@ const message = useMessage()
 const { fetchPreview, executeSql } = useWizardApi()
 const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()
 const { suggesting: mappingLoading, askSuggestion } = useAiApi()
-const showOutputTypeChoices = ref(true)
+// Show type selector when output not yet configured (matching Step 2/3 pattern)
+const showOutputTypeChoices = ref(!store.output?.config?.columns?.length)
 const lastAutoFilename = ref('')
 
 function getDateStr(): string {
