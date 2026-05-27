@@ -54,7 +54,17 @@
 
     <!-- Output form -->
     <div v-if="!showOutputTypeChoices" class="space-y-4">
-      <!-- Template file upload (Excel only) -->
+      <!-- Source table (first field, required) -->
+      <div>
+        <label class="block text-sm font-medium text-slate-900 mb-1"><span class="text-red-500">*</span> 数据源表</label>
+        <NSelect
+          v-model:value="outputConfig.sourceTable"
+          :options="sourceTableOptions"
+          placeholder="-- 选择表 --"
+        />
+      </div>
+
+      <!-- Template file upload (Excel only, drag-and-drop style) -->
       <div v-if="store.output?.plugin === 'excel'">
         <label class="block text-sm font-medium text-slate-900 mb-1">模板文件</label>
         <template v-if="excelConfig.template && store.uploadedFiles[excelConfig.template]">
@@ -70,26 +80,34 @@
           :custom-request="handleTemplateUpload"
           :show-file-list="false"
           accept=".xlsx,.xls"
+          class="w-full"
         >
-          <NButton :loading="templateUploading" size="small" dashed>上传 Excel 模板</NButton>
+          <div class="border-2 border-dashed rounded-lg py-4 px-6 text-center cursor-pointer transition-colors border-slate-300 hover:border-teal-400 hover:bg-teal-50/30">
+            <span class="text-2xl block mb-1.5">{{ templateUploading ? '⏳' : '📤' }}</span>
+            <span class="text-sm text-slate-500 block">{{ templateUploading ? '上传中...' : '将模板文件拖拽到此处，或点击选择文件' }}</span>
+            <span class="text-xs text-slate-400 mt-1 block">支持 .xlsx / .xls 格式</span>
+          </div>
         </NUpload>
         <p v-if="templateUploadError" class="text-xs text-red-500 mt-1">{{ templateUploadError }}</p>
       </div>
 
-      <!-- Source table dropdown -->
-      <div>
-        <label class="block text-sm font-medium text-slate-900 mb-1">数据源表（source_table）</label>
-        <NSelect
-          v-model:value="outputConfig.sourceTable"
-          :options="sourceTableOptions"
-          placeholder="-- 选择表 --"
-        />
-      </div>
-
-      <!-- Sheet name (Excel only) -->
+      <!-- Sheet name (Excel only, disabled until template uploaded) -->
       <div v-if="store.output?.plugin === 'excel'">
         <label class="block text-sm font-medium text-slate-900 mb-1">Sheet 名称</label>
-        <NInput v-model:value="excelConfig.sheet" />
+        <NSelect
+          v-if="templateSheets.length > 0"
+          :value="excelConfig.sheet"
+          @update:value="v => updateExcelConfig({ sheet: v })"
+          :options="templateSheets.map(s => ({ label: s, value: s }))"
+          placeholder="选择 Sheet"
+        />
+        <NInput
+          v-else
+          :value="excelConfig.sheet"
+          :disabled="!excelConfig.template"
+          @update:value="v => updateExcelConfig({ sheet: v })"
+          placeholder="Sheet1"
+        />
       </div>
 
       <!-- Filename template -->
@@ -186,6 +204,7 @@ const { suggesting: mappingLoading, askSuggestion } = useAiApi()
 // Show type selector initially, same pattern as Step 2/3
 const showOutputTypeChoices = ref(true)
 const lastAutoFilename = ref('')
+const templateSheets = ref<string[]>([])
 
 function getDateStr(): string {
   const d = new Date()
@@ -356,6 +375,10 @@ async function handleTemplateUpload({ file, onFinish, onError }: UploadCustomReq
     excelCfg.template = meta.fileId
 
     const preview = await fetchPreview(meta.fileId)
+    if (preview) {
+      templateSheets.value = preview.sheets || []
+      if (preview.sheets?.length) excelCfg.sheet = preview.sheets[0]
+    }
     if (preview && preview.columns.length > 0) {
       const sourceCols: string[] = []
       for (const input of store.inputs) {
