@@ -398,6 +398,11 @@ async function handleTemplateUpload({ file, onFinish, onError }: UploadCustomReq
   }
 }
 
+function updateExcelConfig(partial: Partial<ExcelOutputConfig>) {
+  const cfg = store.output!.config as ExcelOutputConfig
+  Object.assign(cfg, partial)
+}
+
 function removeTemplate() {
   const excelCfg = store.output!.config as ExcelOutputConfig
   excelCfg.template = ''
