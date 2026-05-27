@@ -407,19 +407,18 @@ async function onSheetChange(sheet: string) {
   const cfg = store.output!.config as ExcelOutputConfig
   if (!cfg.template) return
   const preview = await fetchPreview(cfg.template, sheet)
-  if (preview?.columns?.length) {
-    const sourceCols: string[] = []
-    for (const input of store.inputs) {
-      if (input.fileId) {
-        const src = await fetchPreview(input.fileId)
-        if (src) sourceCols.push(...src.columns)
-      }
+  if (!preview) return
+  const sourceCols: string[] = []
+  for (const input of store.inputs) {
+    if (input.fileId) {
+      const src = await fetchPreview(input.fileId)
+      if (src) sourceCols.push(...src.columns)
     }
-    cfg.columns = preview.columns.map(col => ({
-      source: sourceCols.includes(col) ? col : '',
-      target: col
-    }))
   }
+  cfg.columns = (preview.columns || []).map(col => ({
+    source: sourceCols.includes(col) ? col : '',
+    target: col
+  }))
 }
 
 function removeTemplate() {
