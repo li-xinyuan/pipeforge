@@ -74,7 +74,7 @@ export const useWizardStore = defineStore('wizard', () => {
     }
   }
   function removeProcessor(index: number) {
-    if (processors.value.length > 1) processors.value.splice(index, 1)
+    processors.value.splice(index, 1)
   }
   function updateProcessor(index: number, proc: ProcessorStep) {
     processors.value[index] = proc
