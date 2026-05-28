@@ -113,39 +113,37 @@ describe('useWizardStore', () => {
     expect(inp.config.sql).toBe('')
   })
 
-  it('has processors array by default with one empty processor', () => {
+  it('starts with empty processors array', () => {
     const store = useWizardStore()
-    expect(store.processors).toHaveLength(1)
-    expect(store.processors[0].plugin).toBe('sql')
-    expect(store.processors[0].sql).toBe('')
-    expect(store.processors[0].inputTables).toEqual([])
-    expect(store.processors[0].outputTables).toEqual([])
+    expect(store.processors).toHaveLength(0)
   })
 
   it('addProcessor adds a new processor', () => {
     const store = useWizardStore()
     store.addProcessor()
-    expect(store.processors).toHaveLength(2)
+    expect(store.processors).toHaveLength(1)
   })
 
-  it('removeProcessor removes by index (not last)', () => {
+  it('removeProcessor removes by index', () => {
     const store = useWizardStore()
     store.addProcessor()
     store.addProcessor()
-    expect(store.processors).toHaveLength(3)
+    expect(store.processors).toHaveLength(2)
     store.removeProcessor(1)
-    expect(store.processors).toHaveLength(2)
+    expect(store.processors).toHaveLength(1)
   })
 
-  it('removeProcessor does not remove last processor', () => {
+  it('removeProcessor can remove last processor', () => {
     const store = useWizardStore()
+    store.addProcessor()
     expect(store.processors).toHaveLength(1)
     store.removeProcessor(0)
-    expect(store.processors).toHaveLength(1)
+    expect(store.processors).toHaveLength(0)
   })
 
   it('updateProcessor updates processor at index', () => {
     const store = useWizardStore()
+    store.addProcessor()
     store.updateProcessor(0, { name: 'step1', plugin: 'sql', sql: 'SELECT 1', inputTables: [], outputTables: ['t1'] })
     expect(store.processors[0].sql).toBe('SELECT 1')
     expect(store.processors[0].outputTables).toEqual(['t1'])
