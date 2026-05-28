@@ -6,7 +6,7 @@ export const useWizardStore = defineStore('wizard', () => {
   const currentStep = ref(1)
   const scene = ref<SceneInfo>({ name: '', description: '', version: '1.0' })
   const inputs = ref<InputSource[]>([])
-  const processors = ref<ProcessorStep[]>([{ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] }])
+  const processors = ref<ProcessorStep[]>([])
   const output = ref<OutputTarget>({ plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } })
   const configId = ref<string | null>(null)
   const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
@@ -105,7 +105,7 @@ export const useWizardStore = defineStore('wizard', () => {
     currentStep.value = 1
     scene.value = { name: '', description: '', version: '1.0' }
     inputs.value = []
-    processors.value = [{ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] }]
+    processors.value = []
     output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } }
     configId.value = null
     uploadedFiles.value = {}
