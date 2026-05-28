@@ -4,7 +4,7 @@
       <div class="flex items-center gap-2">
         <span class="text-sm font-medium truncate flex-1">{{ proc.name || '步骤 ' + (index + 1) }}</span>
         <NTag size="medium" :type="proc.plugin === 'python' ? 'warning' : 'success'" class="cursor-pointer" style="cursor:pointer" @click="$emit('switchType', proc.plugin === 'sql' ? 'python' : 'sql')">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }}</NTag>
-        <NButton text type="error" size="small" @click="$emit('remove')">删除</NButton>
+        <span class="text-sm text-red-500 cursor-pointer hover:text-red-600" style="font-size:14px;font-weight:500" @click="$emit('remove')">删除</span>
       </div>
     </template>
     <div class="space-y-3">
