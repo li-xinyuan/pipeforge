@@ -2,7 +2,9 @@
   <NCard size="small" class="processor-card">
     <template #header>
       <div class="flex items-center gap-2">
-        <NTag size="tiny" :type="proc.plugin === 'python' ? 'warning' : 'info'" class="cursor-pointer" @click="$emit('switchType')">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }}</NTag>
+        <NDropdown trigger="click" :options="typeOptions" @select="(k: string) => $emit('switchType', k)">
+          <NTag size="tiny" :type="proc.plugin === 'python' ? 'warning' : 'info'" class="cursor-pointer">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }} ▾</NTag>
+        </NDropdown>
         <span class="text-sm font-medium truncate flex-1">{{ proc.name || '步骤 ' + (index + 1) }}</span>
         <NButton text size="tiny" type="error" @click="$emit('remove')" :disabled="!canRemove">删除</NButton>
       </div>
@@ -28,10 +30,15 @@
 </template>
 
 <script setup lang="ts">
-import { NCard, NButton, NTag } from 'naive-ui'
+import { NCard, NButton, NTag, NDropdown } from 'naive-ui'
 import type { ProcessorStep } from '../../types/wizard'
 import SqlProcessorContent from './SqlProcessorContent.vue'
 import PythonProcessorContent from './PythonProcessorContent.vue'
+
+const typeOptions = [
+  { label: 'SQL', key: 'sql' },
+  { label: 'Python', key: 'python' },
+]
 
 defineProps<{
   proc: ProcessorStep
@@ -44,7 +51,7 @@ defineProps<{
 defineEmits<{
   remove: []
   update: [partial: Partial<ProcessorStep>]
-  switchType: []
+  switchType: [plugin: string]
 }>()
 </script>
 

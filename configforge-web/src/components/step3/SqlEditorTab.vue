@@ -45,7 +45,7 @@
         :available-tables="tableOptionsFor(i)"
         :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
         @remove="store.removeProcessor(i)"
-        @switch-type="switchProcessorType(i)"
+        @switch-type="(plugin: string) => switchProcessorType(i, plugin as 'sql' | 'python')"
         @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
       />
 
@@ -134,9 +134,9 @@ provide('tableColumnsCache', tableColumnsCache)
 
 const showAddSelector = ref(defaultEmpty.value)
 
-function switchProcessorType(idx: number) {
+function switchProcessorType(idx: number, target: 'sql' | 'python') {
   const proc = store.processors[idx]
-  const target: 'sql' | 'python' = proc.plugin === 'sql' ? 'python' : 'sql'
+  if (proc.plugin === target) return
   // Preserve common fields
   const name = proc.name
   if (target === 'python') {
