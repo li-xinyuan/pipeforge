@@ -3,7 +3,7 @@
     <template #header>
       <div class="flex items-center gap-2">
         <NDropdown trigger="click" :options="typeOptions" @select="(k: string) => $emit('switchType', k)">
-          <NTag size="medium" :type="proc.plugin === 'python' ? 'warning' : 'success'" class="cursor-pointer">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }} ▾</NTag>
+          <NTag size="medium" :type="proc.plugin === 'python' ? 'warning' : 'success'" class="cursor-pointer" style="cursor:pointer">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }} ▾</NTag>
         </NDropdown>
         <span class="text-sm font-medium truncate flex-1">{{ proc.name || '步骤 ' + (index + 1) }}</span>
         <NButton text type="error" size="small" @click="$emit('remove')">删除</NButton>
