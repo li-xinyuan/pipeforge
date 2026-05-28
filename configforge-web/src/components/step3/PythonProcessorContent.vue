@@ -42,14 +42,14 @@
       <label class="block text-sm font-medium text-slate-900 mb-1">
         <span class="text-red-500">*</span> Python 脚本
       </label>
-      <NInput
+      <textarea
         :value="pyProc.script"
-        @update:value="(v: string) => $emit('update', { script: v })"
-        type="textarea"
-        :autosize="{ minRows: 6, maxRows: 20 }"
-        placeholder="def process(ctx):&#10;    conn = ctx.db.connection&#10;    conn.execute('CREATE TABLE result AS SELECT * FROM source')"
-        class="font-mono text-sm"
-        :input-props="{ style: 'background:#1e293b;color:#e2e8f0;font-family:\'JetBrains Mono\',monospace;font-size:13px;line-height:1.6' }"
+        @input="$emit('update', { script: ($event.target as HTMLTextAreaElement).value })"
+        rows="8"
+        placeholder="def process(ctx):
+    conn = ctx.db.connection
+    conn.execute('CREATE TABLE result AS SELECT * FROM source')"
+        style="width:100%;background:#1e293b;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;padding:10px;border:1px solid #334155;border-radius:8px;resize:vertical;outline:none;"
       />
     </div>
 
