@@ -41,7 +41,6 @@
         :proc="proc"
         :index="i"
         :expanded="true"
-        :can-remove="store.processors.length > 1"
         :available-tables="tableOptionsFor(i)"
         :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
         @remove="store.removeProcessor(i)"

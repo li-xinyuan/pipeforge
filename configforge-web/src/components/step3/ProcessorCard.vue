@@ -3,10 +3,10 @@
     <template #header>
       <div class="flex items-center gap-2">
         <NDropdown trigger="click" :options="typeOptions" @select="(k: string) => $emit('switchType', k)">
-          <NTag size="tiny" :type="proc.plugin === 'python' ? 'warning' : 'info'" class="cursor-pointer">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }} ▾</NTag>
+          <NTag size="medium" :type="proc.plugin === 'python' ? 'warning' : 'success'" class="cursor-pointer">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }} ▾</NTag>
         </NDropdown>
         <span class="text-sm font-medium truncate flex-1">{{ proc.name || '步骤 ' + (index + 1) }}</span>
-        <NButton text size="tiny" type="error" @click="$emit('remove')" :disabled="!canRemove">删除</NButton>
+        <NButton text type="error" size="small" @click="$emit('remove')">删除</NButton>
       </div>
     </template>
     <div class="space-y-3">
@@ -43,7 +43,6 @@ const typeOptions = [
 defineProps<{
   proc: ProcessorStep
   index: number
-  canRemove: boolean
   availableTables: Array<{ label: string; value: string }>
   pulseSql?: boolean
 }>()
