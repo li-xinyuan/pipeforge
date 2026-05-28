@@ -49,6 +49,7 @@
         :autosize="{ minRows: 6, maxRows: 20 }"
         placeholder="def process(ctx):&#10;    conn = ctx.db.connection&#10;    conn.execute('CREATE TABLE result AS SELECT * FROM source')"
         class="font-mono text-sm"
+        style="background:#1e293b;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6"
       />
     </div>
 

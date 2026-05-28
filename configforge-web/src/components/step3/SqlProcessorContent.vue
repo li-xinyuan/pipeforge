@@ -61,6 +61,7 @@
         :placeholder="sqlPlaceholder"
         :class="['font-mono text-sm', { 'pulse-cta-input': pulseSql }]"
         :data-testid="`processor-sql-${index}`"
+        style="background:#1e293b;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;caret-color:#93c5fd;"
       />
     </div>
 
