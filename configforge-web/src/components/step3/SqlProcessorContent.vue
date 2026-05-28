@@ -53,15 +53,14 @@
       <label class="block text-sm font-medium text-slate-900 mb-1">
         <span class="text-red-500">*</span> SQL
       </label>
-      <NInput
+      <textarea
         :value="proc.sql"
-        @update:value="(v: string) => emit('update', { sql: v })"
-        type="textarea"
-        :autosize="{ minRows: 6, maxRows: 16 }"
+        @input="emit('update', { sql: ($event.target as HTMLTextAreaElement).value })"
+        rows="8"
         :placeholder="sqlPlaceholder"
-        :class="['font-mono text-sm', { 'pulse-cta-input': pulseSql }]"
+        :class="{ 'pulse-cta-input': pulseSql }"
         :data-testid="`processor-sql-${index}`"
-        style="background:#1e293b;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;caret-color:#93c5fd;"
+        style="width:100%;background:#1e293b;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;padding:10px;border:1px solid #334155;border-radius:8px;resize:vertical;outline:none;"
       />
     </div>
 
