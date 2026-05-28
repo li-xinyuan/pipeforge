@@ -45,6 +45,7 @@
         :available-tables="tableOptionsFor(i)"
         :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
         @remove="store.removeProcessor(i)"
+        @switch-type="switchProcessorType(i)"
         @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
       />
 
@@ -132,6 +133,18 @@ const tableColumnsCache = ref<Record<string, Array<{ name: string; type: string 
 provide('tableColumnsCache', tableColumnsCache)
 
 const showAddSelector = ref(defaultEmpty.value)
+
+function switchProcessorType(idx: number) {
+  const proc = store.processors[idx]
+  const target: 'sql' | 'python' = proc.plugin === 'sql' ? 'python' : 'sql'
+  // Preserve common fields
+  const name = proc.name
+  if (target === 'python') {
+    store.processors[idx] = { name, plugin: 'python', script: '', inputTables: proc.inputTables, outputTables: proc.outputTables }
+  } else {
+    store.processors[idx] = { name, plugin: 'sql', sql: '', inputTables: proc.inputTables, outputTables: proc.outputTables }
+  }
+}
 
 function pickProcessor(plugin: 'sql' | 'python') {
   const baseName = plugin === 'python' ? 'Python 脚本' : 'SQL 查询'
