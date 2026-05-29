@@ -56,10 +56,10 @@
     <!-- Quick templates -->
     <div class="flex flex-wrap gap-1">
       <span class="text-[10px] text-slate-400 mr-1 self-center">模板:</span>
-      <NTag size="tiny" class="cursor-pointer" @click="$emit('update', { script: templates.clean })">数据清洗</NTag>
-      <NTag size="tiny" class="cursor-pointer" @click="$emit('update', { script: templates.filter })">数据过滤</NTag>
-      <NTag size="tiny" class="cursor-pointer" @click="$emit('update', { script: templates.aggregate })">数据聚合</NTag>
-      <NTag size="tiny" class="cursor-pointer" @click="$emit('update', { script: templates.api })">API 调用</NTag>
+      <NTag size="tiny" class="cursor-pointer" @click="applyTemplate(templates.clean)">数据清洗</NTag>
+      <NTag size="tiny" class="cursor-pointer" @click="applyTemplate(templates.filter)">数据过滤</NTag>
+      <NTag size="tiny" class="cursor-pointer" @click="applyTemplate(templates.aggregate)">数据聚合</NTag>
+      <NTag size="tiny" class="cursor-pointer" @click="applyTemplate(templates.api)">API 调用</NTag>
     </div>
 
     <!-- Preview execution -->
@@ -99,7 +99,7 @@ const props = defineProps<{
   availableTables: Array<{ label: string; value: string }>
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   update: [partial: Partial<ProcessorStep>]
 }>()
 
@@ -122,6 +122,11 @@ const dryRunRunning = ref(false)
 const dryRunResult = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
 const dryRunError = ref('')
 const dryRunVisible = ref(false)
+
+function applyTemplate(template: string) {
+  const tableName = store.inputs[0]?.table?.trim() || 'source'
+  emit('update', { script: template.replace(/\bsource\b/g, tableName) })
+}
 
 async function runPreview() {
   dryRunError.value = ''

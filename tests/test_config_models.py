@@ -201,13 +201,13 @@ class TestSceneConfig:
         )
         assert len(config.inputs) == 0
 
-    def test_empty_columns_raises(self):
-        with pytest.raises(ValidationError):
-            ExcelOutputConfig(
-                template="t.xlsx",
-                source_table="t",
-                columns=[],
-            )
+    def test_empty_columns_allowed(self):
+        cfg = ExcelOutputConfig(
+            template="t.xlsx",
+            source_table="t",
+            columns=[],
+        )
+        assert cfg.columns == []
 
     def test_output_config_type_defaults_to_excel(self):
         cfg = ExcelOutputConfig(
@@ -257,9 +257,9 @@ class TestCsvOutputConfig:
         )
         assert cfg.delimiter == ","
 
-    def test_empty_columns_raises(self):
-        with pytest.raises(ValidationError):
-            CsvOutputConfig(source_table="t", columns=[])
+    def test_empty_columns_allowed(self):
+        cfg = CsvOutputConfig(source_table="t", columns=[])
+        assert cfg.columns == []
 
 
 class TestDbInputConfig:

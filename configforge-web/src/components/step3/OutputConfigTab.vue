@@ -97,7 +97,7 @@
         <NSelect
           v-if="templateSheets.length > 0"
           :value="excelConfig.sheet"
-          @update:value="(v: string) => { store.output!.config.sheet = v; onSheetChange(v) }"
+          @update:value="(v: string) => { updateExcelConfig({ sheet: v }); onSheetChange(v) }"
           :options="templateSheets.map(s => ({ label: s, value: s }))"
           placeholder="选择 Sheet"
         />

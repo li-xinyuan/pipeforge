@@ -1,4 +1,5 @@
 import os
+import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from configforge.models.wizard import (
@@ -17,6 +18,10 @@ from configforge.core.pipeline import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+# Errors caused by user input (bad script, missing function, timeout, etc.)
+_USER_ERRORS = (ValueError, SyntaxError, TimeoutError)
 
 
 @router.post("/init-scene")
@@ -45,9 +50,10 @@ async def api_dry_run(req: GenerateRequest):
     try:
         result = dry_run(req.state)
         return result
+    except _USER_ERRORS as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("dry-run failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -56,9 +62,10 @@ async def api_execute(req: GenerateRequest):
     """执行 pipeline 并返回生成的输出文件。"""
     try:
         output_path = execute_pipeline(req.state)
+    except _USER_ERRORS as e:
+        raise HTTPException(status_code=422, detail=f"Pipeline execution failed: {e}")
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("pipeline execution failed")
         raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {e}")
     filename = os.path.basename(output_path)
     media_type = "text/csv" if filename.endswith(".csv") else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
