@@ -50,3 +50,11 @@ uv.lock
 
 data/
 ai_settings.json
+
+# Built frontend assets (SPA bundle output)
+configforge/static/assets/
+
+# Claude tooling (local only)
+.claude/settings.local.json
+.codegraph/
+.understand-anything/

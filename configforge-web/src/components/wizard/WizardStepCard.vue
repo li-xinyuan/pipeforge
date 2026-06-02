@@ -49,6 +49,7 @@ defineProps<{
 <style scoped>
 .wizard-step-card {
   position: relative;
+  z-index: 0;
   background: var(--color-surface);
   border-radius: var(--radius-xl);
   padding: var(--space-card-padding);
@@ -71,6 +72,7 @@ defineProps<{
 }
 .wizard-step-card__lock-overlay {
   position: absolute;
+  z-index: 1;
   inset: 0;
   display: flex;
   flex-direction: column;
