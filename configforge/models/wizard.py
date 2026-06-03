@@ -1,6 +1,8 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Optional, Literal, Annotated
 
+from pipeforge.config.models import CheckRule
+
 
 class SceneInfo(BaseModel):
     name: str = Field(min_length=1, max_length=200)
@@ -56,6 +58,7 @@ class ProcessorConfig(BaseModel):
     script: str = Field(default="", alias="script")
     input_tables: list[str] = Field(default=[], alias="inputTables")
     output_tables: list[str] = Field(default=[], alias="outputTables")
+    checkpoints: list[CheckRule] = Field(default=[])
 
     @model_validator(mode="after")
     def validate_plugin_fields(self):
