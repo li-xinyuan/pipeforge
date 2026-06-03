@@ -68,9 +68,9 @@ export const useWizardStore = defineStore('wizard', () => {
   function updateInput(index: number, input: InputSource) { inputs.value[index] = input }
   function addProcessor(plugin: 'sql' | 'python' = 'sql') {
     if (plugin === 'python') {
-      processors.value.push({ name: '', plugin: 'python', script: '', inputTables: [], outputTables: [] })
+      processors.value.push({ name: '', plugin: 'python', script: '', inputTables: [], outputTables: [], checkpoints: [] })
     } else {
-      processors.value.push({ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] })
+      processors.value.push({ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [], checkpoints: [] })
     }
   }
   function removeProcessor(index: number) {
@@ -150,6 +150,8 @@ export const useWizardStore = defineStore('wizard', () => {
         plugin,
         inputTables: raw.input_tables || raw.inputTables || [],
         outputTables: raw.output_tables || raw.outputTables || (raw.outputTable ? [raw.outputTable] : []),
+        // CheckRule fields use snake_case matching backend, no camelCase conversion needed
+        checkpoints: (raw.checkpoints || []).map((c: any) => ({ ...c, on_failure: c.on_failure || 'block' })),
       }
       if (plugin === 'python') {
         return { ...base, script: raw.config?.script || raw.script || '' } as ProcessorStep
@@ -177,7 +179,10 @@ export const useWizardStore = defineStore('wizard', () => {
       currentStep: currentStep.value,
       scene: scene.value,
       inputs: inputs.value,
-      processors: processors.value,
+      processors: processors.value.map(p => ({
+        ...p,
+        checkpoints: p.checkpoints || [],
+      })),
       output: output.value,
       uploadedFiles: uploadedFiles.value,
       aiSuggestions: aiSuggestions.value,

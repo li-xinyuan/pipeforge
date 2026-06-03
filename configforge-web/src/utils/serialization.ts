@@ -1,4 +1,4 @@
-import type { WizardState, SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig } from '../types/wizard'
+import type { WizardState, SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig, CheckRule } from '../types/wizard'
 
 type InputConfig = ExcelInputConfig | CsvInputConfig | DatabaseInputConfig
 type OutputConfig = ExcelOutputConfig | CsvOutputConfig
@@ -15,8 +15,8 @@ export interface SnakeState {
     config: Record<string, unknown>
   }>
   processors: Array<
-    | { name: string; plugin: 'sql'; input_tables: string[]; output_tables: string[]; sql: string }
-    | { name: string; plugin: 'python'; input_tables: string[]; output_tables: string[]; script: string }
+    | { name: string; plugin: 'sql'; input_tables: string[]; output_tables: string[]; sql: string; checkpoints: CheckRule[] }
+    | { name: string; plugin: 'python'; input_tables: string[]; output_tables: string[]; script: string; checkpoints: CheckRule[] }
   >
   output: {
     plugin: string
@@ -101,12 +101,26 @@ export function stateToSnakeCase(state: WizardState): SnakeState {
           name: p.name, plugin: 'python' as const,
           input_tables: p.inputTables, output_tables: p.outputTables,
           script: p.script,
+          checkpoints: p.checkpoints?.map((c: CheckRule) => ({
+            type: c.type,
+            table: c.table,
+            min: c.min,
+            max: c.max,
+            on_failure: c.on_failure,
+          })) || [],
         }
       }
       return {
         name: p.name, plugin: 'sql' as const,
         input_tables: p.inputTables, output_tables: p.outputTables,
         sql: p.sql,
+        checkpoints: p.checkpoints?.map((c: CheckRule) => ({
+          type: c.type,
+          table: c.table,
+          min: c.min,
+          max: c.max,
+          on_failure: c.on_failure,
+        })) || [],
       }
     }),
     output: state.output

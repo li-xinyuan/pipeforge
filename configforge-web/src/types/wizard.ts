@@ -14,7 +14,7 @@ export interface ConfirmedAnalysis {
 
 export interface AiSuggestion {
   content: string
-  category: 'scene' | 'columns' | 'sql' | 'mapping' | 'diagnose' | 'chat' | 'orchestrate'
+  category: 'scene' | 'columns' | 'sql' | 'python' | 'mapping' | 'diagnose' | 'chat' | 'orchestrate'
   status: 'pending' | 'accepted' | 'rejected' | 'auto'
   timestamp: number
 }
@@ -113,8 +113,8 @@ export interface InputSource {
 }
 
 export type ProcessorStep =
-  | { name: string; plugin: 'sql'; sql: string; inputTables: string[]; outputTables: string[] }
-  | { name: string; plugin: 'python'; script: string; inputTables: string[]; outputTables: string[] }
+  | { name: string; plugin: 'sql'; sql: string; inputTables: string[]; outputTables: string[]; checkpoints: CheckRule[] }
+  | { name: string; plugin: 'python'; script: string; inputTables: string[]; outputTables: string[]; checkpoints: CheckRule[] }
 
 export interface ColumnMappingItem {
   source: string
@@ -165,4 +165,20 @@ export interface SavedConfig {
   version: string
   updatedAt: string
   inputs: Array<{ name: string; paramKey: string; plugin: string }>
+}
+
+export type CheckRule = {
+  type: 'row_count'
+  table: string
+  min?: number
+  max?: number
+  on_failure: 'block' | 'warn'
+}
+
+export interface CheckResult {
+  type: string
+  passed: boolean
+  message: string
+  on_failure: 'block' | 'warn'
+  checked_at: string
 }

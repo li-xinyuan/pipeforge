@@ -44,7 +44,6 @@
         :available-tables="tableOptionsFor(i)"
         :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
         @remove="store.removeProcessor(i)"
-        @switch-type="(plugin: string) => switchProcessorType(i, plugin as 'sql' | 'python')"
         @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
       />
 
@@ -90,8 +89,8 @@
       </NAlert>
 
       <AiSuggestPanel
-        :visible="!!store.aiSuggestions['sql'] && store.aiSuggestions['sql'].status !== 'auto'"
-        :content="store.aiSuggestions['sql']?.content || ''"
+        :visible="!!activeSuggestion"
+        :content="activeSuggestion?.content || ''"
         @accept="onAcceptSuggestion"
         @regenerate="onRegenerateSuggestion"
       />
@@ -133,25 +132,13 @@ provide('tableColumnsCache', tableColumnsCache)
 
 const showAddSelector = ref(defaultEmpty.value)
 
-function switchProcessorType(idx: number, target: 'sql' | 'python') {
-  const proc = store.processors[idx]
-  if (proc.plugin === target) return
-  // Preserve common fields
-  const name = proc.name
-  if (target === 'python') {
-    store.processors[idx] = { name, plugin: 'python', script: '', inputTables: proc.inputTables, outputTables: proc.outputTables }
-  } else {
-    store.processors[idx] = { name, plugin: 'sql', sql: '', inputTables: proc.inputTables, outputTables: proc.outputTables }
-  }
-}
-
 function pickProcessor(plugin: 'sql' | 'python') {
   const baseName = plugin === 'python' ? 'Python 脚本' : 'SQL 查询'
   const sameType = store.processors.filter(p => p.plugin === plugin).length
   const name = defaultEmpty.value ? baseName : `${baseName} ${sameType + 1}`
   const step = plugin === 'python'
-    ? { name, plugin: 'python' as const, script: '', inputTables: [], outputTables: [] }
-    : { name, plugin: 'sql' as const, sql: '', inputTables: [], outputTables: [] }
+    ? { name, plugin: 'python' as const, script: '', inputTables: [], outputTables: [], checkpoints: [] }
+    : { name, plugin: 'sql' as const, sql: '', inputTables: [], outputTables: [], checkpoints: [] }
   if (defaultEmpty.value) {
     store.processors[0] = step
   } else {
@@ -177,6 +164,17 @@ function pickProcessor(plugin: 'sql' | 'python') {
     const baseName = `result${idx + 1}`
     if (!last.outputTables[0] || last.outputTables[0] === baseName || last.outputTables[0] === 'result') {
       last.outputTables = [baseName]
+    }
+  } else if (last.plugin === 'python') {
+    // Auto-name output for Python steps
+    const baseName = `step${idx + 1}_output`
+    if (!last.outputTables.length || !last.outputTables[0].trim()) {
+      last.outputTables = [baseName]
+    }
+    // Provide a default script template if empty
+    if (!last.script.trim() && inputTableNames.value.length > 0) {
+      const tables = inputTableNames.value.map(t => `"${t}"`).join(', ')
+      last.script = `def process(ctx):\n    """Process data with Python."""\n    # Available tables: ${tables}\n    # ctx.db.connection — raw SQLite connection\n    # ctx.params — user-specified parameters\n    # ctx.logger — logger instance\n    pass`
     }
   }
 }
@@ -246,6 +244,10 @@ watch(inputTableNames, (tables) => {
         proc.sql = `SELECT * FROM "${tables[0]}"`
         break
       }
+      if (proc.plugin === 'python' && !proc.script.trim()) {
+        proc.script = `def process(ctx):\n    """Process data from ${tables[0]}."""\n    # ctx.db.connection — raw SQLite connection\n    pass`
+        break
+      }
     }
   }
 })
@@ -266,6 +268,11 @@ watch(
         if (proc.outputTables.length === 0 || proc.outputTables.every(t => !t.trim())) {
           const tableName = inferPythonOutputTable(script) || `step_${i + 1}_output`
           store.updateProcessor(i, { ...proc, outputTables: [tableName] })
+          store.setSuggestion('python', {
+            category: 'python', status: 'auto',
+            content: `已自动推断输出表名: <strong>${tableName}</strong>。`,
+            timestamp: Date.now()
+          })
         }
         continue
       }
@@ -286,8 +293,8 @@ watch(
         /\bINSERT\s+INTO\s+\w+\b/i.test(trimmed) ||
         /\bWITH\s+\w+\s+AS\s*\(/i.test(trimmed)
       )
-      store.setSuggestion('sql', {
-        category: 'sql', status: 'auto',
+      store.setSuggestion(proc.plugin, {
+        category: proc.plugin === 'sql' ? 'sql' : 'python', status: 'auto',
         content: `${isPlainSelect ? '系统已自动命名为' : '已自动推断输出表名:'} <strong>${tableName}</strong>。`,
         timestamp: Date.now()
       })
@@ -306,9 +313,14 @@ function checkTableRenames() {
     const oldName = prev[i]; const newName = currentTables[i]
     if (!oldName || !newName || oldName === newName) continue
     for (const proc of store.processors) {
-      if (proc.plugin !== 'sql') continue
-      if (i === 0 && proc.sql.trim() === `SELECT * FROM "${oldName}"`) { proc.sql = `SELECT * FROM "${newName}"`; break }
-      if (proc.sql.includes(`"${oldName}"`)) { renamePrompt.value = { oldName, newName }; return }
+      const code = proc.plugin === 'sql' ? proc.sql : proc.script
+      if (proc.plugin !== 'sql' && proc.plugin !== 'python') continue
+      if (i === 0 && code.trim() === `SELECT * FROM "${oldName}"`) {
+        if (proc.plugin === 'sql') proc.sql = `SELECT * FROM "${newName}"`
+        else proc.script = proc.script.replace(`"${oldName}"`, `"${newName}"`)
+        break
+      }
+      if (code.includes(`"${oldName}"`)) { renamePrompt.value = { oldName, newName }; return }
     }
   }
   lastKnownTables.value = [...currentTables]
@@ -319,7 +331,11 @@ function onReplaceTableName() {
   const { oldName, newName } = renamePrompt.value
   const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   for (const proc of store.processors) {
-    if (proc.plugin === 'sql') proc.sql = proc.sql.replace(new RegExp(`"${escaped}"`, 'g'), `"${newName}"`)
+    if (proc.plugin === 'sql') {
+      proc.sql = proc.sql.replace(new RegExp(`"${escaped}"`, 'g'), `"${newName}"`)
+    } else if (proc.plugin === 'python') {
+      proc.script = proc.script.replace(new RegExp(`"${escaped}"`, 'g'), `"${newName}"`)
+    }
   }
   renamePrompt.value = null
   lastKnownTables.value = store.inputs.map(inp => inp.table.trim()).filter(Boolean)
@@ -338,11 +354,14 @@ watch(
       // Update downstream processors that reference the old name
       for (let j = i + 1; j < store.processors.length; j++) {
         const proc = store.processors[j]
-        if (proc.plugin !== 'sql') continue
-        if (proc.sql.trim() === `SELECT * FROM "${oldName}"`) {
-          proc.sql = `SELECT * FROM "${newName}"`
-        } else {
-          proc.sql = proc.sql.replace(new RegExp(`"${oldName}"`, 'g'), `"${newName}"`)
+        if (proc.plugin === 'sql') {
+          if (proc.sql.trim() === `SELECT * FROM "${oldName}"`) {
+            proc.sql = `SELECT * FROM "${newName}"`
+          } else {
+            proc.sql = proc.sql.replace(new RegExp(`"${oldName}"`, 'g'), `"${newName}"`)
+          }
+        } else if (proc.plugin === 'python') {
+          proc.script = proc.script.replace(new RegExp(`"${oldName}"`, 'g'), `"${newName}"`)
         }
       }
     }
@@ -350,10 +369,29 @@ watch(
   }
 )
 
+const activeSuggestion = computed(() => {
+  for (const cat of ['sql', 'python'] as const) {
+    const s = store.aiSuggestions[cat]
+    if (s && s.status !== 'auto') return s
+  }
+  return null
+})
+
+const activeSuggestionCategory = computed(() => {
+  for (const cat of ['sql', 'python'] as const) {
+    if (store.aiSuggestions[cat]?.status !== 'auto') return cat
+  }
+  return null
+})
+
 defineExpose({ checkTableRenames })
 
-function onAcceptSuggestion() { store.acceptSuggestion('sql') }
-function onRegenerateSuggestion() { store.rejectSuggestion('sql') }
+function onAcceptSuggestion() {
+  if (activeSuggestionCategory.value) store.acceptSuggestion(activeSuggestionCategory.value)
+}
+function onRegenerateSuggestion() {
+  if (activeSuggestionCategory.value) store.rejectSuggestion(activeSuggestionCategory.value)
+}
 
 watch(() => hasNoSteps.value, (v) => {
   if (v) showAddSelector.value = true
