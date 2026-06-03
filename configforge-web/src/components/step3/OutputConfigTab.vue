@@ -168,7 +168,7 @@
               v-if="store.output?.plugin === 'csv'"
               size="small"
               @click="onInferColumns"
-            >从 SQL 推断列</NButton>
+            >{{ inferColumnLabel }}</NButton>
             <NButton
               v-else
               size="small"
@@ -179,7 +179,7 @@
           </div>
         </div>
         <ColumnMapping v-if="outputConfig.columns.length > 0" :columns="outputConfig.columns" @remove="removeColumn" />
-        <p v-else class="text-xs text-slate-400 mt-1">{{ store.output?.plugin === 'csv' ? '点击"从 SQL 推断列"自动填充列映射' : '点击"+ 添加列"添加源列到目标列的映射' }}</p>
+        <p v-else class="text-xs text-slate-400 mt-1">{{ store.output?.plugin === 'csv' ? `点击"${inferColumnLabel}"自动填充列映射` : '点击"+ 添加列"添加源列到目标列的映射' }}</p>
       </div>
     </div>
   </div>
@@ -197,6 +197,11 @@ import { inferSelectColumns } from '../../utils/sql'
 import ColumnMapping from './ColumnMapping.vue'
 
 const store = useWizardStore()
+
+const inferColumnLabel = computed(() => {
+  const lastProcessor = store.processors[0]
+  return lastProcessor?.plugin === 'python' ? '从代码推断列' : '从 SQL 推断列'
+})
 const message = useMessage()
 const { fetchPreview, executeSql } = useWizardApi()
 const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()

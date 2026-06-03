@@ -45,10 +45,10 @@
         <div class="anim-step">
           <div class="anim-step__head">
             <span class="anim-step__icon">⚡</span>
-            <span class="anim-step__title">SQL 处理</span>
+            <span class="anim-step__title">数据处理</span>
           </div>
           <div class="anim-step__body">
-            <div class="mock-ai-btn">🤖 AI 生成 SQL</div>
+            <div class="mock-ai-btn">🤖 AI 生成代码</div>
             <div class="mock-code">
               <span class="mock-code__kw">SELECT</span> * <span class="mock-code__kw">FROM</span> <span class="mock-code__str">"sales_data"</span>
             </div>
@@ -92,7 +92,7 @@
               <span class="mock-yaml__key">pipeline</span>: sales_report<br>
               <span class="mock-yaml__key">inputs</span>:<br>
               &nbsp;&nbsp;- sales_data<br>
-              <span class="mock-yaml__key">processor</span>: sql<br>
+              <span class="mock-yaml__key">processor</span>: python<br>
               <span class="mock-yaml__key">output</span>: report.xlsx
             </div>
           </div>

@@ -21,7 +21,9 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # Errors caused by user input (bad script, missing function, timeout, etc.)
-_USER_ERRORS = (ValueError, SyntaxError, TimeoutError)
+from pipeforge.config.exceptions import CheckpointError
+
+_USER_ERRORS = (ValueError, SyntaxError, TimeoutError, CheckpointError)
 
 
 @router.post("/init-scene")
@@ -50,6 +52,14 @@ async def api_dry_run(req: GenerateRequest):
     try:
         result = dry_run(req.state)
         return result
+    except CheckpointError as e:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "数据检查点未通过",
+                "checks": [r.model_dump() for r in e.results],
+            },
+        )
     except _USER_ERRORS as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:

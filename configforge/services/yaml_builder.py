@@ -40,7 +40,7 @@ def build_yaml(state: WizardState) -> str:
                     "config": {"type": "python", "script": proc.script},
                 }
                 if proc.checkpoints:
-                    entry["checkpoints"] = [r.model_dump(exclude_defaults=True) for r in proc.checkpoints]
+                    entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in proc.checkpoints]
                 d["processors"].append(entry)
             else:
                 entry = {
@@ -51,7 +51,7 @@ def build_yaml(state: WizardState) -> str:
                     "config": {"type": "sql", "sql": proc.sql},
                 }
                 if proc.checkpoints:
-                    entry["checkpoints"] = [r.model_dump(exclude_defaults=True) for r in proc.checkpoints]
+                    entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in proc.checkpoints]
                 d["processors"].append(entry)
     elif state.processor.plugin == "python" and state.processor.script.strip():
         # Backward compatibility: single Python processor
@@ -63,7 +63,7 @@ def build_yaml(state: WizardState) -> str:
             "config": {"type": "python", "script": state.processor.script},
         }
         if state.processor.checkpoints:
-            entry["checkpoints"] = [r.model_dump(exclude_defaults=True) for r in state.processor.checkpoints]
+            entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in state.processor.checkpoints]
         d["processors"].append(entry)
     elif state.processor.sql.strip() or state.processor.output_tables:
         # Backward compatibility: single processor
@@ -75,7 +75,7 @@ def build_yaml(state: WizardState) -> str:
             "config": {"type": "sql", "sql": state.processor.sql},
         }
         if state.processor.checkpoints:
-            entry["checkpoints"] = [r.model_dump(exclude_defaults=True) for r in state.processor.checkpoints]
+            entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in state.processor.checkpoints]
         d["processors"].append(entry)
     if state.output:
         out_cfg = state.output.config

@@ -141,6 +141,7 @@ class PipelineEngine:
             "inputs": [{"name": k, "rows_loaded": v.rows_loaded} for k, v in context.result.inputs.items()],
             "processors": [{"name": p.name, "tables_created": p.tables_created} for p in context.result.processors],
             "tables": tables,
+            "checks": [c.model_dump() for c in context.result.checks],
         }
 
     def _topological_sort(self, processors, available_tables: set[str]) -> list:

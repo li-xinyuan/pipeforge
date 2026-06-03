@@ -148,7 +148,30 @@
       "Bash(/plugin install *)",
       "Bash(uipro init *)",
       "Bash(echo \"TS: $?\")",
-      "Bash(pkill -9 -f uvicorn)"
+      "Bash(pkill -9 -f uvicorn)",
+      "Bash(uv --version)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(GH_CONFIG=/dev/null gh release list --repo thedotmack/claude-mem --limit 30)",
+      "Bash(CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=300000 claude plugins *)",
+      "Read(//private/tmp/understand-anything-test/.git/objects/pack/**)",
+      "Read(//private/tmp/understand-anything-test/**)",
+      "Bash(CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=300000 claude plugin *)",
+      "Bash(cp *)",
+      "Bash(CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=300000 codegraph --version)",
+      "Bash(npx @colbymchenry/codegraph --version)",
+      "Bash(codegraph init *)",
+      "Bash(codegraph stats *)",
+      "Bash(codegraph --help)",
+      "Bash(codegraph status *)",
+      "Bash(codegraph files *)",
+      "Bash(codegraph query *)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm approve-builds *)",
+      "Bash(pnpm --filter @understand-anything/core build)",
+      "Bash(break)",
+      "Bash([ -f \"/Users/lixinyuan/code/CCTEST/$f\" ])",
+      "Bash([ -d \"/Users/lixinyuan/code/CCTEST/$f\" ])",
+      "Bash(GRAPH_DIR=/Users/lixinyuan/code/CCTEST npx vite --host 127.0.0.1)"
     ]
   }
 }

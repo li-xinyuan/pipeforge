@@ -53,15 +53,16 @@
         </section>
 
         <section class="guide__section">
-          <h2>第三步：SQL 处理</h2>
-          <p>编写 SQL 查询对输入数据进行处理：</p>
+          <h2>第三步：数据处理</h2>
+          <p>编写 SQL 查询或 Python 脚本对输入数据进行处理：</p>
           <ul>
-            <li>在 SQL 编辑器中直接编写查询语句，引用上一步设置的表名。</li>
-            <li>点击 <strong>AI 生成 SQL</strong>，用自然语言描述需求，AI 将自动生成 SQL 并填入编辑器。</li>
+            <li><strong>SQL 查询</strong>：在 SQL 编辑器中直接编写查询语句，引用上一步设置的表名。</li>
+            <li><strong>Python 脚本</strong>：使用 <code>def process(ctx)</code> 编写自定义数据处理逻辑，支持 API 调用、复杂计算等。</li>
+            <li>点击 <strong>AI 生成代码</strong>，用自然语言描述需求，AI 将自动生成代码并填入编辑器。</li>
             <li>设置<strong>输出表名</strong>，查询结果将保存到此表中供输出步骤使用。</li>
             <li>点击 <strong>预览结果</strong> 可实时查看 SQL 执行结果。</li>
           </ul>
-          <p>SQL 引擎为 SQLite，支持标准 SQL 语法。</p>
+          <p>SQL 引擎为 SQLite，支持标准 SQL 语法。Python 脚本通过 ctx.db API 访问数据库。</p>
         </section>
 
         <section class="guide__section">
@@ -71,7 +72,7 @@
             <li>选择输出格式：<strong>Excel</strong> 或 <strong>CSV</strong>。</li>
             <li><strong>Excel 输出</strong>：可上传模板文件定义样式，系统会将数据填充到模板中。</li>
             <li><strong>CSV 输出</strong>：可设置分隔符和编码。</li>
-            <li><strong>列映射</strong>：设置源列到目标列的映射关系。点击 <strong>AI 自动映射</strong> 或 <strong>从 SQL 推断列</strong> 可自动完成。</li>
+            <li><strong>列映射</strong>：设置源列到目标列的映射关系。点击 <strong>AI 自动映射</strong> 或 <strong>从代码推断列</strong> 可自动完成。</li>
             <li><strong>数据源表</strong>：选择要输出的源表（来自 SQL 处理的结果表）。</li>
             <li><strong>输出目录</strong>和<strong>文件名</strong>：指定输出文件的保存位置和名称。执行下载时文件名中的日期会自动替换为实际执行时间。</li>
           </ul>

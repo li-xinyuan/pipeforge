@@ -166,7 +166,7 @@ class TestCheckpoints:
         )
         yaml_str = build_yaml(state)
         assert "checkpoints" in yaml_str
-        # type=row_count 是默认值，exclude_defaults 会跳过
+        assert "row_count" in yaml_str
         assert "warn" in yaml_str
 
     def test_checkpoints_empty_by_default(self):
@@ -200,5 +200,6 @@ class TestCheckpoints:
         )
         yaml_str = build_yaml(state)
         assert "checkpoints" in yaml_str
-        # type=row_count 和 on_failure=block 都是默认值，exclude_defaults 会跳过
-        assert "min" in yaml_str  # min=100 不是默认值，应出现
+        assert "row_count" in yaml_str
+        assert "min" in yaml_str
+        assert "block" in yaml_str
