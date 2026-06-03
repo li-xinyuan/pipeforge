@@ -68,7 +68,7 @@
           </div>
           <AiInlineTip
             v-if="store.scene.name"
-            message="完善场景信息后，后续步骤可以使用 AI 辅助生成 SQL 和列映射"
+            message="完善场景信息后，后续步骤可以使用 AI 辅助生成代码和列映射"
           />
           <template #footer>
             <span :class="{ 'pulse-cta': currentStep === 1 && store.scene.name.trim() }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.scene.name.trim()" @click="completeStep(1)">保存并继续 ↓</NButton></span>
@@ -113,9 +113,9 @@
           <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) || !p.outputTables.length)" />
           <AiInlineTip
             v-if="showStep3Tip"
-            message="描述你的查询需求，AI 帮你生成 SQL"
+            message="描述你的需求，AI 帮你生成代码"
             show-action
-            action-label="AI 生成 SQL"
+            action-label="AI 生成代码"
             @action="aiPanelVisible = true"
           />
           <template #footer>
@@ -271,12 +271,12 @@ const showStep5Tip = ref(false)
 
 // AI messages
 const aiMessages = ref<ChatMessage[]>([
-  { role: 'ai', content: '你好！我是 ConfigForge AI 助手。我可以帮你分析数据列、生成 SQL、自动映射列，以及生成场景描述。' },
+  { role: 'ai', content: '你好！我是 ConfigForge AI 助手。我可以帮你分析数据列、生成处理代码、自动映射列，以及生成场景描述。' },
 ])
 const orchestrateMode = ref(false)
 
 const aiQuickActions = computed(() => {
-  const actions = ['生成场景描述', 'AI 分析列', 'AI 生成 SQL', 'AI 自动映射']
+  const actions = ['生成场景描述', 'AI 分析列', 'AI 生成代码', 'AI 自动映射']
   if (store.inputs.length > 0) {
     actions.unshift('AI 编排步骤链')
   }
@@ -380,19 +380,26 @@ async function onAiSend(text: string) {
   if (result) {
     try {
       const parsed = JSON.parse(result)
-      if (parsed.sql) {
+      if (parsed.sql || parsed.script) {
+        const isPython = !!parsed.script
+        const code = isPython ? parsed.script : parsed.sql
         if (store.processors.length > 0) {
           let targetIndex = store.processors.length - 1
           const targetProc = store.processors[targetIndex]
-          if (targetProc && targetProc.plugin !== 'sql') {
-            // Find the last SQL processor
+          if (targetProc && ((isPython && targetProc.plugin !== 'python') || (!isPython && targetProc.plugin !== 'sql'))) {
+            // Find the last matching processor
             targetIndex = -1
             for (let i = store.processors.length - 1; i >= 0; i--) {
-              if (store.processors[i].plugin === 'sql') { targetIndex = i; break }
+              if (isPython ? store.processors[i].plugin === 'python' : store.processors[i].plugin === 'sql') { targetIndex = i; break }
             }
           }
           if (targetIndex >= 0) {
-            const proc = { ...store.processors[targetIndex], sql: parsed.sql } as ProcessorStep
+            const proc = { ...store.processors[targetIndex] } as ProcessorStep
+            if (isPython) {
+              (proc as any).script = code
+            } else {
+              (proc as any).sql = code
+            }
             if (parsed.outputTable) {
               proc.outputTables = [parsed.outputTable]
             }
@@ -401,8 +408,8 @@ async function onAiSend(text: string) {
         }
         aiMessages.value.push({
           role: 'ai',
-          content: parsed.explanation || '已生成 SQL 并填入处理步骤。',
-          code: parsed.sql,
+          content: parsed.explanation || (isPython ? '已生成 Python 代码并填入处理步骤。' : '已生成 SQL 并填入处理步骤。'),
+          code: code,
         })
       } else if (parsed.raw) {
         aiMessages.value.push({ role: 'ai', content: parsed.raw })
@@ -451,10 +458,10 @@ async function onAiQuickAction(action: string) {
     } else {
       aiMessages.value.push({ role: 'ai', content: 'AI 分析失败。请确认 AI 设置正确且后端服务正在运行。' })
     }
-  } else if (action === 'AI 生成 SQL') {
+  } else if (action === 'AI 生成代码') {
     aiMessages.value.push({
       role: 'ai',
-      content: '请在下方输入框用自然语言描述你想要的查询，例如："查询每个部门有多少员工，按人数降序"。我会帮你生成对应的 SQL。',
+      content: '请在下方输入框用自然语言描述你想要的查询，例如："查询每个部门有多少员工，按人数降序"。我会帮你生成对应的代码。',
     })
   } else if (action === 'AI 自动映射') {
     const sourceCols: string[] = []
@@ -518,7 +525,7 @@ function onOrchestrateAction() {
 
 async function doOrchestrate(naturalLanguage: string) {
   // Progressive loading feedback
-  const statuses = ['分析输入源结构...', '识别数据依赖关系...', '规划处理步骤链...', '生成 SQL 查询...']
+  const statuses = ['分析输入源结构...', '识别数据依赖关系...', '规划处理步骤链...', '生成处理代码...']
   let statusIdx = 0
   const loadingIdx = aiMessages.value.push({ role: 'ai', content: statuses[0] }) - 1
   const statusTimer = setInterval(() => {
@@ -567,9 +574,9 @@ function onOrchestrateConfirm(result: any) {
     }
     const plugin = (s.plugin || 'sql') as 'sql' | 'python'
     if (plugin === 'python') {
-      return { name: s.name || `步骤 ${i + 1}`, plugin, script: s.script || '', inputTables, outputTables: s.output_tables || [] }
+      return { name: s.name || `步骤 ${i + 1}`, plugin, script: s.script || '', inputTables, outputTables: s.output_tables || [], checkpoints: [] }
     }
-    return { name: s.name || `步骤 ${i + 1}`, plugin, sql: s.sql || '', inputTables, outputTables: s.output_tables || [] }
+    return { name: s.name || `步骤 ${i + 1}`, plugin, sql: s.sql || '', inputTables, outputTables: s.output_tables || [], checkpoints: [] }
   })
   store.setProcessors(processors)
   aiMessages.value.push({ role: 'ai', content: '已将处理链填入 Step 3，请检查每步的 SQL/Python 脚本和表名。' })

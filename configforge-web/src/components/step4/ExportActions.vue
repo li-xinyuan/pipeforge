@@ -102,6 +102,7 @@ async function saveConfigHandler() {
         outputTables: p.outputTables,
         inputTables: p.inputTables,
         name: p.name,
+        checkpoints: p.checkpoints || [],
       })),
       output: store.output,
     }
