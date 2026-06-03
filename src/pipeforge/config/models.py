@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -102,6 +104,7 @@ class ProcessorSpec(BaseModel):
     input_tables: list[str] = []
     output_tables: list[str] = []
     config: Annotated[SqlProcessorConfig | PythonProcessorConfig, Field(discriminator="type")]
+    checkpoints: list[CheckRule] = []
 
 
 class ColumnMapping(BaseModel):
@@ -166,3 +169,25 @@ class SceneConfig(BaseModel):
     inputs: list[InputSpec] = []
     processors: list[ProcessorSpec] = []
     output: OutputSpec | None = None
+
+
+# 数据检查点（v0.1：仅 RowCountRule）
+class RowCountRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["row_count"] = "row_count"
+    table: str = ""
+    min: int | None = None
+    max: int | None = None
+    on_failure: Literal["block", "warn"] = "block"
+
+CheckRule = RowCountRule
+
+class CheckResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: str
+    passed: bool
+    message: str
+    on_failure: Literal["block", "warn"]
+    checked_at: str
