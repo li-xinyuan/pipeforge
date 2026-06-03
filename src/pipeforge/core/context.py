@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from pipeforge.config.models import CheckResult
+
 
 class InputStats(BaseModel):
     name: str
@@ -28,6 +30,7 @@ class ExecutionResult(BaseModel):
     inputs: dict[str, InputStats] = {}
     processors: list[ProcessorStats] = []
     output: OutputStats | None = None
+    checks: list[CheckResult] = []
 
 
 @dataclass

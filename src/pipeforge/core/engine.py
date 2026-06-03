@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from pipeforge.config import load_yaml_config
 from pipeforge.config.models import SceneConfig
+from pipeforge.core.checkpoints import execute_checks
 from pipeforge.core.context import Context, InputStats, ProcessorStats, OutputStats, ExecutionResult, Logger
 from pipeforge.core.registry import PluginRegistry
 from pipeforge.core.sqlite import SQLiteManager
@@ -62,6 +63,11 @@ class PipelineEngine:
                     stats = self._execute_processor(proc_spec, context)
                     context.result.processors.append(stats)
 
+                    if proc_spec.checkpoints:
+                        default_table = proc_spec.output_tables[0] if proc_spec.output_tables else ""
+                        check_results = execute_checks(proc_spec.checkpoints, context.db, default_table)
+                        context.result.checks.extend(check_results)
+
             if self.config.output is not None:
                 stats = self._execute_output(self.config.output, context)
                 context.result.output = stats
@@ -106,6 +112,11 @@ class PipelineEngine:
                             raise ValueError(f"Processor '{proc_spec.name}': input table '{table}' not found. Available: {context.db.list_tables()}")
                     stats = self._execute_processor(proc_spec, context)
                     context.result.processors.append(stats)
+
+                    if proc_spec.checkpoints:
+                        default_table = proc_spec.output_tables[0] if proc_spec.output_tables else ""
+                        check_results = execute_checks(proc_spec.checkpoints, context.db, default_table)
+                        context.result.checks.extend(check_results)
 
             # Capture table data before closing the database
             tables = []
