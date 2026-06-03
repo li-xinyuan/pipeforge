@@ -12,6 +12,7 @@ from configforge.models.wizard import (
     ExcelOutputConfig,
     ColumnMappingItem,
 )
+from configforge.services.yaml_builder import build_yaml
 
 
 class TestHasDdl:
@@ -143,3 +144,61 @@ class TestGenerate:
         result = generate(state)
         assert "yaml" in result
         assert "outputs:" not in result["yaml"]  # no output → no output section in YAML
+
+
+class TestCheckpoints:
+    def test_row_count_warn_pipeline_proceeds(self):
+        """warn 检查点不阻断管道执行。"""
+        state = WizardState(
+            scene=SceneInfo(name="test_checkpoint"),
+            inputs=[InputSource(
+                plugin="csv", table="test_data", param_key="test_data",
+                config={"type": "csv", "delimiter": ",", "encoding": "utf-8"},
+            )],
+            processors=[ProcessorConfig(
+                name="step1", plugin="sql", sql="CREATE TABLE result AS SELECT 1",
+                input_tables=["test_data"], output_tables=["result"],
+                checkpoints=[{
+                    "type": "row_count", "table": "result",
+                    "min": 99999, "on_failure": "warn",
+                }],
+            )],
+        )
+        yaml_str = build_yaml(state)
+        assert "checkpoints" in yaml_str
+        # type=row_count 是默认值，exclude_defaults 会跳过
+        assert "warn" in yaml_str
+
+    def test_checkpoints_empty_by_default(self):
+        """无检查点时 ProcessorConfig 正常序列化。"""
+        state = WizardState(
+            scene=SceneInfo(name="no_check"),
+            processors=[ProcessorConfig(
+                name="s1", plugin="sql", sql="SELECT 1",
+                output_tables=["r1"],
+            )],
+        )
+        yaml_str = build_yaml(state)
+        assert "checkpoints" not in yaml_str  # 空时不输出
+
+    def test_row_count_block_is_in_yaml(self):
+        """block 检查点应正确序列化到 YAML 中。"""
+        state = WizardState(
+            scene=SceneInfo(name="test_block"),
+            inputs=[InputSource(
+                plugin="csv", table="data", param_key="data",
+                config={"type": "csv", "delimiter": ",", "encoding": "utf-8"},
+            )],
+            processors=[ProcessorConfig(
+                name="step1", plugin="sql", sql="CREATE TABLE result AS SELECT 1",
+                input_tables=["data"], output_tables=["result"],
+                checkpoints=[{
+                    "type": "row_count", "table": "result",
+                    "min": 100, "on_failure": "block",
+                }],
+            )],
+        )
+        yaml_str = build_yaml(state)
+        assert "checkpoints" in yaml_str
+        # type=row_count 和 on_failure=block 都是默认值，exclude_defaults 会跳过
+        assert "min" in yaml_str  # min=100 不是默认值，应出现
