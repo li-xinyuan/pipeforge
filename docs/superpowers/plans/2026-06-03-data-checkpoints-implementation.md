@@ -50,14 +50,7 @@ class CheckpointError(Exception):
         super().__init__(f"检查点验证失败: {msg}")
 ```
 
-- [ ] **Step 3: 运行现有测试确认无回归**
-
-```bash
-uv run pytest tests/ -q
-```
-Expected: 126 passed
-
-- [ ] **Step 4: 在 ProcessorSpec 中追加 checkpoints 字段**
+- [ ] **Step 3: 在 ProcessorSpec 中追加 checkpoints 字段**
 
 编辑 `src/pipeforge/config/models.py` 的 `ProcessorSpec` 类：
 
@@ -73,14 +66,14 @@ class ProcessorSpec(BaseModel):
     checkpoints: list[CheckRule] = []
 ```
 
-- [ ] **Step 5: 运行测试确认无回归**
+- [ ] **Step 4: 运行测试确认模型变更无回归**
 
 ```bash
 uv run pytest tests/ -q
 ```
 Expected: 126 passed
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add src/pipeforge/config/models.py src/pipeforge/config/exceptions.py
@@ -102,7 +95,8 @@ git commit -m "feat: add RowCountRule, CheckRule, CheckResult, CheckpointError t
 from datetime import datetime, timezone
 from typing import Callable
 
-from pipeforge.config.models import CheckRule, CheckResult, CheckpointError, RowCountRule
+from pipeforge.config.models import CheckRule, CheckResult, RowCountRule
+from pipeforge.config.exceptions import CheckpointError
 from pipeforge.core.sqlite import SQLiteManager
 
 _CHECK_EXECUTORS: dict[str, Callable] = {}
@@ -209,7 +203,7 @@ from pipeforge.config.models import CheckResult
 from pipeforge.core.checkpoints import execute_checks
 ```
 
-在 `execute_pipeline()`（约 line 63）和 `execute_dry_run()`（约 line 108）的 `context.result.processors.append(stats)` 之后，都追加相同的检查点调用：
+在 `execute_pipeline()` 和 `execute_dry_run()` 两个方法中，各自的 `context.result.processors.append(stats)` 语句之后，都追加相同的检查点调用：
 
 ```python
                 if proc_spec.checkpoints:
@@ -315,13 +309,15 @@ class TestExecuteChecks:
         assert len(exc.value.results) == 2  # both checked, not just first
 
     def test_unknown_rule_type_raises(self):
+        """未注册的规则类型应抛出 ValueError。通过 dict 构造绕过 Pydantic Literal 限制。"""
         mock_db = MagicMock()
-
-        class UnknownRule(RowCountRule):
-            type: str = "unknown"
+        # 用 dict 构造一个 type="unknown" 的规则绕过 RowCountRule 的 Literal["row_count"]
+        rule_dict = RowCountRule(min=1, on_failure="block").model_dump()
+        rule_dict["type"] = "unknown"
+        unknown_rule = RowCountRule(**rule_dict)
 
         with pytest.raises(ValueError, match="Unknown check rule type"):
-            execute_checks([UnknownRule()], mock_db, "t")
+            execute_checks([unknown_rule], mock_db, "t")
 
     def test_empty_checkpoints_returns_empty(self):
         mock_db = MagicMock()
@@ -477,7 +473,9 @@ function setProcessors(newProcessors: ProcessorStep[]) {
 }
 ```
 
-在 `loadFromConfigState` 反序列化时初始化 `checkpoints`：
+在 `loadFromConfigState` 反序列化时初始化 `checkpoints`。
+
+**命名策略**：`CheckRule` 的所有字段（`type`、`table`、`min`、`max`、`on_failure`）在前端和后端/YAML 中保持 snake_case 一致，不进行 camelCase 转换。这与 `inputTables`/`outputTables`（需要 snake↔camel 映射）的策略不同。
 
 ```typescript
 const base = {
@@ -485,6 +483,7 @@ const base = {
   plugin,
   inputTables: raw.input_tables || raw.inputTables || [],
   outputTables: raw.output_tables || raw.outputTables || (raw.outputTable ? [raw.outputTable] : []),
+  // CheckRule 字段保持 snake_case，无需 camelCase 转换
   checkpoints: (raw.checkpoints || []).map((c: any) => ({ ...c, on_failure: c.on_failure || 'block' })),
 }
 ```
@@ -574,9 +573,22 @@ CSS 追加：
 }
 ```
 
-- [ ] **Step 4: ExportActions.vue — YAML 导出包含 checkpoints**
+- [ ] **Step 4: ExportActions.vue — saveConfigHandler 追加 checkpoints**
 
-在构建 YAML 请求的 `processors` 数据时，确保 `checkpoints` 字段被包含在序列化中（store → serialization 已经做了映射，此处只需确认不被过滤掉）。
+`saveConfigHandler` 手动构建 processor 对象（不经过 serialization.ts），容易丢失新字段。在 `saveConfigHandler` 的 `store.processors.map()` 中追加 `checkpoints`：
+
+```typescript
+processors: store.processors.map(p => ({
+  plugin: p.plugin,
+  ...(p.plugin === 'python' ? { script: p.script } : { sql: p.sql }),
+  outputTables: p.outputTables,
+  inputTables: p.inputTables,
+  name: p.name,
+  checkpoints: p.checkpoints || [],  // ← 新增
+})),
+```
+
+`downloadResult` 使用 `stateToSnakeCase(store.getWizardState())`，已自动包含 — 无需额外修改。
 
 - [ ] **Step 5: ConfigWizardView.vue — AI 编排保留 checkpoints**
 
@@ -655,6 +667,29 @@ class TestCheckpoints:
         )
         yaml_str = build_yaml(state)
         assert "checkpoints" not in yaml_str  # 空时不输出
+
+    def test_row_count_block_is_in_yaml(self):
+        """block 检查点应正确序列化到 YAML 中（默认值 on_failure: block 不输出）。"""
+        state = WizardState(
+            scene=SceneInfo(name="test_block"),
+            inputs=[InputSource(
+                plugin="csv", table="data", param_key="data",
+                config={"type": "csv", "delimiter": ",", "encoding": "utf-8"},
+            )],
+            processors=[ProcessorConfig(
+                name="step1", plugin="sql", sql="CREATE TABLE result AS SELECT 1",
+                input_tables=["data"], output_tables=["result"],
+                checkpoints=[{
+                    "type": "row_count", "table": "result",
+                    "min": 100, "on_failure": "block",
+                }],
+            )],
+        )
+        yaml_str = build_yaml(state)
+        assert "checkpoints" in yaml_str
+        assert "row_count" in yaml_str
+        assert "min" in yaml_str  # min=100 不是默认值，应出现
+        assert "block" not in yaml_str  # on_failure=block 是默认值，exclude_defaults 应跳过
 ```
 
 - [ ] **Step 2: 运行集成测试**
