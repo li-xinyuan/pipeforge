@@ -47,9 +47,9 @@
     </div>
     <div v-else class="mb-5 flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
       <span class="text-lg">{{ outputTypeInfo.icon }}</span>
-      <span class="text-sm font-semibold text-slate-700">{{ outputTypeInfo.label }}</span>
-      <span class="text-xs text-slate-400">· {{ outputTypeInfo.desc }}</span>
-      <NButton text size="tiny" class="ml-auto" @click="showOutputTypeChoices = true">重选输出格式</NButton>
+      <NTag size="medium" :type="store.output?.plugin === 'csv' ? 'info' : 'success'">{{ outputTypeInfo.label }}</NTag>
+      <span class="text-xs text-slate-400">{{ outputTypeInfo.desc }}</span>
+      <NButton text size="tiny" type="error" class="ml-auto" @click="clearOutputType">删除</NButton>
     </div>
 
     <!-- Output form -->
@@ -512,6 +512,13 @@ function addColumn() {
 
 function removeColumn(index: number) {
   outputConfig.value.columns.splice(index, 1)
+}
+
+function clearOutputType() {
+  // Reset columns to prevent stale data from enabling save button
+  outputConfig.value.columns = []
+  lastAutoInferred = false
+  showOutputTypeChoices.value = true
 }
 
 function switchOutputType(plugin: 'excel' | 'csv') {
