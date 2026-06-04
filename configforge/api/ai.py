@@ -118,6 +118,57 @@ async def orchestrate(req: AiOrchestrateRequest, request: Request):
             await backend.close()
 
 
+@router.post("/translate-checkpoint")
+async def translate_checkpoint(req: AiSuggestionRequest, request: Request):
+    """将自然语言检查需求翻译为具体的 CheckRule JSON。"""
+    _check_rate_limit(request.client.host if request.client else "unknown")
+    settings = load_settings()
+    if not settings.enabled:
+        raise HTTPException(status_code=400, detail="AI 未配置，请先在设置中启用")
+    backend = None
+    try:
+        backend = create_backend(settings)
+        # Build checkpoint-specific prompt
+        available_tables = req.context.get("available_tables", [])
+        current_table = req.context.get("current_output_table", "")
+        user_input = req.context.get("user_input", "")
+        prompt = (
+            f"将以下数据检查需求翻译为具体的检查规则 JSON：\n\n"
+            f"用户需求：{user_input}\n\n"
+            f"上下文：\n"
+            f"- 可用表名：{available_tables}\n"
+            f"- 当前步骤输出表：{current_table}\n\n"
+            f'可用规则类型：{{"row_count": {{"type": "row_count", "table": "表名", "min": null, "max": null, "on_failure": "block|warn"}}}}\n\n'
+            f"请返回一个 JSON 对象，包含翻译后的检查规则。例如：\n"
+            f'{{"type": "row_count", "table": "result", "min": 100, "on_failure": "block"}}\n\n'
+            f"只返回 JSON，不要其他内容。"
+        )
+        logger.info("AI translate-checkpoint prompt_len=%d model=%s", len(prompt), settings.model)
+        start = time.monotonic()
+        result = await asyncio.wait_for(backend.generate(prompt), timeout=30.0)
+        latency_ms = int((time.monotonic() - start) * 1000)
+        logger.info("AI translate-checkpoint latency_ms=%d response_len=%d", latency_ms, len(result))
+        parsed_text = parse_response(result)
+        try:
+            parsed = json.loads(parsed_text)
+            parsed.setdefault("on_failure", "block")
+            parsed.setdefault("type", "row_count")
+            return parsed
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=500, detail="AI 返回了无法解析的格式，请重试")
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=503, detail="AI 响应超时，请重试")
+    except HTTPException:
+        raise
+    except Exception as e:
+        msg = str(e)
+        logger.error("AI translate-checkpoint failed error=%s", msg[:200])
+        raise HTTPException(status_code=500, detail="AI 调用失败，请稍后重试")
+    finally:
+        if backend is not None:
+            await backend.close()
+
+
 @router.get("/settings")
 async def get_settings():
     settings = load_settings()

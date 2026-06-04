@@ -24,17 +24,20 @@
         @update="(p: any) => $emit('update', p)"
       />
     </div>
-    <div v-if="proc.checkpoints && proc.checkpoints.length > 0" class="processor-card__checks">
-      <span class="text-xs text-slate-400">数据检查: {{ proc.checkpoints.length }} 条规则</span>
-    </div>
+    <CheckpointSection
+      :checkpoints="proc.checkpoints || []"
+      :proc-index="index"
+      @update:checkpoints="(rules: CheckRule[]) => $emit('update', { checkpoints: rules } as Partial<ProcessorStep>)"
+    />
   </NCard>
 </template>
 
 <script setup lang="ts">
 import { NCard, NButton, NTag } from 'naive-ui'
-import type { ProcessorStep } from '../../types/wizard'
+import type { ProcessorStep, CheckRule } from '../../types/wizard'
 import SqlProcessorContent from './SqlProcessorContent.vue'
 import PythonProcessorContent from './PythonProcessorContent.vue'
+import CheckpointSection from './CheckpointSection.vue'
 
 defineProps<{
   proc: ProcessorStep
@@ -52,10 +55,5 @@ defineEmits<{
 <style scoped>
 .processor-card {
   margin-bottom: 8px;
-}
-.processor-card__checks {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--color-border-light);
 }
 </style>
