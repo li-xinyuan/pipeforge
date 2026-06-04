@@ -2,58 +2,57 @@
   <div>
     <!-- Output type selector -->
     <div v-if="showOutputTypeChoices" class="grid grid-cols-3 gap-3 mb-5">
-      <NCard
-        hoverable
+      <div
         :class="[
-          'cursor-pointer text-center border-2 transition-colors',
-          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-dashed border-slate-200'
+          'cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30'
         ]"
         @click="switchOutputType('excel'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">📊</span>
         <span class="text-sm font-semibold">Excel</span>
-      </NCard>
-      <NCard
-        hoverable
+      </div>
+      <div
         :class="[
-          'cursor-pointer text-center border-2 transition-colors',
-          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-dashed border-slate-200'
+          'cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30'
         ]"
         @click="switchOutputType('csv'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">🗄</span>
         <span class="text-sm font-semibold">CSV</span>
-      </NCard>
-      <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
+      </div>
+      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
         <span class="text-2xl block mb-2">🔌</span>
         <span class="text-sm font-semibold">Database</span>
-      </NCard>
-      <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
+      </div>
+      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.3</NTag>
         <span class="text-2xl block mb-2">📄</span>
         <span class="text-sm font-semibold">PDF</span>
-      </NCard>
-      <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
+      </div>
+      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
         <span class="text-2xl block mb-2">🖥</span>
         <span class="text-sm font-semibold">PPT</span>
-      </NCard>
-      <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
+      </div>
+      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.5</NTag>
         <span class="text-2xl block mb-2">🌐</span>
         <span class="text-sm font-semibold">API</span>
-      </NCard>
+      </div>
     </div>
-    <div v-else class="mb-5 flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
-      <span class="text-lg">{{ outputTypeInfo.icon }}</span>
-      <NTag size="medium" :type="store.output?.plugin === 'csv' ? 'info' : 'success'">{{ outputTypeInfo.label }}</NTag>
-      <span class="text-xs text-slate-400">{{ outputTypeInfo.desc }}</span>
-      <NButton text size="tiny" type="error" class="ml-auto" @click="clearOutputType">删除</NButton>
-    </div>
+    <div v-else class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+        <span class="text-lg">{{ outputTypeInfo.icon }}</span>
+        <span class="text-sm font-medium truncate flex-1">{{ outputTypeInfo.desc }}</span>
+        <NTag size="small" :type="store.output?.plugin === 'csv' ? 'info' : 'success'">{{ outputTypeInfo.label }}</NTag>
+        <NButton text size="tiny" type="error" class="ml-auto" @click="clearOutputType">删除</NButton>
+      </div>
 
-    <!-- Output form -->
-    <div v-if="!showOutputTypeChoices" class="space-y-4">
+      <!-- Output form -->
+      <div class="p-3 space-y-4">
       <!-- Source table (first field, required) -->
       <div>
         <label class="block text-sm font-medium text-slate-900 mb-1"><span class="text-red-500">*</span> 数据源表</label>
@@ -77,6 +76,7 @@
         </template>
         <NUpload
           v-else
+          ref="templateUploadRef"
           :custom-request="handleTemplateUpload"
           :show-file-list="false"
           accept=".xlsx,.xls"
@@ -181,22 +181,25 @@
         <ColumnMapping v-if="outputConfig.columns.length > 0" :columns="outputConfig.columns" @remove="removeColumn" />
         <p v-else class="text-xs text-slate-400 mt-1">{{ store.output?.plugin === 'csv' ? `点击"${inferColumnLabel}"自动填充列映射` : '点击"+ 添加列"添加源列到目标列的映射' }}</p>
       </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
 import type { ExcelOutputConfig, CsvOutputConfig, ColumnMappingItem } from '../../types/wizard'
 import type { UploadCustomRequestOptions } from 'naive-ui'
-import { NCard, NInput, NButton, NTag, NUpload, NSelect, useMessage } from 'naive-ui'
+import { NInput, NButton, NTag, NUpload, NSelect, useMessage } from 'naive-ui'
 import { inferSelectColumns } from '../../utils/sql'
 import ColumnMapping from './ColumnMapping.vue'
 
 const store = useWizardStore()
+const templateUploadRef = ref<InstanceType<typeof NUpload>>()
+const pendingTemplateUpload = ref(false)
 
 const inferColumnLabel = computed(() => {
   const lastProcessor = store.processors[0]
@@ -364,6 +367,29 @@ onMounted(() => {
   if (store.output?.plugin === 'csv' && outputConfig.value.columns.length === 0 && hasCode) {
     prevSql.value = p0.plugin === 'sql' ? p0.sql : p0.script
     onInferColumns()
+  }
+})
+
+// Auto-open template file selector when switching to Excel output
+function tryOpenTemplateUpload() {
+  const tryClick = () => {
+    const el = (templateUploadRef.value as any)?.$el
+    if (el) {
+      const input = el.querySelector('input[type="file"]') as HTMLInputElement | null
+      if (input) { input.click(); return true }
+    }
+    return false
+  }
+  // Try immediately, then retry with nextTick if not ready
+  if (!tryClick()) {
+    nextTick(() => { if (!tryClick()) setTimeout(tryClick, 100) })
+  }
+}
+
+watch(templateUploadRef, (ref) => {
+  if (ref && pendingTemplateUpload.value) {
+    pendingTemplateUpload.value = false
+    tryOpenTemplateUpload()
   }
 })
 
@@ -552,6 +578,8 @@ function switchOutputType(plugin: 'excel' | 'csv') {
         sheet: 'Sheet1',
       },
     })
+    // Auto-open template file selector for Excel — wait for NUpload to mount
+    pendingTemplateUpload.value = true
   }
   lastAutoFilename.value = common.filename
 }

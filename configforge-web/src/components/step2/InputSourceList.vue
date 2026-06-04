@@ -19,41 +19,41 @@
       </div>
       <div class="grid grid-cols-3 gap-3">
         <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
-          <NCard hoverable class="cursor-pointer text-center border-2 border-green-600 bg-green-50" @click="addInput('excel')">
+          <div class="cursor-pointer text-center border-2 border-green-600 bg-green-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="addInput('excel')">
             <span class="text-2xl block mb-2">📊</span>
             <span class="text-sm font-semibold">Excel</span>
             <span class="text-xs text-slate-500 mt-1 block">.xlsx / .xls</span>
-          </NCard>
+          </div>
         </span>
         <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
-          <NCard hoverable class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50" @click="addInput('csv')">
+          <div class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="addInput('csv')">
             <span class="text-2xl block mb-2">🗄</span>
             <span class="text-sm font-semibold">CSV</span>
             <span class="text-xs text-slate-500 mt-1 block">.csv / .tsv</span>
-          </NCard>
+          </div>
         </span>
         <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
-          <NCard hoverable class="cursor-pointer text-center border-2 border-purple-600 bg-purple-50" @click="addInput('database')">
+          <div class="cursor-pointer text-center border-2 border-purple-600 bg-purple-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="addInput('database')">
             <span class="text-2xl block mb-2">🔌</span>
             <span class="text-sm font-semibold">Database</span>
             <span class="text-xs text-slate-500 mt-1 block">SQLite / MySQL / PG</span>
-          </NCard>
+          </div>
         </span>
-        <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
+        <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
           <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.3</NTag>
           <span class="text-2xl block mb-2">📄</span>
           <span class="text-sm font-semibold">PDF</span>
-        </NCard>
-        <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
+        </div>
+        <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
           <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
           <span class="text-2xl block mb-2">🖥</span>
           <span class="text-sm font-semibold">PPT</span>
-        </NCard>
-        <NCard class="text-center opacity-55 bg-slate-50 relative" size="small">
+        </div>
+        <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
           <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.5</NTag>
           <span class="text-2xl block mb-2">🌐</span>
           <span class="text-sm font-semibold">API</span>
-        </NCard>
+        </div>
       </div>
     </template>
 
@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
-import { NCard, NButton, NTag } from 'naive-ui'
+import { NButton, NTag } from 'naive-ui'
 import InputSourceCard from './InputSourceCard.vue'
 
 const store = useWizardStore()

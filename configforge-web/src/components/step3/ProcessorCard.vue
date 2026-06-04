@@ -1,13 +1,15 @@
 <template>
-  <NCard size="small" class="processor-card">
-    <template #header>
-      <div class="flex items-center gap-2">
-        <span class="text-sm font-medium truncate flex-1">{{ proc.name || '步骤 ' + (index + 1) }}</span>
-        <NTag size="medium" :type="proc.plugin === 'python' ? 'warning' : 'success'">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }}</NTag>
-        <NButton text type="error" size="small" @click="$emit('remove')">删除</NButton>
-      </div>
-    </template>
-    <div class="space-y-3">
+  <div class="processor-card bg-white border border-slate-200 rounded-lg overflow-hidden">
+    <!-- Header: name + plugin badge + delete -->
+    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+      <span class="text-lg">{{ proc.plugin === 'python' ? '🐍' : '🧪' }}</span>
+      <span class="text-sm font-medium truncate flex-1">{{ proc.name || '步骤 ' + (index + 1) }}</span>
+      <NTag size="small" :type="proc.plugin === 'python' ? 'warning' : 'success'">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }}</NTag>
+      <NTag v-if="proc.checkpoints?.length" size="small" type="info">检查点 ×{{ proc.checkpoints.length }}</NTag>
+      <NButton text type="error" size="tiny" class="ml-auto" @click="$emit('remove')">删除</NButton>
+    </div>
+    <!-- Body -->
+    <div class="p-3 space-y-3">
       <SqlProcessorContent
         v-if="proc.plugin === 'sql'"
         :proc="proc"
@@ -29,11 +31,11 @@
       :proc-index="index"
       @update:checkpoints="(rules: CheckRule[]) => $emit('update', { checkpoints: rules } as Partial<ProcessorStep>)"
     />
-  </NCard>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { NCard, NButton, NTag } from 'naive-ui'
+import { NButton, NTag } from 'naive-ui'
 import type { ProcessorStep, CheckRule } from '../../types/wizard'
 import SqlProcessorContent from './SqlProcessorContent.vue'
 import PythonProcessorContent from './PythonProcessorContent.vue'

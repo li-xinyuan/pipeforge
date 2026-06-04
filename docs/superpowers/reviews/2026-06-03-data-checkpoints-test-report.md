@@ -15,18 +15,19 @@
 | 1 | [models.py](file:///Users/lixinyuan/code/CCTEST/src/pipeforge/config/models.py) | 新增 `RowCountRule`、`CheckRule`、`ProcessorSpec.checkpoints` | ✅ 正确 |
 | 2 | [exceptions.py](file:///Users/lixinyuan/code/CCTEST/src/pipeforge/config/exceptions.py) | 新增 `CheckpointError` | ✅ 正确 |
 | 3 | [checkpoints.py](file:///Users/lixinyuan/code/CCTEST/src/pipeforge/core/checkpoints.py) | 新增 `execute_checks` + `_check_row_count` | ✅ 正确 |
-| 4 | [engine.py](file:///Users/lixinyuan/code/CCTEST/src/pipeforge/core/engine.py) | `execute()` 和 `execute_dry_run()` 中集成检查点 | ⚠️ 有 bug |
+| 4 | [engine.py](file:///Users/lixinyuan/code/CCTEST/src/pipeforge/core/engine.py) | `execute()` 和 `execute_dry_run()` 中集成检查点 + 返回 `checks` | ✅ 正确 |
 | 5 | [context.py](file:///Users/lixinyuan/code/CCTEST/src/pipeforge/core/context.py) | `ExecutionResult` 新增 `checks` 字段 | ✅ 正确 |
 | 6 | [wizard.py](file:///Users/lixinyuan/code/CCTEST/configforge/models/wizard.py) | `ProcessorConfig` 新增 `checkpoints` 字段 | ✅ 正确 |
-| 7 | [yaml_builder.py](file:///Users/lixinyuan/code/CCTEST/configforge/services/yaml_builder.py) | YAML 输出包含 `checkpoints` | ✅ 正确 |
-| 8 | [wizard.ts](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/types/wizard.ts) | 新增 `CheckRule`、`CheckResult`、`RuleSource` 类型 | ✅ 正确 |
-| 9 | [serialization.ts](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/utils/serialization.ts) | `SnakeState` + `stateToSnakeCase` 映射 `checkpoints` | ✅ 正确 |
-| 10 | [wizard.ts (store)](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/stores/wizard.ts) | `loadFromConfigState` 反序列化 `checkpoints` | ✅ 正确 |
-| 11 | [ProcessorCard.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/components/step3/ProcessorCard.vue) | 显示检查点标签 | ✅ 正确 |
-| 12 | [ExportActions.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/components/step4/ExportActions.vue) | `saveConfigHandler` 包含 `checkpoints` | ✅ 正确 |
-| 13 | [ConfigWizardView.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/views/ConfigWizardView.vue) | AI 编排确认时处理 `checkpoints` | ✅ 正确 |
-| 14 | [SqlEditorTab.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/components/step3/SqlEditorTab.vue) | `pickProcessor` 初始化 `checkpoints` | ✅ 正确 |
-| 15 | [PythonProcessorContent.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/components/step3/PythonProcessorContent.vue) | `pickProcessor` 初始化 `checkpoints` | ✅ 正确 |
+| 7 | [yaml_builder.py](file:///Users/lixinyuan/code/CCTEST/configforge/services/yaml_builder.py) | YAML 输出包含 `checkpoints`（`exclude_defaults=False`） | ✅ 正确 |
+| 8 | [wizard.py (API)](file:///Users/lixinyuan/code/CCTEST/configforge/api/wizard.py) | `CheckpointError` → 422 + 检查结果 | ✅ 正确 |
+| 9 | [wizard.ts](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/types/wizard.ts) | 新增 `CheckRule`、`CheckResult`、`RuleSource` 类型 | ✅ 正确 |
+| 10 | [serialization.ts](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/utils/serialization.ts) | `SnakeState` + `stateToSnakeCase` 映射 `checkpoints` | ✅ 正确 |
+| 11 | [wizard.ts (store)](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/stores/wizard.ts) | `loadFromConfigState` 反序列化 `checkpoints` | ✅ 正确 |
+| 12 | [ProcessorCard.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/components/step3/ProcessorCard.vue) | 显示检查点标签 | ✅ 正确 |
+| 13 | [ExportActions.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/components/step4/ExportActions.vue) | `saveConfigHandler` 包含 `checkpoints` | ✅ 正确 |
+| 14 | [ConfigWizardView.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/views/ConfigWizardView.vue) | AI 编排确认时处理 `checkpoints` | ✅ 正确 |
+| 15 | [SqlEditorTab.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/components/step3/SqlEditorTab.vue) | `pickProcessor` 初始化 `checkpoints` | ✅ 正确 |
+| 16 | [PythonProcessorContent.vue](file:///Users/lixinyuan/code/CCTEST/configforge-web/src/components/step3/PythonProcessorContent.vue) | `pickProcessor` 初始化 `checkpoints` | ✅ 正确 |
 
 ### 1.2 代码质量
 
@@ -39,6 +40,8 @@
 | `extra="forbid"` 兼容 | ✅ `checkpoints` 作为 `ProcessorSpec` 一级字段 |
 | `CheckpointError` 定义 | ✅ 继承 `Exception`，包含 `results` 属性 |
 | `default_table` 处理 | ✅ `execute_checks` 参数 + `rule.table or default_table` |
+| API 错误码 | ✅ `CheckpointError` → 422 + 检查结果详情 |
+| YAML 可读性 | ✅ `exclude_defaults=False` 保留 `type`/`on_failure` |
 
 ---
 
@@ -49,9 +52,7 @@
 | 测试套件 | 结果 |
 |---------|------|
 | `pytest configforge/tests/` | **137 passed** ✅ |
-| `pytest tests/` | **126 passed** ✅ |
-
-**注意**：之前失败的 2 个 `test_empty_columns_raises` 测试已修复。
+| `pytest tests/` | **175 passed** ✅ |
 
 ### 2.2 前端测试
 
@@ -64,122 +65,39 @@
 
 ## 三、API 端到端测试
 
-### 3.1 基础功能测试
-
-| # | 测试项 | 结果 | 说明 |
-|---|--------|------|------|
-| 1 | 无检查点 Pipeline（回归） | ✅ PASS | 无回归 |
-| 2 | YAML 生成含 checkpoints | ✅ PASS | YAML 包含 `checkpoints` 字段 |
-| 3 | 配置保存/加载含 checkpoints | ✅ PASS | `checkpoints` 正确保留和恢复 |
-| 4 | Python 步骤 + checkpoint | ✅ PASS | Python 步骤检查点正常执行 |
-
-### 3.2 检查点执行测试
+### 3.1 全场景测试结果
 
 | # | 测试项 | 期望行为 | 实际行为 | 结果 |
 |---|--------|---------|---------|------|
-| 5 | warn checkpoint（行数不足） | Pipeline 继续执行，返回 checks 含警告 | Pipeline 继续执行，但 **checks 字段缺失** | ❌ FAIL |
-| 6 | block checkpoint（行数不足） | Pipeline 中断，返回 500 + 错误信息 | Pipeline 继续执行，返回 200，**checks 字段缺失** | ❌ FAIL |
-| 7 | passing checkpoint（行数在范围内） | Pipeline 继续，checks 含通过记录 | Pipeline 继续，**checks 字段缺失** | ❌ FAIL |
-| 8 | default table（table=""） | 使用 output_tables[0] | 无法验证（checks 缺失） | ⚠️ 无法验证 |
-| 9 | 多条检查点（warn + block 混合） | 收集全部结果后中断 | 无法验证（checks 缺失） | ⚠️ 无法验证 |
+| 1 | warn checkpoint（行数不足） | Pipeline 继续，checks 含警告 | Pipeline 继续，checks: 1 项，`passed=False, msg="表 result 行数 1 < 最小值 99999"` | ✅ PASS |
+| 2 | block checkpoint（行数不足） | Pipeline 中断，返回 422 | HTTP 422，detail 含 message + checks | ✅ PASS |
+| 3 | passing checkpoint（行数在范围内） | Pipeline 继续，checks 含通过记录 | Pipeline 继续，checks: 1 项，`passed=True, msg="表 result 行数 1 在范围内"` | ✅ PASS |
+| 4 | default table（table=""） | 使用 output_tables[0] | Pipeline 继续，checks: 1 项，`passed=True` | ✅ PASS |
+| 5 | 无检查点 Pipeline（回归） | 正常执行 | tables: 2，无 checks | ✅ PASS |
+| 6 | YAML 生成含 checkpoints | YAML 包含 checkpoints + row_count + on_failure | 全部包含 | ✅ PASS |
+| 7 | 配置保存/加载含 checkpoints | checkpoints 保留 | `checkpoints preserved: [{type: row_count, ...}]` | ✅ PASS |
+| 8 | 多条检查点（warn + block 混合） | 收集全部结果后中断，返回 422 | HTTP 422 | ✅ PASS |
+| 9 | Python 步骤 + checkpoint | Python 步骤检查点正常执行 | checks: 1 项，`passed=True, msg="表 py_result 行数 1 在范围内"` | ✅ PASS |
+| 10 | Mixed SQL+Python + checkpoints | 2 步骤各 1 检查点 | checks: 2 项，全部 `passed=True` | ✅ PASS |
+
+**API E2E 测试通过率：10/10（100%）**
+
+### 3.2 关键验证点
+
+| 验证点 | 结果 | 说明 |
+|--------|------|------|
+| `checks` 字段在 dry-run 响应中 | ✅ | `engine.execute_dry_run()` 返回 `checks` 字段 |
+| `CheckpointError` → 422 | ✅ | API 层专门处理，返回 `message` + `checks` |
+| block 规则收集全部结果后中断 | ✅ | 多条规则时全部执行完再抛异常 |
+| `table=""` 使用 `default_table` | ✅ | 正确回退到 `output_tables[0]` |
+| YAML 含 `type`/`on_failure` | ✅ | `exclude_defaults=False` 保留默认值 |
+| 配置持久化保留 `checkpoints` | ✅ | 保存/加载后 checkpoints 完整 |
+| SQL + Python 混合步骤 | ✅ | 两种步骤的检查点均正常执行 |
+| 无检查点时无回归 | ✅ | 空 checkpoints 不影响现有流程 |
 
 ---
 
-## 四、发现的 Bug
-
-### 🔴 Bug 1：`execute_dry_run()` 返回值缺少 `checks` 字段
-
-**位置**：[engine.py:140-144](file:///Users/lixinyuan/code/CCTEST/src/pipeforge/core/engine.py#L140-L144)
-
-**问题**：`execute_dry_run()` 手动构建返回字典时，只包含 `inputs`、`processors`、`tables` 三个字段，**缺少 `checks` 字段**。
-
-```python
-# 当前代码（第 140-144 行）
-return {
-    "inputs": [...],
-    "processors": [...],
-    "tables": tables,
-    # ← 缺少 "checks": context.result.checks
-}
-```
-
-**影响**：所有通过 API 调用 `dry-run` 的检查点结果都无法返回给前端。检查点逻辑在引擎中正确执行了，但结果被丢弃了。
-
-**修复**：
-
-```python
-return {
-    "inputs": [...],
-    "processors": [...],
-    "tables": tables,
-    "checks": [c.model_dump() for c in context.result.checks],  # ← 新增
-}
-```
-
-### 🔴 Bug 2：`CheckpointError` 未被 API 层识别为用户错误
-
-**位置**：[wizard.py](file:///Users/lixinyuan/code/CCTEST/configforge/api/wizard.py)（API 端点异常处理）
-
-**问题**：当 `block` 检查点失败时，`engine.execute_dry_run()` 抛出 `CheckpointError`。但 API 层的异常处理只识别特定的用户错误（如 `ValueError`），`CheckpointError` 被当作通用 `Exception` 返回 500。
-
-虽然 500 在语义上不算错（服务器内部执行失败），但更好的做法是返回 422（Unprocessable Entity）或 409（Conflict），因为这是用户配置导致的问题，不是服务器 bug。
-
-**修复建议**：
-
-在 API 层添加 `CheckpointError` 的专门处理：
-
-```python
-from pipeforge.config.exceptions import CheckpointError
-
-@router.post("/dry-run")
-async def dry_run(request: GenerateRequest):
-    try:
-        result = pipeline.dry_run(request.state)
-        return result
-    except CheckpointError as e:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "message": "数据检查点未通过",
-                "checks": [r.model_dump() for r in e.results],
-            }
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-```
-
-### 🟡 Bug 3：`build_yaml()` 中 `exclude_defaults=True` 导致 `type` 和 `on_failure` 字段缺失
-
-**位置**：[yaml_builder.py](file:///Users/lixinyuan/code/CCTEST/configforge/services/yaml_builder.py)
-
-**问题**：`build_yaml()` 使用 `model_dump(exclude_defaults=True)` 序列化检查点，导致 `type: "row_count"`（默认值）和 `on_failure: "block"`（默认值）被省略。
-
-```yaml
-# 当前输出
-checkpoints:
-  - table: result
-    min: 99999
-    # type 和 on_failure 被省略！
-
-# 期望输出
-checkpoints:
-  - type: row_count
-    table: result
-    min: 99999
-    on_failure: block
-```
-
-**影响**：Pydantic 反序列化时会用默认值填充，所以功能上不受影响。但 YAML 文件可读性差，且与设计文档的示例不一致。
-
-**修复**：对 `checkpoints` 字段单独使用 `exclude_defaults=False`：
-
-```python
-"checkpoints": [c.model_dump(exclude_defaults=False) for c in proc.checkpoints]
-```
-
----
-
-## 五、浏览器 E2E 测试
+## 四、浏览器 E2E 测试
 
 | # | 测试项 | 结果 | 说明 |
 |---|--------|------|------|
@@ -190,29 +108,44 @@ checkpoints:
 
 ---
 
+## 五、之前 Bug 修复验证
+
+### Bug 1：`execute_dry_run()` 返回值缺少 `checks` 字段 → ✅ 已修复
+
+[engine.py:144](file:///Users/lixinyuan/code/CCTEST/src/pipeforge/core/engine.py#L144) 新增：
+```python
+"checks": [c.model_dump() for c in context.result.checks],
+```
+
+### Bug 2：`CheckpointError` 未被 API 层识别 → ✅ 已修复
+
+[api/wizard.py:24-26](file:///Users/lixinyuan/code/CCTEST/configforge/api/wizard.py#L24-L26) 导入并加入 `_USER_ERRORS`，[第 55-62 行](file:///Users/lixinyuan/code/CCTEST/configforge/api/wizard.py#L55-L62) 专门处理返回 422 + 检查结果。
+
+### Bug 3：YAML `exclude_defaults=True` 导致字段缺失 → ✅ 已修复
+
+[yaml_builder.py:43,54](file:///Users/lixinyuan/code/CCTEST/configforge/services/yaml_builder.py#L43) 改为 `model_dump(exclude_defaults=False)`。
+
+---
+
 ## 六、测试总结
 
 ### 6.1 通过率
 
-| 维度 | 通过 | 失败 | 无法验证 | 通过率 |
-|------|------|------|---------|--------|
-| 后端单元测试 | 263 | 0 | — | 100% |
-| 前端单元测试 | 135 | 0 | — | 100% |
-| TypeScript 类型检查 | 0 errors | — | — | 100% |
-| API 基础功能 | 4 | 0 | — | 100% |
-| API 检查点执行 | 0 | 3 | 2 | 0% |
-| 浏览器 E2E | 4 | 0 | — | 100% |
+| 维度 | 通过 | 失败 | 通过率 |
+|------|------|------|--------|
+| 后端单元测试 | 312 | 0 | 100% |
+| 前端单元测试 | 135 | 0 | 100% |
+| TypeScript 类型检查 | 0 errors | — | 100% |
+| API E2E 测试 | 10 | 0 | 100% |
+| 浏览器 E2E | 4 | 0 | 100% |
 
-### 6.2 问题优先级
+### 6.2 结论
 
-| 级别 | 编号 | 问题 | 修复工作量 |
-|------|------|------|-----------|
-| 🔴 P0 | Bug 1 | `execute_dry_run()` 返回值缺少 `checks` 字段 | 1 行代码 |
-| 🔴 P0 | Bug 2 | `CheckpointError` 未被 API 层识别，返回 500 而非 422 | ~10 行代码 |
-| 🟡 P1 | Bug 3 | `exclude_defaults=True` 导致 YAML 缺少 `type`/`on_failure` | ~5 行代码 |
+**✅ 数据检查点 v0.1 功能全部测试通过，可发布。**
 
-### 6.3 结论
+3 个之前发现的 Bug 已全部修复并验证：
+1. `execute_dry_run()` 返回值包含 `checks` 字段
+2. `CheckpointError` 返回 422 + 检查结果详情
+3. YAML 输出保留 `type`/`on_failure` 默认值
 
-**数据检查点的核心逻辑（模型定义、执行器、前端序列化）实现正确**，但 `engine.py` 的 `execute_dry_run()` 返回值遗漏了 `checks` 字段，导致 API 层无法获取检查结果。这是实施计划 Task 3 的遗漏——引擎中正确执行了检查点，但结果没有传递到 API 响应。
-
-修复 Bug 1（1 行代码）后，所有检查点功能应可正常工作。Bug 2 和 Bug 3 是体验优化，不影响核心功能。
+核心功能验证：warn 检查点正常放行、block 检查点正确中断、default_table 回退、多规则收集、SQL/Python 混合步骤、配置持久化——全部正常。无回归。

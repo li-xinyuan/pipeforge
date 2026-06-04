@@ -1,20 +1,18 @@
 <template>
-  <NCard size="small">
+  <div class="input-source-card bg-white border border-slate-200 rounded-lg overflow-hidden relative">
     <!-- Header: name + plugin badge + delete -->
-    <template #header>
-      <div class="flex items-center gap-2">
-        <span v-if="!input.fileId" class="text-xs font-medium text-slate-600 truncate flex-1">{{ input.table || '新输入源' }}</span>
-        <span v-else class="flex-1" />
-        <NTag :type="input.plugin === 'csv' ? 'info' : input.plugin === 'database' ? 'warning' : 'success'" size="medium">
-          {{ input.plugin === 'csv' ? 'CSV' : input.plugin === 'database' ? 'DB' : 'Excel' }}
-        </NTag>
-        <NTag v-if="analyzing" type="warning" size="medium">AI 分析中...</NTag>
-        <NButton text type="error" size="small" @click="$emit('remove')">删除</NButton>
-      </div>
-    </template>
+    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+      <span class="text-lg">{{ input.plugin === 'csv' ? '🗄' : input.plugin === 'database' ? '🔌' : '📊' }}</span>
+      <span class="text-sm font-medium truncate flex-1">{{ input.table || '新输入源' }}</span>
+      <NTag :type="input.plugin === 'csv' ? 'info' : input.plugin === 'database' ? 'warning' : 'success'" size="small">
+        {{ input.plugin === 'csv' ? 'CSV' : input.plugin === 'database' ? 'DB' : 'Excel' }}
+      </NTag>
+      <NTag v-if="analyzing" type="warning" size="small">AI 分析中...</NTag>
+      <NButton text type="error" size="tiny" class="ml-auto" @click="$emit('remove')">删除</NButton>
+    </div>
 
     <!-- Body: Configuration fields -->
-    <div class="grid grid-cols-2 gap-3 mb-4 relative">
+    <div class="p-3 grid grid-cols-2 gap-3 mb-4 relative">
       <!-- File upload -->
       <div v-if="input.plugin !== 'database'" class="col-span-2">
         <template v-if="input.fileId && store.uploadedFiles[input.fileId]">
@@ -222,7 +220,7 @@
       @regenerate="handleModalRegenerate"
       @close="handleModalClose"
     />
-  </NCard>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -231,7 +229,7 @@ import type { InputSource, CsvInputConfig, ExcelInputConfig, ConfirmedAnalysis }
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
 import { useFileUpload } from '../../composables/useFileUpload'
-import { NCard, NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NSpin } from 'naive-ui'
+import { NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NSpin } from 'naive-ui'
 import type { UploadCustomRequestOptions } from 'naive-ui'
 import ColumnPreview from './ColumnPreview.vue'
 import AiColumnConfirmModal from './AiColumnConfirmModal.vue'
