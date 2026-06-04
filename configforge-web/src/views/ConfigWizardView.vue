@@ -110,7 +110,7 @@
           :status="stepStatus(3)"
           :badge="stepBadge(3)"
         >
-          <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) || !p.outputTables.length)" />
+          <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && (store.processors.length === 0 || store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) || !p.outputTables.length))" />
           <AiInlineTip
             v-if="showStep3Tip"
             message="描述你的需求，AI 帮你生成代码"
