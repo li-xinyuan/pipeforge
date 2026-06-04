@@ -130,7 +130,7 @@ const defaultEmpty = computed(() =>
 const tableColumnsCache = ref<Record<string, Array<{ name: string; type: string }>>>({})
 provide('tableColumnsCache', tableColumnsCache)
 
-const showAddSelector = ref(defaultEmpty.value)
+const showAddSelector = ref(store.processors.length === 0 || defaultEmpty.value)
 
 function pickProcessor(plugin: 'sql' | 'python') {
   const baseName = plugin === 'python' ? 'Python 脚本' : 'SQL 查询'
