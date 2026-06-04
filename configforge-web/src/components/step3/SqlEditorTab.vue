@@ -6,15 +6,15 @@
         <p class="text-sm text-slate-500">选择处理方式开始配置数据加工步骤</p>
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <span :class="{ 'pulse-cta': pulseCta }" style="display:inline-block;border-radius:8px;">
-          <div class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('sql')">
+        <span style="display:inline-block;border-radius:8px;">
+          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta ? 'pulse-cta' : '', 'border-blue-600 bg-blue-50']" @click="pickProcessor('sql')">
             <span class="text-2xl block mb-2">🧪</span>
             <span class="text-sm font-semibold">SQL</span>
             <span class="text-xs text-slate-500 mt-1 block">SQLite 查询处理</span>
           </div>
         </span>
-        <span :class="{ 'pulse-cta': pulseCta }" style="display:inline-block;border-radius:8px;">
-          <div class="cursor-pointer text-center border-2 border-orange-500 bg-orange-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('python')">
+        <span style="display:inline-block;border-radius:8px;">
+          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta ? 'pulse-cta' : '', 'border-orange-500 bg-orange-50']" @click="pickProcessor('python')">
             <span class="text-2xl block mb-2">🐍</span>
             <span class="text-sm font-semibold">Python</span>
             <span class="text-xs text-slate-500 mt-1 block">Python 脚本处理</span>

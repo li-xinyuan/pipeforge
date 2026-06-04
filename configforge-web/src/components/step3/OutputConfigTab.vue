@@ -3,22 +3,18 @@
     <!-- Output type selector -->
     <div v-if="showOutputTypeChoices" class="grid grid-cols-3 gap-3 mb-5">
       <div
-        :class="[
-          'cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
-          { 'pulse-cta': props.pulseCta },
-          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30'
-        ]"
+        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+          props.pulseCta ? 'pulse-cta' : '',
+          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
         @click="switchOutputType('excel'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">📊</span>
         <span class="text-sm font-semibold">Excel</span>
       </div>
       <div
-        :class="[
-          'cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
-          { 'pulse-cta': props.pulseCta },
-          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30'
-        ]"
+        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+          props.pulseCta ? 'pulse-cta' : '',
+          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
         @click="switchOutputType('csv'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">🗄</span>

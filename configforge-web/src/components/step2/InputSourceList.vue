@@ -18,22 +18,22 @@
         <NButton text type="error" size="small" @click="showAddSelector = false">取消</NButton>
       </div>
       <div class="grid grid-cols-3 gap-3">
-        <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
-          <div class="cursor-pointer text-center border-2 border-green-600 bg-green-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="addInput('excel')">
+        <span style="display:inline-block;border-radius:8px;">
+          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta && store.inputs.length === 0 ? 'pulse-cta' : '', 'border-green-600 bg-green-50']" @click="addInput('excel')">
             <span class="text-2xl block mb-2">📊</span>
             <span class="text-sm font-semibold">Excel</span>
             <span class="text-xs text-slate-500 mt-1 block">.xlsx / .xls</span>
           </div>
         </span>
-        <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
-          <div class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="addInput('csv')">
+        <span style="display:inline-block;border-radius:8px;">
+          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta && store.inputs.length === 0 ? 'pulse-cta' : '', 'border-blue-600 bg-blue-50']" @click="addInput('csv')">
             <span class="text-2xl block mb-2">🗄</span>
             <span class="text-sm font-semibold">CSV</span>
             <span class="text-xs text-slate-500 mt-1 block">.csv / .tsv</span>
           </div>
         </span>
-        <span :class="{ 'pulse-cta': pulseCta && store.inputs.length === 0 }" style="display:inline-block;border-radius:8px;">
-          <div class="cursor-pointer text-center border-2 border-purple-600 bg-purple-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="addInput('database')">
+        <span style="display:inline-block;border-radius:8px;">
+          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta && store.inputs.length === 0 ? 'pulse-cta' : '', 'border-purple-600 bg-purple-50']" @click="addInput('database')">
             <span class="text-2xl block mb-2">🔌</span>
             <span class="text-sm font-semibold">Database</span>
             <span class="text-xs text-slate-500 mt-1 block">SQLite / MySQL / PG</span>
