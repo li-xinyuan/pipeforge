@@ -360,6 +360,21 @@ watch(
   { deep: true }
 )
 
+// Auto-open template file picker when switching to Excel output.
+// Uses watch + setTimeout because NUpload is dynamically mounted and needs
+// extra time for Naive UI's internal <input type="file"> to initialize.
+watch(showOutputTypeChoices, (showing) => {
+  if (!showing && store.output?.plugin === 'excel' && !excelConfig.value.template) {
+    setTimeout(() => {
+      const el = (templateUploadRef.value as any)?.$el
+      if (el) {
+        const input = el.querySelector('input[type="file"]') as HTMLInputElement | null
+        input?.click()
+      }
+    }, 200)
+  }
+})
+
 onMounted(() => {
   syncSourceTable()
   const p0 = store.processors[0]; const hasCode = p0 && (p0.plugin === 'sql' ? p0.sql.trim() : p0.script.trim())
@@ -553,14 +568,6 @@ function switchOutputType(plugin: 'excel' | 'csv') {
         template: '',
         sheet: 'Sheet1',
       },
-    })
-    // Auto-open template file selector for Excel
-    nextTick(() => {
-      const el = (templateUploadRef.value as any)?.$el
-      if (el) {
-        const input = el.querySelector('input[type="file"]') as HTMLInputElement | null
-        input?.click()
-      }
     })
   }
   lastAutoFilename.value = common.filename
