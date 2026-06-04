@@ -199,7 +199,6 @@ import ColumnMapping from './ColumnMapping.vue'
 
 const store = useWizardStore()
 const templateUploadRef = ref<InstanceType<typeof NUpload>>()
-const pendingTemplateUpload = ref(false)
 
 const inferColumnLabel = computed(() => {
   const lastProcessor = store.processors[0]
@@ -367,29 +366,6 @@ onMounted(() => {
   if (store.output?.plugin === 'csv' && outputConfig.value.columns.length === 0 && hasCode) {
     prevSql.value = p0.plugin === 'sql' ? p0.sql : p0.script
     onInferColumns()
-  }
-})
-
-// Auto-open template file selector when switching to Excel output
-function tryOpenTemplateUpload() {
-  const tryClick = () => {
-    const el = (templateUploadRef.value as any)?.$el
-    if (el) {
-      const input = el.querySelector('input[type="file"]') as HTMLInputElement | null
-      if (input) { input.click(); return true }
-    }
-    return false
-  }
-  // Try immediately, then retry with nextTick if not ready
-  if (!tryClick()) {
-    nextTick(() => { if (!tryClick()) setTimeout(tryClick, 100) })
-  }
-}
-
-watch(templateUploadRef, (ref) => {
-  if (ref && pendingTemplateUpload.value) {
-    pendingTemplateUpload.value = false
-    tryOpenTemplateUpload()
   }
 })
 
@@ -578,8 +554,14 @@ function switchOutputType(plugin: 'excel' | 'csv') {
         sheet: 'Sheet1',
       },
     })
-    // Auto-open template file selector for Excel — wait for NUpload to mount
-    pendingTemplateUpload.value = true
+    // Auto-open template file selector for Excel
+    nextTick(() => {
+      const el = (templateUploadRef.value as any)?.$el
+      if (el) {
+        const input = el.querySelector('input[type="file"]') as HTMLInputElement | null
+        input?.click()
+      }
+    })
   }
   lastAutoFilename.value = common.filename
 }
