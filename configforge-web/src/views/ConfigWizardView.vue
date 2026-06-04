@@ -136,7 +136,7 @@
           :status="stepStatus(4)"
           :badge="stepBadge(4)"
         >
-          <OutputConfigTab />
+          <OutputConfigTab :pulse-cta="currentStep === 4" />
           <AiInlineTip
             v-if="showStep4Tip"
             message="AI 可自动推断列映射关系"

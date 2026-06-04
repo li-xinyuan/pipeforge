@@ -5,6 +5,7 @@
       <div
         :class="[
           'cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+          { 'pulse-cta': props.pulseCta },
           store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30'
         ]"
         @click="switchOutputType('excel'); showOutputTypeChoices = false"
@@ -15,6 +16,7 @@
       <div
         :class="[
           'cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+          { 'pulse-cta': props.pulseCta },
           store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30'
         ]"
         @click="switchOutputType('csv'); showOutputTypeChoices = false"
@@ -197,6 +199,7 @@ import { NInput, NButton, NTag, NUpload, NSelect, useMessage } from 'naive-ui'
 import { inferSelectColumns } from '../../utils/sql'
 import ColumnMapping from './ColumnMapping.vue'
 
+const props = defineProps<{ pulseCta?: boolean }>()
 const store = useWizardStore()
 const templateUploadRef = ref<InstanceType<typeof NUpload>>()
 
