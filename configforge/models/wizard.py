@@ -111,11 +111,26 @@ class CsvOutputConfig(BaseModel):
     columns: list[ColumnMappingItem] = []
 
 
+class DatabaseOutputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["database"] = "database"
+    connection_id: str = ""
+    target_table: str = ""
+    write_mode: Literal["replace", "append", "upsert"] = "replace"
+    source_table: str = ""
+    columns: list[ColumnMappingItem] = Field(default=[])
+    create_table_if_not_exists: bool = True
+    primary_key_columns: list[str] = Field(default=[])
+    batch_size: int = Field(default=1000, ge=1, le=100000)
+    connection_string: str = ""
+
+
 class OutputTarget(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    plugin: Literal["excel", "csv"] = "excel"
-    config: Annotated[ExcelOutputConfig | CsvOutputConfig, Field(discriminator="type")]
+    plugin: Literal["excel", "csv", "database"] = "excel"
+    config: Annotated[ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig, Field(discriminator="type")]
 
 
 class WizardState(BaseModel):

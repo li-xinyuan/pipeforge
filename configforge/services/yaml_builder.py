@@ -89,6 +89,19 @@ def build_yaml(state: WizardState) -> str:
                 "encoding": out_cfg.encoding,
                 "columns": [{"source": c.source, "target": c.target} for c in out_cfg.columns],
             }
+        elif out_cfg.type == "database":
+            config_dict = {
+                "type": "database",
+                "connection_id": out_cfg.connection_id,
+                "target_table": out_cfg.target_table,
+                "write_mode": out_cfg.write_mode,
+                "source_table": out_cfg.source_table,
+                "connection_string": out_cfg.connection_string,
+            }
+            if out_cfg.columns:
+                config_dict["columns"] = [{"source": c.source, "target": c.target} for c in out_cfg.columns]
+            if out_cfg.primary_key_columns:
+                config_dict["primary_key_columns"] = out_cfg.primary_key_columns
         else:
             config_dict = {
                 "type": "excel",

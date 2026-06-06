@@ -21,7 +21,7 @@ import shutil
 import tempfile
 from pipeforge.core.engine import PipelineEngine
 
-UPLOAD_DIR = "tmp/uploads"
+UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
 LOG_DIR = os.environ.get("CONFIGFORGE_LOG_DIR", "tmp/logs")
 
 
@@ -78,9 +78,29 @@ def _get_processors(exec_state: WizardState) -> list[ProcessorConfig]:
     return []
 
 
-def execute_pipeline(state: WizardState) -> str:
-    """使用真实数据执行 pipeline，返回输出文件路径。"""
+def _has_ddl(sql: str) -> bool:
+    """检测 SQL 是否已包含 DDL 或 CTE。"""
+    # Strip comments first
+    sql_clean = re.sub(r"/\*.*?\*/", "", sql, flags=re.DOTALL)
+    sql_clean = re.sub(r"--[^\n]*", "", sql_clean)
+    return bool(
+        re.search(
+            r"^\s*(CREATE\s+(?:TEMP\s+|TEMPORARY\s+)?(?:TABLE|VIEW|INDEX)|INSERT\s+INTO|WITH\s+\w+\s+AS\s*\()",
+            sql_clean,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _prepare_execution(state: WizardState, skip_output: bool = False):
+    """Common preparation logic shared by execute_pipeline and dry_run.
+
+    Returns (exec_state, tmp_dir, yaml_path, params).
+    """
     exec_state = copy.deepcopy(state)
+
+    if skip_output:
+        exec_state.output = None  # dry-run skips output, avoid output validation errors
 
     # Auto-fill empty param_keys (PipeForge requires non-empty)
     for inp in exec_state.inputs:
@@ -100,7 +120,7 @@ def execute_pipeline(state: WizardState) -> str:
                 )
 
     # Auto-fill output source_table from last processor if empty
-    if exec_state.output and not getattr(exec_state.output.config, 'source_table', None):
+    if not skip_output and exec_state.output and not getattr(exec_state.output.config, 'source_table', None):
         procs = _get_processors(exec_state)
         if procs and procs[-1].output_tables:
             exec_state.output.config.source_table = procs[-1].output_tables[0]
@@ -108,7 +128,7 @@ def execute_pipeline(state: WizardState) -> str:
     tmp_dir = tempfile.mkdtemp(prefix="pipeforge_exec_")
 
     # 当 output columns 为空时，自动从输入文件推断列映射
-    if exec_state.output and exec_state.output.config.type == "excel" and not exec_state.output.config.columns:
+    if not skip_output and exec_state.output and exec_state.output.config.type == "excel" and not exec_state.output.config.columns:
         inferred: list[ColumnMappingItem] = []
         for inp in exec_state.inputs:
             if inp.file_id:
@@ -129,7 +149,7 @@ def execute_pipeline(state: WizardState) -> str:
             exec_state.output.config.columns = inferred
 
     # Excel 输出需要模板：拷贝已有模板，或在无模板时生成仅含表头的最小模板。
-    if exec_state.output and exec_state.output.config.type == "excel":
+    if not skip_output and exec_state.output and exec_state.output.config.type == "excel":
         template_id = exec_state.output.config.template
         if template_id:
             validate_id(template_id, "template_id")
@@ -163,6 +183,17 @@ def execute_pipeline(state: WizardState) -> str:
             cfg.connection_string = ConnectionStore.build_connection_string(entry)
             cfg.db_type = entry["db_type"]
 
+    # Resolve database output connection string
+    if exec_state.output and exec_state.output.plugin == "database":
+        db_config = exec_state.output.config
+        if hasattr(db_config, 'connection_id') and getattr(db_config, 'connection_id', ''):
+            try:
+                entry = ConnectionStore.get_with_plaintext_password(db_config.connection_id)
+                if entry:
+                    db_config.connection_string = ConnectionStore.build_connection_string(entry)
+            except Exception:
+                pass  # connection might not exist yet during wizard preview
+
     # 在模板就绪后再构建 YAML
     yaml_str = build_yaml(exec_state)
     yaml_path = os.path.join(tmp_dir, "pipeline.yaml")
@@ -187,6 +218,13 @@ def execute_pipeline(state: WizardState) -> str:
                 dst = os.path.join(tmp_dir, dst_name)
                 shutil.copy2(src, dst)
                 params[inp.param_key] = os.path.abspath(dst)
+
+    return exec_state, tmp_dir, yaml_path, params
+
+
+def execute_pipeline(state: WizardState) -> str:
+    """使用真实数据执行 pipeline，返回输出文件路径。"""
+    exec_state, tmp_dir, yaml_path, params = _prepare_execution(state, skip_output=False)
 
     engine = PipelineEngine(yaml_path)
 
@@ -217,79 +255,10 @@ def dry_run(state: WizardState) -> dict:
     Used by the frontend Dry-Run button in Step 3 to preview SQL results
     before committing to full pipeline execution and file download.
     """
-    exec_state = copy.deepcopy(state)
-    exec_state.output = None  # dry-run skips output, avoid output validation errors
-
-    # Auto-fill empty param_keys for dry-run (PipeForge requires non-empty)
-    for inp in exec_state.inputs:
-        if not inp.param_key.strip():
-            inp.param_key = inp.table or f"input_{id(inp)}"
-
-    # Auto-wrap non-DDL SQL for all processors
-    for proc in _get_processors(exec_state):
-        if proc.plugin == "python":
-            continue  # Python 步骤不需要 SQL 自动包装
-        if proc.output_tables and proc.sql.strip():
-            if not _has_ddl(proc.sql):
-                output_table = proc.output_tables[0].replace('"', '')
-                proc.sql = (
-                    f'CREATE TABLE "{output_table}" AS '
-                    f"SELECT * FROM ({proc.sql})"
-                )
-
-    tmp_dir = tempfile.mkdtemp(prefix="pipeforge_dryrun_")
-
-    from configforge.services.connection_store import ConnectionStore
-
-    for inp in exec_state.inputs:
-        cfg = inp.config
-        if hasattr(cfg, 'type') and cfg.type == "database":
-            if not cfg.connection_id:
-                raise RuntimeError("Database input is missing connection_id")
-            entry = ConnectionStore.get_with_plaintext_password(cfg.connection_id)
-            if not entry:
-                raise RuntimeError(
-                    f"Connection '{cfg.connection_id}' not found — please reconfigure"
-                )
-            cfg.connection_string = ConnectionStore.build_connection_string(entry)
-            cfg.db_type = entry["db_type"]
-
-    yaml_str = build_yaml(exec_state)
-    yaml_path = os.path.join(tmp_dir, "pipeline.yaml")
-    with open(yaml_path, "w", encoding="utf-8") as f:
-        f.write(yaml_str)
-
-    params: dict[str, str] = {}
-    for inp in exec_state.inputs:
-        cfg = inp.config
-        if hasattr(cfg, 'type') and cfg.type == "database":
-            params[inp.param_key] = ""
-        elif inp.file_id:
-            validate_id(inp.file_id, "file_id")
-            src = os.path.join(UPLOAD_DIR, inp.file_id)
-            if os.path.exists(src):
-                ext = os.path.splitext(inp.file_id)[1].lower()
-                if ext in (".xlsx", ".xls", ".csv"):
-                    dst_name = inp.file_id
-                else:
-                    dst_name = inp.file_id + (".xlsx" if inp.plugin == "excel" else ".csv")
-                dst = os.path.join(tmp_dir, dst_name)
-                shutil.copy2(src, dst)
-                params[inp.param_key] = os.path.abspath(dst)
+    exec_state, tmp_dir, yaml_path, params = _prepare_execution(state, skip_output=True)
 
     engine = PipelineEngine(yaml_path)
     result = engine.execute_dry_run(params, log_dir=LOG_DIR)
 
     shutil.rmtree(tmp_dir, ignore_errors=True)
     return result
-
-
-def _has_ddl(sql: str) -> bool:
-    """检测 SQL 是否已包含 DDL（CREATE TABLE / INSERT INTO / WITH … AS）。"""
-    return bool(
-        re.search(
-            r"^\s*(CREATE\s+(?:TEMP\s+|TEMPORARY\s+)?TABLE|INSERT\s+INTO)",
-            sql,
-            re.IGNORECASE,
-        )
-    )

@@ -155,11 +155,32 @@ class CsvOutputConfig(BaseModel):
         return v  # Allow empty — pipeline auto-infers columns from input
 
 
+class DatabaseOutputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["database"] = "database"
+    connection_id: str = ""
+    target_table: str = ""
+    write_mode: Literal["replace", "append", "upsert"] = "replace"
+    source_table: str = ""
+    columns: list[ColumnMapping] = Field(default=[])
+    create_table_if_not_exists: bool = True
+    primary_key_columns: list[str] = Field(default=[])
+    batch_size: int = Field(default=1000, ge=1, le=100000)
+    connection_string: str = ""
+
+
+OutputConfig = Annotated[
+    ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig,
+    Field(discriminator="type")
+]
+
+
 class OutputSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    plugin: str
-    config: Annotated[ExcelOutputConfig | CsvOutputConfig, Field(discriminator="type")]
+    plugin: Literal["excel", "csv", "database"] = "excel"
+    config: OutputConfig
 
 
 class SceneConfig(BaseModel):

@@ -24,9 +24,12 @@ def safe_identifier(name: str, param_name: str = "identifier") -> str:
 class SQLiteManager:
     """Manage creation, writing, querying, and cleanup of a temporary SQLite database."""
 
-    def __init__(self):
-        fd, self.path = tempfile.mkstemp(suffix=".db", prefix="pipeforge_")
-        os.close(fd)
+    def __init__(self, db_path: str | None = None):
+        if db_path:
+            self.path = db_path
+        else:
+            fd, self.path = tempfile.mkstemp(suffix=".db", prefix="pipeforge_")
+            os.close(fd)
         self._conn = sqlite3.connect(self.path)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")

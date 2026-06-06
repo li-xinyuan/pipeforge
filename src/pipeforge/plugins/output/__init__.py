@@ -1,4 +1,5 @@
 from pipeforge.plugins.output.excel import ExcelOutputPlugin
 from pipeforge.plugins.output.csv import CsvOutputPlugin  # noqa: F401
+from pipeforge.plugins.output.database import DatabaseOutputPlugin  # noqa: F401
 
-__all__ = ["ExcelOutputPlugin", "CsvOutputPlugin"]
+__all__ = ["ExcelOutputPlugin", "CsvOutputPlugin", "DatabaseOutputPlugin"]
