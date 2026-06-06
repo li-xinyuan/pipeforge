@@ -171,17 +171,75 @@ class SceneConfig(BaseModel):
     output: OutputSpec | None = None
 
 
-# 数据检查点（v0.1：仅 RowCountRule）
+# 数据检查点（v0.2：支持 6 种规则）
+
+
 class RowCountRule(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     type: Literal["row_count"] = "row_count"
     table: str = ""
-    min: int | None = None
+    min: int = 0
     max: int | None = None
     on_failure: Literal["block", "warn"] = "block"
 
-CheckRule = RowCountRule
+
+class NullRateRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["null_rate"] = "null_rate"
+    table: str = ""
+    column: str = ""
+    max_null_rate: float = Field(default=0.05, ge=0, le=1)
+    on_failure: Literal["block", "warn"] = "block"
+
+
+class UniquenessRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["uniqueness"] = "uniqueness"
+    table: str = ""
+    column: str = ""
+    on_failure: Literal["block", "warn"] = "block"
+
+
+class ValueRangeRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["value_range"] = "value_range"
+    table: str = ""
+    column: str = ""
+    min_value: float | None = None
+    max_value: float | None = None
+    on_failure: Literal["block", "warn"] = "block"
+
+
+class CustomSqlRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["custom_sql"] = "custom_sql"
+    sql: str = ""
+    result_column: str = "result"
+    comparison: Literal["<", "<=", "==", "!=", ">", ">="] = "<="
+    expected_value: float | None = None
+    on_failure: Literal["block", "warn"] = "block"
+
+
+class EnumCheckRule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["enum_check"] = "enum_check"
+    table: str = ""
+    column: str = ""
+    allowed_values: list[str] = Field(default=[])
+    on_failure: Literal["block", "warn"] = "block"
+
+
+CheckRule = Annotated[
+    RowCountRule | NullRateRule | UniquenessRule | ValueRangeRule | CustomSqlRule | EnumCheckRule,
+    Field(discriminator="type")
+]
+
 
 class CheckResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
