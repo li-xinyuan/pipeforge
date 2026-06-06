@@ -1,210 +1,342 @@
 <template>
-  <div class="checkpoint-section">
-    <div class="checkpoint-section__toggle" @click="expanded = !expanded">
-      <span class="checkpoint-section__arrow">{{ expanded ? '▼' : '▶' }}</span>
-      <span class="checkpoint-section__label">数据检查 ({{ checkpoints.length }} 条规则)</span>
+  <div class="border border-slate-200 rounded-lg overflow-hidden">
+    <div
+      class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 cursor-pointer"
+      @click="expanded = !expanded"
+    >
+      <span class="text-xs font-medium flex-1">数据检查点</span>
+      <NTag v-if="rules.length" size="small" type="info">
+        {{ rules.length }} 条规则
+      </NTag>
+      <NButton text size="tiny" @click.stop="expanded = !expanded">
+        {{ expanded ? '收起' : '展开' }}
+      </NButton>
     </div>
 
-    <div v-if="expanded" class="checkpoint-section__body">
-      <div v-if="checkpoints.length === 0" class="text-xs text-slate-400 mb-3">
-        暂无检查规则。添加规则后，管道执行时自动验证数据质量。
+    <div v-if="expanded" class="p-3 space-y-3">
+      <div
+        v-for="(rule, i) in rules"
+        :key="i"
+        class="border border-slate-200 rounded-lg p-3 space-y-2"
+      >
+        <!-- Type selector + on_failure + delete -->
+        <div class="flex items-center gap-2">
+          <NSelect
+            v-model:value="rule.type"
+            :options="ruleTypeOptions"
+            size="small"
+            style="width: 140px"
+            @update:value="onRuleTypeChange(i, $event)"
+          />
+          <NSelect
+            v-model:value="rule.on_failure"
+            :options="onFailureOptions"
+            size="small"
+            style="width: 100px"
+          />
+          <NButton text type="error" size="tiny" class="ml-auto" @click="removeRule(i)">
+            删除
+          </NButton>
+        </div>
+
+        <!-- Table selector (all types except custom_sql) -->
+        <div v-if="needsTable(rule)" class="flex items-center gap-2">
+          <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查表</label>
+          <NSelect
+            v-model:value="(rule as any).table"
+            :options="tableOptions"
+            size="small"
+            class="flex-1"
+            placeholder="默认使用输出表"
+            clearable
+          />
+        </div>
+
+        <!-- row_count fields -->
+        <template v-if="rule.type === 'row_count'">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">最小行数</label>
+            <NInputNumber v-model:value="(rule as RowCountRule).min" size="small" :min="0" style="width: 120px" />
+            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">最大行数</label>
+            <NInputNumber v-model:value="(rule as RowCountRule).max" size="small" :min="0" style="width: 120px" />
+          </div>
+        </template>
+
+        <!-- null_rate fields -->
+        <template v-if="rule.type === 'null_rate'">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查列</label>
+            <NSelect
+              v-model:value="(rule as NullRateRule).column"
+              :options="columnOptions((rule as any).table)"
+              size="small"
+              class="flex-1"
+              placeholder="选择列或手动输入"
+              filterable
+              tag
+            />
+            <label class="text-xs font-medium text-slate-500 w-20 flex-shrink-0">最大空值率</label>
+            <NInputNumber
+              v-model:value="(rule as NullRateRule).max_null_rate"
+              size="small"
+              :min="0"
+              :max="1"
+              :step="0.01"
+              style="width: 100px"
+            />
+          </div>
+        </template>
+
+        <!-- uniqueness fields -->
+        <template v-if="rule.type === 'uniqueness'">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查列</label>
+            <NSelect
+              v-model:value="(rule as UniquenessRule).column"
+              :options="columnOptions((rule as any).table)"
+              size="small"
+              class="flex-1"
+              placeholder="选择列或手动输入"
+              filterable
+              tag
+            />
+          </div>
+        </template>
+
+        <!-- value_range fields -->
+        <template v-if="rule.type === 'value_range'">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查列</label>
+            <NSelect
+              v-model:value="(rule as ValueRangeRule).column"
+              :options="columnOptions((rule as any).table)"
+              size="small"
+              class="flex-1"
+              placeholder="选择列或手动输入"
+              filterable
+              tag
+            />
+            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">最小值</label>
+            <NInputNumber v-model:value="(rule as ValueRangeRule).min_value" size="small" style="width: 100px" />
+            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">最大值</label>
+            <NInputNumber v-model:value="(rule as ValueRangeRule).max_value" size="small" style="width: 100px" />
+          </div>
+        </template>
+
+        <!-- custom_sql fields -->
+        <template v-if="rule.type === 'custom_sql'">
+          <div class="space-y-2">
+            <label class="text-xs font-medium text-slate-500 block">SQL 语句</label>
+            <textarea
+              v-model="(rule as CustomSqlRule).sql"
+              rows="3"
+              class="w-full font-mono text-xs p-2 border border-slate-200 rounded resize-y"
+              placeholder="SELECT COUNT(*) AS result FROM ..."
+            />
+            <div class="flex items-center gap-2">
+              <label class="text-xs font-medium text-slate-500 w-16 flex-shrink-0">结果列名</label>
+              <NInput v-model:value="(rule as CustomSqlRule).result_column" size="small" style="width: 100px" />
+              <label class="text-xs font-medium text-slate-500 w-16 flex-shrink-0">比较方式</label>
+              <NSelect
+                v-model:value="(rule as CustomSqlRule).comparison"
+                :options="comparisonOptions"
+                size="small"
+                style="width: 80px"
+              />
+              <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">期望值</label>
+              <NInputNumber
+                v-model:value="(rule as CustomSqlRule).expected_value"
+                size="small"
+                style="width: 100px"
+              />
+            </div>
+          </div>
+        </template>
+
+        <!-- enum_check fields -->
+        <template v-if="rule.type === 'enum_check'">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查列</label>
+            <NSelect
+              v-model:value="(rule as EnumCheckRule).column"
+              :options="columnOptions((rule as any).table)"
+              size="small"
+              class="flex-1"
+              placeholder="选择列或手动输入"
+              filterable
+              tag
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">允许值</label>
+            <NInput
+              :value="enumValuesText(i)"
+              size="small"
+              class="flex-1"
+              placeholder="值1,值2,值3（逗号分隔）"
+              @update:value="updateEnumValues(i, $event)"
+            />
+          </div>
+        </template>
       </div>
 
-      <div v-for="(rule, i) in checkpoints" :key="i" class="checkpoint-rule">
-        <div class="checkpoint-rule__header">
-          <span class="text-xs font-medium text-slate-600">规则 {{ i + 1 }}</span>
-          <NButton text type="error" size="tiny" @click="removeRule(i)">删除</NButton>
-        </div>
-        <div class="checkpoint-rule__grid">
-          <div class="checkpoint-rule__field">
-            <label class="checkpoint-rule__label">检查表</label>
-            <NInput
-              :value="rule.table"
-              @update:value="(v: string) => updateRule(i, { table: v })"
-              size="small"
-              placeholder="默认=当前输出表"
-            />
-          </div>
-          <div class="checkpoint-rule__field">
-            <label class="checkpoint-rule__label">最小行数</label>
-            <NInput
-              :value="rule.min != null ? String(rule.min) : ''"
-              @update:value="(v: string) => updateRule(i, { min: v ? Number(v) : undefined })"
-              size="small"
-              placeholder="不限制"
-            />
-          </div>
-          <div class="checkpoint-rule__field">
-            <label class="checkpoint-rule__label">最大行数</label>
-            <NInput
-              :value="rule.max != null ? String(rule.max) : ''"
-              @update:value="(v: string) => updateRule(i, { max: v ? Number(v) : undefined })"
-              size="small"
-              placeholder="不限制"
-            />
-          </div>
-          <div class="checkpoint-rule__field">
-            <label class="checkpoint-rule__label">处理方式</label>
-            <NSelect
-              :value="rule.on_failure"
-              @update:value="(v: 'block' | 'warn') => updateRule(i, { on_failure: v })"
-              size="small"
-              :options="onFailureOptions"
-            />
-          </div>
-        </div>
-      </div>
+      <p v-if="!rules.length" class="text-xs text-slate-400 text-center py-2">
+        暂未配置检查点规则
+      </p>
 
       <NButton dashed size="small" block @click="addRule">+ 添加规则</NButton>
-
-      <div class="checkpoint-ai mt-3">
-        <div class="flex items-center gap-2">
-          <NInput
-            v-model:value="naturalLanguageInput"
-            size="small"
-            placeholder="用自然语言描述检查规则，例如：结果表至少要有100行"
-          />
-          <NButton size="small" :loading="aiTranslating" @click="translateNaturalLanguage" :disabled="!naturalLanguageInput.trim()">AI 翻译</NButton>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { NInput, NSelect, NButton, useMessage } from 'naive-ui'
-import { useWizardStore } from '../../stores/wizard'
-import type { CheckRule } from '../../types/wizard'
-import { useAiApi } from '../../composables/useWizardApi'
+import { ref, computed } from 'vue'
+import {
+  NButton,
+  NTag,
+  NSelect,
+  NInput,
+  NInputNumber,
+} from 'naive-ui'
+import type {
+  CheckRule,
+  RowCountRule,
+  NullRateRule,
+  UniquenessRule,
+  ValueRangeRule,
+  CustomSqlRule,
+  EnumCheckRule,
+} from '../../types/wizard'
 
 const props = defineProps<{
   checkpoints: CheckRule[]
   procIndex: number
+  availableTables?: Array<{ table_name: string; columns: string[] }>
 }>()
 
 const emit = defineEmits<{
   'update:checkpoints': [rules: CheckRule[]]
 }>()
 
-const store = useWizardStore()
-const { getAiSettings } = useAiApi()
-const message = useMessage()
 const expanded = ref(false)
-const naturalLanguageInput = ref('')
-const aiTranslating = ref(false)
 
-async function translateNaturalLanguage() {
-  if (!naturalLanguageInput.value.trim()) return
-  aiTranslating.value = true
-  try {
-    const resp = await fetch('/api/ai/translate-checkpoint', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        category: 'checkpoint',
-        context: {
-          user_input: naturalLanguageInput.value,
-          available_tables: store.processors.flatMap(p => p.outputTables).filter(Boolean),
-          current_output_table: store.processors[props.procIndex]?.outputTables?.[0] || '',
-        },
-      }),
-    })
-    if (!resp.ok) {
-      const err = await resp.json()
-      message.error(err.detail?.message || err.detail || 'AI 翻译失败')
-      return
-    }
-    const rule = await resp.json()
-    naturalLanguageInput.value = ''
-    emit('update:checkpoints', [...props.checkpoints, { ...rule, on_failure: rule.on_failure || 'block' }])
-    message.success('已添加检查规则')
-  } catch {
-    message.error('AI 翻译请求失败')
-  } finally {
-    aiTranslating.value = false
-  }
-}
+const rules = computed<CheckRule[]>({
+  get: () => props.checkpoints,
+  set: (val) => emit('update:checkpoints', val),
+})
 
-const onFailureOptions = [
-  { label: '阻断（不通过则停止）', value: 'block' },
-  { label: '警告（不通过仅提示）', value: 'warn' },
+const ruleTypeOptions = [
+  { label: '行数检查', value: 'row_count' },
+  { label: '空值率检查', value: 'null_rate' },
+  { label: '唯一性检查', value: 'uniqueness' },
+  { label: '范围检查', value: 'value_range' },
+  { label: '自定义 SQL', value: 'custom_sql' },
+  { label: '枚举检查', value: 'enum_check' },
 ]
 
+const onFailureOptions = [
+  { label: '阻断 (block)', value: 'block' },
+  { label: '警告 (warn)', value: 'warn' },
+]
+
+const comparisonOptions = [
+  { label: '≤', value: '<=' },
+  { label: '<', value: '<' },
+  { label: '=', value: '==' },
+  { label: '≠', value: '!=' },
+  { label: '>', value: '>' },
+  { label: '≥', value: '>=' },
+]
+
+const tableOptions = computed(() => {
+  if (!props.availableTables) return []
+  return props.availableTables.map((t) => ({
+    label: t.table_name,
+    value: t.table_name,
+  }))
+})
+
+function columnOptions(tableName: string) {
+  if (!tableName || !props.availableTables) return []
+  const table = props.availableTables.find((t) => t.table_name === tableName)
+  if (!table) return []
+  return table.columns.map((c) => ({ label: c, value: c }))
+}
+
+function needsTable(rule: CheckRule): boolean {
+  return rule.type !== 'custom_sql'
+}
+
 function addRule() {
-  const newRule: CheckRule = {
+  const newRule: RowCountRule = {
     type: 'row_count',
     table: '',
+    min: 0,
+    max: undefined,
     on_failure: 'block',
   }
-  emit('update:checkpoints', [...props.checkpoints, newRule])
+  emit('update:checkpoints', [...rules.value, newRule])
+  expanded.value = true
 }
 
-function removeRule(i: number) {
-  const updated = [...props.checkpoints]
-  updated.splice(i, 1)
+function removeRule(index: number) {
+  const updated = [...rules.value]
+  updated.splice(index, 1)
   emit('update:checkpoints', updated)
 }
 
-function updateRule(i: number, partial: Partial<CheckRule>) {
-  const updated = props.checkpoints.map((r, idx) =>
-    idx === i ? { ...r, ...partial } : r
-  )
+function onRuleTypeChange(index: number, newType: string) {
+  const oldRule = rules.value[index]
+  const base = { on_failure: oldRule.on_failure, table: (oldRule as any).table || '' }
+
+  let newRule: CheckRule
+  switch (newType) {
+    case 'row_count':
+      newRule = { type: 'row_count', ...base, min: 0, max: undefined } as RowCountRule
+      break
+    case 'null_rate':
+      newRule = { type: 'null_rate', ...base, column: '', max_null_rate: 0.05 } as NullRateRule
+      break
+    case 'uniqueness':
+      newRule = { type: 'uniqueness', ...base, column: '' } as UniquenessRule
+      break
+    case 'value_range':
+      newRule = { type: 'value_range', ...base, column: '', min_value: undefined, max_value: undefined } as ValueRangeRule
+      break
+    case 'custom_sql':
+      newRule = { type: 'custom_sql', on_failure: base.on_failure, sql: '', result_column: 'result', comparison: '<=', expected_value: undefined } as CustomSqlRule
+      break
+    case 'enum_check':
+      newRule = { type: 'enum_check', ...base, column: '', allowed_values: [] } as EnumCheckRule
+      break
+    default:
+      newRule = { type: 'row_count', ...base, min: 0, max: undefined } as RowCountRule
+  }
+
+  const updated = [...rules.value]
+  updated[index] = newRule
   emit('update:checkpoints', updated)
+}
+
+function enumValuesText(index: number): string {
+  const rule = rules.value[index]
+  if (rule.type === 'enum_check') {
+    return (rule as EnumCheckRule).allowed_values.join(',')
+  }
+  return ''
+}
+
+function updateEnumValues(index: number, text: string) {
+  const rule = rules.value[index]
+  if (rule.type === 'enum_check') {
+    const updated = [...rules.value]
+    ;(updated[index] as EnumCheckRule).allowed_values = text
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    emit('update:checkpoints', updated)
+  }
 }
 </script>
 
-<style scoped>
-.checkpoint-section {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--color-border-light);
-}
-.checkpoint-section__toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  user-select: none;
-  padding: 2px 0;
-}
-.checkpoint-section__arrow {
-  font-size: 10px;
-  color: var(--color-text-muted);
-  width: 12px;
-}
-.checkpoint-section__label {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-.checkpoint-section__body {
-  margin-top: 8px;
-}
-.checkpoint-rule {
-  background: var(--color-surface-alt, #f8fafc);
-  border: 1px solid var(--color-border-light);
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 8px;
-}
-.checkpoint-rule__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.checkpoint-rule__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-.checkpoint-rule__field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.checkpoint-rule__label {
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-</style>
+
