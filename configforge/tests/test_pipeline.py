@@ -35,7 +35,8 @@ class TestHasDdl:
         assert _has_ddl("SELECT a.*, b.* FROM a JOIN b ON a.id = b.id") is False
 
     def test_with_cte_not_ddl(self):
-        assert _has_ddl("WITH cte AS (SELECT * FROM t) SELECT * FROM cte") is False
+        # CTE (WITH ... AS) is now detected as DDL (Plan Phase 3.2)
+        assert _has_ddl("WITH cte AS (SELECT * FROM t) SELECT * FROM cte") is True
 
     def test_indented_create_table(self):
         assert _has_ddl("\n  CREATE TABLE foo AS SELECT 1") is True
@@ -50,8 +51,8 @@ class TestHasDdl:
         assert _has_ddl("") is False
 
     def test_comment_with_create(self):
-        # regex requires CREATE at start of string — comments before DDL not matched
-        assert _has_ddl("-- comment\nCREATE TABLE foo (id INT)") is False
+        # Comments are stripped before DDL detection
+        assert _has_ddl("-- comment\nCREATE TABLE foo (id INT)") is True
 
     def test_drop_table_not_matched_by_has_ddl(self):
         # DROP TABLE is not DDL detection's job — that's SQL injection's job
