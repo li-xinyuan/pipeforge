@@ -20,6 +20,12 @@ from configforge.models.wizard import (
     ExecuteConfigRequest,
     WizardState,
     ErrorResponse,
+    ExecutionRecord,
+)
+from configforge.api.executions import (
+    EXEC_DIR,
+    _update_exec_index,
+    _save_failed_execution,
 )
 from configforge.services.yaml_builder import build_yaml
 from configforge.utils.security import validate_id
@@ -243,6 +249,11 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
 
     _migrate_state_dict(state_dict)
 
+    # Get config_version from index
+    index = _load_index()
+    entry = next((e for e in index if e.get("id") == config_id), None)
+    config_version = entry.get("current_version") if entry else None
+
     # 用请求中的 file_id 填充各 input
     for inp in state_dict.get("inputs", []):
         param_key = inp.get("param_key", "")
@@ -251,24 +262,109 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
 
     state = WizardState(**state_dict)
 
+    exec_id = uuid.uuid4().hex[:8]
+    started_at = datetime.now(UTC).isoformat()
+
+    inputs_summary = [
+        {"name": inp.name, "plugin": inp.plugin, "param_key": inp.param_key}
+        for inp in state.inputs
+    ]
+    processors_summary = [
+        {"name": p.name, "plugin": p.plugin}
+        for p in state.processors
+    ]
+    output_type = state.output.plugin if state.output else ""
+    scene_name = state.scene.name or ""
+
     try:
         output_path = execute_pipeline(state)
     except (ValueError, SyntaxError, TimeoutError) as e:
+        _save_failed_execution(
+            exec_id=exec_id,
+            started_at=started_at,
+            config_id=config_id,
+            config_version=config_version,
+            scene_name=scene_name,
+            inputs_summary=inputs_summary,
+            processors_summary=processors_summary,
+            output_type=output_type,
+            error_message=str(e),
+        )
         raise HTTPException(status_code=422, detail=str(e))
     except CheckpointError as e:
-        raise HTTPException(status_code=422, detail={"message": "数据检查点未通过", "checks": [r.model_dump() for r in e.results]})
+        checks = [r.model_dump() for r in e.results]
+        _save_failed_execution(
+            exec_id=exec_id,
+            started_at=started_at,
+            config_id=config_id,
+            config_version=config_version,
+            scene_name=scene_name,
+            inputs_summary=inputs_summary,
+            processors_summary=processors_summary,
+            output_type=output_type,
+            error_message="数据检查点未通过",
+            checks_summary=checks,
+        )
+        raise HTTPException(status_code=422, detail={"message": "数据检查点未通过", "checks": checks})
     except Exception as e:
         logger.exception("pipeline execution failed")
+        _save_failed_execution(
+            exec_id=exec_id,
+            started_at=started_at,
+            config_id=config_id,
+            config_version=config_version,
+            scene_name=scene_name,
+            inputs_summary=inputs_summary,
+            processors_summary=processors_summary,
+            output_type=output_type,
+            error_message=str(e),
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
     filename = os.path.basename(output_path)
+    finished_at = datetime.now(UTC).isoformat()
+
+    # Compute duration
+    start_dt = datetime.fromisoformat(started_at)
+    end_dt = datetime.fromisoformat(finished_at)
+    duration_ms = int((end_dt - start_dt).total_seconds() * 1000)
+
+    # Move output to executions directory
+    exec_output_dir = os.path.join(EXEC_DIR, exec_id)
+    os.makedirs(exec_output_dir, exist_ok=True)
+    exec_output_path = os.path.join(exec_output_dir, filename)
+    shutil.move(output_path, exec_output_path)
+
+    # Save execution record
+    record = ExecutionRecord(
+        id=exec_id,
+        config_id=config_id,
+        config_version=config_version,
+        scene_name=scene_name,
+        status="success",
+        started_at=started_at,
+        finished_at=finished_at,
+        duration_ms=duration_ms,
+        inputs_summary=inputs_summary,
+        processors_summary=processors_summary,
+        output_type=output_type,
+        checks_summary=[],
+        output_file_name=filename,
+    )
+
+    result_path = os.path.join(exec_output_dir, "result.json")
+    with open(result_path, "w") as f:
+        json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
+
+    _update_exec_index(record)
+
     media_type = (
         "text/csv"
         if filename.endswith(".csv")
         else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     return FileResponse(
-        output_path,
+        exec_output_path,
         media_type=media_type,
         filename=filename,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},

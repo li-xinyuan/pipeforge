@@ -288,3 +288,22 @@ class ConfigVersionMeta(BaseModel):
     input_count: int = 0
     processor_count: int = 0
     output_type: str = ""
+
+
+class ExecutionRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = ""  # 8-char hex
+    config_id: str = ""
+    config_version: int | None = None
+    scene_name: str = ""
+    status: Literal["success", "failed"] = "success"
+    started_at: str = ""
+    finished_at: str = ""
+    duration_ms: int = 0
+    inputs_summary: list[dict] = []
+    processors_summary: list[dict] = []
+    output_type: str = ""
+    checks_summary: list[dict] = []
+    error_message: str | None = None
+    output_file_name: str | None = None
