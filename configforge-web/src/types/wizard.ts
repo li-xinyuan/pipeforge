@@ -167,13 +167,56 @@ export interface SavedConfig {
   inputs: Array<{ name: string; paramKey: string; plugin: string }>
 }
 
-export type CheckRule = {
+export interface RowCountRule {
   type: 'row_count'
   table: string
-  min?: number
+  min: number
   max?: number
   on_failure: 'block' | 'warn'
 }
+
+export interface NullRateRule {
+  type: 'null_rate'
+  table: string
+  column: string
+  max_null_rate: number
+  on_failure: 'block' | 'warn'
+}
+
+export interface UniquenessRule {
+  type: 'uniqueness'
+  table: string
+  column: string
+  on_failure: 'block' | 'warn'
+}
+
+export interface ValueRangeRule {
+  type: 'value_range'
+  table: string
+  column: string
+  min_value?: number
+  max_value?: number
+  on_failure: 'block' | 'warn'
+}
+
+export interface CustomSqlRule {
+  type: 'custom_sql'
+  sql: string
+  result_column: string
+  comparison: '<' | '<=' | '==' | '!=' | '>' | '>='
+  expected_value?: number
+  on_failure: 'block' | 'warn'
+}
+
+export interface EnumCheckRule {
+  type: 'enum_check'
+  table: string
+  column: string
+  allowed_values: string[]
+  on_failure: 'block' | 'warn'
+}
+
+export type CheckRule = RowCountRule | NullRateRule | UniquenessRule | ValueRangeRule | CustomSqlRule | EnumCheckRule
 
 export interface CheckResult {
   type: string

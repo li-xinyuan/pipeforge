@@ -101,26 +101,14 @@ export function stateToSnakeCase(state: WizardState): SnakeState {
           name: p.name, plugin: 'python' as const,
           input_tables: p.inputTables, output_tables: p.outputTables,
           script: p.script,
-          checkpoints: p.checkpoints?.map((c: CheckRule) => ({
-            type: c.type,
-            table: c.table,
-            min: c.min,
-            max: c.max,
-            on_failure: c.on_failure,
-          })) || [],
+          checkpoints: p.checkpoints?.map((c: CheckRule) => ({ ...c })) || [],
         }
       }
       return {
         name: p.name, plugin: 'sql' as const,
         input_tables: p.inputTables, output_tables: p.outputTables,
         sql: p.sql,
-        checkpoints: p.checkpoints?.map((c: CheckRule) => ({
-          type: c.type,
-          table: c.table,
-          min: c.min,
-          max: c.max,
-          on_failure: c.on_failure,
-        })) || [],
+        checkpoints: p.checkpoints?.map((c: CheckRule) => ({ ...c })) || [],
       }
     }),
     output: state.output
