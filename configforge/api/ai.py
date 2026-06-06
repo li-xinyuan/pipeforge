@@ -138,7 +138,15 @@ async def translate_checkpoint(req: AiSuggestionRequest, request: Request):
             f"上下文：\n"
             f"- 可用表名：{available_tables}\n"
             f"- 当前步骤输出表：{current_table}\n\n"
-            f'可用规则类型：{{"row_count": {{"type": "row_count", "table": "表名", "min": null, "max": null, "on_failure": "block|warn"}}}}\n\n'
+            f"可用规则类型：\n"
+            f'- row_count: 行数检查 {{"type": "row_count", "table": "表名", "min": null, "max": null, "on_failure": "block|warn"}}\n'
+            f'- null_rate: 空值率检查 {{"type": "null_rate", "table": "表名", "column": "列名", "max_null_rate": 0.05, "on_failure": "block|warn"}}\n'
+            f'- uniqueness: 唯一性检查 {{"type": "uniqueness", "table": "表名", "column": "列名", "on_failure": "block|warn"}}\n'
+            f'- value_range: 范围检查 {{"type": "value_range", "table": "表名", "column": "列名", "min_value": null, "max_value": null, "on_failure": "block|warn"}}\n'
+            f'- custom_sql: 自定义SQL {{"type": "custom_sql", "sql": "SELECT ...", "result_column": "结果列名", "comparison": ">=", "expected_value": null, "on_failure": "block|warn"}}\n'
+            f"  comparison 取值: \"<\" | \"<=\" | \"==\" | \"!=\" | \">\" | \">=\"\n"
+            f'- enum_check: 枚举检查 {{"type": "enum_check", "table": "表名", "column": "列名", "allowed_values": ["值1", "值2"], "on_failure": "block|warn"}}\n'
+            f"\n"
             f"请返回一个 JSON 对象，包含翻译后的检查规则。例如：\n"
             f'{{"type": "row_count", "table": "result", "min": 100, "on_failure": "block"}}\n\n'
             f"只返回 JSON，不要其他内容。"
