@@ -145,14 +145,8 @@ def _check_custom_sql(table: str, rule: CustomSqlRule, db: SQLiteManager) -> tup
         return False, "SQL 执行无结果"
 
     row = rows[0]
-    actual_value = None
-    if hasattr(row, "keys"):
-        row_dict = dict(row)
-        actual_value = row_dict.get(rule.result_column)
-    elif isinstance(row, (list, tuple)):
-        actual_value = row[0] if len(row) > 0 else None
-    else:
-        actual_value = row
+    # With sqlite3.Row, we can access by column name
+    actual_value = row[rule.result_column] if rule.result_column in row.keys() else row[0]
 
     if actual_value is None:
         return False, f"结果列 '{rule.result_column}' 的值不存在或为 NULL"
