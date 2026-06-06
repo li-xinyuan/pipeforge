@@ -18,7 +18,7 @@
             <div class="mock-textarea">根据每日销售明细生成汇总报表…</div>
           </div>
           <div class="anim-step__foot">
-            <span class="mock-btn">保存并继续 ↓</span>
+            <span class="mock-btn">下一步 ↓</span>
           </div>
         </div>
 
@@ -37,7 +37,7 @@
             <div class="mock-input mock-input--sm">sales_data</div>
           </div>
           <div class="anim-step__foot">
-            <span class="mock-btn">保存并继续 ↓</span>
+            <span class="mock-btn">下一步 ↓</span>
           </div>
         </div>
 
@@ -55,7 +55,7 @@
             <div class="mock-input mock-input--sm">result</div>
           </div>
           <div class="anim-step__foot">
-            <span class="mock-btn">保存并继续 ↓</span>
+            <span class="mock-btn">下一步 ↓</span>
           </div>
         </div>
 
@@ -77,7 +77,7 @@
             </div>
           </div>
           <div class="anim-step__foot">
-            <span class="mock-btn">保存并继续 ↓</span>
+            <span class="mock-btn">下一步 ↓</span>
           </div>
         </div>
 
@@ -348,9 +348,9 @@ onUnmounted(() => {
   padding: 4px 8px;
   font-size: 10px;
   font-weight: 500;
-  color: #0369a1;
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
+  color: var(--color-primary, #0369a1);
+  background: var(--color-primary-bg, #f0f9ff);
+  border: 1px solid var(--color-primary-border, #bae6fd);
   border-radius: 5px;
   align-self: flex-start;
 }
@@ -359,14 +359,14 @@ onUnmounted(() => {
   padding: 8px 10px;
   font-size: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: #e2e8f0;
-  background: #1e293b;
+  color: var(--color-code-text, #e2e8f0);
+  background: var(--color-code-bg, #1e293b);
   border-radius: 6px;
   line-height: 1.5;
 }
 
-.mock-code__kw { color: #93c5fd; }
-.mock-code__str { color: #fbbf24; }
+.mock-code__kw { color: var(--color-code-keyword, #93c5fd); }
+.mock-code__str { color: var(--color-code-string, #fbbf24); }
 
 .mock-mapping {
   display: flex;
@@ -389,13 +389,13 @@ onUnmounted(() => {
   padding: 8px 10px;
   font-size: 9px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: #cbd5e1;
-  background: #1e293b;
+  color: var(--color-code-text, #cbd5e1);
+  background: var(--color-code-bg, #1e293b);
   border-radius: 6px;
   line-height: 1.6;
 }
 
-.mock-yaml__key { color: #7dd3fc; }
+.mock-yaml__key { color: var(--color-code-keyword, #7dd3fc); }
 
 @media (max-width: 480px) {
   .anim-frame { max-width: 100%; }

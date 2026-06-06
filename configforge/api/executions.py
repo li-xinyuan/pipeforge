@@ -30,6 +30,21 @@ def _cleanup_old_outputs():
         shutil.rmtree(os.path.join(EXEC_DIR, d), ignore_errors=True)
 
 
+def _sanitize_summary(summary: list[dict]) -> list[dict]:
+    """Mask sensitive fields (connection strings, passwords) in execution summaries."""
+    import re
+    sanitized = []
+    for item in summary:
+        s = dict(item)
+        for key in list(s.keys()):
+            val = str(s[key]) if s[key] is not None else ""
+            # Mask connection strings like mysql://user:pass@host/db
+            if re.search(r"://.*@", val):
+                s[key] = re.sub(r"(://[^:]+:)[^@]+(@)", r"\1***\2", val)
+        sanitized.append(s)
+    return sanitized
+
+
 def _update_exec_index(record: ExecutionRecord):
     """Add or update an execution entry in the index file."""
     os.makedirs(EXEC_DIR, exist_ok=True)
@@ -79,7 +94,7 @@ def _save_failed_execution(
         started_at=started_at,
         finished_at=finished_at,
         duration_ms=duration_ms,
-        inputs_summary=inputs_summary,
+        inputs_summary=_sanitize_summary(inputs_summary),
         processors_summary=processors_summary,
         output_type=output_type,
         checks_summary=checks_summary or [],

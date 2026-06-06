@@ -418,24 +418,60 @@ def _list_version_files(config_id: str) -> list[int]:
     return sorted(versions)
 
 
-def _diff_dicts(d1: dict, d2: dict, path: str = "") -> list[dict]:
-    """Recursively diff two dicts. Returns list of changes."""
+def _diff_states(state1: dict, state2: dict) -> dict:
+    """Diff two config state dicts using deepdiff. Returns structured changes."""
+    from deepdiff import DeepDiff
+
+    diff = DeepDiff(state1, state2, ignore_order=True, verbose_level=2)
     changes = []
-    all_keys = set(d1.keys()) | set(d2.keys())
-    for key in sorted(all_keys):
-        full_path = f"{path}.{key}" if path else key
-        if key not in d1:
-            changes.append({"type": "added", "path": full_path, "new": d2[key]})
-        elif key not in d2:
-            changes.append({"type": "removed", "path": full_path, "old": d1[key]})
-        elif isinstance(d1[key], dict) and isinstance(d2[key], dict):
-            changes.extend(_diff_dicts(d1[key], d2[key], full_path))
-        elif isinstance(d1[key], list) and isinstance(d2[key], list):
-            if d1[key] != d2[key]:
-                changes.append({"type": "changed", "path": full_path, "old": d1[key], "new": d2[key]})
-        elif d1[key] != d2[key]:
-            changes.append({"type": "changed", "path": full_path, "old": d1[key], "new": d2[key]})
-    return changes
+
+    for change_type, items in diff.items():
+        if change_type == "values_changed":
+            for path, detail in items.items():
+                changes.append({
+                    "type": "changed",
+                    "path": path,
+                    "old": detail.get("old_value"),
+                    "new": detail.get("new_value"),
+                })
+        elif change_type == "dictionary_item_added":
+            for path in items:
+                changes.append({
+                    "type": "added",
+                    "path": str(path) if not isinstance(path, str) else path,
+                    "new": items[path] if isinstance(items, dict) else None,
+                })
+        elif change_type == "dictionary_item_removed":
+            for path in items:
+                changes.append({
+                    "type": "removed",
+                    "path": str(path) if not isinstance(path, str) else path,
+                    "old": items[path] if isinstance(items, dict) else None,
+                })
+        elif change_type == "iterable_item_added":
+            for path, detail in items.items():
+                changes.append({
+                    "type": "added",
+                    "path": str(path),
+                    "new": detail,
+                })
+        elif change_type == "iterable_item_removed":
+            for path, detail in items.items():
+                changes.append({
+                    "type": "removed",
+                    "path": str(path),
+                    "old": detail,
+                })
+        elif change_type == "type_changes":
+            for path, detail in items.items():
+                changes.append({
+                    "type": "changed",
+                    "path": path,
+                    "old": str(detail.get("old_type")),
+                    "new": str(detail.get("new_type")),
+                })
+
+    return {"v1": None, "v2": None, "changes": changes}
 
 
 # === Version endpoints ===
@@ -581,5 +617,7 @@ async def diff_versions(config_id: str, v1: int, v2: int):
         s.pop("_saved_at", None)
         s.pop("change_summary", None)
 
-    changes = _diff_dicts(state1, state2)
-    return {"v1": v1, "v2": v2, "changes": changes}
+    result = _diff_states(state1, state2)
+    result["v1"] = v1
+    result["v2"] = v2
+    return result

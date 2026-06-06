@@ -3,7 +3,7 @@
     <!-- Step name + Input tables in one row -->
     <div class="grid grid-cols-2 gap-3">
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1">步骤名称</label>
+        <label class="block text-xs font-medium text-slate-500 mb-1">处理步骤名称</label>
         <NInput
           :value="proc.name"
           @update:value="(v: string) => $emit('update', { name: v })"
@@ -12,7 +12,7 @@
         />
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1">输入表</label>
+        <label class="block text-xs font-medium text-slate-500 mb-1">输入源表</label>
         <NSelect
           :value="proc.inputTables"
           :options="availableTables"
@@ -26,7 +26,7 @@
 
     <!-- Output table -->
     <div>
-      <label class="block text-sm font-medium text-slate-900 mb-1">
+      <label class="block text-xs font-medium text-slate-500 mb-1">
         <span class="text-red-500">*</span> 输出表名
       </label>
       <NInput
@@ -39,7 +39,7 @@
 
     <!-- Python script textarea -->
     <div>
-      <label class="block text-sm font-medium text-slate-900 mb-1">
+      <label class="block text-xs font-medium text-slate-500 mb-1">
         <span class="text-red-500">*</span> Python 脚本
       </label>
       <textarea
@@ -49,7 +49,7 @@
         placeholder="def process(ctx):
     conn = ctx.db.connection
     conn.execute('CREATE TABLE result AS SELECT * FROM source')"
-        style="width:100%;background:#1e293b;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;padding:10px;border:1px solid #334155;border-radius:8px;resize:vertical;outline:none;"
+        class="code-editor-textarea"
       />
     </div>
 
@@ -68,7 +68,7 @@
       <NButton v-else size="tiny" type="info" @click="dryRunVisible = false">收起结果</NButton>
     </div>
 
-    <p v-if="dryRunError" class="text-xs text-red-500">{{ dryRunError }}</p>
+    <p v-if="dryRunError" class="text-xs text-red-500 mt-1">{{ dryRunError }}</p>
 
     <div v-if="dryRunResult && dryRunVisible" class="space-y-2 mt-2">
       <div class="flex items-center gap-2">
@@ -149,3 +149,19 @@ async function runPreview() {
   dryRunRunning.value = false
 }
 </script>
+
+<style scoped>
+.code-editor-textarea {
+  width: 100%;
+  background: var(--color-code-bg, #1e293b);
+  color: var(--color-code-text, #e2e8f0);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 10px;
+  border: 1px solid var(--color-border, #334155);
+  border-radius: 8px;
+  resize: vertical;
+  outline: none;
+}
+</style>

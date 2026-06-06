@@ -1,21 +1,6 @@
 <template>
   <div class="guide">
-    <nav class="guide__nav">
-      <div class="guide__nav-left">
-        <router-link to="/" class="guide__brand">
-          <span class="guide__logo">⚙️</span>
-          <span class="guide__brand-name">ConfigForge</span>
-        </router-link>
-      </div>
-      <div class="guide__nav-center">
-        <router-link to="/" class="guide__nav-link">我的配置</router-link>
-        <router-link to="/guide" class="guide__nav-link guide__nav-link--active">使用指南</router-link>
-        <router-link to="/settings" class="guide__nav-link">设置</router-link>
-      </div>
-      <button class="guide__theme-toggle" @click="theme.toggleTheme()" :title="theme.isDark.value ? '切换到亮色模式' : '切换到暗色模式'">
-        {{ theme.isDark.value ? '☀' : '☾' }}
-      </button>
-    </nav>
+    <AppNavBar current-route="guide" />
 
     <main class="guide__content">
       <article class="guide__article">
@@ -26,7 +11,7 @@
 
         <section class="guide__section">
           <h2>概述</h2>
-          <p>ConfigForge 的核心工作流是：<strong>定义场景 → 上传数据源 → 编写 SQL → 配置输出 → 预览导出</strong>。整个过程在一个流畅的单页向导中完成，右侧 AI 助手可在任意步骤提供帮助。</p>
+          <p>ConfigForge 的核心工作流是：<strong>定义场景 → 上传输入源 → 编写 SQL → 配置输出 → 预览导出</strong>。整个过程在一个流畅的单页向导中完成，右侧 AI 助手可在任意步骤提供帮助。</p>
         </section>
 
         <section class="guide__section">
@@ -37,7 +22,7 @@
             <li><strong>版本号</strong>：流水线的版本标识，默认为 1.0。</li>
             <li><strong>场景描述</strong>：简要描述这个流水线的用途，帮助后续识别和管理。</li>
           </ul>
-          <p>完成后点击"保存并继续"进入下一步。</p>
+          <p>完成后点击"下一步"进入下一步。</p>
         </section>
 
         <section class="guide__section">
@@ -72,8 +57,8 @@
             <li>选择输出格式：<strong>Excel</strong> 或 <strong>CSV</strong>。</li>
             <li><strong>Excel 输出</strong>：可上传模板文件定义样式，系统会将数据填充到模板中。</li>
             <li><strong>CSV 输出</strong>：可设置分隔符和编码。</li>
-            <li><strong>列映射</strong>：设置源列到目标列的映射关系。点击 <strong>AI 自动映射</strong> 或 <strong>从代码推断列</strong> 可自动完成。</li>
-            <li><strong>数据源表</strong>：选择要输出的源表（来自 SQL 处理的结果表）。</li>
+            <li><strong>列映射</strong>：设置源列到目标列的映射关系。点击 <strong>AI 自动列映射</strong> 或 <strong>从代码自动推断列</strong> 可自动完成。</li>
+            <li><strong>输入源表</strong>：选择要输出的源表（来自 SQL 处理的结果表）。</li>
             <li><strong>输出目录</strong>和<strong>文件名</strong>：指定输出文件的保存位置和名称。执行下载时文件名中的日期会自动替换为实际执行时间。</li>
           </ul>
         </section>
@@ -96,7 +81,7 @@
           <ul>
             <li><strong>AI 分析列</strong>：分析上传文件的列结构。</li>
             <li><strong>AI 生成 SQL</strong>：输入自然语言描述，AI 生成对应 SQL。</li>
-            <li><strong>AI 自动映射</strong>：自动匹配源列和目标列的映射关系。</li>
+            <li><strong>AI 自动列映射</strong>：自动匹配源列和目标列的映射关系。</li>
             <li><strong>生成场景描述</strong>：根据配置信息生成场景描述并自动填入步骤一。</li>
           </ul>
           <p>使用 AI 功能前，请先在 <router-link to="/settings">设置页面</router-link> 配置 API Key。</p>
@@ -135,11 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useTheme } from '../composables/useTheme'
-
-const theme = useTheme()
-onMounted(() => theme.initTheme())
+import AppNavBar from '../components/common/AppNavBar.vue'
 </script>
 
 <style scoped>
@@ -148,84 +129,6 @@ onMounted(() => theme.initTheme())
   flex-direction: column;
   min-height: 100vh;
   background: var(--color-bg);
-}
-
-.guide__nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  height: 54px;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--color-primary-border);
-}
-
-[data-theme="dark"] .guide__nav {
-  background: rgba(10, 28, 20, 0.78);
-}
-
-.guide__nav-left { display: flex; align-items: center; }
-
-.guide__brand {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-}
-
-.guide__logo { font-size: 18px; }
-
-.guide__brand-name {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.guide__nav-center {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.guide__nav-link {
-  padding: 4px 12px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.guide__nav-link:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
-}
-
-.guide__nav-link--active {
-  color: var(--color-primary);
-  background: var(--color-primary-bg);
-}
-
-.guide__theme-toggle {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-border-light);
-  border-radius: 8px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 18px;
-  cursor: pointer;
-  transition: background 0.2s;
-  flex-shrink: 0;
-}
-
-.guide__theme-toggle:hover {
-  background: var(--color-surface-hover);
 }
 
 .guide__content {
@@ -292,12 +195,6 @@ onMounted(() => theme.initTheme())
 }
 
 @media (max-width: 767px) {
-  .guide__nav {
-    padding: 0 10px;
-  }
-  .guide__nav-center {
-    display: none;
-  }
   .guide__content {
     padding: 16px 14px 40px;
   }

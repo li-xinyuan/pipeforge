@@ -171,7 +171,14 @@
       "Bash(break)",
       "Bash([ -f \"/Users/lixinyuan/code/CCTEST/$f\" ])",
       "Bash([ -d \"/Users/lixinyuan/code/CCTEST/$f\" ])",
-      "Bash(GRAPH_DIR=/Users/lixinyuan/code/CCTEST npx vite --host 127.0.0.1)"
+      "Bash(GRAPH_DIR=/Users/lixinyuan/code/CCTEST npx vite --host 127.0.0.1)",
+      "Bash(npx tsc *)",
+      "Bash(grep -n \"vitest\\\\|test\" vite.config.ts)",
+      "Bash(grep -n \"vitest\\\\|test\" vite.config.js)",
+      "Bash(xxd /Users/lixinyuan/code/CCTEST/configforge-web/src/components/step3/SqlEditorTab.vue)",
+      "Bash(PYTHONPATH=/Users/lixinyuan/code/CCTEST python3 *)",
+      "Bash(kill 26731)",
+      "Bash(kill 17222 17200 27189 27167 27139)"
     ]
   }
 }

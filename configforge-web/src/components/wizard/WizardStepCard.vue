@@ -29,7 +29,6 @@
 
     <!-- Locked overlay -->
     <div v-if="status === 'locked'" class="wizard-step-card__lock-overlay">
-      <span class="wizard-step-card__lock-icon">🔒</span>
       <span class="wizard-step-card__lock-text">请先完成上一步</span>
     </div>
   </section>
@@ -54,7 +53,7 @@ defineProps<{
   border-radius: var(--radius-xl);
   padding: var(--space-card-padding);
   margin-bottom: var(--space-section-gap);
-  border: 1px solid var(--color-border-light);
+  border: 2px solid transparent;
   box-shadow: var(--shadow-md);
   scroll-margin-top: 72px;
   transition: opacity var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
@@ -79,9 +78,16 @@ defineProps<{
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: rgba(255,255,255,0.4);
   border-radius: inherit;
   pointer-events: none;
+}
+.wizard-step-card__lock-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-surface);
+  opacity: 0.6;
+  border-radius: inherit;
 }
 .wizard-step-card__lock-icon {
   font-size: 28px;

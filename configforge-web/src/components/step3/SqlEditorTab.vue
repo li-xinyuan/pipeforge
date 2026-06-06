@@ -82,11 +82,9 @@
       >添加处理步骤</NButton>
 
       <!-- Validation -->
-      <NAlert v-if="store.stepValidation.length" type="warning" class="mt-3">
-        <ul class="list-disc pl-4 text-xs">
-          <li v-for="msg in store.stepValidation" :key="msg">{{ msg }}</li>
-        </ul>
-      </NAlert>
+      <p v-if="store.stepValidation.length" class="text-xs text-amber-600 mt-3">
+        <span v-for="(msg, i) in store.stepValidation" :key="msg">{{ i > 0 ? ' · ' : '' }}{{ msg }}</span>
+      </p>
 
       <AiSuggestPanel
         :visible="!!activeSuggestion"
@@ -102,7 +100,7 @@
 import { computed, onMounted, provide, ref, watch } from 'vue'
 import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
-import { NButton, NTag, NAlert } from 'naive-ui'
+import { NButton, NTag } from 'naive-ui'
 import AiSuggestPanel from '../common/AiSuggestPanel.vue'
 import ProcessorCard from './ProcessorCard.vue'
 import { inferOutputTable } from '../../utils/sql'

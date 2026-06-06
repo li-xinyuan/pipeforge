@@ -80,9 +80,9 @@ class ExcelOutputPlugin(OutputPlugin):
             data_row = [row[source_to_idx[cm.source]] for cm in config.columns]
             ws.append(data_row)
 
-        wb.save(output_path)
+        self._apply_column_widths(ws, column_widths)
 
-        self._restore_column_widths(output_path, column_widths)
+        wb.save(output_path)
 
         context.logger.info(
             f"Output: wrote {len(rows)} rows to {output_path}"
@@ -146,12 +146,8 @@ class ExcelOutputPlugin(OutputPlugin):
                 if style.get("alignment"): cell.alignment = style["alignment"]
                 if style.get("number_format"): cell.number_format = style["number_format"]
 
-    def _restore_column_widths(self, output_path, column_widths):
+    def _apply_column_widths(self, ws, column_widths):
         if not column_widths:
             return
-        wb = load_workbook(output_path)
-        ws = wb.active
         for col_letter, width in column_widths.items():
             ws.column_dimensions[col_letter].width = width
-        wb.save(output_path)
-        wb.close()

@@ -2,9 +2,9 @@
   <ConfettiBurst ref="confettiRef" />
   <div class="flex gap-2 mt-4">
     <NButton size="small" @click="copyYaml">复制</NButton>
-    <NButton size="small" type="primary" @click="downloadYaml">下载 YAML</NButton>
+    <NButton size="small" @click="downloadYaml">下载 YAML</NButton>
     <NButton size="small" type="primary" :loading="executing" @click="downloadResult">下载结果文件</NButton>
-    <NButton size="small" type="primary" :loading="saving" @click="saveConfigHandler">保存配置</NButton>
+    <NButton size="small" :loading="saving" @click="saveConfigHandler">保存配置</NButton>
   </div>
 </template>
 

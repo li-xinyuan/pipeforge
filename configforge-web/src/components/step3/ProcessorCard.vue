@@ -3,7 +3,7 @@
     <!-- Header: name + plugin badge + delete -->
     <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
       <span class="text-lg">{{ proc.plugin === 'python' ? '🐍' : '🧪' }}</span>
-      <span class="text-sm font-medium truncate flex-1">{{ proc.name || '步骤 ' + (index + 1) }}</span>
+      <span class="text-sm font-medium truncate flex-1">{{ proc.name || '处理步骤 ' + (index + 1) }}</span>
       <NTag size="small" :type="proc.plugin === 'python' ? 'warning' : 'success'">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }}</NTag>
       <NTag v-if="proc.checkpoints?.length" size="small" type="info">检查点 ×{{ proc.checkpoints.length }}</NTag>
       <NButton text type="error" size="tiny" class="ml-auto" @click="$emit('remove')">删除</NButton>

@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from configforge.models.wizard import ErrorResponse, PreviewRequest, SqlExecuteRequest, SqlExecuteResponse
 from configforge.services.excel_reader import read_excel_info
 from configforge.services.csv_reader import read_csv_info
-from configforge.utils.security import validate_id
+from configforge.utils.security import validate_id, safe_identifier
 
 router = APIRouter()
 UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
@@ -84,7 +84,6 @@ async def preview_file(req: PreviewRequest):
     if file_type == "csv":
         info = read_csv_info(content)
     else:
-        import io
         info = read_excel_info(io.BytesIO(content), sheet_name=req.sheet)
     return {
         "sheets": info["sheets"],
@@ -129,10 +128,10 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
                 info = read_excel_info(io.BytesIO(content))
 
             if info["columns"]:
-                safe_table = table_name.replace('"', '')
+                safe_table = safe_identifier(table_name, "table_name")
                 safe_name = f'"{safe_table}"'
                 col_defs = ", ".join(
-                    f'"{c}" {_infer_sql_type(c, i, info.get("sample_rows", []))}'
+                    f'"{safe_identifier(c, "column_name")}" {_infer_sql_type(c, i, info.get("sample_rows", []))}'
                     for i, c in enumerate(info["columns"])
                 )
                 conn.execute(f"CREATE TABLE {safe_name} ({col_defs})")

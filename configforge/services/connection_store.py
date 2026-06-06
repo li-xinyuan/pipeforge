@@ -161,7 +161,7 @@ class ConnectionStore:
         # Search saved wizard configs for references to this connection
         import glob
         refs = []
-        for path in glob.glob(os.path.join(DATA_DIR, "..", "configs", "*.json")):
+        for path in glob.glob(os.path.join(DATA_DIR, "..", "configs", "*.state.json")):
             try:
                 with open(path, "r") as f:
                     data = json.load(f)

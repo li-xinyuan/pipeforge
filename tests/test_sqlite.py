@@ -23,7 +23,7 @@ class TestSQLiteManager:
             db.insert_row("users", ("1", "Alice"))
             db.insert_row("users", ("2", "Bob"))
         rows = db.query("SELECT * FROM users ORDER BY id")
-        assert rows == [("1", "Alice"), ("2", "Bob")]
+        assert [tuple(r) for r in rows] == [("1", "Alice"), ("2", "Bob")]
 
     def test_transaction_rollback(self, db):
         db.create_table("users", ["id", "name"])
@@ -42,7 +42,7 @@ class TestSQLiteManager:
             db.insert_row("users", ("1", "Alice"))
         db.execute("CREATE TABLE copy AS SELECT * FROM users")
         rows = db.query("SELECT * FROM copy")
-        assert rows == [("1", "Alice")]
+        assert [tuple(r) for r in rows] == [("1", "Alice")]
 
     def test_table_exists(self, db):
         db.create_table("users", ["id"])

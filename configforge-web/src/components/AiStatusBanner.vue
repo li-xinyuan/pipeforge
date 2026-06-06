@@ -2,7 +2,7 @@
   <div class="ai-banner">
     <!-- Not configured: prominent warning -->
     <div v-if="!aiConfigured" class="ai-banner__warning">
-      <span class="ai-banner__warning-icon" aria-hidden="true">⚙️</span>
+      <span class="ai-banner__warning-icon" aria-hidden="true">⚡</span>
       <div class="ai-banner__warning-body">
         <p class="ai-banner__warning-title">AI 模型未配置</p>
         <p class="ai-banner__warning-desc">配置后可启用 AI 辅助 SQL 生成、列映射和场景描述等功能。</p>

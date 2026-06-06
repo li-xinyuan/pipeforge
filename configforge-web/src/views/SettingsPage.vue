@@ -1,21 +1,7 @@
 <template>
   <div class="settings">
     <!-- Nav bar -->
-    <header class="settings__nav">
-      <div class="settings__nav-inner">
-        <div class="settings__brand" @click="router.push('/')">
-          <span class="settings__brand-icon">⚡</span>
-          <span class="settings__brand-text">ConfigForge</span>
-        </div>
-        <nav class="settings__nav-links">
-          <router-link to="/" class="settings__nav-link">首页</router-link>
-          <span class="settings__nav-link settings__nav-link--active">设置</span>
-        </nav>
-        <button class="settings__theme-toggle" @click="toggleTheme" :title="isDark ? '切换到亮色模式' : '切换到暗色模式'">
-          {{ isDark ? '☀' : '☾' }}
-        </button>
-      </div>
-    </header>
+    <AppNavBar current-route="settings" />
 
     <!-- Page content -->
     <div class="settings__body">
@@ -29,6 +15,7 @@
               <span class="settings__label">启用 AI</span>
               <NSwitch :value="form.enabled" @update:value="form.enabled = $event" />
             </div>
+            <p v-if="!form.enabled && !maskedKey" class="settings__guide">首次使用？配置 AI 提供商和 API Key 后即可启用智能辅助功能，如自动生成代码、列映射和场景描述。</p>
 
             <div class="settings__divider" />
 
@@ -60,7 +47,10 @@
 
             <!-- Temperature -->
             <div class="settings__field">
-              <label class="settings__field-label">Temperature: {{ form.temperature }}</label>
+              <div class="settings__field-label-row">
+                <label class="settings__field-label">Temperature</label>
+                <span class="settings__field-value">{{ form.temperature }}</span>
+              </div>
               <NSlider v-model:value="form.temperature" :min="0" :max="2" :step="0.1" />
             </div>
 
@@ -74,12 +64,9 @@
 
             <!-- Actions -->
             <div class="settings__actions">
-              <NButton :loading="testing" @click="testConnection">测试连接</NButton>
+              <NButton :loading="testing" @click="testConnection">保存并测试</NButton>
               <NButton type="primary" class="btn-primary" :loading="saving" @click="saveSettings">保存设置</NButton>
             </div>
-            <p v-if="testResult" class="settings__result" :class="testResult.ok ? 'settings__result--ok' : 'settings__result--error'">
-              {{ testResult.msg }}
-            </p>
             <p v-if="saveMsg" class="settings__result settings__result--ok">{{ saveMsg }}</p>
           </div>
         </NTabPane>
@@ -99,8 +86,9 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAiApi } from '../composables/useWizardApi'
 import { useTheme } from '../composables/useTheme'
-import { NButton, NInput, NSelect, NSwitch, NSlider, NInputNumber, NTabs, NTabPane } from 'naive-ui'
+import { NButton, NInput, NSelect, NSwitch, NSlider, NInputNumber, NTabs, NTabPane, useMessage } from 'naive-ui'
 import ConnectionManager from '../components/common/ConnectionManager.vue'
+import AppNavBar from '../components/common/AppNavBar.vue'
 
 interface AiSettingsForm {
   provider: string
@@ -113,6 +101,7 @@ interface AiSettingsForm {
 }
 
 const router = useRouter()
+const message = useMessage()
 const { isDark, toggleTheme } = useTheme()
 const { getAiSettings, updateAiSettings, testAiConnection } = useAiApi()
 
@@ -130,7 +119,6 @@ const providerOptions = [
 const maskedKey = ref('')
 const testing = ref(false)
 const saving = ref(false)
-const testResult = ref<{ ok: boolean; msg: string } | null>(null)
 const saveMsg = ref('')
 
 const defaultModel = computed(() => {
@@ -153,17 +141,16 @@ onMounted(async () => {
 
 async function testConnection() {
   testing.value = true
-  testResult.value = null
   try {
     await saveSettings()
     const { ok, data } = await testAiConnection()
     if (ok && data) {
-      testResult.value = { ok: true, msg: `连接成功！${data.provider}/${data.model}，延迟 ${data.latency_ms}ms` }
+      message.success(`连接成功！${data.provider}/${data.model}，延迟 ${data.latency_ms}ms`)
     } else {
-      testResult.value = { ok: false, msg: data?.detail || '连接失败' }
+      message.error(data?.detail || '连接失败')
     }
   } catch (e) {
-    testResult.value = { ok: false, msg: '网络请求失败' }
+    message.error('网络请求失败')
   } finally {
     testing.value = false
   }
@@ -333,6 +320,35 @@ async function saveSettings() {
   margin-bottom: 6px;
 }
 
+.settings__field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.settings__field-label-row .settings__field-label {
+  margin-bottom: 0;
+}
+
+.settings__field-value {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings__guide {
+  margin: 8px 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: var(--color-primary-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-primary-border);
+}
+
 .settings__hint {
   margin: 4px 0 0;
   font-size: var(--font-size-xs);
@@ -356,21 +372,6 @@ async function saveSettings() {
 
 .settings__result--error {
   color: var(--color-error);
-}
-
-/* Button overrides */
-:deep(.btn-primary) {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
-  border: none !important;
-  color: #fff !important;
-  font-weight: 700 !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  box-shadow: var(--shadow-button) !important;
-  border-radius: var(--radius-sm) !important;
-}
-
-:deep(.btn-primary:hover) {
-  opacity: 0.92;
 }
 
 /* Responsive */

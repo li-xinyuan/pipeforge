@@ -3,16 +3,17 @@
     <!-- Step name + Input tables in one row -->
     <div class="grid grid-cols-2 gap-3">
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1">步骤名称</label>
+        <label class="block text-xs font-medium text-slate-500 mb-1">处理步骤名称</label>
         <NInput
           :value="proc.name"
           @update:value="(v: string) => emit('update', { name: v })"
           placeholder="例如：数据清洗"
+          size="small"
           :data-testid="`processor-name-${index}`"
         />
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1">可用表</label>
+        <label class="block text-xs font-medium text-slate-500 mb-1">输入源表</label>
         <div class="flex flex-wrap gap-1">
           <NTag
             v-for="tbl in availableTables"
@@ -50,7 +51,7 @@
 
     <!-- SQL textarea -->
     <div>
-      <label class="block text-sm font-medium text-slate-900 mb-1">
+      <label class="block text-xs font-medium text-slate-500 mb-1">
         <span class="text-red-500">*</span> SQL
       </label>
       <textarea
@@ -71,6 +72,7 @@
         type="textarea"
         :autosize="{ minRows: 3, maxRows: 6 }"
         placeholder="用自然语言描述你想要的查询，例如：查询每个部门有多少员工，按人数降序"
+        size="small"
       />
       <div class="flex gap-2 mt-2">
         <NButton size="tiny" type="primary" :loading="suggesting" @click="onAiGenerateSql">生成 SQL</NButton>
@@ -81,13 +83,14 @@
 
     <!-- Output table -->
     <div>
-      <label class="block text-sm font-medium text-slate-900 mb-1">
+      <label class="block text-xs font-medium text-slate-500 mb-1">
         <span class="text-red-500">*</span> 输出表名
       </label>
       <NInput
         :value="proc.outputTables[0] || ''"
         @update:value="(v: string) => emit('update', { outputTables: [v] })"
         placeholder="例如：monthly_report"
+        size="small"
       />
       <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
       <p v-if="equivalenceSql" class="text-xs text-slate-400 mt-1.5 font-mono">{{ equivalenceSql }}</p>
@@ -100,7 +103,7 @@
       <NButton size="tiny" :disabled="!aiConfigured" @click="showNlInput = !showNlInput">✨ AI 生成 SQL</NButton>
     </div>
 
-    <p v-if="dryRunError" class="text-xs text-red-500">{{ dryRunError }}</p>
+    <p v-if="dryRunError" class="text-xs text-red-500 mt-1">{{ dryRunError }}</p>
 
     <div v-if="dryRunResult && dryRunVisible" class="space-y-2 mt-2">
       <div class="flex items-center gap-2">
@@ -339,3 +342,19 @@ async function onAiGenerateSql() {
   }
 }
 </script>
+
+<style scoped>
+.code-editor-textarea {
+  width: 100%;
+  background: var(--color-code-bg, #1e293b);
+  color: var(--color-code-text, #e2e8f0);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 10px;
+  border: 1px solid var(--color-border, #334155);
+  border-radius: 8px;
+  resize: vertical;
+  outline: none;
+}
+</style>

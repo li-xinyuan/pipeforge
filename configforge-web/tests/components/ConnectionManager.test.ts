@@ -106,7 +106,7 @@ describe('ConnectionManager', () => {
     await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('未验证')
+    expect(wrapper.text()).toContain('⚠')
   })
 
   it('shows new connection form when button clicked', async () => {

@@ -2,11 +2,12 @@
   <div class="space-y-3">
     <!-- Connection selector -->
     <div>
-      <label class="block text-sm font-medium text-slate-900 mb-1">数据库连接</label>
+      <label class="block text-xs font-medium text-slate-500 mb-1">数据库连接 <span class="text-red-500">*</span></label>
       <NSelect
         v-model:value="selectedConnectionId"
         :options="connectionOptions"
         placeholder="选择已有连接..."
+        size="small"
         @update:value="onConnectionSelected"
       />
       <p class="text-xs text-slate-400 mt-1">
@@ -21,13 +22,13 @@
       <NButton size="small" :loading="testing" @click="onTestConnection">测试连通</NButton>
       <NButton size="small" :loading="loadingTables" @click="onLoadTables">加载表列表</NButton>
     </div>
-    <p v-if="testResult" :class="testResult.ok ? 'text-green-600' : 'text-red-500'" class="text-xs">
+    <p v-if="testResult" :class="testResult.ok ? 'text-green-600' : 'text-red-500'" class="text-xs mt-1">
       {{ testResult.ok ? '连接成功' : testResult.error }}
     </p>
 
     <!-- Query type toggle -->
     <div v-if="selectedConnectionId">
-      <label class="block text-sm font-medium text-slate-900 mb-1">查询方式</label>
+      <label class="block text-xs font-medium text-slate-500 mb-1">查询方式</label>
       <NRadioGroup v-model:value="queryType">
         <NRadio value="table">选择表</NRadio>
         <NRadio value="sql">自定义 SQL</NRadio>
@@ -36,23 +37,25 @@
 
     <!-- Table selector -->
     <div v-if="selectedConnectionId && queryType === 'table'">
-      <label class="block text-sm font-medium text-slate-900 mb-1">选择表</label>
+      <label class="block text-xs font-medium text-slate-500 mb-1">选择表</label>
       <NSelect
         v-model:value="selectedTable"
         :options="tableOptions"
         placeholder="选择数据库表..."
+        size="small"
         @update:value="emitUpdate"
       />
     </div>
 
     <!-- SQL editor -->
     <div v-if="selectedConnectionId && queryType === 'sql'">
-      <label class="block text-sm font-medium text-slate-900 mb-1">SQL 查询</label>
+      <label class="block text-xs font-medium text-slate-500 mb-1">SQL 查询</label>
       <NInput
         v-model:value="sqlQuery"
         type="textarea"
         placeholder="SELECT * FROM ..."
         :rows="3"
+        size="small"
         @update:value="emitUpdate"
       />
     </div>

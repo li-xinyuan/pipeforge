@@ -38,7 +38,7 @@ class TestSqlProcessorPlugin:
         assert db.table_exists("report")
         rows = db.query("SELECT * FROM report")
         assert len(rows) == 1
-        assert rows[0] == ("1", "Alice")
+        assert tuple(rows[0]) == ("1", "Alice")
 
     def test_invalid_sql_raises(self, setup_db):
         db, context = setup_db
@@ -83,7 +83,7 @@ class TestSqlProcessorPlugin:
         assert db.table_exists("filtered")
         rows = db.query("SELECT * FROM filtered")
         assert len(rows) == 1
-        assert rows[0] == ("1", "Alice")
+        assert tuple(rows[0]) == ("1", "Alice")
 
     def test_jinja2_missing_param_raises(self, setup_db):
         """引用未定义的变量抛出 StrictUndefined 错误"""

@@ -5,8 +5,8 @@ import tempfile
 from contextlib import contextmanager
 
 
-# SQL identifier whitelist: only letters, digits, underscores
-_SQL_ID_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]{0,63}$")
+# SQL identifier whitelist: Unicode letters, digits, underscores
+_SQL_ID_RE = re.compile(r"^[\w][\w]{0,63}$")
 
 
 def safe_identifier(name: str, param_name: str = "identifier") -> str:

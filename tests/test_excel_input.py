@@ -77,7 +77,7 @@ class TestExcelInputPlugin:
         assert db.table_exists("person_detail")
         rows = db.query("SELECT * FROM person_detail")
         assert len(rows) == 2
-        assert rows[0] == ("张三", "技术部", "30")
+        assert tuple(rows[0]) == ("张三", "技术部", "30")
 
         db.close()
         db.remove()

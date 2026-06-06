@@ -40,30 +40,32 @@
         <span class="text-2xl block mb-2">🌐</span>
         <span class="text-sm font-semibold">API</span>
       </div>
+      <p class="col-span-3 text-xs text-slate-400 mt-1 text-center">选择输出类型后开始配置输出</p>
     </div>
     <div v-else class="bg-white border border-slate-200 rounded-lg overflow-hidden">
       <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
         <span class="text-lg">{{ outputTypeInfo.icon }}</span>
         <span class="text-sm font-medium truncate flex-1">{{ outputTypeInfo.desc }}</span>
         <NTag size="small" :type="store.output?.plugin === 'csv' ? 'info' : 'success'">{{ outputTypeInfo.label }}</NTag>
-        <NButton text size="tiny" type="error" class="ml-auto" @click="clearOutputType">删除</NButton>
+        <NButton text size="tiny" type="error" class="ml-auto" @click="clearOutputType">更换类型</NButton>
       </div>
 
       <!-- Output form -->
-      <div class="p-3 space-y-4">
+      <div class="p-3 space-y-3">
       <!-- Source table (first field, required) -->
       <div>
-        <label class="block text-sm font-medium text-slate-900 mb-1"><span class="text-red-500">*</span> 数据源表</label>
+        <label class="block text-xs font-medium text-slate-500 mb-1"><span class="text-red-500">*</span> 输入源表</label>
         <NSelect
           v-model:value="outputConfig.sourceTable"
           :options="sourceTableOptions"
           placeholder="-- 选择表 --"
+          size="small"
         />
       </div>
 
       <!-- Template file upload (Excel only, drag-and-drop style) -->
       <div v-if="store.output?.plugin === 'excel'">
-        <label class="block text-sm font-medium text-slate-900 mb-1">模板文件</label>
+        <label class="block text-xs font-medium text-slate-500 mb-1">模板文件</label>
         <template v-if="excelConfig.template && store.uploadedFiles[excelConfig.template]">
           <div class="flex items-center gap-1">
             <NTag type="success" size="small" class="truncate">
@@ -91,13 +93,14 @@
 
       <!-- Sheet name (Excel only, disabled until template uploaded) -->
       <div v-if="store.output?.plugin === 'excel'">
-        <label class="block text-sm font-medium text-slate-900 mb-1">Sheet 名称</label>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Sheet 名称</label>
         <NSelect
           v-if="templateSheets.length > 0"
           :value="excelConfig.sheet"
           @update:value="(v: string) => { updateExcelConfig({ sheet: v }); onSheetChange(v) }"
           :options="templateSheets.map(s => ({ label: s, value: s }))"
           placeholder="选择 Sheet"
+          size="small"
         />
         <NInput
           v-else
@@ -105,13 +108,14 @@
           :disabled="!excelConfig.template"
           @update:value="v => updateExcelConfig({ sheet: v })"
           placeholder="Sheet1"
+          size="small"
         />
       </div>
 
       <!-- Filename template -->
       <div>
         <div class="flex items-center gap-1 mb-1">
-          <label class="block text-sm font-medium text-slate-900">输出文件名</label>
+          <label class="block text-xs font-medium text-slate-500">输出文件名</label>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
@@ -134,33 +138,35 @@
 
       <!-- Delimiter (CSV only) -->
       <div v-if="store.output?.plugin === 'csv'">
-        <label class="block text-sm font-medium text-slate-900 mb-1">分隔符</label>
+        <label class="block text-xs font-medium text-slate-500 mb-1">分隔符</label>
         <NInput
           :value="csvConfig.delimiter"
           @update:value="updateCsvConfig({ delimiter: $event })"
+          size="small"
         />
       </div>
 
       <!-- Encoding (CSV only) -->
       <div v-if="store.output?.plugin === 'csv'">
-        <label class="block text-sm font-medium text-slate-900 mb-1">编码</label>
+        <label class="block text-xs font-medium text-slate-500 mb-1">编码</label>
         <NSelect
           :value="csvConfig.encoding"
           @update:value="updateCsvConfig({ encoding: $event })"
           :options="encodingOptions"
+          size="small"
         />
       </div>
 
       <!-- Output directory -->
       <div>
-        <label class="block text-sm font-medium text-slate-900 mb-1">输出目录</label>
-        <NInput v-model:value="outputConfig.outputDir" />
+        <label class="block text-xs font-medium text-slate-500 mb-1">输出目录</label>
+        <NInput v-model:value="outputConfig.outputDir" size="small" />
       </div>
 
       <!-- Column mapping -->
       <div>
         <div class="flex items-center justify-between mb-2">
-          <label class="text-sm font-medium text-slate-900"><span class="text-red-500">*</span> 列映射</label>
+          <label class="text-xs font-medium text-slate-500"><span class="text-red-500">*</span> 列映射</label>
           <div class="flex gap-2">
             <NButton
               v-if="store.output?.plugin === 'csv'"
@@ -201,14 +207,14 @@ const templateUploadRef = ref<InstanceType<typeof NUpload>>()
 
 const inferColumnLabel = computed(() => {
   const lastProcessor = store.processors[0]
-  return lastProcessor?.plugin === 'python' ? '从代码推断列' : '从 SQL 推断列'
+  return lastProcessor?.plugin === 'python' ? '从代码自动推断列' : '从 SQL 自动推断列'
 })
 const message = useMessage()
 const { fetchPreview, executeSql } = useWizardApi()
 const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()
 const { suggesting: mappingLoading, askSuggestion } = useAiApi()
-// Show type selector initially, same pattern as Step 2/3
-const showOutputTypeChoices = ref(true)
+// Show type selector when no output config exists; can be toggled back by "更换类型"
+const showOutputTypeChoices = ref(!store.output?.config)
 const lastAutoFilename = ref('')
 const templateSheets = ref<string[]>([])
 
@@ -506,7 +512,15 @@ async function onAiMapping() {
       sourceCols.push(...fileMeta.columns)
     }
   }
+  if (sourceCols.length === 0) {
+    message.warning('请先在步骤 2 上传输入文件（Excel/CSV），AI 才能分析列结构')
+    return
+  }
   const targetCols = outputConfig.value.columns.map((c: ColumnMappingItem) => c.target)
+  if (targetCols.length === 0) {
+    message.warning('请先上传模板文件或点击「+ 添加列」添加目标列')
+    return
+  }
   const content = await askSuggestion('mapping', {
     sourceColumns: sourceCols,
     targetColumns: targetCols,
@@ -518,7 +532,11 @@ async function onAiMapping() {
         outputConfig.value.columns = parsed.mappings
       }
       store.setSuggestion('mapping', { category: 'mapping', status: 'pending', content, timestamp: Date.now() })
-    } catch { /* ignore */ }
+    } catch {
+      message.error('AI 返回格式异常，请重试')
+    }
+  } else {
+    message.error('AI 映射失败。请确认已在「设置 → AI 模型」中配置并启用 AI')
   }
 }
 

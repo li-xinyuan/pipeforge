@@ -12,7 +12,7 @@
     </div>
 
     <!-- Body: Configuration fields -->
-    <div class="p-3 grid grid-cols-2 gap-3 mb-4 relative">
+    <div class="p-3 grid grid-cols-2 gap-3 relative">
       <!-- File upload -->
       <div v-if="input.plugin !== 'database'" class="col-span-2">
         <template v-if="input.fileId && store.uploadedFiles[input.fileId]">
@@ -139,7 +139,7 @@
             @click="previewVisible = !previewVisible"
           >{{ previewVisible ? '收起' : '展开' }}</NButton>
         </div>
-        <p v-if="error && !previewLoading" class="text-xs text-red-500 mb-2">{{ error.message }}</p>
+        <p v-if="error && !previewLoading" class="text-xs text-red-500 mt-1">{{ error.message }}</p>
         <ColumnPreview v-if="previewData && previewVisible" :columns="previewData.columns" :rows="previewData.rows" />
       </div>
 
@@ -202,7 +202,6 @@
       <NSpin size="medium" />
       <span class="text-sm text-teal-600 font-medium">AI 分析中...</span>
     </div>
-    <div v-if="analyzing" class="absolute inset-0 z-10" />
 
     <p v-if="!input.fileId" class="text-xs text-slate-400 mt-2">请先上传文件以加载列预览</p>
 
@@ -224,7 +223,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import type { InputSource, CsvInputConfig, ExcelInputConfig, ConfirmedAnalysis } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
@@ -248,19 +247,8 @@ const emit = defineEmits<{
 }>()
 
 const uploadRef = ref<InstanceType<typeof NUpload>>()
-let autoOpened = false
 
 onMounted(() => {
-  if (!autoOpened && (props.input.plugin === 'excel' || props.input.plugin === 'csv') && !props.input.fileId) {
-    autoOpened = true
-    nextTick(() => {
-      const el = (uploadRef.value as any)?.$el
-      if (el) {
-        const input = el.querySelector('input[type="file"]') as HTMLInputElement | null
-        input?.click()
-      }
-    })
-  }
 })
 
 const store = useWizardStore()

@@ -20,14 +20,15 @@
     <div v-if="totalPages > 1" class="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
       <span>{{ (page - 1) * ps + 1 }}-{{ Math.min(page * ps, rows.length) }} / {{ rows.length }} 行</span>
       <div class="flex gap-1">
-        <button :disabled="page <= 1" @click="page--" class="px-2 py-0.5 rounded border border-slate-300 disabled:opacity-30 hover:bg-slate-100">上一页</button>
-        <button :disabled="page >= totalPages" @click="page++" class="px-2 py-0.5 rounded border border-slate-300 disabled:opacity-30 hover:bg-slate-100">下一页</button>
+        <NButton size="tiny" :disabled="page <= 1" @click="page--">上一页</NButton>
+        <NButton size="tiny" :disabled="page >= totalPages" @click="page++">下一页</NButton>
       </div>
     </div>
   </div>
 </template>
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { NButton } from 'naive-ui'
 
 const props = defineProps<{ columns: string[]; rows: string[][]; pageSize?: number }>()
 const page = ref(1)

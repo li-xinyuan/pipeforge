@@ -1,35 +1,7 @@
 <template>
   <div class="wizard">
     <!-- Top Nav -->
-    <nav class="wizard__nav">
-      <div class="wizard__nav-left">
-        <div class="wizard__brand">
-          <span class="wizard__logo">⚙️</span>
-          <span class="wizard__brand-name">ConfigForge</span>
-          <span class="wizard__brand-badge">新配置</span>
-        </div>
-      </div>
-      <div class="wizard__nav-center">
-        <router-link to="/" class="wizard__nav-link">我的配置</router-link>
-        <router-link to="/settings" class="wizard__nav-link">设置</router-link>
-      </div>
-      <div class="wizard__nav-right">
-        <label class="wizard__toggle-label">
-          <span class="wizard__toggle-text">AI</span>
-          <span class="wizard__toggle-switch">
-            <input type="checkbox" v-model="aiPanelVisible" />
-            <span class="wizard__toggle-slider"></span>
-          </span>
-        </label>
-        <button
-          class="wizard__theme-btn"
-          @click="theme.toggleTheme()"
-          :title="theme.isDark.value ? '亮色模式' : '暗色模式'"
-        >
-          {{ theme.isDark.value ? '☀️' : '🌙' }}
-        </button>
-      </div>
-    </nav>
+    <AppNavBar current-route="wizard" :badge="route.query.load ? '编辑配置' : '新配置'" />
 
     <!-- Main: steps area + AI panel -->
     <div class="wizard__main">
@@ -51,13 +23,14 @@
             <div class="wizard__form-group">
               <label class="wizard__label">场景名称 <span class="wizard__required">*</span></label>
               <input class="wizard__input" :class="{ 'pulse-cta-input': currentStep === 1 && !store.scene.name.trim() }" v-model="store.scene.name" placeholder="例如：销售报表生成" />
+              <p v-if="currentStep === 1 && !store.scene.name.trim()" class="wizard__validation-msg">请输入场景名称</p>
             </div>
             <div class="wizard__form-group">
-              <label class="wizard__label">版本号</label>
+              <label class="wizard__label">版本号（可选）</label>
               <input class="wizard__input" v-model="store.scene.version" placeholder="1.0" />
             </div>
             <div class="wizard__form-group wizard__form-group--full">
-              <label class="wizard__label">场景描述</label>
+              <label class="wizard__label">场景描述（可选）</label>
               <textarea
                 class="wizard__textarea"
                 v-model="store.scene.description"
@@ -67,12 +40,10 @@
             </div>
           </div>
           <AiInlineTip
-            v-if="store.scene.name"
             message="完善场景信息后，后续步骤可以使用 AI 辅助生成代码和列映射"
           />
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 1 && store.scene.name.trim() }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.scene.name.trim()" @click="completeStep(1)">保存并继续 ↓</NButton></span>
-            <p v-if="currentStep === 1 && !store.scene.name.trim()" class="wizard__validation-msg">请输入场景名称</p>
+            <span :class="{ 'pulse-cta': currentStep === 1 && store.scene.name.trim() }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.scene.name.trim()" @click="completeStep(1)">下一步</NButton></span>
           </template>
         </WizardStepCard>
 
@@ -95,7 +66,7 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 2 && store.inputs.length > 0 && store.inputs.every(inp => inp.fileId) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="store.inputs.length === 0 || !store.inputs.every(inp => inp.fileId)" @click="completeStep(2)">保存并继续 ↓</NButton></span>
+            <span :class="{ 'pulse-cta': currentStep === 2 && store.inputs.length > 0 && store.inputs.every(inp => inp.fileId) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="store.inputs.length === 0 || !store.inputs.every(inp => inp.fileId)" @click="completeStep(2)">下一步</NButton></span>
             <p v-if="currentStep === 2 && store.inputs.length === 0" class="wizard__validation-msg">至少需要添加 1 个输入源</p>
           </template>
         </WizardStepCard>
@@ -119,7 +90,7 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() || !p.outputTables.length : !p.script.trim() || !p.outputTables.length))" @click="completeStep(3)">保存并继续 ↓</NButton></span>
+            <span :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() || !p.outputTables.length : !p.script.trim() || !p.outputTables.length))" @click="completeStep(3)">下一步</NButton></span>
             <p v-if="currentStep === 3 && store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) || !p.outputTables.length)" class="wizard__validation-msg">
               {{ store.processors.some(p => p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) ? '请输入代码' : '请输入输出表名' }}
             </p>
@@ -141,11 +112,11 @@
             v-if="showStep4Tip"
             message="AI 可自动推断列映射关系"
             show-action
-            action-label="AI 自动映射"
+            action-label="AI 自动列映射"
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 4 && store.output?.config?.columns?.length }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">保存并继续 ↓</NButton></span>
+            <span :class="{ 'pulse-cta': currentStep === 4 && store.output?.config?.columns?.length }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">下一步</NButton></span>
             <p v-if="currentStep === 4 && !store.output?.config?.columns?.length" class="wizard__validation-msg">请先配置列映射</p>
           </template>
         </WizardStepCard>
@@ -217,6 +188,7 @@ import SqlEditorTab from '../components/step3/SqlEditorTab.vue'
 import OutputConfigTab from '../components/step3/OutputConfigTab.vue'
 import YamlPreview from '../components/step4/YamlPreview.vue'
 import ExportActions from '../components/step4/ExportActions.vue'
+import AppNavBar from '../components/common/AppNavBar.vue'
 import { useAiApi } from '../composables/useWizardApi'
 
 const store = useWizardStore()
@@ -293,7 +265,7 @@ function stepStatus(n: number): 'completed' | 'active' | 'locked' {
 function stepBadge(n: number): string {
   if (n < currentStep.value) return '✓ 已完成'
   if (n === currentStep.value) return '⟳ 当前步骤'
-  return '🔒 待解锁'
+  return '待解锁'
 }
 
 // Progress steps for WizardProgress
@@ -463,7 +435,7 @@ async function onAiQuickAction(action: string) {
       role: 'ai',
       content: '请在下方输入框用自然语言描述你想要的查询，例如："查询每个部门有多少员工，按人数降序"。我会帮你生成对应的代码。',
     })
-  } else if (action === 'AI 自动映射') {
+  } else if (action === 'AI 自动列映射') {
     const sourceCols: string[] = []
     for (const inp of store.inputs) {
       const meta = store.uploadedFiles[inp.fileId]
@@ -574,9 +546,9 @@ function onOrchestrateConfirm(result: any) {
     }
     const plugin = (s.plugin || 'sql') as 'sql' | 'python'
     if (plugin === 'python') {
-      return { name: s.name || `步骤 ${i + 1}`, plugin, script: s.script || '', inputTables, outputTables: s.output_tables || [], checkpoints: [] }
+      return { name: s.name || `处理步骤 ${i + 1}`, plugin, script: s.script || '', inputTables, outputTables: s.output_tables || [], checkpoints: [] }
     }
-    return { name: s.name || `步骤 ${i + 1}`, plugin, sql: s.sql || '', inputTables, outputTables: s.output_tables || [], checkpoints: [] }
+    return { name: s.name || `处理步骤 ${i + 1}`, plugin, sql: s.sql || '', inputTables, outputTables: s.output_tables || [], checkpoints: [] }
   })
   store.setProcessors(processors)
   aiMessages.value.push({ role: 'ai', content: '已将处理链填入 Step 3，请检查每步的 SQL/Python 脚本和表名。' })
@@ -918,26 +890,6 @@ onUnmounted(() => {
 /* === Bottom Spacer === */
 .wizard__bottom-spacer {
   height: 80px;
-}
-
-/* === Deep: Naive UI Button Override === */
-:deep(.btn-primary) {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
-  border: none !important;
-  color: #fff !important;
-  font-weight: 700 !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  box-shadow: var(--shadow-button) !important;
-  border-radius: var(--radius-sm) !important;
-}
-
-:deep(.btn-primary:hover) {
-  opacity: 0.92;
-}
-
-:deep(.btn-primary:disabled) {
-  opacity: 0.45 !important;
-  cursor: not-allowed !important;
 }
 
 /* ─── AI FAB ─── */

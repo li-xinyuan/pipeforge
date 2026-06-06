@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, table, column, text, select
 from sqlalchemy.pool import NullPool
 from pipeforge.plugins.base import InputPlugin
 from pipeforge.config.models import DbInputConfig
@@ -24,7 +24,8 @@ class DatabaseInputPlugin(InputPlugin[DbInputConfig]):
                     result = conn.execute(text(config.sql))
                 elif config.tables:
                     table_name = config.tables[0]
-                    result = conn.execute(text(f"SELECT * FROM {table_name}"))
+                    # Use SQLAlchemy table() to safely reference the table
+                    result = conn.execute(select(column("*")).select_from(table(table_name)))
                 else:
                     raise ValueError("tables 和 sql 必须提供一个")
 

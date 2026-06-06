@@ -133,7 +133,11 @@ def test_connection(conn_id: str):
         return {"ok": True, "message": "Connection successful"}
     except Exception as e:
         ConnectionStore._update_verified(conn_id, False)
-        return {"ok": False, "error": str(e)}
+        # Sanitize error message to avoid leaking connection strings with passwords
+        error_msg = str(e)
+        if "@" in error_msg or "://" in error_msg:
+            error_msg = "Connection failed — please check your connection settings"
+        return {"ok": False, "error": error_msg}
 
 
 @router.get("/connections/{conn_id}/tables")

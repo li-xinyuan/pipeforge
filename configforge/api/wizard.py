@@ -17,6 +17,7 @@ from configforge.api.executions import (
     EXEC_DIR,
     _update_exec_index,
     _save_failed_execution,
+    _sanitize_summary,
 )
 from configforge.core.pipeline import (
     init_scene,
@@ -127,7 +128,7 @@ async def api_execute(req: GenerateRequest, background_tasks: BackgroundTasks):
             config_id="",
             config_version=None,
             scene_name=scene_name,
-            inputs_summary=inputs_summary,
+            inputs_summary=_sanitize_summary(inputs_summary),
             processors_summary=processors_summary,
             output_type=output_type,
             error_message=str(e),
@@ -141,7 +142,7 @@ async def api_execute(req: GenerateRequest, background_tasks: BackgroundTasks):
             config_id="",
             config_version=None,
             scene_name=scene_name,
-            inputs_summary=inputs_summary,
+            inputs_summary=_sanitize_summary(inputs_summary),
             processors_summary=processors_summary,
             output_type=output_type,
             error_message=str(e),

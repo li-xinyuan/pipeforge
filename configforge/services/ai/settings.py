@@ -4,7 +4,6 @@ import logging
 import os
 from base64 import urlsafe_b64encode
 from cryptography.fernet import Fernet
-from cryptography.fernet import Fernet
 
 
 _SETTINGS_DIR = os.environ.get("CONFIGFORGE_DATA_DIR", os.path.join(os.getcwd(), "data"))

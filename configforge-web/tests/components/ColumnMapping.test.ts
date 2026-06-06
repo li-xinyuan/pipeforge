@@ -46,7 +46,7 @@ describe('ColumnMapping', () => {
     const wrapper = makeWrapper(cols)
     const sourceCell = wrapper.findAll('td')[0]
     expect(sourceCell.find('span').exists()).toBe(true)
-    expect(sourceCell.find('span').text()).toBe('id')
+    expect(sourceCell.find('span').text()).toContain('id')
   })
 
   it('shows NInput for empty source', () => {

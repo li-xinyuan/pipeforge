@@ -57,7 +57,7 @@
               <div class="home__config-card-meta">
                 <span class="home__meta-item">{{ cfg.version }}</span>
                 <span class="home__meta-sep">·</span>
-                <span class="home__meta-item">{{ cfg.inputCount }} 个数据源</span>
+                <span class="home__meta-item">{{ cfg.inputCount }} 个输入源</span>
                 <span class="home__meta-sep">·</span>
                 <span class="home__meta-item">{{ cfg.outputType }}</span>
                 <span class="home__meta-sep">·</span>
