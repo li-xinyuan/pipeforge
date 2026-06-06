@@ -5,18 +5,22 @@ from pipeforge.config.models import CheckRule
 
 
 class SceneInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
     version: str = "1.0"
 
 
 class ExcelInputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: Literal["excel"] = "excel"
     sheet: str = "Sheet1"
 
 
 class CsvInputConfig(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     type: Literal["csv"] = "csv"
     delimiter: str = ","
@@ -25,7 +29,7 @@ class CsvInputConfig(BaseModel):
 
 
 class DatabaseInputConfig(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     type: Literal["database"] = "database"
     connection_id: str = Field(default="", alias="connectionId")
@@ -37,7 +41,7 @@ class DatabaseInputConfig(BaseModel):
 
 
 class InputSource(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     name: str = ""
     plugin: Literal["excel", "csv", "database"] = "excel"
@@ -50,7 +54,7 @@ class InputSource(BaseModel):
 
 
 class ProcessorConfig(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     name: str = ""
     plugin: Literal["sql", "python"] = "sql"
@@ -77,12 +81,14 @@ class ProcessorConfig(BaseModel):
 
 
 class ColumnMappingItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     source: str
     target: str
 
 
 class ExcelOutputConfig(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     type: Literal["excel"] = "excel"
     template: str = ""
@@ -94,7 +100,7 @@ class ExcelOutputConfig(BaseModel):
 
 
 class CsvOutputConfig(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     type: Literal["csv"] = "csv"
     source_table: str = Field(default="", alias="sourceTable")
@@ -106,11 +112,15 @@ class CsvOutputConfig(BaseModel):
 
 
 class OutputTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     plugin: Literal["excel", "csv"] = "excel"
     config: Annotated[ExcelOutputConfig | CsvOutputConfig, Field(discriminator="type")]
 
 
 class WizardState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     current_step: int = 1
     scene: SceneInfo = Field(default_factory=lambda: SceneInfo(name="Untitled Scene"))
     inputs: list[InputSource] = []
@@ -123,72 +133,102 @@ class WizardState(BaseModel):
 
 
 class SceneInitRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     file_ids: list[str]
 
 
 class SceneInitResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     scene: SceneInfo
 
 
 class InputInferRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     file_id: str
     type: str = "excel"  # "excel" or "csv"
 
 
 class ColumnInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     sample_values: list[str] = []
 
 
 class InputInferResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     columns: list[ColumnInfo]
     suggested_table: str
     suggested_param_key: str
 
 
 class OutputInferRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     inputs: list[InputSource]
 
 
 class OutputInferResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     suggested_columns: list[ColumnMappingItem]
 
 
 class GenerateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     state: WizardState
 
 
 class GenerateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     yaml: str
     template: Optional[bytes] = None
 
 
 class ColumnPreview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     columns: list[str]
     rows: list[list[str]]
 
 
 class PreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     file_id: str
     sheet: Optional[str] = None
 
 
 class FileUploadResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     file_id: str
     original_name: str
 
 
 class SqlExecuteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     sql: str
     table_mapping: dict[str, str]  # table_name -> file_id
 
 
 class SqlExecuteResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     columns: list[str]
     rows: list[list[str]]
 
 
 class ErrorResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     error: str
     code: str
     recoverable: bool = True
@@ -197,12 +237,16 @@ class ErrorResponse(BaseModel):
 # === Config persistence models ===
 
 class ConfigInputMeta(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     param_key: str
     plugin: str  # "excel" | "csv"
 
 
 class ConfigMeta(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     id: str
     scene_name: str
     description: str = ""
@@ -210,17 +254,37 @@ class ConfigMeta(BaseModel):
     output_type: str = ""
     version: str = "1.0"
     updated_at: str
+    current_version: int = 1
+    created_at: str = ""
     inputs: list[ConfigInputMeta] = []
 
 
 class SaveConfigRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     state: WizardState
     config_id: str | None = None
 
 
 class SaveConfigResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     id: str
 
 
 class ExecuteConfigRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     files: dict[str, str]  # param_key -> file_id
+
+
+class ConfigVersionMeta(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: int
+    scene_version: str = "1.0"
+    change_summary: str = ""
+    created_at: str = ""
+    input_count: int = 0
+    processor_count: int = 0
+    output_type: str = ""
