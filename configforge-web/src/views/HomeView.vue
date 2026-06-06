@@ -1,21 +1,6 @@
 <template>
   <div class="home">
-    <!-- Nav bar -->
-    <header class="home__nav">
-      <div class="home__nav-inner">
-        <div class="home__brand">
-          <span class="home__brand-icon">⚡</span>
-          <span class="home__brand-text">ConfigForge</span>
-        </div>
-        <nav class="home__nav-links">
-          <span class="home__nav-link home__nav-link--active">首页</span>
-          <router-link to="/settings" class="home__nav-link">AI 模型设置</router-link>
-        </nav>
-        <button class="home__theme-toggle" @click="toggleTheme" :title="isDark ? '切换到亮色模式' : '切换到暗色模式'">
-          {{ isDark ? '☀' : '☾' }}
-        </button>
-      </div>
-    </header>
+    <AppNavBar current-route="home" />
 
     <AiStatusBanner />
 
@@ -28,7 +13,7 @@
           <span class="home__hero-gradient">AI 自动生成配置</span>
         </h1>
         <p class="home__hero-subtitle">
-          通过 5 步向导将数据处理需求转化为 ConfigForge 可执行的流水线配置。支持 AI 辅助 SQL 生成与列映射，所有数据本地处理，不上传至外部服务。
+          5 步向导帮你把数据处理需求变成可运行的配置文件。支持 AI 辅助 SQL 生成与列映射，所有数据本地处理，不上传至外部服务。
         </p>
         <div v-if="!loading && configs.length === 0" class="home__hero-anim">
           <PipelineAnimation />
@@ -51,7 +36,7 @@
     </section>
 
     <!-- Config list section -->
-    <section v-if="loading || configs.length > 0" class="home__configs">
+    <section class="home__configs">
       <div class="home__configs-header">
         <h2 class="home__configs-title">最近配置</h2>
         <NTag v-if="configs.length" size="small" :bordered="false" class="home__configs-count">{{ configs.length }} 个配置</NTag>
@@ -63,12 +48,12 @@
 
       <NAlert v-else-if="error" type="error" :title="error" />
 
-      <div v-else class="home__config-list">
+      <div v-else-if="configs.length > 0" class="home__config-list">
         <div v-for="cfg in configs" :key="cfg.id" class="home__config-card card-lift">
           <div class="home__config-card-left">
             <span class="home__config-card-icon">📋</span>
             <div class="home__config-card-info">
-              <NButton text type="primary" class="config-name-btn" @click="onLoadConfig(cfg.id)">{{ cfg.sceneName }}</NButton>
+              <router-link :to="'/config/new?load=' + cfg.id" class="config-name-link">{{ cfg.sceneName }}</router-link>
               <div class="home__config-card-meta">
                 <span class="home__meta-item">{{ cfg.version }}</span>
                 <span class="home__meta-sep">·</span>
@@ -83,10 +68,16 @@
           <div class="home__config-card-right">
             <NButton v-if="cfg.inputCount > 0" size="small" secondary type="primary" @click.stop="openExecuteModal(cfg)">执行</NButton>
             <NDropdown trigger="click" :options="getMenuOptions(cfg)" @select="(key: string) => onMenuSelect(key, cfg)">
-              <NButton text size="tiny" class="home__menu-btn">···</NButton>
+              <NButton text size="tiny" class="home__menu-btn" style="min-width: 44px; min-height: 44px;">···</NButton>
             </NDropdown>
           </div>
         </div>
+      </div>
+
+      <div v-else style="text-align: center; padding: 40px 20px; color: var(--color-text-muted);">
+        <p style="font-size: 48px; margin-bottom: 12px;">📋</p>
+        <p style="font-size: var(--font-size-base); font-weight: 500; margin-bottom: 8px;">还没有配置</p>
+        <p style="font-size: var(--font-size-sm);">点击上方按钮开始创建你的第一个数据管道配置</p>
       </div>
     </section>
 
@@ -109,25 +100,38 @@
       :config="executingConfig"
       @close="executeModalVisible = false"
     />
+
+    <!-- 版本历史弹窗 -->
+    <NModal v-model:show="versionModalVisible" preset="card" title="版本历史" style="max-width: 520px">
+      <ConfigVersionPanel
+        v-if="versionModalConfigId"
+        :config-id="versionModalConfigId"
+        :current-version="0"
+        @refreshed="onVersionRefreshed"
+      />
+      <template #footer>
+        <NButton @click="versionModalVisible = false">关闭</NButton>
+      </template>
+    </NModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useTheme } from '../composables/useTheme'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useWizardStore } from '../stores/wizard'
 import type { SavedConfig } from '../types/wizard'
 import { NButton, NAlert, NModal, NTag, NDropdown, useMessage } from 'naive-ui'
+import AppNavBar from '../components/common/AppNavBar.vue'
 import ExecuteConfigModal from '../components/ExecuteConfigModal.vue'
+import ConfigVersionPanel from '../components/config/ConfigVersionPanel.vue'
 import AiStatusBanner from '../components/AiStatusBanner.vue'
 import PipelineAnimation from '../components/PipelineAnimation.vue'
 
 const router = useRouter()
 const store = useWizardStore()
 const message = useMessage()
-const { isDark, toggleTheme } = useTheme()
 const { listConfigs, deleteConfig, downloadConfigYaml } = useConfigApi()
 
 const loading = ref(true)
@@ -140,6 +144,9 @@ const deleting = ref(false)
 
 const executeModalVisible = ref(false)
 const executingConfig = ref<SavedConfig | null>(null)
+
+const versionModalVisible = ref(false)
+const versionModalConfigId = ref<string | null>(null)
 
 function startNewConfig() {
   store.resetAll()
@@ -187,6 +194,7 @@ async function onConfirmDelete() {
 function getMenuOptions(cfg: SavedConfig) {
   return [
     { label: '编辑', key: 'edit' },
+    { label: '版本历史', key: 'versions' },
     { label: '下载 YAML', key: 'download' },
     { label: '删除', key: 'delete' },
   ]
@@ -194,6 +202,7 @@ function getMenuOptions(cfg: SavedConfig) {
 
 function onMenuSelect(key: string, cfg: SavedConfig) {
   if (key === 'edit') onLoadConfig(cfg.id)
+  else if (key === 'versions') openVersionModal(cfg.id)
   else if (key === 'download') onDownloadYaml(cfg.id)
   else if (key === 'delete') promptDelete(cfg)
 }
@@ -201,6 +210,16 @@ function onMenuSelect(key: string, cfg: SavedConfig) {
 function openExecuteModal(cfg: SavedConfig) {
   executingConfig.value = cfg
   executeModalVisible.value = true
+}
+
+function openVersionModal(configId: string) {
+  versionModalConfigId.value = configId
+  versionModalVisible.value = true
+}
+
+function onVersionRefreshed() {
+  // Reload config list after rollback to reflect updated version info
+  listConfigs().then(data => { configs.value = data })
 }
 
 function formatTime(iso: string): string {
@@ -221,89 +240,6 @@ function formatTime(iso: string): string {
 .home {
   min-height: 100vh;
   background: var(--color-bg);
-}
-
-/* ───── nav bar ───── */
-.home__nav {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-[data-theme="dark"] .home__nav {
-  background: rgba(10, 28, 20, 0.72);
-}
-
-.home__nav-inner {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 0 24px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.home__brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.home__brand-icon {
-  font-size: 20px;
-}
-
-.home__brand-text {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text);
-  letter-spacing: -0.02em;
-}
-
-.home__nav-links {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.home__nav-link {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.home__nav-link:hover {
-  color: var(--color-text);
-}
-
-.home__nav-link--active {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.home__theme-toggle {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-border-light);
-  border-radius: 8px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 18px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.home__theme-toggle:hover {
-  background: var(--color-surface-hover);
 }
 
 /* ───── hero ───── */
@@ -496,17 +432,6 @@ function formatTime(iso: string): string {
 }
 
 /* ───── button overrides ───── */
-:deep(.btn-primary) {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
-  border: none !important;
-  font-weight: 700 !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-:deep(.btn-primary:hover) {
-  opacity: 0.9;
-}
-
 :deep(.btn-secondary) {
   border: 1px solid var(--color-border-light) !important;
   background: var(--color-surface) !important;
@@ -519,20 +444,19 @@ function formatTime(iso: string): string {
 }
 
 /* ───── misc ───── */
-.config-name-btn {
-  font-weight: 600 !important;
-  font-size: 15px !important;
+.config-name-link {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-primary);
+  text-decoration: none;
 }
 
-.config-name-btn:hover {
-  text-decoration: underline !important;
+.config-name-link:hover {
+  text-decoration: underline;
 }
 
 /* ───── Responsive: Tablet ───── */
 @media (max-width: 1023px) {
-  .home__nav-inner {
-    padding: 0 16px;
-  }
   .home__hero {
     padding: 48px 20px 44px;
   }
@@ -550,13 +474,6 @@ function formatTime(iso: string): string {
 
 /* ───── Responsive: Mobile ───── */
 @media (max-width: 767px) {
-  .home__nav-inner {
-    padding: 0 12px;
-    height: 50px;
-  }
-  .home__nav-links {
-    display: none;
-  }
   .home__hero {
     padding: 36px 16px 32px;
   }
@@ -604,8 +521,8 @@ function formatTime(iso: string): string {
   .home__meta-item {
     font-size: 10px;
   }
-  .config-name-btn {
-    font-size: 14px !important;
+  .config-name-link {
+    font-size: 14px;
   }
 }
 

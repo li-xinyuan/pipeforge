@@ -139,3 +139,74 @@ export function useConfigApi() {
 
   return { loading, error, listConfigs, saveConfig, deleteConfig, loadConfigState, downloadConfigYaml, executeConfig }
 }
+
+export function useConfigVersionApi() {
+  const loading = ref(false)
+  const error = ref<{ message: string; code: string } | null>(null)
+
+  async function listVersions(configId: string) {
+    loading.value = true; error.value = null
+    try {
+      const resp = await fetch(`/api/configs/${configId}/versions`)
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null)
+        error.value = { message: data?.error || data?.detail || '加载版本列表失败', code: data?.code || 'VERSIONS_ERROR' }
+        return []
+      }
+      return await resp.json()
+    } catch {
+      error.value = { message: 'Network error', code: 'NETWORK_ERROR' }
+      return []
+    } finally { loading.value = false }
+  }
+
+  async function getVersion(configId: string, version: number) {
+    loading.value = true; error.value = null
+    try {
+      const resp = await fetch(`/api/configs/${configId}/versions/${version}`)
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null)
+        error.value = { message: data?.error || data?.detail || '加载版本失败', code: data?.code || 'VERSION_ERROR' }
+        return null
+      }
+      return await resp.json()
+    } catch {
+      error.value = { message: 'Network error', code: 'NETWORK_ERROR' }
+      return null
+    } finally { loading.value = false }
+  }
+
+  async function diffVersions(configId: string, v1: number, v2: number) {
+    loading.value = true; error.value = null
+    try {
+      const resp = await fetch(`/api/configs/${configId}/diff?v1=${v1}&v2=${v2}`)
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null)
+        error.value = { message: data?.error || data?.detail || '版本对比失败', code: data?.code || 'DIFF_ERROR' }
+        return null
+      }
+      return await resp.json()
+    } catch {
+      error.value = { message: 'Network error', code: 'NETWORK_ERROR' }
+      return null
+    } finally { loading.value = false }
+  }
+
+  async function rollback(configId: string, version: number) {
+    loading.value = true; error.value = null
+    try {
+      const resp = await fetch(`/api/configs/${configId}/versions/${version}/rollback`, { method: 'POST' })
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null)
+        error.value = { message: data?.error || data?.detail || '回滚失败', code: data?.code || 'ROLLBACK_ERROR' }
+        return null
+      }
+      return await resp.json()
+    } catch {
+      error.value = { message: 'Network error', code: 'NETWORK_ERROR' }
+      return null
+    } finally { loading.value = false }
+  }
+
+  return { loading, error, listVersions, getVersion, diffVersions, rollback }
+}
