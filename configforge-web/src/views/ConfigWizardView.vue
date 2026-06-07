@@ -944,19 +944,6 @@ watch(currentStep, (step, oldStep) => {
     saveMessages(aiMessages.value, store.configId)
   }
 
-  // Add transition message for user action
-  if (oldStep && step > oldStep) {
-    const transitionTexts: Record<number, string> = {
-      2: '确认场景信息，进入输入源配置',
-      3: '确认输入源，进入处理步骤配置',
-      4: '确认处理步骤，进入输出配置',
-      5: '确认输出配置，进入导出执行',
-    }
-    const text = transitionTexts[step] || '进入下一步'
-    aiMessages.value.push({ role: 'user', content: text, step, timestamp: Date.now() })
-    saveMessages(aiMessages.value, store.configId)
-  }
-
   lastGuidedStep.value = step
   // Only trigger AI for steps 1, 3, 4 (Step 2 has fixed messages)
   if (step !== 2) {
