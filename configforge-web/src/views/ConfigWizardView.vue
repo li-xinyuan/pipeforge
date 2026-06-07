@@ -158,7 +158,7 @@
         @orchestrate-regenerate="onOrchestrateRegenerate"
       />
 
-      <!-- Guide mode: fixed right panel (replaces floating panel when ?guide= present) -->
+      <!-- Guide mode: fixed right panel integrated into layout -->
       <AiChatPanel
         v-if="isGuideMode"
         mode="guide"
@@ -855,7 +855,14 @@ onUnmounted(() => {
   background: var(--color-bg);
 }
 .wizard--guide {
-  /* guide panel is floating (fixed position), wizard layout unchanged */
+  /* wizard stays column for AppNavBar on top */
+}
+.wizard--guide .wizard__main {
+  display: flex;
+  flex-direction: row;
+}
+.wizard--guide .wizard__main .wizard__steps {
+  flex: 1;
 }
 
 /* === Top Nav === */
