@@ -681,44 +681,55 @@ function onGuideAction(value: string) {
     return
   }
 
-  // Table assignment: detect any table-name-like selection in Step 2
-  // AI might generate buttons like "这是订单表" "对应订单表" "选为订单表" etc.
-  const tablePatterns = [
-    /是(.+表)/,       // "这是订单表"
-    /对应(.+表)/,     // "对应订单表"
-    /选为(.+表)/,     // "选为订单表"
-    /选择(.+表)/,     // "选择订单表"
-  ]
+  // Apply prefill from last AI message (table mapping, field assignments, etc.)
+  const lastAiMsg = [...aiMessages.value].reverse().find(m => m.role === 'ai')
+  if (currentStep.value === 2 && lastAiMsg?.prefill) {
+    const pf = lastAiMsg.prefill
+    // AI suggested table name mappings: { "input_0": "订单表", "input_1": "用户表" }
+    if (pf.table_names) {
+      const names = pf.table_names as Record<string, string>
+      for (const [idx, name] of Object.entries(names)) {
+        const i = parseInt(idx)
+        if (i >= 0 && i < store.inputs.length) {
+          store.updateInput(i, { ...store.inputs[i], table: name })
+        }
+      }
+    }
+    // AI suggested single table name for last input
+    if (pf.table_name && typeof pf.table_name === 'string') {
+      const last = store.inputs[store.inputs.length - 1]
+      if (last && (!last.table || last.table === '' || last.table === '新输入源')) {
+        store.updateInput(store.inputs.length - 1, { ...last, table: pf.table_name })
+      }
+    }
+  }
+
+  // Table assignment: button text contains table-like name
+  const tablePatterns = [/是(.+表)/, /对应(.+表)/, /选为(.+表)/, /选择(.+表)/]
   let matchedTable = ''
   for (const pat of tablePatterns) {
     const m = value.match(pat)
     if (m) { matchedTable = m[1]; break }
   }
-
   if (matchedTable && currentStep.value === 2) {
-    // Update the most recently added unnamed input's table
-    const inputs = store.inputs
-    let updated = false
-    for (let i = inputs.length - 1; i >= 0; i--) {
-      if (!inputs[i].table || inputs[i].table === '' || inputs[i].table === '新输入源') {
-        store.updateInput(i, { ...inputs[i], table: matchedTable })
-        updated = true
+    for (let i = store.inputs.length - 1; i >= 0; i--) {
+      if (!store.inputs[i].table || store.inputs[i].table === '' || store.inputs[i].table === '新输入源') {
+        store.updateInput(i, { ...store.inputs[i], table: matchedTable })
         break
       }
     }
-    if (!updated) {
-      // All named — update the last one
-      const last = inputs[inputs.length - 1]
-      if (last) store.updateInput(inputs.length - 1, { ...last, table: matchedTable })
-    }
-    aiMessages.value.push({
-      role: 'user',
-      content: `已确认：这个文件/数据源对应的是「${matchedTable}」`,
-      step: 2,
-      timestamp: Date.now(),
-    })
+  }
+
+  // For Step 2 non-action clicks: just log the message, DON'T re-trigger AI
+  // (otherwise AI re-analyzes and asks the same question again)
+  if (currentStep.value === 2 && !['excel', 'csv', 'database'].includes(value) && value !== 'confirm') {
+    aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
-    triggerStepGuide(2)
+    // Only trigger AI if table was matched (needs confirmation of the update)
+    if (matchedTable) {
+      triggerStepGuide(2)
+    }
+    // Otherwise just record the user's choice silently
     return
   }
 
