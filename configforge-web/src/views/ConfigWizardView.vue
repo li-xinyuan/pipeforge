@@ -624,7 +624,9 @@ function onGuideAction(value: string) {
         const inputCards = cardEl.querySelectorAll('[class*="card"]')
         const lastCard = inputCards[inputCards.length - 1] as HTMLElement
         if (lastCard) {
-          lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          const stepsEl = document.querySelector('.wizard__steps')
+          const top = lastCard.getBoundingClientRect().top + (stepsEl?.scrollTop || 0) - 80
+          stepsEl?.scrollTo({ top, behavior: 'smooth' })
         } else {
           scrollToStep(2)
         }
@@ -655,7 +657,9 @@ function onGuideAction(value: string) {
         const procCards = cardEl.querySelectorAll('[class*="card"]')
         const lastCard = procCards[procCards.length - 1] as HTMLElement
         if (lastCard) {
-          lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          const stepsEl = document.querySelector('.wizard__steps')
+          const top = lastCard.getBoundingClientRect().top + (stepsEl?.scrollTop || 0) - 80
+          stepsEl?.scrollTo({ top, behavior: 'smooth' })
         } else {
           scrollToStep(3)
         }
