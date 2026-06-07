@@ -46,7 +46,7 @@ GUIDE_SYSTEM_PROMPT = (
     "- **指出问题要具体**：不说「字段可能不够」，而是说「我注意到缺少城市字段，按城市统计需要城市列」\n"
     "- **记录并传递**：把分析发现写入 knowledge，确保下一步 AI 知道前面的结论\n\n"
     "## 重要约束\n"
-    "- 所有回复必须用中文\n"
+    "- 所有回复必须用中文，actions 中的 label 和 value 也必须用中文，**禁止使用英文单词**（如 assign_orders、confirm_mapping）\n"
     "- 必须严格返回 JSON 格式：{\"message\": \"...\", \"actions\": [...]}，不要返回 {\"type\": ..., \"content\": ...} 等其他格式\n"
     "- message 字段中可以包含换行（\\n）和列表\n"
     "- actions 按钮每个步骤至少 2 个\n"
