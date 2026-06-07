@@ -690,8 +690,17 @@ async function triggerStepGuide(step: number) {
   if (!isGuideMode.value) return
   suggesting.value = true
 
+  // Include recent conversation so AI has context of what was just discussed
+  const recentHistory = aiMessages.value.slice(-6).map(m => ({
+    role: m.role,
+    content: m.content?.slice(0, 200),
+    step: m.step,
+  }))
+
   // Build detailed context with all accumulated wizard knowledge
   const ctx: Record<string, any> = {
+    conversation_history: recentHistory,
+  }
     current_step: step,
     user_intent: guidePrompt.value,
     scene_name: store.scene.name,
