@@ -260,7 +260,7 @@ const showStep5Tip = ref(false)
 
 // AI messages
 const aiMessages = ref<ChatMessage[]>([
-  { role: 'ai', content: '你好！我是 ConfigForge AI 助手。我可以帮你分析数据列、生成处理代码、自动映射列，以及生成场景描述。' },
+  { role: 'ai', content: '你好！我是 ConfigForge AI 助手。我可以帮你分析数据列、生成处理代码、自动映射列。' },
 ])
 const orchestrateMode = ref(false)
 
@@ -282,7 +282,7 @@ const aiQuickActions = computed(() => {
     if (currentStep.value === 3) return ['解释代码', '优化代码']
     return []
   }
-  const actions = ['生成场景描述', 'AI 分析列', 'AI 生成代码', 'AI 自动映射']
+  const actions = ['AI 分析列', 'AI 生成代码', 'AI 自动映射']
   if (store.inputs.length > 0) actions.unshift('AI 编排步骤链')
   return actions
 })
@@ -519,26 +519,6 @@ async function onAiQuickAction(action: string) {
       }
     } else {
       aiMessages.value.push({ role: 'ai', content: 'AI 映射失败。请确认 AI 设置正确且后端服务正在运行。' })
-    }
-  } else if (action === '生成场景描述') {
-    const result = await askSuggestion('scene', {
-      name: store.scene.name,
-      description: store.scene.description,
-    })
-    if (result) {
-      try {
-        const parsed = JSON.parse(result)
-        if (parsed.description) {
-          store.scene.description = parsed.description
-          aiMessages.value.push({ role: 'ai', content: '已生成场景描述并填入步骤 1。' })
-        } else {
-          aiMessages.value.push({ role: 'ai', content: result })
-        }
-      } catch {
-        aiMessages.value.push({ role: 'ai', content: result })
-      }
-    } else {
-      aiMessages.value.push({ role: 'ai', content: 'AI 请求失败。请确认 AI 设置正确且后端服务正在运行。' })
     }
   }
 }
