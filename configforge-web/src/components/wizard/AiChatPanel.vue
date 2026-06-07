@@ -20,7 +20,7 @@
               <button v-for="(act, ai) in msg.actions" :key="ai"
                 class="ai-guide-action-btn"
                 :class="{ 'ai-guide-action-btn--primary': act.style === 'primary' }"
-                @click="$emit('guideAction', act.value)">{{ act.label }}</button>
+                @click="$emit('guideAction', act.value, act.label)">{{ act.label }}</button>
             </div>
           </div>
         </div>
@@ -127,7 +127,7 @@ const emit = defineEmits<{
   toggle: []
   'orchestrate-confirm': [result: any]
   'orchestrate-regenerate': []
-  guideAction: [value: string]
+  guideAction: [value: string, label?: string]
   cancelGuide: []
 }>()
 

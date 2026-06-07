@@ -630,7 +630,7 @@ function onGuideSend(text: string) {
   triggerStepGuide(currentStep.value)
 }
 
-function onGuideAction(value: string) {
+function onGuideAction(value: string, label?: string) {
   // === Actions that trigger real changes + AI follow-up ===
 
   // Step 2: add input (Excel/CSV/数据库)
@@ -713,14 +713,15 @@ function onGuideAction(value: string) {
   }
 
   // === Everything else: just record the user's choice + update table name if applicable ===
-  // When user clicks table assignment button, update the input's table name
+  // Use label (Chinese) for table name extraction since value may be English
+  const btnText = label || value
   if (currentStep.value === 2) {
-    const m = value.match(/(?:是|对应|选为|选择)(.+)/)
+    const m = btnText.match(/(?:是|对应|选为|选择)\s*(.+)/)
     if (m && store.inputs.length > 0) {
-      const name = m[1]
-      // Always update the last input (user is answering about the most recently added one)
-      const lastIdx = store.inputs.length - 1
-      store.updateInput(lastIdx, { ...store.inputs[lastIdx], table: name })
+      const name = m[1].replace(/[？?！!。，,、\s]/g, '').trim()
+      if (name) {
+        store.updateInput(store.inputs.length - 1, { ...store.inputs[store.inputs.length - 1], table: name })
+      }
     }
   }
   aiMessages.value.push({ role: 'user', content: value, step: currentStep.value, timestamp: Date.now() })
