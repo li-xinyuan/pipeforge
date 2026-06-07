@@ -928,6 +928,21 @@ watch(currentStep, (step, oldStep) => {
   if (step === 2 && Object.keys(store.plan).length === 0) {
     generateDefaultPlan()
   }
+  // Step 2: fixed system welcome (not AI)
+  if (step === 2 && oldStep === 1) {
+    aiMessages.value.push({
+      role: 'ai',
+      content: '请上传输入源信息，类型可以是Excel、CSV、Database。',
+      step: 2, type: 'guide',
+      actions: [
+        { label: '📊 Excel 文件', value: 'excel' },
+        { label: '🗄 CSV 文件', value: 'csv' },
+        { label: '🔌 数据库', value: 'database' },
+      ],
+      timestamp: Date.now(),
+    })
+    saveMessages(aiMessages.value, store.configId)
+  }
 
   // Add transition message for user action
   if (oldStep && step > oldStep) {
@@ -943,7 +958,10 @@ watch(currentStep, (step, oldStep) => {
   }
 
   lastGuidedStep.value = step
-  triggerStepGuide(step)
+  // Only trigger AI for steps 1, 3, 4 (Step 2 has fixed messages)
+  if (step !== 2) {
+    triggerStepGuide(step)
+  }
 })
 
 function onPageScroll() {
