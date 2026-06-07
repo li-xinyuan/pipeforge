@@ -858,13 +858,21 @@ function generateDefaultPlan() {
   const text = name + desc
 
   // Detect expected tables from scene text
-  const tableMatches = text.match(/[^\s，,。\.、]{2,8}(?:表|数据|文件)/g) || []
+  const tableMatches: string[] = []
+  const parts = text.split(/[,，、\s和与及关联合并]+/)
+  for (const part of parts) {
+    const m = part.match(/(.{1,6}表)/)
+    if (m) tableMatches.push(m[1])
+  }
   const expectedTables = [...new Set(tableMatches)]
-  const tableCount = Math.max(1, expectedTables.length)
+  // Also check for keywords suggesting multiple inputs
+  const hasMultiple = /和|与|及|关联|合并|join|JOIN/i.test(text)
+  const tableCount = Math.max(1, expectedTables.length || (hasMultiple ? 2 : 1))
 
   // Default: 1 processing step, 1 output
+  const step2Items = expectedTables.length > 0 ? expectedTables : Array.from({ length: tableCount }, (_, i) => `数据源 ${i + 1}`)
   store.setPlan({
-    2: { total: tableCount, items: expectedTables.length > 0 ? expectedTables : [`${tableCount} 个数据源`] },
+    2: { total: tableCount, items: step2Items },
     3: { total: 1, items: ['数据处理逻辑'] },
     4: { total: 1, items: ['输出配置'] },
   })
