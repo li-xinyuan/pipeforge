@@ -742,9 +742,25 @@ function onGuideAction(value: string, label?: string) {
 
   // AI analysis on demand
   if (value === 'analyze_columns') {
-    aiMessages.value.push({ role: 'user', content: '分析数据是否符合场景需求', step: 2, timestamp: Date.now() })
+    aiMessages.value.push({ role: 'user', content: '分析数据是否符合场景需求并推荐表名', step: 2, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
-    triggerStepGuide(2)  // call AI with column context
+    // Build specific instruction for column analysis
+    const lastInput = store.inputs[store.inputs.length - 1]
+    if (lastInput) {
+      const meta = store.uploadedFiles[lastInput.fileId]
+      if (meta?.columns) {
+        const cols = meta.columns
+        const rows = (meta.sampleRows || []).slice(0, 10)
+        const rowStr = rows.length > 0 ? '\\n前' + rows.length + '行数据：' + JSON.stringify(rows) : ''
+        aiMessages.value.push({
+          role: 'ai',
+          content: `已分析文件列名：${cols.join('、')}。正在分析数据内容是否符合场景「${store.scene.name}」的需求...`,
+          step: 2, type: 'guide', timestamp: Date.now(),
+        })
+        saveMessages(aiMessages.value, store.configId)
+      }
+    }
+    triggerStepGuide(2)
     return
   }
 
