@@ -17,7 +17,7 @@
         </p>
 
         <!-- AI 可用：输入框 + 引导按钮 -->
-        <template v-if="aiConfigured !== false">
+        <template v-if="showAiEntry">
           <div class="home__prompt-input-wrap">
             <input
               class="home__prompt-input"
@@ -29,7 +29,7 @@
           </div>
           <button class="home__cta" @click="startAiGuide">✨ AI 引导配置</button>
 
-          <div class="home__prompt-chips" v-if="aiConfigured !== false">
+          <div class="home__prompt-chips" v-if="showAiEntry">
             <span class="home__prompt-label">试试这样说</span>
             <button class="home__prompt-chip" @click="startWithPrompt('把用户表的 ID、名称和邮箱导出到 CSV')">导出用户表到 CSV</button>
             <button class="home__prompt-chip" @click="startWithPrompt('合并订单表和用户表，按城市统计订单金额')">合并并统计订单</button>
@@ -153,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfigApi, type PaginatedResponse } from '../composables/useConfigApi'
 import { useWizardStore } from '../stores/wizard'
@@ -173,6 +173,7 @@ const { listConfigs, deleteConfig, downloadConfigYaml } = useConfigApi()
 
 const { aiConfigured, checkStatus: checkAiStatus } = useAiStatus()
 const promptText = ref('')
+const showAiEntry = computed(() => aiConfigured.value !== false)
 const loading = ref(true)
 const error = ref('')
 const configs = ref<PaginatedResponse<SavedConfig>>({ items: [], total: 0, page: 1, page_size: 10, total_pages: 1 })
