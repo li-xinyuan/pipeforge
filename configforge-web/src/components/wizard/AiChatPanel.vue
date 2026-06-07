@@ -16,7 +16,7 @@
           <div class="ai-guide-msg-bubble" :class="msg.type ? `ai-guide-msg-bubble--${msg.type}` : ''">
             <span v-if="msg.step" class="ai-guide-msg-step">步骤 {{ msg.step }}</span>
             <span class="ai-guide-msg-text" v-html="getGuideDisplayContent(msg, i)"></span>
-            <div v-if="msg.actions?.length" class="ai-guide-msg-actions">
+            <div v-if="msg.actions?.length && i === messages.length - 1" class="ai-guide-msg-actions">
               <button v-for="(act, ai) in msg.actions" :key="ai"
                 class="ai-guide-action-btn"
                 :class="{ 'ai-guide-action-btn--primary': act.style === 'primary' }"
