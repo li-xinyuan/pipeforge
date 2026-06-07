@@ -100,61 +100,46 @@ export function useAiGuide() {
     inputs: any[], inputCount: number,
     uploadedFiles: any[]
   ): string {
-    // 分析已添加的输入源
-    const addedList = inputs.length > 0
-      ? inputs.map((i: any) => `- ${i.name || '未命名'}（类型：${i.plugin || '未知'}，列：${(i.columns || []).join('、') || '未上传'}）`).join('\n')
-      : '（尚未添加任何输入源）'
+    // Only include Step 2 context — no other steps
+    const hasInputs = inputCount > 0
+    const addedDesc = hasInputs
+      ? `已添加 ${inputCount} 个输入源：${inputs.map((i: any) => i.paramKey || i.table || '未命名').join('、')}`
+      : '尚未添加任何输入源'
 
-    // 已上传文件的列信息
-    const fileDetails = uploadedFiles.length > 0
-      ? uploadedFiles.map((f: any) => `- 文件「${f.name}」：${(f.columns || []).length} 列 → ${(f.columns || []).join('、')}`).join('\n')
-      : '（尚未上传文件）'
+    const sceneInfo = desc
+      ? `场景名称：${scene}。场景描述：${desc}`
+      : `场景名称：${scene}`
+
+    // Detect expected tables from scene name
+    const tablesFromScene = detectTables(scene)
 
     return (
-      `## 当前步骤：第 2 步 — 输入源配置\n\n` +
-      `## 场景目标\n` +
-      `场景名称：${scene}\n` +
-      `场景描述：${desc}\n\n` +
-      `## 当前状态\n` +
-      `已添加输入源：${inputCount} 个\n${addedList}\n\n` +
-      `已上传文件详情：\n${fileDetails}\n\n` +
-      `## 你的分析任务（按优先级）\n\n` +
-      `### 1. 识别需要的输入源\n` +
-      `仔细分析场景名称和描述，列出其中提到的所有数据表/数据源。\n` +
-      `- 例如"订单表和用户表"→ 需要 2 个输入源：订单表、用户表\n` +
-      `- 例如"销售数据"→ 需要 1 个输入源：销售数据\n` +
-      `- 如果场景没明确说几个表，根据业务常识推断\n\n` +
-      `### 2. 检查是否已满足（逐个对比）\n` +
-      `- 需要的输入源数量 vs 已添加数量\n` +
-      `- 如果数量不够：明确告诉用户还缺哪个，引导添加下一个\n` +
-      `- 如果数量够了：进入字段分析\n\n` +
-      `### 3. 字段分析（仅当输入源数量满足时执行）\n` +
-      `对每个已上传文件的列进行分析：\n` +
-      `- 列的语义是否与场景需求匹配？（如场景要"按城市统计"但列中没有城市字段 → 提醒用户）\n` +
-      `- 表之间的关联字段是否存在？（如订单表和用户表需要共同的关联列如 user_id）\n` +
-      `- 缺少关键字段时：明确告诉用户"我注意到缺少 XX 字段，请确认"（用选择题）\n` +
-      `- 字段齐全时：告诉用户"字段检查通过"，记录关联关系备用\n\n` +
-      `### 4. 记录知识\n` +
-      `把你分析出的信息记录到 prefill.knowledge 中，供后续步骤使用：\n` +
-      `- tables: [{name, plugin, columns, role}]\n` +
-      `- relationships: [{from_table, from_column, to_table, to_column}]\n\n` +
-      `## 回复格式（JSON）\n` +
-      `{\n` +
-      `  "message": "引导消息（先分析场景需要几个表→对比当前状态→给出下一步建议）",\n` +
-      `  "actions": [选择题按钮],\n` +
-      `  "prefill": {\n` +
-      `    "knowledge": { "tables": [...], "relationships": [...] }\n` +
-      `  }\n` +
-      `}\n\n` +
-      `## 示例消息（无输入源时）\n` +
-      `"我分析了你的场景，识别到 2 个数据源需要配置：\n` +
-      `1. 📊 订单表 — 包含订单明细\n` +
-      `2. 📊 用户表 — 包含用户信息\n\n` +
-      `我们先配置第一个——订单表的数据格式是什么？"\n\n` +
-      `## 示例消息（有输入源但字段不全时）\n` +
-      `"我检查了用户表的列（id, name），发现缺少「城市」字段。\n` +
-      `你的场景需要按城市统计，请确认：城市信息在哪个列？或者用户表是否包含城市字段？"`
+      `【严格指令 — 只执行以下内容，不要偏离】\n\n` +
+      `用户正在配置数据流水线的第 2 步：输入源。\n` +
+      `不要提及其他步骤（第3步、第4步等），只聚焦当前第2步。\n\n` +
+      `场景信息（来自第1步）：\n${sceneInfo}\n\n` +
+      `当前第2步状态：${addedDesc}\n\n` +
+      (tablesFromScene.length > 0
+        ? `我分析场景后识别到 ${tablesFromScene.length} 个数据源：${tablesFromScene.join('、')}\n`
+        : '') +
+      `你需要：\n` +
+      (hasInputs
+        ? `用户已添加了输入源。检查：场景需要的数据源是否都添加完了？还缺什么？告诉用户还差几个，引导继续添加。\n`
+        : `用户还没添加输入源。告诉用户根据场景分析，需要哪些数据源，引导用户逐一添加。\n`) +
+      `\n【必须以 JSON 格式回复，禁止返回普通文本】\n` +
+      `{"message": "你的引导消息（只谈第2步，不要提其他步骤）", "actions": [{"label": "选项文字", "value": "xxx"}]}\n\n` +
+      `actions 必须包含输入类型选项：\n` +
+      `{"label": "📊 Excel 文件", "value": "excel"}, {"label": "🗄 CSV 文件", "value": "csv"}, {"label": "🔌 数据库", "value": "database"}\n\n` +
+      `引导消息示例（无输入源时）：\n` +
+      `"根据场景「${scene}」，你需要配置${tablesFromScene.length > 0 ? tablesFromScene.length + '个数据源：' + tablesFromScene.join('、') : '数据输入源'}。我们先从第一个开始——数据格式是什么？"`
     )
+  }
+
+  /** Simple heuristic to detect table names from scene text */
+  function detectTables(text: string): string[] {
+    const matches = text.match(/[^\s，,。\.、]{2,8}(?:表|数据|文件)/g)
+    if (!matches) return []
+    return [...new Set(matches)]
   }
 
   // ============================================================

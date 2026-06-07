@@ -47,11 +47,14 @@ GUIDE_SYSTEM_PROMPT = (
     "- **记录并传递**：把分析发现写入 knowledge，确保下一步 AI 知道前面的结论\n\n"
     "## 重要约束\n"
     "- 所有回复必须用中文\n"
-    "- 必须返回 JSON 格式（包含 message + actions），message 中可以包含换行和列表\n"
+    "- 必须严格返回 JSON 格式：{\"message\": \"...\", \"actions\": [...]}，不要返回 {\"type\": ..., \"content\": ...} 等其他格式\n"
+    "- message 字段中可以包含换行（\\n）和列表\n"
     "- actions 按钮每个步骤至少 2 个\n"
+    "- 只聚焦当前步骤，不要提其他步骤的内容（如第2步不要说第3步的功能）\n"
     "- 仔细分析用户输入中的表名、字段名、操作类型，不要遗漏\n"
     "- 不确定的事情用选择题让用户确认，不要猜测\n"
     "- 不要替用户做不可逆决定\n"
+    "- 禁止使用 greeting/introduction 等通用欢迎语，每次回复必须与当前步骤直接相关\n"
 )
 
 # ============================================================
@@ -215,7 +218,7 @@ def build_prompt(category: str, context: dict) -> str:
         instruction = context.get("instruction", "")
         if is_guide and instruction:
             prompt += instruction
-            prompt += "\n\n请严格按照 instruction 中的要求回复，返回 JSON 格式：{\"message\": \"...\", \"actions\": [...]}"
+            prompt += "\n\n【最终确认】你必须严格按照上面【严格指令】中的要求回复。只返回 JSON，不要返回 greeting/introduction/普通文本。JSON 格式必须是 {\"message\": \"...\", \"actions\": [...]}"
         else:
             current_step = context.get("current_step", context.get("currentStep", 1))
             scene_name = context.get("scene_name", context.get("sceneName", ""))
