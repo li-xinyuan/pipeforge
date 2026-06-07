@@ -715,8 +715,22 @@ function applyPrefill(prefill: Record<string, any>, step: number) {
 }
 
 // Watch currentStep for guide mode
-watch(currentStep, (step) => {
+watch(currentStep, (step, oldStep) => {
   if (!isGuideMode.value || step === lastGuidedStep.value) return
+
+  // Add transition message for user action
+  if (oldStep && step > oldStep) {
+    const transitionTexts: Record<number, string> = {
+      2: '确认场景信息，进入输入源配置',
+      3: '确认输入源，进入处理步骤配置',
+      4: '确认处理步骤，进入输出配置',
+      5: '确认输出配置，进入导出执行',
+    }
+    const text = transitionTexts[step] || '进入下一步'
+    aiMessages.value.push({ role: 'user', content: text, step, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+  }
+
   lastGuidedStep.value = step
   triggerStepGuide(step)
 })
@@ -731,10 +745,15 @@ onMounted(async () => {
   // Guide mode initialization
   if (isGuideMode.value && !guideInitialized.value) {
     guideInitialized.value = true
-    const history = loadMessages(store.configId)
+    // Only load history if we have a real config (editing), not for new configs
+    const history = store.configId ? loadMessages(store.configId) : []
     if (history.length > 0) {
       aiMessages.value = history
     } else {
+      // Clear any stale "new" history
+      if (!store.configId) {
+        try { localStorage.removeItem('configforge-chat-history-new') } catch {}
+      }
       const result = await startGuide(guidePrompt.value)
       const msg: ChatMessage = {
         role: 'ai', content: result.message, step: 1, type: 'guide',

@@ -50,11 +50,20 @@ export function useAiGuide() {
       description: userInput,
     })
     if (!content) {
-      return { message: '抱歉，AI 暂时不可用。你可以手动填写表单，或者先去设置页配置 AI。' }
+      // AI unavailable — give clear manual instruction
+      return {
+        message: '场景名称已根据你的描述自动填入。你可以完善场景描述，或直接点击下方闪烁的「下一步」按钮进入输入源配置。',
+        actions: [{ label: '✅ 确认，下一步', value: 'confirm', style: 'primary' }],
+        prefill: { 'scene.name': extractSceneName(userInput) },
+      }
     }
     const guide = parseGuideResponse(content)
     if (!guide.prefill) {
       guide.prefill = { 'scene.name': extractSceneName(userInput) }
+    }
+    // Ensure actions exist for Step 1
+    if (!guide.actions || guide.actions.length === 0) {
+      guide.actions = [{ label: '✅ 确认，下一步', value: 'confirm', style: 'primary' }]
     }
     return guide
   }
