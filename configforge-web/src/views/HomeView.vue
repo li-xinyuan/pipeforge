@@ -4,34 +4,53 @@
 
     <AiStatusBanner />
 
-    <!-- Hero section -->
+    <!-- Hero section — dual entry -->
     <section class="home__hero">
       <div class="home__hero-inner">
-        <div class="home__hero-badge">⚡ AI 驱动的数据流水线配置工具</div>
+        <div class="home__hero-badge">⚡ AI 驱动 · 你说需求，AI 填配置</div>
         <h1 class="home__hero-title">
-          用自然语言描述需求<br>
-          <span class="home__hero-gradient">AI 自动生成配置</span>
+          描述你的数据处理需求<br>
+          <span class="home__hero-gradient">Forge 帮你自动生成配置</span>
         </h1>
         <p class="home__hero-subtitle">
-          5 步向导帮你把数据处理需求变成可运行的配置文件。支持 AI 辅助 SQL 生成与列映射，所有数据本地处理，不上传至外部服务。
+          用自然语言告诉我你想做什么<br>进入向导后，我会一步步引导你完成配置
         </p>
-        <div v-if="!loading && configs.items.length === 0" class="home__hero-anim">
-          <PipelineAnimation />
-        </div>
-        <div class="home__hero-actions">
-          <NButton type="primary" size="large" class="btn-primary" @click="startNewConfig">
-            ✏ 开始新配置
-          </NButton>
-          <NButton size="large" class="btn-secondary" @click="router.push('/guide')">
-            📖 使用指南
-          </NButton>
-        </div>
-        <div class="home__prompt-chips">
-          <span class="home__prompt-label">试试这样说</span>
-          <button class="home__prompt-chip" @click="startWithPrompt('把用户表的 ID、名称和邮箱导出到 CSV')">把用户表的 ID、名称和邮箱导出到 CSV</button>
-          <button class="home__prompt-chip" @click="startWithPrompt('合并订单表和用户表，按城市统计订单金额')">合并订单表和用户表，按城市统计订单金额</button>
-          <button class="home__prompt-chip" @click="startWithPrompt('从 API 获取天气数据，清洗后写入数据库')">从 API 获取天气数据，清洗后写入数据库</button>
-        </div>
+
+        <!-- AI 可用：输入框 + 引导按钮 -->
+        <template v-if="aiConfigured !== false">
+          <div class="home__prompt-input-wrap">
+            <input
+              class="home__prompt-input"
+              v-model="promptText"
+              placeholder="例如：把订单表和用户表关联，按城市统计订单金额，导出 Excel"
+              @keydown.enter="startAiGuide"
+            />
+            <button class="home__prompt-mic" @click="onVoicePlaceholder" title="语音输入（下版本支持）">🎤</button>
+          </div>
+          <button class="home__cta" @click="startAiGuide">✨ AI 引导配置</button>
+
+          <div class="home__prompt-chips" v-if="aiConfigured !== false">
+            <span class="home__prompt-label">试试这样说</span>
+            <button class="home__prompt-chip" @click="startWithPrompt('把用户表的 ID、名称和邮箱导出到 CSV')">导出用户表到 CSV</button>
+            <button class="home__prompt-chip" @click="startWithPrompt('合并订单表和用户表，按城市统计订单金额')">合并并统计订单</button>
+            <button class="home__prompt-chip" @click="startWithPrompt('从数据库读取销售数据，按月份汇总，写入数据库')">月度销售汇总</button>
+          </div>
+        </template>
+
+        <!-- AI 不可用：灰掉输入框 + 引导到设置 -->
+        <template v-else>
+          <div class="home__prompt-input-wrap">
+            <input
+              class="home__prompt-input home__prompt-input--disabled"
+              disabled
+              placeholder="需先配置 AI 才能使用智能引导"
+            />
+          </div>
+          <button class="home__cta home__cta--secondary" @click="router.push('/settings')">前往设置 →</button>
+        </template>
+
+        <!-- 手动创建入口始终可见 -->
+        <a class="home__manual-link" @click.prevent="startManualCreate">或 手动创建 →</a>
       </div>
     </section>
 
@@ -140,6 +159,7 @@ import { useConfigApi, type PaginatedResponse } from '../composables/useConfigAp
 import { useWizardStore } from '../stores/wizard'
 import type { SavedConfig } from '../types/wizard'
 import { NButton, NInput, NAlert, NModal, NTag, NDropdown, useMessage } from 'naive-ui'
+import { useAiStatus } from '../composables/useAiStatus'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import ExecuteConfigModal from '../components/ExecuteConfigModal.vue'
 import ConfigVersionPanel from '../components/config/ConfigVersionPanel.vue'
@@ -151,6 +171,8 @@ const store = useWizardStore()
 const message = useMessage()
 const { listConfigs, deleteConfig, downloadConfigYaml } = useConfigApi()
 
+const { aiConfigured, checkStatus: checkAiStatus } = useAiStatus()
+const promptText = ref('')
 const loading = ref(true)
 const error = ref('')
 const configs = ref<PaginatedResponse<SavedConfig>>({ items: [], total: 0, page: 1, page_size: 10, total_pages: 1 })
@@ -171,14 +193,32 @@ const executingConfig = ref<SavedConfig | null>(null)
 const versionModalVisible = ref(false)
 const versionModalConfigId = ref<string | null>(null)
 
-function startNewConfig() {
+function startAiGuide() {
+  if (!promptText.value.trim()) return
   store.resetAll()
+  store.scene.name = promptText.value.trim().length > 30
+    ? promptText.value.trim().slice(0, 30) + '...'
+    : promptText.value.trim()
+  router.push('/config/new?guide=' + encodeURIComponent(promptText.value.trim()))
+}
+
+function startWithPrompt(text: string) {
+  promptText.value = text
+  startAiGuide()
+}
+
+function startManualCreate() {
+  store.resetAll()
+  if (promptText.value.trim()) {
+    store.scene.name = promptText.value.trim().length > 30
+      ? promptText.value.trim().slice(0, 30) + '...'
+      : promptText.value.trim()
+  }
   router.push('/config/new')
 }
 
-function startWithPrompt(prompt: string) {
-  store.resetAll()
-  router.push('/config/new?prompt=' + encodeURIComponent(prompt))
+function onVoicePlaceholder() {
+  message.info('语音输入即将在下一版本支持')
 }
 
 async function fetchConfigs() {
@@ -193,7 +233,7 @@ async function fetchConfigs() {
   loading.value = false
 }
 
-onMounted(() => { fetchConfigs() })
+onMounted(() => { checkAiStatus(); fetchConfigs() })
 
 function goToPage(page: number) {
   currentPage.value = page
@@ -525,6 +565,72 @@ function formatTime(iso: string): string {
 .config-name-link:hover {
   text-decoration: underline;
 }
+
+/* ───── Dual entry hero ───── */
+.home__prompt-input-wrap {
+  position: relative;
+  max-width: 520px;
+  margin: 0 auto 14px;
+}
+.home__prompt-input {
+  width: 100%;
+  padding: 14px 48px 14px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--color-border-light);
+  background: var(--color-surface);
+  font-size: 15px;
+  color: var(--color-text);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+.home__prompt-input:focus { border-color: var(--color-primary); }
+.home__prompt-input--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.home__prompt-mic {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+.home__prompt-mic:hover { background: var(--color-surface-hover); }
+.home__cta {
+  padding: 12px 40px;
+  border-radius: 12px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #fff;
+  margin-bottom: 14px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.home__cta:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(13,148,136,0.3); }
+.home__cta--secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-light);
+}
+.home__cta--secondary:hover { transform: none; box-shadow: none; background: var(--color-surface-hover); }
+.home__manual-link {
+  display: inline-block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.home__manual-link:hover { color: var(--color-primary); }
 
 /* ───── Responsive: Tablet ───── */
 @media (max-width: 1023px) {
