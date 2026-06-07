@@ -190,6 +190,7 @@ import { useWizardStore } from '../stores/wizard'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useAiGuide } from '../composables/useAiGuide'
 import { useConversationHistory } from '../composables/useConversationHistory'
+import { useColumnDiff } from '../composables/useColumnDiff'
 import { useTheme } from '../composables/useTheme'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import { NButton } from 'naive-ui'
@@ -271,6 +272,10 @@ const guidePrompt = computed(() => (route.query.guide as string) || '')
 const guideInitialized = ref(false)
 const lastGuidedStep = ref(0)
 
+// Column change detection
+const { extractSelectColumns, diffColumns } = useColumnDiff()
+let lastKnownSelectColumns: string[] = []
+
 // Guide mode: hide orchestrate, show step-relevant actions only
 const aiQuickActions = computed(() => {
   if (isGuideMode.value) {
@@ -306,6 +311,32 @@ const progressSteps = computed<StepState[]>(() => [
 
 // Navigation
 function completeStep(n: number) {
+  // Step 3→4: detect column changes
+  if (n === 3 && isGuideMode.value) {
+    const sqlProcessor = store.processors.find(p => p.plugin === 'sql')
+    if (sqlProcessor?.sql) {
+      const currentCols = extractSelectColumns(sqlProcessor.sql)
+      const outputCols = ((store.output?.config as any)?.columns || []).map((c: any) => c.source)
+      if (lastKnownSelectColumns.length > 0 && outputCols.length > 0) {
+        const diff = diffColumns(lastKnownSelectColumns, currentCols)
+        if (diff.hasChanges) {
+          aiMessages.value.push({
+            role: 'ai',
+            content: `SQL 输出列已变更（新增 ${diff.added.length} 列，移除 ${diff.removed.length} 列），是否更新列映射？`,
+            step: 4, type: 'warning',
+            actions: [
+              { label: '更新列映射', value: 'update_column_mapping', style: 'primary' },
+              { label: '保持不变', value: 'keep_columns' },
+            ],
+            timestamp: Date.now(),
+          })
+          saveMessages(aiMessages.value, store.configId)
+        }
+      }
+      lastKnownSelectColumns = currentCols
+    }
+  }
+
   if (n < 5) {
     currentStep.value = n + 1
     scrollToStep(n + 1)
