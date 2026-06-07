@@ -925,8 +925,8 @@ watch(currentStep, (step, oldStep) => {
   if (step === 2 && Object.keys(store.plan).length === 0) {
     generateDefaultPlan()
   }
-  // Step 2: fixed system welcome (not AI)
-  if (step === 2 && oldStep === 1) {
+  // Step 2: fixed system welcome (not AI) — only if no inputs yet
+  if (step === 2 && oldStep === 1 && store.inputs.length === 0) {
     aiMessages.value.push({
       role: 'ai',
       content: '请上传输入源信息，类型可以是Excel、CSV、Database。',
@@ -958,6 +958,11 @@ onMounted(async () => {
   // Guide mode initialization
   if (isGuideMode.value && !guideInitialized.value) {
     guideInitialized.value = true
+    // Clear stale state for fresh guide session
+    if (!store.configId) {
+      store.resetAll()
+      try { localStorage.removeItem('wizard_state_v2') } catch {}
+    }
     // Only load history if we have a real config (editing), not for new configs
     const history = store.configId ? loadMessages(store.configId) : []
     if (history.length > 0) {
