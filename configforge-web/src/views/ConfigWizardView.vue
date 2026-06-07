@@ -841,6 +841,17 @@ async function triggerStepGuide(step: number) {
   if (result.prefill?.knowledge?.plan) {
     store.setPlan(result.prefill.knowledge.plan)
   }
+  // Step 3: extract SQL from AI response if not in prefill
+  if (step === 3 && result.prefill && !result.prefill['sql']) {
+    // Try root-level sql from suggest endpoint
+    try {
+      const raw = JSON.parse(result.message || '{}')
+      if (raw.sql) {
+        result.prefill['sql'] = raw.sql
+        result.prefill['outputTables'] = raw.outputTables || raw.output_tables || []
+      }
+    } catch {}
+  }
 
   saveMessages(aiMessages.value, store.configId)
   if (result.prefill) applyPrefill(result.prefill, step)
@@ -860,6 +871,20 @@ function applyPrefill(prefill: Record<string, any>, step: number) {
     for (const inputType of prefill['suggested_inputs']) {
       if (['excel', 'csv', 'database'].includes(inputType) && store.inputs.length === 0) {
         store.addInput(inputType as 'excel' | 'csv' | 'database')
+      }
+    }
+  }
+  // Step 3: AI suggests SQL code → auto-create processor and fill code
+  if (step === 3) {
+    if (prefill['sql'] && store.processors.length === 0) {
+      store.addProcessor('sql')
+      const proc = store.processors[store.processors.length - 1]
+      if (proc && proc.plugin === 'sql') {
+        store.updateProcessor(store.processors.length - 1, {
+          ...proc,
+          sql: prefill['sql'],
+          outputTables: prefill['outputTables'] || prefill['output_tables'] || ['step_3_output'],
+        })
       }
     }
   }
