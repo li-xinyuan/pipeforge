@@ -714,13 +714,7 @@ function onGuideAction(value: string, label?: string) {
     return
   }
 
-  // Step 3/4 actions
-  if (value === 'suggest_checkpoints') {
-    aiMessages.value.push({ role: 'user', content: '帮我推荐检查点', step: 3, timestamp: Date.now() })
-    saveMessages(aiMessages.value, store.configId)
-    triggerStepGuide(3)
-    return
-  }
+  // Step 4 actions
   if (value === 'update_column_mapping') {
     aiMessages.value.push({ role: 'user', content: '更新列映射', step: 4, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
@@ -757,7 +751,7 @@ function onGuideAction(value: string, label?: string) {
   }
 
   // Dismiss actions → just record, no AI trigger
-  if (['skip_checkpoints', 'keep_columns'].includes(value)) {
+  if (['keep_columns'].includes(value)) {
     aiMessages.value.push({ role: 'user', content: '跳过', step: currentStep.value, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
     return
@@ -846,20 +840,6 @@ async function triggerStepGuide(step: number) {
   // Parse AI-generated plan from prefill.knowledge, or use default
   if (result.prefill?.knowledge?.plan) {
     store.setPlan(result.prefill.knowledge.plan)
-  }
-
-  // Step 3: proactively suggest checkpoints
-  if (step === 3 && store.processors.length > 0) {
-    aiMessages.value.push({
-      role: 'ai',
-      content: '需要我帮你设置数据检查点吗？比如确保输出行数不为零、关键列不重复等。你可以用自然语言描述检查规则。',
-      step: 3, type: 'suggestion',
-      actions: [
-        { label: '💡 帮我推荐', value: 'suggest_checkpoints', style: 'primary' },
-        { label: '⏭ 先跳过', value: 'skip_checkpoints' },
-      ],
-      timestamp: Date.now(),
-    })
   }
 
   saveMessages(aiMessages.value, store.configId)
