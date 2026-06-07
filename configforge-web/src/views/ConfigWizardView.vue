@@ -667,8 +667,46 @@ function onGuideAction(value: string) {
     return
   }
 
+  // Step 5 actions
+  if (value === 'download_yaml') {
+    aiMessages.value.push({ role: 'user', content: '下载 YAML', step: 5, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    nextTick(() => yamlPreviewRef.value?.loadYaml())
+    return
+  }
+  if (value === 'execute_pipeline') {
+    aiMessages.value.push({ role: 'user', content: '执行流水线', step: 5, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    // Trigger execute modal or download action
+    return
+  }
+  if (value === 'edit') {
+    // Go back to edit — navigate to previous step
+    aiMessages.value.push({ role: 'user', content: '返回修改', step: currentStep.value, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    return
+  }
+
+  // Step 3/4 actions
+  if (value === 'suggest_checkpoints') {
+    aiMessages.value.push({ role: 'user', content: '帮我推荐检查点', step: 3, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    triggerStepGuide(3)
+    return
+  }
+  if (value === 'update_column_mapping') {
+    aiMessages.value.push({ role: 'user', content: '更新列映射', step: 4, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    // Trigger column remapping (clear + AI re-generate)
+    if (store.output?.config) {
+      (store.output.config as any).columns = []
+    }
+    triggerStepGuide(4)
+    return
+  }
+
   // Dismiss actions → just record, no AI trigger
-  if (['skip_checkpoints', 'keep_columns', 'skip'].includes(value)) {
+  if (['skip_checkpoints', 'keep_columns'].includes(value)) {
     aiMessages.value.push({ role: 'user', content: '跳过', step: currentStep.value, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
     return
