@@ -16,7 +16,7 @@
         <div v-for="(msg, i) in messages" :key="i" class="ai-guide-msg" :class="`ai-guide-msg--${msg.role}`">
           <div class="ai-guide-msg-bubble" :class="msg.type ? `ai-guide-msg-bubble--${msg.type}` : ''">
             <span v-if="msg.step" class="ai-guide-msg-step">步骤 {{ msg.step }}</span>
-            <span class="ai-guide-msg-text" v-html="renderGuideContent(msg)"></span>
+            <span class="ai-guide-msg-text" v-html="getGuideDisplayContent(msg, i)"></span>
             <div v-if="msg.actions?.length" class="ai-guide-msg-actions">
               <button v-for="(act, ai) in msg.actions" :key="ai"
                 class="ai-guide-action-btn"
@@ -218,10 +218,63 @@ function sendGuideMsg() {
   emit('send', text)
 }
 
-function renderGuideContent(msg: ChatMessage): string {
-  const escaped = (msg.content || '')
+const guideTypedTexts = ref<Record<number, string>>({})
+const guideTypingTimers = new Map<number, ReturnType<typeof setInterval>>()
+
+// Watch guide messages for typewriter effect
+watch(() => props.messages.length, (newLen, oldLen) => {
+  if (props.mode !== 'guide') return
+  if (newLen > 0 && newLen > (oldLen || 0)) {
+    const idx = newLen - 1
+    const msg = props.messages[idx]
+    if (msg.role === 'ai' && msg.content) {
+      startGuideTyping(idx, msg.content)
+    }
+  }
+})
+
+function startGuideTyping(idx: number, text: string) {
+  stopGuideTyping(idx)
+  guideTypedTexts.value[idx] = ''
+  let i = 0
+  guideTypingTimers.set(idx, setInterval(() => {
+    i++
+    guideTypedTexts.value[idx] = text.slice(0, i)
+    if (i >= text.length) stopGuideTyping(idx)
+  }, 12))
+}
+
+function stopGuideTyping(idx: number) {
+  const t = guideTypingTimers.get(idx)
+  if (t) { clearInterval(t); guideTypingTimers.delete(idx) }
+}
+
+function getGuideDisplayContent(msg: ChatMessage, idx: number): string {
+  const full = sanitizeGuideContent(msg.content || '')
+  const typed = guideTypedTexts.value[idx]
+  if (typed !== undefined && typed.length < full.length) {
+    return typed + '<span class="typing-cursor">|</span>'
+  }
+  return full
+}
+
+function sanitizeGuideContent(text: string): string {
+  return text
+    // 1. XSS escape
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  return escaped.replace(/\n/g, '<br>')
+    // 2. literal \n → real newline, then → <br>
+    .replace(/\\n/g, '\n')
+    .replace(/\n/g, '<br>')
+    // 3. strip leftover raw JSON blocks (fallback if parseGuideResponse missed them)
+    .replace(/\{[\s\S]*"message"[\s\S]*\}/g, '')
+    // 4. collapse multiple <br>s
+    .replace(/(<br>\s*){3,}/g, '<br><br>')
+    .trim()
+}
+
+// Keep old function for backward compat
+function renderGuideContent(msg: ChatMessage): string {
+  return sanitizeGuideContent(msg.content || '')
 }
 
 // Watch loading for cancel/timeout UI
@@ -660,4 +713,6 @@ watch(() => props.messages.length, async () => {
 }
 .ai-guide-input input:focus { border-color: var(--color-primary); }
 .ai-guide-send-btn { padding: 6px 14px; border-radius: 8px; border: none; background: var(--color-primary); color: #fff; font-size: 13px; cursor: pointer; font-weight: 600; }
+.typing-cursor { display: inline-block; width: 2px; height: 1em; background: var(--color-primary); margin-left: 1px; vertical-align: text-bottom; animation: guide-cursor-blink 0.8s infinite; }
+@keyframes guide-cursor-blink { 0%,100% { opacity: 1 } 50% { opacity: 0 } }
 </style>
