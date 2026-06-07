@@ -169,6 +169,15 @@ def build_prompt(category: str, context: dict) -> str:
         )
         return prompt
 
+    # Guide mode for chat/sql/mapping: skip old system prompt, use only guide + instruction
+    if is_guide and category in ("chat", "sql", "mapping"):
+        instruction = context.get("instruction", "")
+        prompt = GUIDE_SYSTEM_PROMPT + "\n\n"
+        if instruction:
+            prompt += instruction + "\n\n"
+        prompt += "【最终确认】只返回 JSON: {\"message\": \"...\", \"actions\": [...]}。不要返回 greeting 或介绍性文字。"
+        return prompt
+
     if is_guide:
         prompt = GUIDE_SYSTEM_PROMPT + "\n---\n" + system + "\n\n"
     else:
@@ -214,24 +223,19 @@ def build_prompt(category: str, context: dict) -> str:
         prompt += f"YAML: {context.get('yaml', '')}。"
         prompt += f"错误: {context.get('errorLog', '')}。"
     elif category == "chat":
-        # Guide mode: use frontend's detailed step instruction
-        instruction = context.get("instruction", "")
-        if is_guide and instruction:
-            prompt += instruction
-            prompt += "\n\n【最终确认】你必须严格按照上面【严格指令】中的要求回复。只返回 JSON，不要返回 greeting/introduction/普通文本。JSON 格式必须是 {\"message\": \"...\", \"actions\": [...]}"
-        else:
-            current_step = context.get("current_step", context.get("currentStep", 1))
-            scene_name = context.get("scene_name", context.get("sceneName", ""))
-            inputs = context.get("inputs_detail", context.get("inputs", []))
-            sql = context.get("processorSql", "")
-            prompt += f"用户当前在第 {current_step} 步。"
-            if scene_name:
-                prompt += f"场景名称: {scene_name}。"
-            if inputs:
-                prompt += f"输入源: {json.dumps(inputs, ensure_ascii=False)[:500]}。"
-            if sql:
-                prompt += f"当前 SQL: {sql[:500]}。"
-            prompt += f"用户消息: {_sanitize_user_input(context.get('naturalLanguage', ''))}"
+        # Non-guide mode only (guide mode handled above with early return)
+        current_step = context.get("current_step", context.get("currentStep", 1))
+        scene_name = context.get("scene_name", context.get("sceneName", ""))
+        inputs = context.get("inputs_detail", context.get("inputs", []))
+        sql = context.get("processorSql", "")
+        prompt += f"用户当前在第 {current_step} 步。"
+        if scene_name:
+            prompt += f"场景名称: {scene_name}。"
+        if inputs:
+            prompt += f"输入源: {json.dumps(inputs, ensure_ascii=False)[:500]}。"
+        if sql:
+            prompt += f"当前 SQL: {sql[:500]}。"
+        prompt += f"用户消息: {_sanitize_user_input(context.get('naturalLanguage', ''))}"
     elif category == "orchestrate":
         inputs = context.get("inputs", [])
         output_columns = context.get("outputColumns", [])
