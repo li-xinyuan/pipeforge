@@ -617,20 +617,17 @@ function onGuideAction(value: string) {
     store.addInput(value as 'excel' | 'csv' | 'database')
     aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
-    // Scroll to the last (newly added) input source
+    // Scroll to newly added input source
     nextTick(() => {
-      const cardEl = step2El.value?.$el as HTMLElement
-      if (cardEl) {
-        const inputCards = cardEl.querySelectorAll('[class*="card"]')
-        const lastCard = inputCards[inputCards.length - 1] as HTMLElement
+      setTimeout(() => {
+        const cards = document.querySelectorAll('.input-source-card')
+        const lastCard = cards[cards.length - 1] as HTMLElement
         if (lastCard) {
           lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
         } else {
           scrollToStep(2)
         }
-      } else {
-        scrollToStep(2)
-      }
+      }, 400)
     })
     return
   }
@@ -650,18 +647,15 @@ function onGuideAction(value: string) {
     aiMessages.value.push({ role: 'user', content: value, step: 3, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
     nextTick(() => {
-      const cardEl = step3El.value?.$el as HTMLElement
-      if (cardEl) {
-        const procCards = cardEl.querySelectorAll('[class*="card"]')
-        const lastCard = procCards[procCards.length - 1] as HTMLElement
+      setTimeout(() => {
+        const cards = document.querySelectorAll('.processor-card')
+        const lastCard = cards[cards.length - 1] as HTMLElement
         if (lastCard) {
           lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
         } else {
           scrollToStep(3)
         }
-      } else {
-        scrollToStep(3)
-      }
+      }, 400)
     })
     return
   }
