@@ -56,13 +56,6 @@
         <div v-for="n in 3" :key="n" class="home__skeleton-card" />
       </div>
 
-      <!-- Pagination -->
-      <div v-if="configs.total_pages > 1" class="home__pagination">
-        <NButton size="small" :disabled="configs.page <= 1" @click="goToPage(configs.page - 1)">← 上一页</NButton>
-        <span class="home__pagination-info">第 {{ configs.page }}/{{ configs.total_pages }} 页</span>
-        <NButton size="small" :disabled="configs.page >= configs.total_pages" @click="goToPage(configs.page + 1)">下一页 →</NButton>
-      </div>
-
       <NAlert v-else-if="error" type="error" :title="error" />
 
       <div v-else-if="configs.items.length > 0" class="home__config-list">
@@ -95,6 +88,13 @@
         <p style="font-size: 48px; margin-bottom: 12px;">📋</p>
         <p style="font-size: var(--font-size-base); font-weight: 500; margin-bottom: 8px;">还没有配置</p>
         <p style="font-size: var(--font-size-sm);">点击上方按钮开始创建你的第一个数据管道配置</p>
+      </div>
+
+      <!-- Pagination — outside the v-if chain so it shows alongside the list -->
+      <div v-if="configs.total_pages > 1" class="home__pagination">
+        <NButton size="small" :disabled="configs.page <= 1" @click="goToPage(configs.page - 1)">← 上一页</NButton>
+        <span class="home__pagination-info">第 {{ configs.page }}/{{ configs.total_pages }} 页</span>
+        <NButton size="small" :disabled="configs.page >= configs.total_pages" @click="goToPage(configs.page + 1)">下一页 →</NButton>
       </div>
     </section>
 
