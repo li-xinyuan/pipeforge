@@ -140,6 +140,10 @@ const guideMsgsEl = ref<HTMLElement>()
 // Guide mode state
 const collapsed = ref(false)
 
+// Typewriter state for guide mode
+const guideTypedTexts = ref<Record<number, string>>({})
+const guideTypingTimers = new Map<number, ReturnType<typeof setInterval>>()
+
 // Auto-scroll to bottom when new messages arrive or typewriter updates
 function scrollGuideToBottom() {
   nextTick(() => {
@@ -173,9 +177,6 @@ function sendGuideMsg() {
   guideInput.value = ''
   emit('send', text)
 }
-
-const guideTypedTexts = ref<Record<number, string>>({})
-const guideTypingTimers = new Map<number, ReturnType<typeof setInterval>>()
 
 // Watch guide messages for typewriter effect
 watch(() => props.messages.length, (newLen, oldLen) => {
