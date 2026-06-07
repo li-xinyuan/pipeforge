@@ -629,6 +629,8 @@ function onGuideAction(value: string) {
         }
       }, 400)
     })
+    // Continue AI guidance for this step with updated context
+    triggerStepGuide(2)
     return
   }
 

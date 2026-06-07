@@ -124,14 +124,22 @@ export function useAiGuide() {
         : '') +
       `你需要：\n` +
       (hasInputs
-        ? `用户已添加了输入源。检查：场景需要的数据源是否都添加完了？还缺什么？告诉用户还差几个，引导继续添加。\n`
-        : `用户还没添加输入源。告诉用户根据场景分析，需要哪些数据源，引导用户逐一添加。\n`) +
+        ? `用户已添加了输入源。你需要：\n` +
+          `1. 确认已添加的输入源\n` +
+          `2. 根据场景分析这个输入源应该包含哪些字段/列\n` +
+          `3. 告诉用户"根据场景「${scene}」，**表应包含：XX、XX、XX 等字段"\n` +
+          `4. 检查场景还需要哪些输入源，缺几个，引导继续添加\n` +
+          `5. 如果输入源数量已满足场景要求，告诉用户"输入源配置完成，可以点下一步了"\n`
+        : `用户还没添加输入源。告诉用户根据场景分析需要哪些数据源，引导用户逐一添加。\n`) +
       `\n【必须以 JSON 格式回复，禁止返回普通文本】\n` +
-      `{"message": "你的引导消息（只谈第2步，不要提其他步骤）", "actions": [{"label": "选项文字", "value": "xxx"}]}\n\n` +
-      `actions 必须包含输入类型选项：\n` +
-      `{"label": "📊 Excel 文件", "value": "excel"}, {"label": "🗄 CSV 文件", "value": "csv"}, {"label": "🔌 数据库", "value": "database"}\n\n` +
+      `{"message": "你的引导消息（只谈第2步）", "actions": [{"label": "选项", "value": "xxx"}]}\n\n` +
+      (hasInputs
+        ? `actions 应包含：确认完成 或 继续添加的选项\n`
+        : `actions 必须包含输入类型选项：Excel/CSV/数据库\n`) +
       `引导消息示例（无输入源时）：\n` +
-      `"根据场景「${scene}」，你需要配置${tablesFromScene.length > 0 ? tablesFromScene.length + '个数据源：' + tablesFromScene.join('、') : '数据输入源'}。我们先从第一个开始——数据格式是什么？"`
+      `"根据场景「${scene}」，你需要${tablesFromScene.length > 0 ? tablesFromScene.length + '个数据源：' + tablesFromScene.join('、') : '数据输入源'}。第一个是什么格式？"\n\n` +
+      `引导消息示例（有输入源时）：\n` +
+      `"好的，订单表已添加为Excel。根据你的场景，订单表应包含：订单ID、用户ID、金额、日期等字段。请上传文件。还需要添加用户表——它的格式是什么？"`
     )
   }
 
