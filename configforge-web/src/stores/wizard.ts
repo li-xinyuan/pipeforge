@@ -12,6 +12,21 @@ export const useWizardStore = defineStore('wizard', () => {
   const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
   const aiSuggestions = ref<Record<string, AiSuggestion>>({})
 
+  // UI 层临时标记，不持久化，刷新后消失
+  const aiPrefilledFields = ref<Map<string, boolean>>(new Map())
+
+  function markAiPrefilled(fieldPath: string) {
+    aiPrefilledFields.value.set(fieldPath, true)
+  }
+
+  function markUserEdited(fieldPath: string) {
+    aiPrefilledFields.value.delete(fieldPath)
+  }
+
+  function isAiPrefilled(fieldPath: string): boolean {
+    return aiPrefilledFields.value.has(fieldPath)
+  }
+
   const canProceed = computed(() => {
     if (currentStep.value === 1) return scene.value.name.trim().length > 0
     if (currentStep.value === 2) return inputs.value.length > 0
@@ -197,7 +212,8 @@ export const useWizardStore = defineStore('wizard', () => {
     addProcessor, removeProcessor, updateProcessor, setProcessors, setOutput,
     addFileRef, removeFileRef,
     setSuggestion, acceptSuggestion, rejectSuggestion,
-    setConfigId, loadFromConfigState, resetAll, getWizardState
+    setConfigId, loadFromConfigState, resetAll, getWizardState,
+    aiPrefilledFields, markAiPrefilled, markUserEdited, isAiPrefilled
   }
 }, {
   persist: { key: 'wizard_state_v2', storage: localStorage }
