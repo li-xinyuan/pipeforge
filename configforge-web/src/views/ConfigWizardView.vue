@@ -942,8 +942,11 @@ watch(currentStep, (step, oldStep) => {
   }
 
   lastGuidedStep.value = step
-  // Only trigger AI for steps 1, 3, 4 (Step 2 has fixed messages)
-  if (step !== 2) {
+  // Skip AI: Step 2 has fixed messages, Step 3/4 skip if already configured
+  const skipAI = step === 2
+    || (step === 3 && store.processors.length > 0)
+    || (step === 4 && store.output?.config)
+  if (!skipAI) {
     triggerStepGuide(step)
   }
 })
