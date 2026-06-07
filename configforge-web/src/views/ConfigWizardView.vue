@@ -704,6 +704,13 @@ function onGuideAction(value: string) {
     }
   }
 
+  // Dismiss actions (skip, cancel, etc.) — just acknowledge, don't re-trigger AI
+  if (['skip_checkpoints', 'keep_columns', 'skip'].includes(value)) {
+    aiMessages.value.push({ role: 'user', content: '跳过', step: currentStep.value, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    return
+  }
+
   // Table assignment: button text contains table-like name
   const tablePatterns = [/是(.+表)/, /对应(.+表)/, /选为(.+表)/, /选择(.+表)/]
   let matchedTable = ''
