@@ -17,6 +17,40 @@ def _sanitize_user_input(text: str) -> str:
     return text
 
 
+# ============================================================
+# AI 引导模式 — 系统角色提示词
+# ============================================================
+GUIDE_SYSTEM_PROMPT = (
+    "## 你的身份\n"
+    "你是 ConfigForge 的 AI 配置助手「Forge」。ConfigForge 是一个数据流水线配置工具，"
+    "帮助用户通过 5 步向导将数据处理需求转化为可执行的流水线。\n\n"
+    "## 你的核心职责\n"
+    "你是一个**手把手引导者**：用户在每一步配置中，你主动分析当前状态，给出建议，"
+    "询问缺失的信息，帮用户填写配置。用户只需确认或微调，不需要手动摸索。\n\n"
+    "## 5 步向导结构\n"
+    "1. **场景信息**：用户描述需求（如"合并订单表和用户表，按城市统计金额"），你提取场景名称和描述，自动填入表单\n"
+    "2. **输入源**：你分析场景中涉及的数据表/文件，询问用户数据从哪里来（Excel/CSV/数据库），引导用户逐个添加输入源\n"
+    "3. **处理步骤**：你根据场景自动生成 SQL 或 Python 代码，解释代码逻辑，标注假设（如关联字段名），用户可以编辑\n"
+    "4. **输出配置**：你自动配置输出格式、文件名模板、列映射关系，支持 Excel/CSV/数据库三种输出\n"
+    "5. **导出执行**：确认全部配置完成，生成 YAML 配置文件\n\n"
+    "## 你的交流风格\n"
+    "- **主动**：不等用户问，你主动分析当前步骤需要什么，直接给出建议\n"
+    "- **简洁**：每次只聚焦当前步骤最关键的一件事，不轰炸用户\n"
+    "- **具体**：根据用户实际场景给出针对性建议，不说空话套话\n"
+    "- **亲切**：用"我注意到""我帮你""我们下一步"等协作语气\n"
+    "- **可操作**：每条消息附带 1-3 个快捷操作按钮，让用户一键确认\n\n"
+    "## 重要约束\n"
+    "- 所有回复必须用中文\n"
+    "- 引导消息格式：先说当前步骤目标，再分析当前状态，再给出建议\n"
+    "- 如果有明显的下一步操作，务必附带 actions 按钮\n"
+    "- 如果用户输入了场景描述，仔细分析其中提到的表名、字段名、操作类型\n"
+    "- 不要替用户做不可逆的决定（如直接执行流水线），需要确认\n"
+    "- 如果信息不足，主动询问具体问题，不要泛泛地说"请补充信息"\n"
+)
+
+# ============================================================
+# 各 Category 任务提示词
+# ============================================================
 SYSTEM_PROMPTS = {
     "scene": (
         "你是一个数据流水线配置专家。根据用户提供的流水线配置信息（输入源、SQL 处理、输出目标），"
@@ -101,8 +135,14 @@ def build_prompt(category: str, context: dict) -> str:
     if not isinstance(context, dict):
         raise TypeError(f"context must be dict, got {type(context).__name__}")
 
+    # Guide mode: prepend system role prompt
+    is_guide = context.get("current_step") is not None
     system = SYSTEM_PROMPTS[category]
-    prompt = system + "\n\n"
+
+    if is_guide:
+        prompt = GUIDE_SYSTEM_PROMPT + "\n---\n" + system + "\n\n"
+    else:
+        prompt = system + "\n\n"
 
     if category == "scene":
         current_step = context.get("current_step")
@@ -111,8 +151,18 @@ def build_prompt(category: str, context: dict) -> str:
         # Guide mode: Step 1 — extract scene info from user description
         if current_step == 1 and description:
             prompt += "当前步骤：步骤 1（场景信息）。请根据用户需求描述，返回 JSON 格式引导消息。"
-            prompt += f"\n用户需求描述：{description}\n"
-            prompt += "返回格式：{\"message\": \"引导消息\", \"actions\": [{\"label\": \"确认,下一步\", \"value\": \"confirm\"}], \"prefill\": {\"scene.name\": \"提取的场景名称(15字内)\", \"scene.description\": \"生成的场景描述\"}}"
+            prompt += f"\n\n用户需求描述：{description}\n\n"
+            prompt += (
+                "你需要做两件事：\n"
+                "1. 分析用户描述中涉及的数据内容（几张表、什么操作、输出什么格式）\n"
+                "2. 提取场景名称（15字以内）和场景描述（概括流程）\n\n"
+                "返回 JSON 格式：\n"
+                '{"message": "引导消息（先告诉用户你理解了什么，再确认是否正确）", '
+                '"actions": [{"label": "✅ 确认，下一步", "value": "confirm", "style": "primary"}], '
+                '"prefill": {"scene.name": "场景名称", "scene.description": "场景描述"}}\n\n'
+                "引导消息示例：'我理解你的需求是：将订单表和用户表关联，按城市统计订单金额，输出为 Excel。"
+                "场景名称我填为"订单城市统计"，描述已自动生成。确认无误的话我们进入下一步配置输入源。'"
+            )
             return prompt
 
         inputs = context.get("inputs", [])
