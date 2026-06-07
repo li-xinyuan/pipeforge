@@ -139,6 +139,15 @@ const guideMsgsEl = ref<HTMLElement>()
 
 // Guide mode state
 const collapsed = ref(false)
+
+// Auto-scroll to bottom when new messages arrive
+watch(() => props.messages.length, () => {
+  nextTick(() => {
+    if (guideMsgsEl.value) {
+      guideMsgsEl.value.scrollTop = guideMsgsEl.value.scrollHeight
+    }
+  })
+})
 const guideInput = ref('')
 const showCancel = ref(false)
 const showLongWait = ref(false)
@@ -597,7 +606,7 @@ watch(() => props.messages.length, async () => {
   border-left: 1px solid var(--color-border-light);
   display: flex; flex-direction: column;
   transition: width 0.3s; overflow: hidden;
-  max-height: calc(100vh - 56px);
+  height: calc(100vh - 56px);
 }
 .ai-guide-panel--collapsed {
   width: 36px;
