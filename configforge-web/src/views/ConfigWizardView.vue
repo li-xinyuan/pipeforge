@@ -681,6 +681,24 @@ function onGuideAction(value: string) {
     return
   }
 
+  // Table assignment: "这是订单表" → update input source name
+  const tableMatch = value.match(/这是(.+)/)
+  if (tableMatch && currentStep.value === 2) {
+    const tableName = tableMatch[1]
+    // Find the input without a table name (most recently added)
+    const inputs = store.inputs
+    for (let i = inputs.length - 1; i >= 0; i--) {
+      if (!inputs[i].table || inputs[i].table === '') {
+        store.updateInput(i, { ...inputs[i], table: tableName })
+        break
+      }
+    }
+    aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    triggerStepGuide(2)
+    return
+  }
+
   onGuideSend(value)
 }
 
