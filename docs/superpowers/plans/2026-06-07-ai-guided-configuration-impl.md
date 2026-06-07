@@ -875,6 +875,8 @@ cd configforge-web && npx vue-tsc --noEmit
 
 Expected: 0 errors
 
+> **Note:** 现有 AiChatPanel 的打字机效果（`typedTexts`、`typingTimers`）应在 guide 模式中**保留**。guide 消息较长时逐字显示可减少用户等待焦虑。实现方式：guide 模式消息复用现有的 `watch(() => props.messages.length)` 中的打字机逻辑（现约第 100 行），条件为 `msg.role === 'ai' && !msg.orchestration`，guide 消息满足此条件自动触发。
+
 - [ ] **Step 5: 提交**
 
 ```bash
