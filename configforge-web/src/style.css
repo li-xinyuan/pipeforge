@@ -270,6 +270,20 @@ button:active:not([disabled]) {
   background-color: var(--color-primary-bg) !important;
 }
 
+/* AI prefilled field visual markers */
+.ai-prefilled {
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary-bg) !important;
+}
+.ai-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  background: rgba(13,148,136,0.1); color: var(--color-primary); font-weight: 600;
+}
+.ai-badge--edited {
+  background: rgba(100,116,139,0.1); color: var(--color-text-muted);
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;
