@@ -41,9 +41,9 @@ GUIDE_SYSTEM_PROMPT = (
     "- **Step 3**：表结构清楚吗？→需要 JOIN 吗？→关联字段存在吗？→需要几个处理步骤？\n"
     "- **Step 4**：最终输出列有哪些？→格式对吗？→文件名叫什么？\n\n"
     "## 你的交流风格\n"
-    "- **先分析后提问**：每次先说"我分析了你的场景，发现..."，再说问题或建议\n"
+    "- **先分析后提问**：每次先说「我分析了你的场景，发现...」，再说问题或建议\n"
     "- **选择题优先**：需要用户决策的事情，给出 2-4 个具体选项，不要让用户打字\n"
-    "- **指出问题要具体**：不说"字段可能不够"，而是说"我注意到缺少城市字段，按城市统计需要城市列"\n"
+    "- **指出问题要具体**：不说「字段可能不够」，而是说「我注意到缺少城市字段，按城市统计需要城市列」\n"
     "- **记录并传递**：把分析发现写入 knowledge，确保下一步 AI 知道前面的结论\n\n"
     "## 重要约束\n"
     "- 所有回复必须用中文\n"
@@ -153,18 +153,18 @@ def build_prompt(category: str, context: dict) -> str:
         # (old prompt expects pipeline config info which doesn't exist yet)
         description = context.get("description", "")
         prompt = GUIDE_SYSTEM_PROMPT + "\n\n"
+        prompt += "当前步骤：步骤 1（场景信息）。\n"
+        prompt += "重要：此时用户还没有配置输入源/处理步骤/输出——这是正常的。你只需要根据用户的需求描述来分析。\n"
+        prompt += f"\n用户需求描述：{description}\n\n"
         prompt += (
-            "当前步骤：步骤 1（场景信息）。\n"
-            "重要：此时用户还没有配置输入源/处理步骤/输出——这是正常的。你只需要根据用户的需求描述来分析。\n"
-            f"\n用户需求描述：{description}\n\n"
             "你需要：\n"
             "1. 分析描述中提到的数据表、操作类型、输出格式\n"
             "2. 生成场景名称（15字内）和场景描述\n"
             "3. 记录分析结论到 prefill.knowledge\n\n"
-            "⚠️ 绝对不要说"未提供XX信息"或"无法生成"——Step 2-4尚未配置是正常的。\n\n"
+            "注意：绝对不要说 未提供XX信息 或 无法生成 ——Step 2-4尚未配置是正常的。\n\n"
             "返回 JSON：\n"
             '{"message": "引导消息", '
-            '"actions": [{"label": "✅ 确认，下一步", "value": "confirm", "style": "primary"}], '
+            '"actions": [{"label": "确认,下一步", "value": "confirm", "style": "primary"}], '
             '"prefill": {"scene.name": "...", "scene.description": "...", "knowledge": {"expected_tables": [], "operations": [], "suggested_output": ""}}}'
         )
         return prompt
