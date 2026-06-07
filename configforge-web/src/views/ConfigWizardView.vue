@@ -383,20 +383,32 @@ function scrollToStep(n: number) {
 // AI handlers
 function onFileReady(fileId: string) {
   if (isGuideMode.value) {
-    // Guide mode: automatically analyze uploaded file against scene requirements
     const meta = store.uploadedFiles[fileId]
-    if (meta?.columns?.length) {
-      const cols = meta.columns.join('、')
-      aiMessages.value.push({
-        role: 'user',
-        content: `已上传文件：${meta.originalName || fileId}（${meta.columns.length} 列：${cols}）`,
-        step: 2,
-        timestamp: Date.now(),
-      })
-      saveMessages(aiMessages.value, store.configId)
-      // Trigger AI to analyze if these columns match the scene requirements
-      triggerStepGuide(2)
+    if (!meta?.columns?.length) return
+    const cols = meta.columns
+    const sampleRows = (meta.sampleRows || []).slice(0, 10)
+    // Fixed message: system read columns (not AI)
+    const colInfo = cols.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
+    let sampleInfo = ''
+    if (sampleRows.length > 0) {
+      sampleInfo = '\n前 ${sampleRows.length} 行数据：\n' + sampleRows.map((row, i) => `  行${i + 1}: ${JSON.stringify(row)}`).join('\n')
     }
+    aiMessages.value.push({
+      role: 'user',
+      content: `已上传文件：${meta.originalName || fileId}`,
+      step: 2, timestamp: Date.now(),
+    })
+    aiMessages.value.push({
+      role: 'ai',
+      content: `系统已读取文件列信息和前几行数据：\n${colInfo}${sampleInfo}\n\n是否使用AI进一步分析这些数据是否符合场景「${store.scene.name}」的需求？`,
+      step: 2, type: 'guide',
+      actions: [
+        { label: '🔍 AI分析数据', value: 'analyze_columns', style: 'primary' },
+        { label: '⏭ 跳过', value: 'skip' },
+      ],
+      timestamp: Date.now(),
+    })
+    saveMessages(aiMessages.value, store.configId)
     return
   }
   // Non-guide mode: show generic prompt
@@ -654,6 +666,12 @@ function onGuideAction(value: string, label?: string) {
   if (currentStep.value === 2 && ['excel', 'csv', 'database'].includes(value)) {
     store.addInput(value as 'excel' | 'csv' | 'database')
     aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
+    // Fixed system response
+    aiMessages.value.push({
+      role: 'ai',
+      content: (value === 'excel' ? '已选择 Excel 文件作为输入源。' : value === 'csv' ? '已选择 CSV 文件作为输入源。' : '已选择数据库作为输入源。') + ' 请上传对应文件，系统将自动读取列信息和前几行数据。',
+      step: 2, type: 'guide', timestamp: Date.now(),
+    })
     saveMessages(aiMessages.value, store.configId)
     nextTick(() => {
       setTimeout(() => {
@@ -663,7 +681,7 @@ function onGuideAction(value: string, label?: string) {
         else scrollToStep(2)
       }, 400)
     })
-    triggerStepGuide(2)  // AI confirms the new input
+    saveMessages(aiMessages.value, store.configId)
     return
   }
 
@@ -719,6 +737,14 @@ function onGuideAction(value: string, label?: string) {
       (store.output.config as any).columns = []
     }
     triggerStepGuide(4)
+    return
+  }
+
+  // AI analysis on demand
+  if (value === 'analyze_columns') {
+    aiMessages.value.push({ role: 'user', content: '分析数据是否符合场景需求', step: 2, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    triggerStepGuide(2)  // call AI with column context
     return
   }
 
@@ -926,9 +952,18 @@ onMounted(async () => {
       const result = await startGuide(guidePrompt.value)
       const msg: ChatMessage = {
         role: 'ai', content: result.message, step: 1, type: 'guide',
-        actions: result.actions, prefill: result.prefill, timestamp: Date.now(),
+        prefill: result.prefill, timestamp: Date.now(),
       }
-      aiMessages.value = [msg]
+      // Fixed system confirmation after AI analysis
+      aiMessages.value = [
+        msg,
+        {
+          role: 'ai', content: '场景名称和描述已根据AI分析自动生成。如有问题可直接修改，确认无误请点击下方按钮进入下一步。',
+          step: 1, type: 'guide',
+          actions: [{ label: '确认并进行下一步', value: 'confirm', style: 'primary' }],
+          timestamp: Date.now(),
+        },
+      ]
       saveMessages(aiMessages.value, store.configId)
       if (result.prefill) applyPrefill(result.prefill, 1)
     }
