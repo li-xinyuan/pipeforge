@@ -1,5 +1,5 @@
 <template>
-  <div class="wizard">
+  <div class="wizard" :class="{ 'wizard--guide': isGuideMode }">
     <!-- Top Nav -->
     <AppNavBar current-route="wizard" :badge="route.query.load ? '编辑配置' : '新配置'" />
 
@@ -158,6 +158,20 @@
         @orchestrate-regenerate="onOrchestrateRegenerate"
       />
 
+      <!-- Guide mode: fixed right panel (replaces floating panel when ?guide= present) -->
+      <AiChatPanel
+        v-if="isGuideMode"
+        mode="guide"
+        :visible="true"
+        :messages="aiMessages"
+        :quick-actions="aiQuickActions"
+        :current-step="currentStep"
+        :loading="suggesting"
+        @send="onGuideSend"
+        @guide-action="onGuideAction"
+        @cancel-guide="onCancelGuide"
+      />
+
       <!-- FAB for AI panel on tablet/mobile -->
       <button
         v-if="!aiPanelVisible && breakpoint !== 'desktop'"
@@ -174,6 +188,8 @@ import { computed, onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import { useConfigApi } from '../composables/useConfigApi'
+import { useAiGuide } from '../composables/useAiGuide'
+import { useConversationHistory } from '../composables/useConversationHistory'
 import { useTheme } from '../composables/useTheme'
 import { useBreakpoint } from '../composables/useBreakpoint'
 import { NButton } from 'naive-ui'
@@ -247,11 +263,22 @@ const aiMessages = ref<ChatMessage[]>([
 ])
 const orchestrateMode = ref(false)
 
+// Guide mode
+const { startGuide, stepGuide } = useAiGuide()
+const { saveMessages, loadMessages } = useConversationHistory()
+const isGuideMode = computed(() => !!route.query.guide)
+const guidePrompt = computed(() => (route.query.guide as string) || '')
+const guideInitialized = ref(false)
+const lastGuidedStep = ref(0)
+
+// Guide mode: hide orchestrate, show step-relevant actions only
 const aiQuickActions = computed(() => {
-  const actions = ['生成场景描述', 'AI 分析列', 'AI 生成代码', 'AI 自动映射']
-  if (store.inputs.length > 0) {
-    actions.unshift('AI 编排步骤链')
+  if (isGuideMode.value) {
+    if (currentStep.value === 3) return ['解释代码', '优化代码']
+    return []
   }
+  const actions = ['生成场景描述', 'AI 分析列', 'AI 生成代码', 'AI 自动映射']
+  if (store.inputs.length > 0) actions.unshift('AI 编排步骤链')
   return actions
 })
 
@@ -566,12 +593,90 @@ let manualScroll = false
 let lastScrollY = 0
 const enteredSteps = ref(new Set<number>())
 
+// Guide mode functions
+function onGuideSend(text: string) {
+  aiMessages.value.push({ role: 'user', content: text, timestamp: Date.now() })
+  saveMessages(aiMessages.value, store.configId)
+  triggerStepGuide(currentStep.value)
+}
+
+function onGuideAction(value: string) {
+  if (currentStep.value === 2 && ['excel', 'csv', 'database'].includes(value)) {
+    store.addInput(value as 'excel' | 'csv' | 'database')
+    aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    return
+  }
+  onGuideSend(value)
+}
+
+function onCancelGuide() { suggesting.value = false }
+
+async function triggerStepGuide(step: number) {
+  if (!isGuideMode.value) return
+  suggesting.value = true
+  const ctx = {
+    scene_name: store.scene.name,
+    scene_description: store.scene.description,
+    inputs_count: store.inputs.length,
+    input_plugins: store.inputs.map(i => i.plugin),
+    processors_count: store.processors.length,
+    processor_plugins: store.processors.map(p => p.plugin),
+    output_plugin: store.output?.plugin,
+    has_columns: !!(store.output?.config as any)?.columns?.length,
+  }
+  const result = await stepGuide(step, ctx)
+  suggesting.value = false
+  const msg: ChatMessage = {
+    role: 'ai', content: result.message, step, type: 'guide',
+    actions: result.actions, prefill: result.prefill, timestamp: Date.now(),
+  }
+  aiMessages.value.push(msg)
+  saveMessages(aiMessages.value, store.configId)
+  if (result.prefill) applyPrefill(result.prefill, step)
+}
+
+function applyPrefill(prefill: Record<string, any>, step: number) {
+  if (step === 1 && prefill['scene.name']) {
+    store.scene.name = prefill['scene.name']; store.markAiPrefilled('scene.name')
+  }
+  if (step === 1 && prefill['scene.description']) {
+    store.scene.description = prefill['scene.description']; store.markAiPrefilled('scene.description')
+  }
+}
+
+// Watch currentStep for guide mode
+watch(currentStep, (step) => {
+  if (!isGuideMode.value || step === lastGuidedStep.value) return
+  lastGuidedStep.value = step
+  triggerStepGuide(step)
+})
+
 function onPageScroll() {
   lastScrollY = window.scrollY
 }
 
 onMounted(async () => {
   theme.initTheme()
+
+  // Guide mode initialization
+  if (isGuideMode.value && !guideInitialized.value) {
+    guideInitialized.value = true
+    const history = loadMessages(store.configId)
+    if (history.length > 0) {
+      aiMessages.value = history
+    } else {
+      const result = await startGuide(guidePrompt.value)
+      const msg: ChatMessage = {
+        role: 'ai', content: result.message, step: 1, type: 'guide',
+        actions: result.actions, prefill: result.prefill, timestamp: Date.now(),
+      }
+      aiMessages.value = [msg]
+      saveMessages(aiMessages.value, store.configId)
+      if (result.prefill) applyPrefill(result.prefill, 1)
+    }
+    return
+  }
 
   const loadId = route.query.load as string | undefined
   if (loadId) {
@@ -641,6 +746,13 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100vh;
   background: var(--color-bg);
+}
+.wizard--guide {
+  flex-direction: row;
+}
+.wizard--guide .wizard__main {
+  flex: 1;
+  overflow: hidden;
 }
 
 /* === Top Nav === */
