@@ -1052,10 +1052,9 @@ onUnmounted(() => {
 .wizard__steps {
   flex: 1;
   overflow-y: auto;
-  scroll-padding-top: 80px;
-}
   padding: 16px 20px 0;
   background: linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg-secondary) 100%);
+  scroll-padding-top: 80px;
 }
 
 /* === Step 1 Form === */
