@@ -211,28 +211,24 @@ def build_prompt(category: str, context: dict) -> str:
         prompt += f"YAML: {context.get('yaml', '')}。"
         prompt += f"错误: {context.get('errorLog', '')}。"
     elif category == "chat":
-        current_step = context.get("currentStep", 1)
-        scene_name = context.get("sceneName", "")
-        inputs = context.get("inputs", [])
-        sql = context.get("processorSql", "")
-        output_tables = context.get("outputTables", [])
-        prompt += f"用户当前在第 {current_step} 步。"
-        if scene_name:
-            prompt += f"场景名称: {scene_name}。"
-        if inputs:
-            input_info = []
-            for inp in inputs:
-                info: dict = {"plugin": inp.get("plugin"), "table": inp.get("table")}
-                cols = inp.get("columns")
-                if cols:
-                    info["columns"] = cols
-                input_info.append(info)
-            prompt += f"已添加的输入源: {json.dumps(input_info, ensure_ascii=False)}。"
-        if sql:
-            prompt += f"当前 SQL: {sql[:500]}。"
-        if output_tables:
-            prompt += f"输出表: {output_tables}。"
-        prompt += f"用户消息: {_sanitize_user_input(context.get('naturalLanguage', ''))}"
+        # Guide mode: use frontend's detailed step instruction
+        instruction = context.get("instruction", "")
+        if is_guide and instruction:
+            prompt += instruction
+            prompt += "\n\n请严格按照 instruction 中的要求回复，返回 JSON 格式：{\"message\": \"...\", \"actions\": [...]}"
+        else:
+            current_step = context.get("current_step", context.get("currentStep", 1))
+            scene_name = context.get("scene_name", context.get("sceneName", ""))
+            inputs = context.get("inputs_detail", context.get("inputs", []))
+            sql = context.get("processorSql", "")
+            prompt += f"用户当前在第 {current_step} 步。"
+            if scene_name:
+                prompt += f"场景名称: {scene_name}。"
+            if inputs:
+                prompt += f"输入源: {json.dumps(inputs, ensure_ascii=False)[:500]}。"
+            if sql:
+                prompt += f"当前 SQL: {sql[:500]}。"
+            prompt += f"用户消息: {_sanitize_user_input(context.get('naturalLanguage', ''))}"
     elif category == "orchestrate":
         inputs = context.get("inputs", [])
         output_columns = context.get("outputColumns", [])

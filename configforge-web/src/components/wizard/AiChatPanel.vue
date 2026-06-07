@@ -263,8 +263,8 @@ function sanitizeGuideContent(text: string): string {
     // 1. XSS escape first
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-  // 2. Try to extract just the message from JSON if present
-  const msgMatch = cleaned.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+  // 2. Try to extract just the message/response from JSON if present
+  const msgMatch = cleaned.match(/"(?:message|response)"\s*:\s*"((?:[^"\\]|\\.)*)"/)
   if (msgMatch) {
     cleaned = msgMatch[1]
       .replace(/\\n/g, '\n')

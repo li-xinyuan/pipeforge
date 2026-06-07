@@ -15,15 +15,18 @@ export function useAiGuide() {
   const { askSuggestion } = useAiApi()
 
   function parseGuideResponse(aiText: string): GuideResponse {
+    // Try extracting from JSON block or bare JSON
     let jsonMatch = aiText.match(/```json\s*([\s\S]*?)\s*```/)
     if (!jsonMatch) {
-      jsonMatch = aiText.match(/\{[\s\S]*"message"[\s\S]*\}/)
+      jsonMatch = aiText.match(/\{[\s\S]*"(?:message|response)"[\s\S]*\}/)
     }
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0])
+        // Accept both "message" and "response" keys
+        const msg = parsed.message || parsed.response || ''
         return {
-          message: cleanMessage(parsed.message) || cleanMessage(aiText),
+          message: msg ? cleanMessage(msg) : cleanMessage(aiText),
           actions: parsed.actions,
           prefill: parsed.prefill,
         }
@@ -37,8 +40,7 @@ export function useAiGuide() {
   function cleanMessage(text: string): string {
     if (!text) return ''
     return text
-      .replace(/\{[^}]{0,200}"message"[^}]{0,500}\}/g, '')
-      .replace(/\{[^}]{0,200}"actions"[^}]{0,500}\}/g, '')
+      .replace(/\{[^}]{0,300}"(?:message|response|actions|prefill)"[^}]{0,500}\}/g, '')
       .replace(/```[\s\S]*?```/g, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim()
