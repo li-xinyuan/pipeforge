@@ -105,6 +105,16 @@ def build_prompt(category: str, context: dict) -> str:
     prompt = system + "\n\n"
 
     if category == "scene":
+        current_step = context.get("current_step")
+        description = context.get("description", "")
+
+        # Guide mode: Step 1 — extract scene info from user description
+        if current_step == 1 and description:
+            prompt += "当前步骤：步骤 1（场景信息）。请根据用户需求描述，返回 JSON 格式引导消息。"
+            prompt += f"\n用户需求描述：{description}\n"
+            prompt += "返回格式：{\"message\": \"引导消息\", \"actions\": [{\"label\": \"确认,下一步\", \"value\": \"confirm\"}], \"prefill\": {\"scene.name\": \"提取的场景名称(15字内)\", \"scene.description\": \"生成的场景描述\"}}"
+            return prompt
+
         inputs = context.get("inputs", [])
         sql = context.get("sql", "")
         output = context.get("output", {})
