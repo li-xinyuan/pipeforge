@@ -145,44 +145,33 @@ def build_prompt(category: str, context: dict) -> str:
     is_guide = context.get("current_step") is not None
     system = SYSTEM_PROMPTS[category]
 
+    if category == "scene" and context.get("current_step") == 1:
+        # Step 1 guide mode — ONLY use guide prompt, skip old scene prompt
+        # (old prompt expects pipeline config info which doesn't exist yet)
+        description = context.get("description", "")
+        prompt = GUIDE_SYSTEM_PROMPT + "\n\n"
+        prompt += (
+            "当前步骤：步骤 1（场景信息）。\n"
+            "重要：此时用户还没有配置输入源/处理步骤/输出——这是正常的。你只需要根据用户的需求描述来分析。\n"
+            f"\n用户需求描述：{description}\n\n"
+            "你需要：\n"
+            "1. 分析描述中提到的数据表、操作类型、输出格式\n"
+            "2. 生成场景名称（15字内）和场景描述\n"
+            "3. 记录分析结论到 prefill.knowledge\n\n"
+            "⚠️ 绝对不要说"未提供XX信息"或"无法生成"——Step 2-4尚未配置是正常的。\n\n"
+            "返回 JSON：\n"
+            '{"message": "引导消息", '
+            '"actions": [{"label": "✅ 确认，下一步", "value": "confirm", "style": "primary"}], '
+            '"prefill": {"scene.name": "...", "scene.description": "...", "knowledge": {"expected_tables": [], "operations": [], "suggested_output": ""}}}'
+        )
+        return prompt
+
     if is_guide:
         prompt = GUIDE_SYSTEM_PROMPT + "\n---\n" + system + "\n\n"
     else:
         prompt = system + "\n\n"
 
     if category == "scene":
-        current_step = context.get("current_step")
-        description = context.get("description", "")
-
-        # Guide mode: Step 1 — extract scene info from user description
-        if current_step == 1 and description:
-            prompt += "当前步骤：步骤 1（场景信息）。请根据用户需求描述，返回 JSON 格式引导消息。"
-            prompt += f"\n\n用户需求描述：{description}\n\n"
-            prompt += (
-                "你需要做三件事：\n\n"
-                "1. **分析数据内容**：描述中提到了几张表？（如"订单表、用户表"→2张）\n"
-                "   数据从哪来？（Excel文件？CSV？数据库？）\n"
-                "   要做什么操作？（关联JOIN？分组GROUP BY？统计COUNT/SUM？）\n"
-                "   输出什么格式？（Excel？CSV？数据库？）\n\n"
-                "2. **提取场景信息**：场景名称（15字以内）、场景描述（概括完整流程，包括输入→处理→输出）\n\n"
-                "3. **记录知识**：把你的分析结论记录到 prefill.knowledge 中，供步骤2使用：\n"
-                '   "knowledge": {\n'
-                '     "expected_tables": ["表1", "表2"],\n'
-                '     "operations": ["JOIN", "GROUP BY", "SUM"],\n'
-                '     "suggested_output": "excel"\n'
-                '   }\n\n'
-                "返回 JSON 格式：\n"
-                '{"message": "引导消息", '
-                '"actions": [{"label": "✅ 确认，下一步", "value": "confirm", "style": "primary"}, {"label": "✏ 修改场景名称", "value": "edit"}], '
-                '"prefill": {"scene.name": "场景名称", "scene.description": "场景描述", "knowledge": {...}}}\n\n'
-                "引导消息示例：\n"
-                '"我分析了你的需求：\n'
-                '📊 涉及 2 张表：订单表、用户表\n'
-                '🔗 操作：通过关联字段 JOIN → 按城市 GROUP BY → 统计订单数和金额\n'
-                '📤 输出：Excel\n\n'
-                '场景名称已填为「订单城市统计」，描述已生成。确认无误我们进入下一步。"'
-            )
-            return prompt
 
         inputs = context.get("inputs", [])
         sql = context.get("sql", "")
