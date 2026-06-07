@@ -77,9 +77,28 @@ def _save_index(data: list[dict]) -> None:
 
 
 @router.get("")
-async def list_configs() -> list[ConfigMeta]:
+async def list_configs(
+    search: str = None,
+    page: int = 1,
+    page_size: int = 10,
+) -> dict:
     index = _load_index()
-    return [ConfigMeta(**entry) for entry in index]
+    if search:
+        q = search.lower()
+        index = [e for e in index
+                 if q in e.get("scene_name", "").lower()
+                 or q in e.get("description", "").lower()]
+    total = len(index)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    start = (page - 1) * page_size
+    items = [ConfigMeta(**e) for e in index[start:start + page_size]]
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+    }
 
 
 @router.post("", response_model=SaveConfigResponse)

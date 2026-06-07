@@ -4,12 +4,22 @@
     <div class="max-w-4xl mx-auto px-4 py-6">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-bold">执行历史</h2>
-        <NButton size="small" @click="refresh">刷新</NButton>
+        <div class="flex items-center gap-3">
+          <NInput
+            v-model:value="searchQuery"
+            size="small"
+            placeholder="搜索场景名称..."
+            clearable
+            style="width: 200px"
+            @update:value="onSearchChange"
+          />
+          <NButton size="small" @click="refresh">刷新</NButton>
+        </div>
       </div>
 
       <div v-if="loading" class="text-sm text-slate-400 text-center py-12">加载中...</div>
 
-      <div v-else-if="!executions.length" class="text-center py-16">
+      <div v-else-if="!executions.items.length" class="text-center py-16">
         <p class="text-4xl mb-4">📜</p>
         <p class="text-base font-medium text-slate-600 mb-2">暂无执行记录</p>
         <p class="text-sm text-slate-400">
@@ -20,7 +30,7 @@
 
       <div v-else class="space-y-2">
         <div
-          v-for="exec in executions"
+          v-for="exec in executions.items"
           :key="exec.id"
           class="border border-slate-200 rounded-lg p-3 flex items-center gap-3"
         >
@@ -48,6 +58,13 @@
             <NButton size="tiny" quaternary type="error" @click="confirmDelete(exec)">删除</NButton>
           </div>
         </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="executions.total_pages > 1" class="flex items-center justify-center gap-4 mt-5">
+        <NButton size="small" :disabled="executions.page <= 1" @click="goToPage(executions.page - 1)">← 上一页</NButton>
+        <span class="text-sm text-slate-400">第 {{ executions.page }}/{{ executions.total_pages }} 页</span>
+        <NButton size="small" :disabled="executions.page >= executions.total_pages" @click="goToPage(executions.page + 1)">下一页 →</NButton>
       </div>
 
       <!-- Detail modal -->
@@ -85,7 +102,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NTag, NModal, useDialog, useMessage } from 'naive-ui'
+import { NButton, NInput, NTag, NModal, useDialog, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 
 const router = useRouter()
@@ -109,19 +126,48 @@ interface ExecutionSummary {
   output_file_name: string | null
 }
 
-const executions = ref<ExecutionSummary[]>([])
+interface PaginatedExecutions {
+  items: ExecutionSummary[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+const executions = ref<PaginatedExecutions>({ items: [], total: 0, page: 1, page_size: 10, total_pages: 1 })
 const loading = ref(false)
+const searchQuery = ref('')
+const currentPage = ref(1)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 const detailVisible = ref(false)
 const detailRecord = ref<ExecutionSummary | null>(null)
 
 async function refresh() {
   loading.value = true
   try {
-    const resp = await fetch('/api/executions')
+    const query = new URLSearchParams()
+    if (searchQuery.value) query.set('search', searchQuery.value)
+    query.set('page', String(currentPage.value))
+    query.set('page_size', '10')
+    const qs = query.toString()
+    const resp = await fetch('/api/executions' + (qs ? '?' + qs : ''))
     if (resp.ok) executions.value = await resp.json()
   } finally {
     loading.value = false
   }
+}
+
+function goToPage(page: number) {
+  currentPage.value = page
+  refresh()
+}
+
+function onSearchChange() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    currentPage.value = 1
+    refresh()
+  }, 300)
 }
 
 function showDetail(exec: ExecutionSummary) {

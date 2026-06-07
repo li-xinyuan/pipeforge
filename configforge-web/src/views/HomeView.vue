@@ -15,7 +15,7 @@
         <p class="home__hero-subtitle">
           5 步向导帮你把数据处理需求变成可运行的配置文件。支持 AI 辅助 SQL 生成与列映射，所有数据本地处理，不上传至外部服务。
         </p>
-        <div v-if="!loading && configs.length === 0" class="home__hero-anim">
+        <div v-if="!loading && configs.items.length === 0" class="home__hero-anim">
           <PipelineAnimation />
         </div>
         <div class="home__hero-actions">
@@ -39,17 +39,34 @@
     <section class="home__configs">
       <div class="home__configs-header">
         <h2 class="home__configs-title">最近配置</h2>
-        <NTag v-if="configs.length" size="small" :bordered="false" class="home__configs-count">{{ configs.length }} 个配置</NTag>
+        <div class="home__configs-header-right">
+          <NInput
+            v-model:value="searchQuery"
+            size="small"
+            placeholder="搜索配置..."
+            clearable
+            class="home__search-input"
+            @update:value="onSearchChange"
+          />
+          <NTag v-if="totalCount" size="small" :bordered="false" class="home__configs-count">{{ totalCount }} 个配置</NTag>
+        </div>
       </div>
 
       <div v-if="loading" class="home__skeleton">
         <div v-for="n in 3" :key="n" class="home__skeleton-card" />
       </div>
 
+      <!-- Pagination -->
+      <div v-if="configs.total_pages > 1" class="home__pagination">
+        <NButton size="small" :disabled="configs.page <= 1" @click="goToPage(configs.page - 1)">← 上一页</NButton>
+        <span class="home__pagination-info">第 {{ configs.page }}/{{ configs.total_pages }} 页</span>
+        <NButton size="small" :disabled="configs.page >= configs.total_pages" @click="goToPage(configs.page + 1)">下一页 →</NButton>
+      </div>
+
       <NAlert v-else-if="error" type="error" :title="error" />
 
-      <div v-else-if="configs.length > 0" class="home__config-list">
-        <div v-for="cfg in configs" :key="cfg.id" class="home__config-card card-lift">
+      <div v-else-if="configs.items.length > 0" class="home__config-list">
+        <div v-for="cfg in configs.items" :key="cfg.id" class="home__config-card card-lift">
           <div class="home__config-card-left">
             <span class="home__config-card-icon">📋</span>
             <div class="home__config-card-info">
@@ -117,12 +134,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useConfigApi } from '../composables/useConfigApi'
+import { useConfigApi, type PaginatedResponse } from '../composables/useConfigApi'
 import { useWizardStore } from '../stores/wizard'
 import type { SavedConfig } from '../types/wizard'
-import { NButton, NAlert, NModal, NTag, NDropdown, useMessage } from 'naive-ui'
+import { NButton, NInput, NAlert, NModal, NTag, NDropdown, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import ExecuteConfigModal from '../components/ExecuteConfigModal.vue'
 import ConfigVersionPanel from '../components/config/ConfigVersionPanel.vue'
@@ -136,7 +153,13 @@ const { listConfigs, deleteConfig, downloadConfigYaml } = useConfigApi()
 
 const loading = ref(true)
 const error = ref('')
-const configs = ref<SavedConfig[]>([])
+const configs = ref<PaginatedResponse<SavedConfig>>({ items: [], total: 0, page: 1, page_size: 10, total_pages: 1 })
+const searchQuery = ref('')
+const currentPage = ref(1)
+const pageSize = ref(10)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+const totalCount = ref(0)
 
 const deleteModalVisible = ref(false)
 const deletingConfig = ref<SavedConfig | null>(null)
@@ -158,10 +181,32 @@ function startWithPrompt(prompt: string) {
   router.push('/config/new?prompt=' + encodeURIComponent(prompt))
 }
 
-onMounted(async () => {
-  configs.value = await listConfigs()
+async function fetchConfigs() {
+  loading.value = true
+  const result = await listConfigs({
+    search: searchQuery.value || undefined,
+    page: currentPage.value,
+    pageSize: pageSize.value,
+  })
+  configs.value = result
+  totalCount.value = result.total
   loading.value = false
-})
+}
+
+onMounted(() => { fetchConfigs() })
+
+function goToPage(page: number) {
+  currentPage.value = page
+  fetchConfigs()
+}
+
+function onSearchChange() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    currentPage.value = 1
+    fetchConfigs()
+  }, 300)
+}
 
 async function onLoadConfig(id: string) {
   router.push('/config/new?load=' + id)
@@ -182,7 +227,8 @@ async function onConfirmDelete() {
   const ok = await deleteConfig(deletingConfig.value.id)
   if (ok) {
     message.success('已删除')
-    configs.value = configs.value.filter(c => c.id !== deletingConfig.value!.id)
+    configs.value.items = configs.value.items.filter(c => c.id !== deletingConfig.value!.id)
+    totalCount.value = Math.max(0, totalCount.value - 1)
     deleteModalVisible.value = false
     deletingConfig.value = null
   } else {
@@ -219,7 +265,10 @@ function openVersionModal(configId: string) {
 
 function onVersionRefreshed() {
   // Reload config list after rollback to reflect updated version info
-  listConfigs().then(data => { configs.value = data })
+  listConfigs({ page: currentPage.value, pageSize: pageSize.value }).then(data => {
+    configs.value = data
+    totalCount.value = data.total
+  })
 }
 
 function formatTime(iso: string): string {
@@ -343,6 +392,15 @@ function formatTime(iso: string): string {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+  gap: 12px;
+}
+.home__configs-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.home__search-input {
+  width: 200px;
 }
 
 .home__configs-title {
@@ -441,6 +499,19 @@ function formatTime(iso: string): string {
 
 :deep(.btn-secondary:hover) {
   background: var(--color-surface-hover) !important;
+}
+
+/* ───── pagination ───── */
+.home__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+.home__pagination-info {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
 }
 
 /* ───── misc ───── */

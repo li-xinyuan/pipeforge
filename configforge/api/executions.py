@@ -111,15 +111,34 @@ def _save_failed_execution(
 
 
 @router.get("")
-async def list_executions(config_id: str = None, limit: int = 50):
-    """List execution history, optionally filtered by config_id."""
+async def list_executions(
+    search: str = None,
+    config_id: str = None,
+    page: int = 1,
+    page_size: int = 10,
+):
+    """List execution history with optional search and pagination."""
     if not os.path.exists(EXEC_INDEX):
-        return []
+        return {"items": [], "total": 0, "page": page,
+                "page_size": page_size, "total_pages": 0}
     with open(EXEC_INDEX) as f:
         index = json.load(f)
     if config_id:
         index = [e for e in index if e.get("config_id") == config_id]
-    return index[:limit]
+    if search:
+        q = search.lower()
+        index = [e for e in index if q in e.get("scene_name", "").lower()]
+    total = len(index)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    start = (page - 1) * page_size
+    items = index[start:start + page_size]
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+    }
 
 
 @router.get("/{exec_id}")

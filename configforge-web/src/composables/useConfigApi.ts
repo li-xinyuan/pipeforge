@@ -19,6 +19,20 @@ function mapConfig(raw: any): SavedConfig {
   }
 }
 
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export interface ListConfigsParams {
+  search?: string
+  page?: number
+  pageSize?: number
+}
+
 export function useConfigApi() {
   const loading = ref(false)
   const error = ref<{ message: string; code: string } | null>(null)
@@ -40,20 +54,31 @@ export function useConfigApi() {
     } finally { loading.value = false }
   }
 
-  async function listConfigs(): Promise<SavedConfig[]> {
+  async function listConfigs(params: ListConfigsParams = {}): Promise<PaginatedResponse<SavedConfig>> {
     loading.value = true; error.value = null
     try {
-      const resp = await fetch('/api/configs')
+      const query = new URLSearchParams()
+      if (params.search) query.set('search', params.search)
+      if (params.page) query.set('page', String(params.page))
+      if (params.pageSize) query.set('page_size', String(params.pageSize))
+      const qs = query.toString()
+      const resp = await fetch('/api/configs' + (qs ? '?' + qs : ''))
       if (!resp.ok) {
         const data = await resp.json().catch(() => null)
         error.value = { message: data?.error || data?.detail || '加载失败', code: data?.code || 'LOAD_ERROR' }
-        return []
+        return { items: [], total: 0, page: 1, page_size: 10, total_pages: 0 }
       }
       const data = await resp.json()
-      return (data || []).map(mapConfig)
+      return {
+        items: (data.items || []).map(mapConfig),
+        total: data.total || 0,
+        page: data.page || 1,
+        page_size: data.page_size || 10,
+        total_pages: data.total_pages || 1,
+      }
     } catch {
       error.value = { message: 'Network error', code: 'NETWORK_ERROR' }
-      return []
+      return { items: [], total: 0, page: 1, page_size: 10, total_pages: 0 }
     } finally { loading.value = false }
   }
 
