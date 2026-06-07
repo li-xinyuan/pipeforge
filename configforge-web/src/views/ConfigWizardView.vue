@@ -713,17 +713,14 @@ function onGuideAction(value: string) {
   }
 
   // === Everything else: just record the user's choice + update table name if applicable ===
-  // Try to update input table name from button text (e.g. "这个文件是订单表" → table="订单表")
+  // When user clicks table assignment button, update the input's table name
   if (currentStep.value === 2) {
     const m = value.match(/(?:是|对应|选为|选择)(.+)/)
-    if (m) {
+    if (m && store.inputs.length > 0) {
       const name = m[1]
-      for (let i = store.inputs.length - 1; i >= 0; i--) {
-        if (!store.inputs[i].table || store.inputs[i].table === '' || store.inputs[i].table === '新输入源') {
-          store.updateInput(i, { ...store.inputs[i], table: name })
-          break
-        }
-      }
+      // Always update the last input (user is answering about the most recently added one)
+      const lastIdx = store.inputs.length - 1
+      store.updateInput(lastIdx, { ...store.inputs[lastIdx], table: name })
     }
   }
   aiMessages.value.push({ role: 'user', content: value, step: currentStep.value, timestamp: Date.now() })
