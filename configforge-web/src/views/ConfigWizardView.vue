@@ -302,13 +302,30 @@ function stepBadge(n: number): string {
 }
 
 // Progress steps for WizardProgress
-const progressSteps = computed<StepState[]>(() => [
-  { label: '场景信息', status: stepStatus(1) },
-  { label: '输入源', status: stepStatus(2) },
-  { label: '处理步骤', status: stepStatus(3) },
-  { label: '输出配置', status: stepStatus(4) },
-  { label: '预览导出', status: stepStatus(5) },
-])
+const progressSteps = computed<StepState[]>(() => {
+  const p = store.plan
+  const getRemaining = (step: number) => {
+    const plan = p[step]
+    if (!plan) return { badge: undefined, hint: undefined }
+    const done = step === 2 ? store.inputs.length
+      : step === 3 ? store.processors.length
+      : step === 4 ? (store.output?.config ? 1 : 0)
+      : 0
+    const remaining = Math.max(0, plan.total - done)
+    return {
+      badge: remaining > 0 ? remaining : undefined,
+      hint: remaining > 0 ? `还差 ${remaining} 项：${plan.items.slice(done).join('、')}` : undefined,
+    }
+  }
+  const s2 = getRemaining(2), s3 = getRemaining(3), s4 = getRemaining(4)
+  return [
+    { label: '场景信息', status: stepStatus(1) },
+    { label: '输入源', status: stepStatus(2), badge: s2.badge, hint: s2.hint },
+    { label: '处理步骤', status: stepStatus(3), badge: s3.badge, hint: s3.hint },
+    { label: '输出配置', status: stepStatus(4), badge: s4.badge, hint: s4.hint },
+    { label: '预览导出', status: stepStatus(5) },
+  ]
+})
 
 // Navigation
 function completeStep(n: number) {
@@ -791,6 +808,11 @@ async function triggerStepGuide(step: number) {
     actions: result.actions, prefill: result.prefill, timestamp: Date.now(),
   }
   aiMessages.value.push(msg)
+
+  // Parse AI-generated plan from prefill.knowledge
+  if (result.prefill?.knowledge?.plan) {
+    store.setPlan(result.prefill.knowledge.plan)
+  }
 
   // Step 3: proactively suggest checkpoints
   if (step === 3 && store.processors.length > 0) {

@@ -134,6 +134,8 @@ export function useAiGuide() {
           `5. **绝对不要**在确认对应关系上反复循环——一旦用户做了选择就推进\n`
         : `用户还没添加输入源。告诉用户根据场景分析需要哪些数据源，引导用户逐一添加。\n`) +
       `\n**严格要求：所有 label 和 value 必须是中文，禁止英文！**\n` +
+      `同时，请在 prefill.knowledge.plan 中输出执行计划（用于进度条徽章显示）：\n` +
+      `"plan": {"2": {"total": N, "items": ["表1", "表2"]}, "3": {"total": N, "items": ["关联+统计"]}, "4": {"total": 1, "items": ["Excel输出"]}}\n` +
       `【必须以 JSON 格式回复，禁止返回普通文本】\n` +
       `{"message": "你的引导消息（只谈第2步）", "actions": [{"label": "选项", "value": "xxx"}]}\n\n` +
       (hasInputs

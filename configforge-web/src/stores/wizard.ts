@@ -12,6 +12,13 @@ export const useWizardStore = defineStore('wizard', () => {
   const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
   const aiSuggestions = ref<Record<string, AiSuggestion>>({})
 
+  // AI 生成的执行计划（待办列表）
+  const plan = ref<Record<number, { total: number; items: string[] }>>({})
+
+  function setPlan(p: Record<number, { total: number; items: string[] }>) {
+    plan.value = p
+  }
+
   // UI 层临时标记，不持久化，刷新后消失
   const aiPrefilledFields = reactive<Record<string, boolean>>({})
 
@@ -213,7 +220,8 @@ export const useWizardStore = defineStore('wizard', () => {
     addFileRef, removeFileRef,
     setSuggestion, acceptSuggestion, rejectSuggestion,
     setConfigId, loadFromConfigState, resetAll, getWizardState,
-    aiPrefilledFields, markAiPrefilled, markUserEdited, isAiPrefilled
+    aiPrefilledFields, markAiPrefilled, markUserEdited, isAiPrefilled,
+    plan, setPlan
   }
 }, {
   persist: { key: 'wizard_state_v2', storage: localStorage }

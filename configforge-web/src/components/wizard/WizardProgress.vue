@@ -14,6 +14,7 @@
       >
         <span class="wizard-progress__number">{{ i + 1 }}</span>
         <span class="wizard-progress__label">{{ step.label }}</span>
+        <span v-if="step.badge && step.badge > 0" class="wizard-progress__badge" :title="step.hint || ''">{{ step.badge }}</span>
       </div>
       <div
         v-if="i < steps.length - 1"
@@ -29,6 +30,8 @@
 export interface StepState {
   label: string
   status: 'completed' | 'active' | 'locked'
+  badge?: number
+  hint?: string
 }
 
 defineProps<{ steps: StepState[] }>()
@@ -64,6 +67,7 @@ function onStepClick(step: number, status: StepState['status']) {
 .wizard-progress__step {
   display: flex;
   align-items: center;
+  position: relative;
   gap: 6px;
   flex: 1;
 }
@@ -109,6 +113,16 @@ function onStepClick(step: number, status: StepState['status']) {
 }
 .wizard-progress__step--locked .wizard-progress__label {
   color: var(--color-text-muted);
+}
+.wizard-progress__badge {
+  position: absolute;
+  top: -6px; right: -6px;
+  min-width: 18px; height: 18px;
+  padding: 0 5px; border-radius: 9px;
+  background: #ef4444; color: #fff;
+  font-size: 10px; font-weight: 700;
+  line-height: 18px; text-align: center;
+  cursor: help;
 }
 .wizard-progress__connector {
   width: 18px;
