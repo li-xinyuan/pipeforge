@@ -40,6 +40,7 @@
             </div>
           </div>
           <AiInlineTip
+            v-if="!isGuideMode"
             message="完善场景信息后，后续步骤可以使用 AI 辅助生成代码和列映射"
           />
           <template #footer>
@@ -59,7 +60,7 @@
         >
           <InputSourceList :pulse-cta="currentStep === 2" @file-ready="onFileReady" />
           <AiInlineTip
-            v-if="showStep2Tip"
+            v-if="showStep2Tip && !isGuideMode"
             message="AI 已分析列结构，点击「AI 分析列」查看详情"
             show-action
             action-label="AI 分析列"
@@ -83,7 +84,7 @@
         >
           <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && (store.processors.length === 0 || store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) || !p.outputTables.length))" />
           <AiInlineTip
-            v-if="showStep3Tip"
+            v-if="showStep3Tip && !isGuideMode"
             message="描述你的需求，AI 帮你生成代码"
             show-action
             action-label="AI 生成代码"
@@ -109,7 +110,7 @@
         >
           <OutputConfigTab :pulse-cta="currentStep === 4" />
           <AiInlineTip
-            v-if="showStep4Tip"
+            v-if="showStep4Tip && !isGuideMode"
             message="AI 可自动推断列映射关系"
             show-action
             action-label="AI 自动列映射"
@@ -133,7 +134,7 @@
         >
           <YamlPreview ref="yamlPreviewRef" />
           <AiInlineTip
-            v-if="showStep5Tip"
+            v-if="showStep5Tip && !isGuideMode"
             message="配置就绪，可以下载或执行"
           />
           <template #footer>
@@ -174,7 +175,7 @@
 
       <!-- FAB for AI panel on tablet/mobile -->
       <button
-        v-if="!aiPanelVisible && breakpoint !== 'desktop'"
+        v-if="!aiPanelVisible && breakpoint !== 'desktop' && !isGuideMode"
         class="wizard__ai-fab"
         aria-label="打开 AI 助手"
         @click="aiPanelVisible = true"
@@ -364,6 +365,24 @@ function scrollToStep(n: number) {
 
 // AI handlers
 function onFileReady(fileId: string) {
+  if (isGuideMode.value) {
+    // Guide mode: automatically analyze uploaded file against scene requirements
+    const meta = store.uploadedFiles[fileId]
+    if (meta?.columns?.length) {
+      const cols = meta.columns.join('、')
+      aiMessages.value.push({
+        role: 'user',
+        content: `已上传文件：${meta.originalName || fileId}（${meta.columns.length} 列：${cols}）`,
+        step: 2,
+        timestamp: Date.now(),
+      })
+      saveMessages(aiMessages.value, store.configId)
+      // Trigger AI to analyze if these columns match the scene requirements
+      triggerStepGuide(2)
+    }
+    return
+  }
+  // Non-guide mode: show generic prompt
   aiMessages.value.push({
     role: 'ai',
     content: `检测到文件上传。我可以帮你分析数据列结构，需要的话请点击快捷操作「AI 分析列」。`,
