@@ -612,12 +612,31 @@ function onGuideSend(text: string) {
 }
 
 function onGuideAction(value: string) {
+  // Step 2: input type selection
   if (currentStep.value === 2 && ['excel', 'csv', 'database'].includes(value)) {
     store.addInput(value as 'excel' | 'csv' | 'database')
     aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
     return
   }
+
+  // Step confirmation → trigger actual step navigation
+  if (value === 'confirm' && currentStep.value < 5) {
+    aiMessages.value.push({ role: 'user', content: '确认', step: currentStep.value, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    completeStep(currentStep.value)
+    return
+  }
+
+  // Step 3: pick processor type
+  if (currentStep.value === 3 && ['pick_sql', 'pick_python'].includes(value)) {
+    const plugin = value === 'pick_sql' ? 'sql' : 'python'
+    store.addProcessor(plugin)
+    aiMessages.value.push({ role: 'user', content: value, step: 3, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    return
+  }
+
   onGuideSend(value)
 }
 
