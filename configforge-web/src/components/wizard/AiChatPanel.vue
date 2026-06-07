@@ -634,7 +634,7 @@ watch(() => props.messages.length, async () => {
   display: flex; align-items: center; justify-content: center;
 }
 .ai-guide-collapse-btn:hover { background: var(--color-surface-hover); }
-.ai-guide-msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; min-height: 60px; max-height: 300px; }
+.ai-guide-msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .ai-guide-msg { display: flex; max-width: 95%; }
 .ai-guide-msg--ai { align-self: flex-start; }
 .ai-guide-msg--user { align-self: flex-end; }
