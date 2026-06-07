@@ -23,13 +23,25 @@ export function useAiGuide() {
       try {
         const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0])
         return {
-          message: parsed.message || aiText,
+          message: cleanMessage(parsed.message) || cleanMessage(aiText),
           actions: parsed.actions,
           prefill: parsed.prefill,
         }
-      } catch { /* fall through */ }
+      } catch {
+        return { message: cleanMessage(aiText) }
+      }
     }
-    return { message: aiText }
+    return { message: cleanMessage(aiText) }
+  }
+
+  function cleanMessage(text: string): string {
+    if (!text) return ''
+    return text
+      .replace(/\{[^}]{0,200}"message"[^}]{0,500}\}/g, '')
+      .replace(/\{[^}]{0,200}"actions"[^}]{0,500}\}/g, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
   }
 
   async function startGuide(userInput: string): Promise<GuideResponse> {

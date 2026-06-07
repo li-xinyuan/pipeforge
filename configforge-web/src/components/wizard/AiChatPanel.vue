@@ -259,17 +259,36 @@ function getGuideDisplayContent(msg: ChatMessage, idx: number): string {
 }
 
 function sanitizeGuideContent(text: string): string {
-  return text
-    // 1. XSS escape
+  let cleaned = text
+    // 1. XSS escape first
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    // 2. literal \n → real newline, then → <br>
-    .replace(/\\n/g, '\n')
+
+  // 2. Try to extract just the message from JSON if present
+  const msgMatch = cleaned.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+  if (msgMatch) {
+    cleaned = msgMatch[1]
+      .replace(/\\n/g, '\n')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\')
+  } else {
+    // No JSON message field found — strip JSON-like blobs
+    cleaned = cleaned
+      .replace(/\{[^}]*"message"[^}]*\}/g, '')
+      .replace(/\{[^}]*"actions"[^}]*\}/g, '')
+      .replace(/\{[^}]*"prefill"[^}]*\}/g, '')
+      .replace(/^\s*[\[\{]\s*/g, '')
+      .replace(/\s*[\]\}]\s*$/g, '')
+      .replace(/\\n/g, '\n')
+      .replace(/\\"/g, '"')
+  }
+
+  // 3. Convert newlines to <br>, collapse excess
+  cleaned = cleaned
     .replace(/\n/g, '<br>')
-    // 3. strip leftover raw JSON blocks (fallback if parseGuideResponse missed them)
-    .replace(/\{[\s\S]*"message"[\s\S]*\}/g, '')
-    // 4. collapse multiple <br>s
     .replace(/(<br>\s*){3,}/g, '<br><br>')
     .trim()
+
+  return cleaned || text.replace(/[{}]/g, '').replace(/\\n/g, '<br>')
 }
 
 // Keep old function for backward compat
