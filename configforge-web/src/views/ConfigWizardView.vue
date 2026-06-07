@@ -700,7 +700,6 @@ async function triggerStepGuide(step: number) {
   // Build detailed context with all accumulated wizard knowledge
   const ctx: Record<string, any> = {
     conversation_history: recentHistory,
-  }
     current_step: step,
     user_intent: guidePrompt.value,
     scene_name: store.scene.name,
