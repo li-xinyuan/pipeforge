@@ -36,6 +36,24 @@ export interface ChatMessage {
   content: string
   code?: string
   orchestration?: OrchestrationResult
+  // --- AI guide mode fields ---
+  step?: number              // 关联步骤编号 1-5
+  type?: 'guide' | 'chat' | 'warning' | 'suggestion'
+  actions?: GuideAction[]
+  prefill?: Record<string, any>
+  timestamp?: number
+}
+
+export interface GuideAction {
+  label: string
+  value: string
+  style?: 'primary' | 'default' | 'warning'
+}
+
+export interface GuideResponse {
+  message: string
+  actions?: GuideAction[]
+  prefill?: Record<string, any>
 }
 
 export interface SceneInfo {
