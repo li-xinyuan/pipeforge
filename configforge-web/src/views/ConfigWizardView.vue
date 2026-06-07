@@ -624,7 +624,7 @@ function onGuideAction(value: string) {
         const inputCards = cardEl.querySelectorAll('[class*="card"]')
         const lastCard = inputCards[inputCards.length - 1] as HTMLElement
         if (lastCard) {
-          lastCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
         } else {
           scrollToStep(2)
         }
@@ -655,7 +655,7 @@ function onGuideAction(value: string) {
         const procCards = cardEl.querySelectorAll('[class*="card"]')
         const lastCard = procCards[procCards.length - 1] as HTMLElement
         if (lastCard) {
-          lastCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
         } else {
           scrollToStep(3)
         }
