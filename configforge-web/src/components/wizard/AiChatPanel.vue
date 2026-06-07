@@ -1,5 +1,44 @@
 <template>
-  <aside v-if="visible" class="ai-panel" :class="`ai-panel--${mode || 'sidebar'}`" @click.self="onBackdropClick">
+  <!-- Guide mode: fixed right panel -->
+  <div v-if="mode === 'guide'" class="ai-guide-panel" :class="{ 'ai-guide-panel--collapsed': collapsed }">
+    <div v-if="collapsed" class="ai-guide-collapsed" @click="collapsed = false">
+      <span class="ai-guide-collapsed-icon">🤖</span>
+    </div>
+    <template v-else>
+      <div class="ai-guide-header">
+        <span class="ai-guide-header-icon">🤖</span>
+        <span class="ai-guide-header-title">Forge · AI 助手</span>
+        <button class="ai-guide-collapse-btn" @click="collapsed = true" title="收起面板">◀</button>
+      </div>
+      <div class="ai-guide-msgs" ref="guideMsgsEl">
+        <div v-for="(msg, i) in messages" :key="i" class="ai-guide-msg" :class="`ai-guide-msg--${msg.role}`">
+          <div class="ai-guide-msg-bubble" :class="msg.type ? `ai-guide-msg-bubble--${msg.type}` : ''">
+            <span v-if="msg.step" class="ai-guide-msg-step">步骤 {{ msg.step }}</span>
+            <span class="ai-guide-msg-text" v-html="renderGuideContent(msg)"></span>
+            <div v-if="msg.actions?.length" class="ai-guide-msg-actions">
+              <button v-for="(act, ai) in msg.actions" :key="ai"
+                class="ai-guide-action-btn"
+                :class="{ 'ai-guide-action-btn--primary': act.style === 'primary' }"
+                @click="$emit('guideAction', act.value)">{{ act.label }}</button>
+            </div>
+          </div>
+        </div>
+        <div v-if="loading" class="ai-guide-typing">
+          <span class="ai-guide-typing-dots"><span>.</span><span>.</span><span>.</span></span>
+          <span class="ai-guide-typing-text">AI 正在思考...</span>
+          <span v-if="showLongWait" class="ai-guide-typing-hint">生成较复杂的代码可能需要更长时间</span>
+          <button v-if="showCancel" class="ai-guide-cancel-btn" @click="$emit('cancelGuide')">取消</button>
+        </div>
+      </div>
+      <div class="ai-guide-input">
+        <input v-model="guideInput" placeholder="告诉 Forge 你需要什么..." @keydown.enter="sendGuideMsg" />
+        <button class="ai-guide-send-btn" @click="sendGuideMsg">发送</button>
+      </div>
+    </template>
+  </div>
+
+  <!-- Original modes (sidebar / overlay / fullscreen) -->
+  <aside v-else-if="visible" class="ai-panel" :class="`ai-panel--${mode || 'sidebar'}`" @click.self="onBackdropClick">
     <div class="ai-panel__inner">
       <div class="ai-panel__header">
         <div class="ai-panel__title">
@@ -76,7 +115,8 @@ const props = defineProps<{
   visible: boolean
   messages: ChatMessage[]
   quickActions: string[]
-  mode?: 'sidebar' | 'overlay' | 'fullscreen'
+  mode?: 'sidebar' | 'overlay' | 'fullscreen' | 'guide'
+  currentStep?: number
   loading?: boolean
 }>()
 
@@ -86,12 +126,53 @@ const emit = defineEmits<{
   toggle: []
   'orchestrate-confirm': [result: any]
   'orchestrate-regenerate': []
+  guideAction: [value: string]
+  cancelGuide: []
 }>()
 
 const currentMode = computed(() => props.mode || 'sidebar')
 
 const inputText = ref('')
 const messagesEl = ref<HTMLElement>()
+const guideMsgsEl = ref<HTMLElement>()
+
+// Guide mode state
+const collapsed = ref(false)
+const guideInput = ref('')
+const showCancel = ref(false)
+const showLongWait = ref(false)
+let cancelTimer: ReturnType<typeof setTimeout> | null = null
+let fiveSecTimer: ReturnType<typeof setTimeout> | null = null
+
+function sendGuideMsg() {
+  const text = guideInput.value.trim()
+  if (!text) return
+  guideInput.value = ''
+  emit('send', text)
+}
+
+function renderGuideContent(msg: ChatMessage): string {
+  const escaped = (msg.content || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return escaped.replace(/\n/g, '<br>')
+}
+
+// Watch loading for cancel/timeout UI
+watch(() => props.loading, (val) => {
+  showCancel.value = false
+  showLongWait.value = false
+  if (cancelTimer) clearTimeout(cancelTimer)
+  if (fiveSecTimer) clearTimeout(fiveSecTimer)
+  if (val) {
+    fiveSecTimer = setTimeout(() => { showLongWait.value = true }, 5000)
+    cancelTimer = setTimeout(() => { showCancel.value = true }, 30000)
+  }
+})
+
+onUnmounted(() => {
+  if (cancelTimer) clearTimeout(cancelTimer)
+  if (fiveSecTimer) clearTimeout(fiveSecTimer)
+})
 
 // Typewriter state
 const typedTexts = ref<Record<number, string>>({})
@@ -435,4 +516,68 @@ watch(() => props.messages.length, async () => {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+
+/* ───── Guide mode ───── */
+.ai-guide-panel {
+  width: 320px; flex-shrink: 0;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border-light);
+  display: flex; flex-direction: column;
+  transition: width 0.3s; overflow: hidden;
+}
+.ai-guide-panel--collapsed { width: 32px; }
+.ai-guide-collapsed {
+  width: 32px; height: 100%; display: flex; align-items: flex-start;
+  justify-content: center; padding-top: 16px; cursor: pointer;
+  background: var(--color-primary-bg);
+}
+.ai-guide-collapsed-icon { font-size: 20px; }
+.ai-guide-header {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  background: var(--color-primary-bg); border-bottom: 1px solid var(--color-border-light); flex-shrink: 0;
+}
+.ai-guide-header-icon { font-size: 18px; }
+.ai-guide-header-title { font-size: 13px; font-weight: 600; color: var(--color-primary); flex: 1; }
+.ai-guide-collapse-btn {
+  width: 24px; height: 24px; border-radius: 4px; border: none;
+  background: transparent; cursor: pointer; font-size: 12px; color: var(--color-text-muted);
+}
+.ai-guide-msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.ai-guide-msg { display: flex; max-width: 95%; }
+.ai-guide-msg--ai { align-self: flex-start; }
+.ai-guide-msg--user { align-self: flex-end; }
+.ai-guide-msg-bubble {
+  padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.6;
+  background: var(--color-surface-hover); border: 1px solid var(--color-border-light); color: var(--color-text);
+}
+.ai-guide-msg--user .ai-guide-msg-bubble { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.ai-guide-msg-bubble--suggestion { border-color: var(--color-primary); background: var(--color-primary-bg); }
+.ai-guide-msg-bubble--warning { border-color: #f59e0b; background: rgba(245,158,11,0.04); }
+.ai-guide-msg-step { font-size: 10px; color: var(--color-text-muted); display: block; margin-bottom: 4px; }
+.ai-guide-msg-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.ai-guide-action-btn {
+  padding: 5px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
+  border: 1px solid var(--color-primary); background: transparent; color: var(--color-primary);
+  transition: all 0.2s; font-family: inherit;
+}
+.ai-guide-action-btn:hover { background: var(--color-primary); color: #fff; }
+.ai-guide-action-btn--primary { background: var(--color-primary); color: #fff; }
+.ai-guide-typing { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12px; color: var(--color-text-muted); flex-wrap: wrap; }
+.ai-guide-typing-dots span { animation: guide-dot-bounce 1.4s infinite ease-in-out both; font-weight: bold; }
+.ai-guide-typing-dots span:nth-child(1) { animation-delay: 0s; }
+.ai-guide-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.ai-guide-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes guide-dot-bounce { 0%,80%,100% { opacity: 0 } 40% { opacity: 1 } }
+.ai-guide-typing-hint { color: var(--color-text-muted); font-size: 11px; width: 100%; }
+.ai-guide-cancel-btn {
+  margin-left: auto; font-size: 11px; padding: 4px 10px; border-radius: 6px;
+  border: 1px solid #ef4444; background: transparent; color: #ef4444; cursor: pointer;
+}
+.ai-guide-input { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--color-border-light); flex-shrink: 0; }
+.ai-guide-input input {
+  flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--color-border-light);
+  background: var(--color-bg); font-size: 13px; color: var(--color-text); outline: none; font-family: inherit;
+}
+.ai-guide-input input:focus { border-color: var(--color-primary); }
+.ai-guide-send-btn { padding: 6px 14px; border-radius: 8px; border: none; background: var(--color-primary); color: #fff; font-size: 13px; cursor: pointer; font-weight: 600; }
 </style>
