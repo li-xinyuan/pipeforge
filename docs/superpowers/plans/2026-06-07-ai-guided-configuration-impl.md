@@ -34,18 +34,21 @@
 ### Task 1: 类型定义扩展
 
 **Files:**
-- Modify: `configforge-web/src/types/wizard.ts`
+- Modify: `configforge-web/src/types/wizard.ts:34-39`
 
 - [ ] **Step 1: 新增 ChatMessage 扩展字段和 GuideAction/GuideResponse 类型**
 
-在 `wizard.ts` 中 `ChatMessage` 接口（约第 225 行）追加字段，新增类型：
+`ChatMessage` 接口位于 `wizard.ts` 第 34 行，现有字段为 `role, content, code?, orchestration?`。
+
+追加 `step, type, actions, prefill, timestamp` 字段（均为可选，不破坏现有引用）：
 
 ```typescript
-// 追加到 ChatMessage 接口中
+// 第 34 行，追加字段
 export interface ChatMessage {
   role: 'user' | 'ai'
   content: string
-  orchestration?: any
+  code?: string
+  orchestration?: OrchestrationResult
   // --- 新增字段 ---
   step?: number              // 关联步骤编号 1-5
   type?: 'guide' | 'chat' | 'warning' | 'suggestion'
@@ -90,16 +93,19 @@ git commit -m "feat: add ChatMessage guide fields and GuideAction/GuideResponse 
 **Files:**
 - Modify: `configforge-web/src/composables/useAiStatus.ts`
 
-`useAiStatus` 当前每次调用创建独立 `aiConfigured` ref。引导模式需要首页和向导共享同一状态。
+`aiConfigured` 已经是模块级 `const aiConfigured = ref(false)`，所有调用者共享同一状态。
 
-- [ ] **Step 1: 改写 useAiStatus 为模块级单例**
+需要改进的是：当前 `ref(false)` 无法区分"未检测"和"检测后确认不可用"——两者都是 falsy。改为 `Ref<boolean | null>`，`null` 表示未检测。
+
+- [ ] **Step 1: 将 aiConfigured 改为三态**
 
 ```typescript
 // configforge-web/src/composables/useAiStatus.ts
 import { ref } from 'vue'
 
-// 模块级单例，所有调用者共享
-const aiConfigured = ref<boolean | null>(null) // null = 未检测，true/false = 已检测
+// 模块级，三态：null = 未检测，true = 已配置可用，false = 已检测不可用
+const aiConfigured = ref<boolean | null>(null)
+const checking = ref(false)
 const checking = ref(false)
 
 export function useAiStatus() {
@@ -217,14 +223,23 @@ describe('useConversationHistory', () => {
 
   it('saves and loads messages', () => {
     const { saveMessages, loadMessages } = useConversationHistory()
+    const configId = 'test-config-1'
     const msgs: ChatMessage[] = [
       { role: 'ai', content: 'Hello', timestamp: Date.now() },
       { role: 'user', content: 'Hi', timestamp: Date.now() },
     ]
-    saveMessages(msgs)
-    const loaded = loadMessages()
+    saveMessages(msgs, configId)
+    const loaded = loadMessages(configId)
     expect(loaded).toHaveLength(2)
     expect(loaded[0].content).toBe('Hello')
+  })
+
+  it('isolates history per config', () => {
+    const { saveMessages, loadMessages } = useConversationHistory()
+    saveMessages([{ role: 'ai', content: 'Config A', timestamp: Date.now() }], 'config-a')
+    saveMessages([{ role: 'ai', content: 'Config B', timestamp: Date.now() }], 'config-b')
+    expect(loadMessages('config-a')[0].content).toBe('Config A')
+    expect(loadMessages('config-b')[0].content).toBe('Config B')
   })
 
   it('truncates to 50 messages', () => {
@@ -234,22 +249,10 @@ describe('useConversationHistory', () => {
       content: `msg ${i}`,
       timestamp: Date.now() + i,
     }))
-    saveMessages(msgs)
-    const loaded = loadMessages()
+    saveMessages(msgs, 'test')
+    const loaded = loadMessages('test')
     expect(loaded).toHaveLength(50)
-    expect(loaded[0].content).toBe('msg 10') // 前 10 条被截断
-  })
-
-  it('returns empty array when no history', () => {
-    const { loadMessages } = useConversationHistory()
-    expect(loadMessages()).toEqual([])
-  })
-
-  it('clears history', () => {
-    const { saveMessages, loadMessages, clearHistory } = useConversationHistory()
-    saveMessages([{ role: 'ai', content: 'test', timestamp: Date.now() }])
-    clearHistory()
-    expect(loadMessages()).toEqual([])
+    expect(loaded[0].content).toBe('msg 10')
   })
 })
 ```
@@ -268,39 +271,39 @@ Expected: FAIL（模块不存在）
 // configforge-web/src/composables/useConversationHistory.ts
 import type { ChatMessage } from '../types/wizard'
 
-const STORAGE_KEY = 'configforge-chat-history'
+const STORAGE_KEY_PREFIX = 'configforge-chat-history'
 const MAX_MESSAGES = 50
+
+function getStorageKey(configId?: string | null): string {
+  return configId ? `${STORAGE_KEY_PREFIX}-${configId}` : `${STORAGE_KEY_PREFIX}-new`
+}
 
 function estimateSize(messages: ChatMessage[]): number {
   return new Blob([JSON.stringify(messages)]).size
 }
 
 export function useConversationHistory() {
-  function saveMessages(messages: ChatMessage[]) {
+  function saveMessages(messages: ChatMessage[], configId?: string | null) {
     try {
-      // 保留最近 MAX_MESSAGES 条
       let toSave = messages.slice(-MAX_MESSAGES)
-      // 如果超过 5MB 限制，进一步截断
       while (estimateSize(toSave) > 4 * 1024 * 1024 && toSave.length > 10) {
         toSave = toSave.slice(-Math.floor(toSave.length / 2))
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave))
-    } catch {
-      // localStorage 不可用或 quota 超出时静默忽略
-    }
+      localStorage.setItem(getStorageKey(configId), JSON.stringify(toSave))
+    } catch { /* ignore */ }
   }
 
-  function loadMessages(): ChatMessage[] {
+  function loadMessages(configId?: string | null): ChatMessage[] {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
+      const raw = localStorage.getItem(getStorageKey(configId))
       return raw ? JSON.parse(raw) : []
     } catch {
       return []
     }
   }
 
-  function clearHistory() {
-    try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+  function clearHistory(configId?: string | null) {
+    try { localStorage.removeItem(getStorageKey(configId)) } catch { /* ignore */ }
   }
 
   return { saveMessages, loadMessages, clearHistory }
@@ -381,6 +384,8 @@ describe('useAiGuide', () => {
     expect(result.message).toBe('请选择输入源')
     expect(result.actions![0].label).toBe('Excel')
   })
+  // 注：useAiGuide 内部调用 useAiApi.askSuggestion，
+  // 该函数通过 fetch('/api/ai/suggest') 发送请求，mock 仍为 fetch
 })
 ```
 
@@ -397,6 +402,7 @@ Expected: FAIL
 ```typescript
 // configforge-web/src/composables/useAiGuide.ts
 import { useWizardStore } from '../stores/wizard'
+import { useAiApi } from './useWizardApi'
 import type { GuideAction, GuideResponse, ChatMessage } from '../types/wizard'
 
 const STEP_CATEGORY_MAP: Record<number, string> = {
@@ -409,9 +415,10 @@ const STEP_CATEGORY_MAP: Record<number, string> = {
 
 export function useAiGuide() {
   const store = useWizardStore()
+  const { askSuggestion } = useAiApi()
+  // askSuggestion 已有：速率限制、错误清洗、超时控制、AbortController 支持
 
   function parseGuideResponse(aiText: string): GuideResponse {
-    // 尝试从 AI 回复中提取 JSON 块
     const jsonMatch = aiText.match(/```json\s*([\s\S]*?)\s*```/)
     if (jsonMatch) {
       try {
@@ -423,63 +430,38 @@ export function useAiGuide() {
         }
       } catch { /* fall through */ }
     }
-    // 无 JSON → 整个文本作为 message
     return { message: aiText }
   }
 
-  async function callSuggest(category: string, context: string): Promise<string | null> {
-    try {
-      const resp = await fetch('/api/ai/suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category, context }),
-      })
-      if (!resp.ok) return null
-      const data = await resp.json()
-      return data.content || null
-    } catch {
-      return null
-    }
-  }
-
-  /**
-   * 首页进入向导时调用。传入用户需求描述，返回初始引导消息。
-   */
   async function startGuide(userInput: string): Promise<GuideResponse> {
-    const context = `用户需求描述：${userInput}`
-    const content = await callSuggest('scene', context)
+    const content = await askSuggestion('scene', { description: userInput })
     if (!content) {
-      return {
-        message: '抱歉，AI 暂时不可用。你可以手动填写表单，或者先去设置页配置 AI。',
-      }
+      return { message: '抱歉，AI 暂时不可用。你可以手动填写表单，或者先去设置页配置 AI。' }
     }
     const guide = parseGuideResponse(content)
-    // 从 content 中提取场景名称作为 prefill
     if (!guide.prefill) {
-      guide.prefill = { 'scene.name': extractSceneName(userInput, content) }
+      guide.prefill = { 'scene.name': extractSceneName(userInput) }
     }
     return guide
   }
 
-  /**
-   * 步骤切换时调用。传入当前步骤和 wizard 状态，返回引导消息。
-   */
   async function stepGuide(step: number, context: Record<string, any>): Promise<GuideResponse> {
     const category = STEP_CATEGORY_MAP[step] || 'chat'
-    const ctxStr = JSON.stringify({ current_step: step, ...context })
-    const content = await callSuggest(category, ctxStr)
+    const content = await askSuggestion(category, {
+      current_step: step,
+      ...context,
+    })
     if (!content) {
       return { message: 'AI 暂不可用，请手动完成此步骤。' }
     }
     return parseGuideResponse(content)
   }
 
-  function extractSceneName(userInput: string, aiResponse: string): string {
-    // 简单策略：取用户输入前 30 字符作为场景名
+  function extractSceneName(userInput: string): string {
     return userInput.length > 30 ? userInput.slice(0, 30) + '...' : userInput
   }
 
-  return { parseGuideResponse, startGuide, stepGuide, callSuggest }
+  return { parseGuideResponse, startGuide, stepGuide }
 }
 ```
 
@@ -589,8 +571,11 @@ function startWithPrompt(text: string) {
   startAiGuide()
 }
 
+import { useMessage } from 'naive-ui'
+const message = useMessage()
+
 function onVoicePlaceholder() {
-  // 下版本实现语音输入
+  message.info('语音输入即将在下一版本支持')
 }
 ```
 
@@ -778,7 +763,10 @@ function sendGuideMsg() {
 }
 
 function renderMsgContent(msg: ChatMessage): string {
-  return msg.content.replace(/\n/g, '<br>')
+  // XSS 防护：转义 HTML 标签后替换换行
+  const escaped = msg.content
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return escaped.replace(/\n/g, '<br>')
 }
 
 // Watch loading: show cancel button after 30s
@@ -941,14 +929,32 @@ const { startGuide, stepGuide, parseGuideResponse } = useAiGuide()
 const { saveMessages, loadMessages } = useConversationHistory()
 
 // Guide mode: 当 URL 带 ?guide= 参数时启用
+// 替换现有 ?prompt= 参数（功能重叠），统一为 ?guide=
 const isGuideMode = computed(() => !!route.query.guide)
 const guidePrompt = computed(() => (route.query.guide as string) || '')
+
+// 编排模式与 guide 模式互斥
+// guide 模式中隐藏编排快捷操作（"AI 编排步骤链"按钮不出现）
+// 手动进入（无 ?guide=）时保留现有 sidebar/overlay 模式和编排功能
+const aiQuickActions = computed(() => {
+  if (isGuideMode.value) {
+    // guide 模式下不显示编排，只显示与步骤相关的快捷操作
+    const actions = []
+    if (currentStep.value === 1) actions.push('确认场景信息')
+    if (currentStep.value === 3) actions.push('解释代码', '优化代码')
+    return actions
+  }
+  // 非 guide 模式保留现有行为
+  const actions = ['生成场景描述', 'AI 分析列', 'AI 生成代码', 'AI 自动映射']
+  if (store.inputs.length > 0) actions.unshift('AI 编排步骤链')
+  return actions
+})
 
 // 替换旧的 aiMessages 初始值
 const aiMessages = ref<ChatMessage[]>([])
 
 // 步骤级 AI 引导触发
-const currentStep = ref(1)
+// 复用现有的 currentStep（第 209 行已定义 const currentStep = ref(1)）
 const lastGuidedStep = ref(0)
 
 watch(currentStep, async (step) => {
@@ -987,9 +993,9 @@ function buildStepContext(step: number): Record<string, any> {
     scene_name: store.scene.name,
     scene_description: store.scene.description,
     inputs_count: store.inputs.length,
-    input_types: store.inputs.map(i => i.plugin),
+    input_plugins: store.inputs.map(i => i.plugin), // 不暴露 fileId/连接字符串
     processors_count: store.processors.length,
-    processor_plugins: store.processors.map(p => p.plugin),
+    processor_plugins: store.processors.map(p => p.plugin), // 不暴露代码内容
     output_plugin: store.output?.plugin,
     has_columns: !!(store.output?.config as any)?.columns?.length,
   }
@@ -1023,14 +1029,21 @@ function onCancelGuide() {
   suggesting.value = false
 }
 
-// 初始化 guide 模式
-onMounted(async () => {
-  if (isGuideMode.value) {
-    // 恢复对话历史
-    const history = loadMessages()
-    if (history.length) aiMessages.value = history
+// 初始化 guide 模式 — 防重复触发
+const guideInitialized = ref(false)
 
-    // 触发初始引导
+onMounted(async () => {
+  if (isGuideMode.value && !guideInitialized.value) {
+    guideInitialized.value = true
+
+    // 恢复对话历史
+    const history = loadMessages(store.configId)
+    if (history.length > 0) {
+      aiMessages.value = history
+      return
+    }
+
+    // 首次进入：触发初始引导
     suggesting.value = true
     const result = await startGuide(guidePrompt.value)
     suggesting.value = false
@@ -1044,7 +1057,7 @@ onMounted(async () => {
       prefill: result.prefill,
       timestamp: Date.now(),
     })
-    saveMessages(aiMessages.value)
+    saveMessages(aiMessages.value, store.configId)
     if (result.prefill) applyPrefill(result.prefill, 1)
   }
 })
@@ -1087,42 +1100,41 @@ git commit -m "feat: integrate guide-mode AiChatPanel into ConfigWizardView"
 ### Task 9: 步骤 2 AI 联动 —— 输入类型选择
 
 **Files:**
-- Modify: `configforge-web/src/views/Step2InputView.vue`
 - Modify: `configforge-web/src/components/step2/InputSourceList.vue`
+- Modify: `configforge-web/src/views/ConfigWizardView.vue`
 
-使 AI 面板中的输入类型选择（Excel/CSV/数据库）能触发页面上的卡片高亮和表单切换。
+注意：`Step2InputView.vue` 是旧版独立路由页面（`/step/2`），与 `ConfigWizardView` 中的 Step 2 是两套独立实现。ConfigWizardView 中的 Step 2 使用 `InputSourceList` 组件（第 60 行），应在此处实现 AI 联动。
 
-- [ ] **Step 1: Step2InputView 暴露选中方法**
+- [ ] **Step 1: InputSourceList 暴露 addInput 并支持外部触发**
 
-在 `Step2InputView.vue` 的 `<script setup>` 中追加：
+在 `InputSourceList.vue` 的 `<script setup>` 中，确认 `addInput` 函数可被父组件调用：
 
 ```typescript
-import { useWizardStore } from '../stores/wizard'
-
-const store = useWizardStore()
-const inputSourceListRef = ref<InstanceType<typeof InputSourceList>>()
-
-// 由 AI 面板触发：选择输入类型
-function selectInputType(plugin: 'excel' | 'csv' | 'database') {
+// InputSourceList.vue 中已有的 addInput 函数（约第 49 行）
+function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
   store.addInput(plugin)
 }
 
-defineExpose({ selectInputType })
+// 暴露给父组件通过 ref 调用
+defineExpose({ addInput })
 ```
 
 - [ ] **Step 2: ConfigWizardView 中桥接 guide action**
 
-在 `onGuideAction` 中增加对 Step 2 类型选择的处理：
+在 ConfigWizardView 的 `<script setup>` 中（Task 8 新增的 `onGuideAction` 函数内），增加 Step 2 类型选择处理：
 
 ```typescript
+const inputSourceListRef = ref<InstanceType<typeof InputSourceList>>()
+
 function onGuideAction(value: string) {
-  // Step 2: 输入类型选择
+  // Step 2: 输入类型选择 — 直接操作 store 触发卡片高亮
   if (currentStep.value === 2 && ['excel', 'csv', 'database'].includes(value)) {
-    step2El.value?.selectInputType(value as 'excel' | 'csv' | 'database')
+    store.addInput(value as 'excel' | 'csv' | 'database')
     aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
     saveMessages(aiMessages.value)
     return
   }
+  // 其他步骤的 action 处理...
   onGuideSend(value)
 }
 ```
@@ -1130,8 +1142,8 @@ function onGuideAction(value: string) {
 - [ ] **Step 3: 提交**
 
 ```bash
-git add configforge-web/src/views/Step2InputView.vue configforge-web/src/views/ConfigWizardView.vue
-git commit -m "feat: bridge AI panel input type selection to Step 2 cards"
+git add configforge-web/src/components/step2/InputSourceList.vue configforge-web/src/views/ConfigWizardView.vue
+git commit -m "feat: bridge AI panel input type selection to Step 2 cards via store"
 ```
 
 ---
@@ -1226,7 +1238,7 @@ export function useColumnDiff() {
 
       // 提取别名或列名
       return columns.map(col => {
-        const parts = col.trim().split(/\s+(?i)AS\s+/)
+        const parts = col.trim().split(/\s+AS\s+/i)
         const lastPart = parts[parts.length - 1].trim()
         // 如果最后一段包含 . 取点后的部分
         const dotIdx = lastPart.lastIndexOf('.')
@@ -1274,11 +1286,11 @@ git commit -m "feat: add useColumnDiff for SQL SELECT column extraction and comp
 ### Task 11: 步骤切换时列变更检测（ConfigWizardView 中的联动）
 
 **Files:**
-- Modify: `configforge-web/src/views/ConfigWizardView.vue`
+- Modify: `configforge-web/src/views/ConfigWizardView.vue:281-295`
 
-在 `completeStep` 函数中，当从 Step 3 切换到 Step 4 时检测列变更。
+在现有 `completeStep` 函数（第 281 行）中**追加**列变更检测逻辑，不替换原有内容。
 
-- [ ] **Step 1: 在 completeStep 中添加列变更检测**
+- [ ] **Step 1: 在现有 completeStep 中追加列变更检测**
 
 ```typescript
 import { useColumnDiff } from '../composables/useColumnDiff'
@@ -1286,9 +1298,10 @@ import { useColumnDiff } from '../composables/useColumnDiff'
 const { extractSelectColumns, diffColumns } = useColumnDiff()
 let lastKnownSelectColumns: string[] = []
 
-function completeStep(step: number) {
-  // Step 3 → 4: 检测列变更
-  if (step === 3 && isGuideMode.value) {
+// 第 281 行的现有函数，追加 Step 3→4 列变更检测
+function completeStep(n: number) {
+  // --- 新增：Step 3 → 4 时检测列变更 ---
+  if (n === 3 && isGuideMode.value) {
     const sqlProcessor = store.processors.find(p => p.plugin === 'sql')
     if (sqlProcessor?.sql) {
       const currentCols = extractSelectColumns(sqlProcessor.sql)
@@ -1308,14 +1321,28 @@ function completeStep(step: number) {
             ],
             timestamp: Date.now(),
           })
+          saveMessages(aiMessages.value)
         }
       }
       lastKnownSelectColumns = currentCols
     }
   }
+  // --- 新增结束 ---
 
-  // 原有步骤完成逻辑...
-  currentStep.value = Math.min(step + 1, 5)
+  // 原有逻辑不变
+  if (n < 5) {
+    currentStep.value = n + 1
+    scrollToStep(n + 1)
+    if (n === 2) {
+      sqlEditorRef.value?.checkTableRenames()
+    }
+    if (n === 4) {
+      nextTick(() => {
+        yamlPreviewRef.value?.loadYaml()
+        showStep5Tip.value = true
+      })
+    }
+  }
 }
 ```
 
@@ -1374,8 +1401,8 @@ elif current_step == 2:
 请引导用户选择数据输入来源类型，返回 JSON：
 {{"message": "引导消息", "actions": [{{"label": "📊 Excel", "value": "excel"}}, {{"label": "🗄 CSV", "value": "csv"}}, {{"label": "🔌 数据库", "value": "database"}}]}}"""
 else:
-    # 使用现有 prompt 模板
-    prompt = existing_prompt_logic(request.category, context)
+    # 使用现有 prompt 构建逻辑（各 category 已有对应模板）
+    prompt = _build_prompt(request.category, context)
 ```
 
 - [ ] **Step 2: 运行后端测试确认无回归**
@@ -1395,7 +1422,208 @@ git commit -m "feat: enhance suggest API prompt for step-based wizard guidance"
 
 ---
 
-### Task 13: 集成测试与最终验证
+### Task 13: AI 填写标记视觉实现
+
+**Files:**
+- Modify: `configforge-web/src/views/Step1SceneView.vue`
+- Modify: `configforge-web/src/views/ConfigWizardView.vue`
+- Modify: `configforge-web/src/style.css`
+
+设计规格 6.1 定义的 AI 填写视觉标记需要落实到表单组件上。
+
+- [ ] **Step 1: 添加 CSS 类**
+
+在 `style.css` 中追加：
+
+```css
+.ai-prefilled {
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary-bg) !important;
+}
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(13,148,136,0.1);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.ai-badge--edited {
+  background: rgba(100,116,139,0.1);
+  color: var(--color-text-muted);
+}
+```
+
+- [ ] **Step 2: Step 1 场景名称添加标记**
+
+在 Step1SceneView.vue 中，场景名称输入框添加 AI 标记：
+
+```html
+<div>
+  <label class="block text-xs font-medium text-slate-500 mb-1">
+    场景名称
+    <span v-if="store.isAiPrefilled('scene.name')" class="ai-badge">AI 已填写</span>
+    <span v-else-if="sceneEdited" class="ai-badge ai-badge--edited">已编辑</span>
+  </label>
+  <input
+    class="scene-input"
+    :class="{ 'ai-prefilled': store.isAiPrefilled('scene.name') }"
+    v-model="store.scene.name"
+    @input="onSceneNameInput"
+  />
+</div>
+```
+
+在 `<script setup>` 中追加：
+
+```typescript
+const sceneEdited = ref(false)
+
+function onSceneNameInput() {
+  if (store.isAiPrefilled('scene.name')) {
+    store.markUserEdited('scene.name')
+    sceneEdited.value = true
+  }
+}
+```
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add configforge-web/src/style.css configforge-web/src/views/Step1SceneView.vue
+git commit -m "feat: add AI-prefilled visual badge and border to form fields"
+```
+
+---
+
+### Task 14: translate-checkpoint 接入
+
+**Files:**
+- Modify: `configforge-web/src/views/ConfigWizardView.vue`
+
+设计规格 7.4 节：Step 3 引导中接入自然语言转检查点规则。
+
+- [ ] **Step 1: 在 triggerStepGuide 的 Step 3 分支中添加检查点引导**
+
+```typescript
+async function triggerStepGuide(step: number) {
+  suggesting.value = true
+  const context = buildStepContext(step)
+  const result = await stepGuide(step, context)
+  suggesting.value = false
+
+  const msg: ChatMessage = {
+    role: 'ai',
+    content: result.message,
+    step,
+    type: 'guide',
+    actions: result.actions,
+    prefill: result.prefill,
+    timestamp: Date.now(),
+  }
+  aiMessages.value.push(msg)
+
+  // Step 3: 主动建议检查点
+  if (step === 3 && store.processors.length > 0) {
+    aiMessages.value.push({
+      role: 'ai',
+      content: '需要我帮你设置数据检查点吗？比如确保输出行数不为零、关键列不重复等。你可以用自然语言描述检查规则。',
+      step: 3,
+      type: 'suggestion',
+      actions: [
+        { label: '💡 帮我推荐', value: 'suggest_checkpoints', style: 'primary' },
+        { label: '⏭ 先跳过', value: 'skip_checkpoints' },
+      ],
+      timestamp: Date.now(),
+    })
+  }
+
+  saveMessages(aiMessages.value, store.configId)
+  if (result.prefill) applyPrefill(result.prefill, step)
+}
+
+// 处理检查点建议
+async function handleCheckpointSuggestion(userInput: string) {
+  const content = await askSuggestion('checkpoint', {
+    description: userInput,
+    processors: store.processors.map(p => ({ plugin: p.plugin, outputTables: p.outputTables })),
+  })
+  if (content) {
+    aiMessages.value.push({ role: 'ai', content, step: 3, type: 'guide', timestamp: Date.now() })
+    // 尝试解析并填入 CheckpointSection
+  }
+}
+```
+
+- [ ] **Step 2: 提交**
+
+```bash
+git add configforge-web/src/views/ConfigWizardView.vue
+git commit -m "feat: integrate translate-checkpoint suggestions in Step 3 guide"
+```
+
+---
+
+### Task 15: 面板 5 秒追加提示 + 暗色模式适配
+
+**Files:**
+- Modify: `configforge-web/src/components/wizard/AiChatPanel.vue`
+
+- [ ] **Step 1: 5 秒追加提示**
+
+在 Task 7 已有的 loading watcher 中增加 5 秒提示：
+
+```typescript
+let fiveSecTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(() => props.loading, (val) => {
+  showCancel.value = false
+  showLongWait.value = false
+  if (cancelTimer) clearTimeout(cancelTimer)
+  if (fiveSecTimer) clearTimeout(fiveSecTimer)
+
+  if (val) {
+    fiveSecTimer = setTimeout(() => { showLongWait.value = true }, 5000)
+    cancelTimer = setTimeout(() => { showCancel.value = true }, 30000)
+  }
+})
+```
+
+模板中追加（在 typing indicator 内）：
+
+```html
+<span v-if="showLongWait" class="ai-guide-typing-hint">生成较复杂的代码可能需要更长时间</span>
+```
+
+- [ ] **Step 2: 暗色模式适配**
+
+将 Task 7 中硬编码颜色改为 CSS 变量：
+
+```css
+/* 改前 */
+background: rgba(13, 148, 136, 0.06);
+border-color: #f59e0b;
+background: #ef4444;
+
+/* 改后 */
+background: var(--color-primary-bg);
+border-color: var(--color-warning, #f59e0b);
+background: var(--color-error, #ef4444);
+```
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add configforge-web/src/components/wizard/AiChatPanel.vue
+git commit -m "feat: add 5s wait hint + CSS variable color for dark mode in guide panel"
+```
+
+---
+
+### Task 16: 集成测试与最终验证
 
 **Files:**
 - 所有已修改文件
@@ -1409,36 +1637,46 @@ cd .. && python3 -m pytest tests/ -q
 
 Expected: 0 type errors, all tests pass
 
-- [ ] **Step 2: 手动验证关键路径**
+- [ ] **Step 2: 手动验证关键路径（共 14 项）**
 
 1. 首页 → 输入需求 → "AI 引导配置" → 确认进入向导 + AI 面板显示
-2. 首页 → 断网/AI 不可用 → 输入框灰掉 + "前往设置" 按钮
-3. 首页 → "手动创建" → 正常进入向导（无 AI 面板）
-4. 向导 Step 1 → AI 填入场景名称
-5. 向导 Step 2 → AI 面板询问输入类型 → 点击按钮 → 卡片高亮
-6. 向导 Step 3 → AI 生成代码
-7. 向导 Step 3→4 → AI 检测列变更 → 弹提示
-8. 刷新页面 → 对话历史保留
-9. 面板折叠 → 展开 → 消息保留
+2. 首页 → "手动创建" → 正常进入向导（无 AI 面板）→ 完整 5 步正常
+3. 首页 → 断网/AI 不可用 → 输入框灰掉 + "前往设置" 按钮 + "手动创建" 突出
+4. 首页输入文字 → "手动创建" → Step 1 场景名称预填输入文字
+5. 向导 Step 1 → AI 填入场景名称 + 绿色边框 + "AI 已填写" badge
+6. 用户修改场景名称 → badge 变为灰色"已编辑" + 绿色边框消失
+7. 向导 Step 2 → AI 面板询问输入类型 → 点击 Excel 按钮 → 卡片高亮
+8. 向导 Step 3 → AI 生成代码 + 面板主动建议检查点
+9. 向导 Step 3→4 → 如果 SQL 列变更 → AI 弹列映射更新提示
+10. 刷新页面 → 对话历史保留（同一配置不丢失）
+11. 切换不同配置 → 对话历史隔离（不同配置独立存储）
+12. 面板折叠（◀）→ 32px 窄条 → 单击恢复
+13. AI 响应超过 5 秒 → 显示"可能需要更长时间"提示
+14. 暗色模式切换 → 面板颜色协调，无硬编码色问题
 
 - [ ] **Step 3: 提交最终变更**
 
 ```bash
 git add -A
-git commit -m "feat: complete AI-guided configuration — all 5 steps with guide panel"
+git commit -m "feat: complete AI-guided configuration — 16 tasks, all 5 steps with guide panel"
 ```
 
 ---
 
 ## 验证清单
 
-| 验证项 | 命令 | 预期 |
-|--------|------|------|
+| 验证项 | 命令/方式 | 预期 |
+|--------|----------|------|
 | TypeScript 类型检查 | `npx vue-tsc --noEmit` | 0 errors |
 | 前端单元测试 | `npx vitest run` | 全部通过 |
 | 后端测试 | `python3 -m pytest tests/ -q` | 141 passed |
-| 首页 AI 可用 | 手动 | 输入框高亮 + 引导按钮 |
-| 首页 AI 不可用 | 手动 | 灰掉 + 设置链接 |
-| 引导面板折叠 | 手动 | 320px → 32px → 恢复 |
-| 对话历史保留 | 手动 | 刷新后消息仍在 |
+| 首页 AI 可用 | 手动 | 输入框高亮 + 引导按钮 + chips |
+| 首页 AI 不可用 | 手动 | 灰掉 + 设置链接 + 手动创建突出 |
+| 首页 → 手动创建 | 手动 | 无 AI 面板，5 步正常 |
+| 输入文字带入 Step 1 | 手动 | 场景名称预填 |
+| AI 填写 badge | 手动 | 绿色边框 + badge，编辑后消失 |
+| 引导面板折叠 | 手动 | 320px → 32px → 单击恢复 |
+| 对话历史保留 | 手动 | 刷新后同配置消息仍在 |
+| 对话历史隔离 | 手动 | 不同配置独立存储 |
+| 暗色模式 | 手动切换 | 面板颜色无硬编码 |
 | 5 步引导完成 | 手动 | 每步 AI 消息 + 预填 |
