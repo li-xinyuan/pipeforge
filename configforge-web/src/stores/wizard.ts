@@ -7,7 +7,7 @@ export const useWizardStore = defineStore('wizard', () => {
   const scene = ref<SceneInfo>({ name: '', description: '', version: '1.0' })
   const inputs = ref<InputSource[]>([])
   const processors = ref<ProcessorStep[]>([])
-  const output = ref<OutputTarget>({ plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } })
+  const output = ref<OutputTarget | null>(null)
   const configId = ref<string | null>(null)
   const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
   const aiSuggestions = ref<Record<string, AiSuggestion>>({})
@@ -106,7 +106,7 @@ export const useWizardStore = defineStore('wizard', () => {
     scene.value = { name: '', description: '', version: '1.0' }
     inputs.value = []
     processors.value = []
-    output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } }
+    output.value = null
     configId.value = null
     uploadedFiles.value = {}
     aiSuggestions.value = {}
@@ -168,7 +168,7 @@ export const useWizardStore = defineStore('wizard', () => {
         config: cfg,
       }
     } else {
-      output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } }
+      output.value = null
     }
 
     currentStep.value = 5

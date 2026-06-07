@@ -20,8 +20,12 @@
         <span class="text-2xl block mb-2">🗄</span>
         <span class="text-sm font-semibold">CSV</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
-        <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
+      <div
+        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+          props.pulseCta ? 'pulse-cta' : '',
+          store.output?.plugin === 'database' ? 'border-purple-600 bg-purple-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
+        @click="switchOutputType('database'); showOutputTypeChoices = false"
+      >
         <span class="text-2xl block mb-2">🔌</span>
         <span class="text-sm font-semibold">Database</span>
       </div>
@@ -163,6 +167,44 @@
         <NInput v-model:value="outputConfig.outputDir" size="small" />
       </div>
 
+      <!-- Database-specific config -->
+      <template v-if="store.output?.plugin === 'database'">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">数据库连接 <span class="text-red-500">*</span></label>
+          <NSelect
+            v-model:value="(store.output!.config as any).connectionId"
+            :options="connectionOptions"
+            placeholder="选择已有连接..."
+            size="small"
+          />
+          <p class="text-xs text-slate-400 mt-1">
+            或前往 <RouterLink to="/settings" class="text-blue-600 underline">设置页</RouterLink> 管理连接
+          </p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">目标表名 <span class="text-red-500">*</span></label>
+          <NInput v-model:value="(store.output!.config as any).table" size="small" placeholder="例如：output_results" />
+        </div>
+        <div class="flex gap-3">
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-slate-500 mb-1">写入模式</label>
+            <NSelect
+              v-model:value="(store.output!.config as any).mode"
+              :options="[{ label: '创建新表', value: 'create' }, { label: '追加数据', value: 'append' }]"
+              size="small"
+            />
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-slate-500 mb-1">表已存在时</label>
+            <NSelect
+              v-model:value="(store.output!.config as any).if_exists"
+              :options="[{ label: '替换', value: 'replace' }, { label: '追加', value: 'append' }, { label: '跳过', value: 'skip' }]"
+              size="small"
+            />
+          </div>
+        </div>
+      </template>
+
       <!-- Column mapping -->
       <div>
         <div class="flex items-center justify-between mb-2">
@@ -194,10 +236,11 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
-import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
+import { useWizardApi, useAiApi, useConnectionApi } from '../../composables/useWizardApi'
 import type { ExcelOutputConfig, CsvOutputConfig, ColumnMappingItem } from '../../types/wizard'
 import type { UploadCustomRequestOptions } from 'naive-ui'
 import { NInput, NButton, NTag, NUpload, NSelect, useMessage } from 'naive-ui'
+import { RouterLink } from 'vue-router'
 import { inferSelectColumns } from '../../utils/sql'
 import ColumnMapping from './ColumnMapping.vue'
 
@@ -211,10 +254,14 @@ const inferColumnLabel = computed(() => {
 })
 const message = useMessage()
 const { fetchPreview, executeSql } = useWizardApi()
+const connectionApi = useConnectionApi()
+const connections = ref<Array<{ id: string; name: string }>>([])
+const connectionOptions = computed(() => connections.value.map(c => ({ label: c.name, value: c.id })))
+onMounted(async () => { connections.value = await connectionApi.fetchConnections() })
 const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()
 const { suggesting: mappingLoading, askSuggestion } = useAiApi()
-// Show type selector when no output config exists; can be toggled back by "更换类型"
-const showOutputTypeChoices = ref(!store.output?.config)
+// Show type selector when no output type chosen yet; can be toggled back by "更换类型"
+const showOutputTypeChoices = ref(!store.output)
 const lastAutoFilename = ref('')
 const templateSheets = ref<string[]>([])
 
@@ -243,7 +290,7 @@ const encodingOptions = [
   { label: 'GBK', value: 'gbk' },
 ]
 
-const outputConfig = computed(() => store.output!.config as ExcelOutputConfig | CsvOutputConfig)
+const outputConfig = computed(() => (store.output?.config || { type: 'excel', template: '', sheet: 'Sheet1', sourceTable: '', filename: '', columns: [], outputDir: './output/' }) as ExcelOutputConfig | CsvOutputConfig)
 const fileExtension = computed(() => store.output?.plugin === 'csv' ? '.csv' : '.xlsx')
 const baseFilename = computed(() => {
   const fn = outputConfig.value.filename || ''
@@ -272,6 +319,7 @@ const sourceTableOptions = computed(() => {
 
 const outputTypeInfo = computed(() => {
   if (store.output?.plugin === 'csv') return { icon: '🗄', label: 'CSV', desc: '纯文本逗号分隔' }
+  if (store.output?.plugin === 'database') return { icon: '🔌', label: 'Database', desc: '写入数据库表' }
   return { icon: '📊', label: 'Excel', desc: '模板样式输出' }
 })
 
@@ -555,12 +603,13 @@ function clearOutputType() {
   showOutputTypeChoices.value = true
 }
 
-function switchOutputType(plugin: 'excel' | 'csv') {
+function switchOutputType(plugin: 'excel' | 'csv' | 'database') {
   if (plugin === store.output?.plugin) return
+  const prevConfig = store.output?.config
   const ext = plugin === 'csv' ? 'csv' : 'xlsx'
   const common = {
-    sourceTable: outputConfig.value.sourceTable,
-    outputDir: outputConfig.value.outputDir,
+    sourceTable: (prevConfig as any)?.sourceTable || '',
+    outputDir: (prevConfig as any)?.outputDir || './output/',
     filename: buildFilename(ext),
     columns: [] as ColumnMappingItem[],
   }
@@ -576,6 +625,19 @@ function switchOutputType(plugin: 'excel' | 'csv') {
       },
     })
     onInferColumns()
+  } else if (plugin === 'database') {
+    store.setOutput({
+      plugin: 'database',
+      config: {
+        type: 'database' as const,
+        connectionId: '',
+        table: '',
+        mode: 'create' as const,
+        if_exists: 'replace' as const,
+        sourceTable: common.sourceTable,
+        columns: common.columns,
+      } as any,
+    })
   } else {
     store.setOutput({
       plugin: 'excel',

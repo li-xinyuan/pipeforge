@@ -141,9 +141,19 @@ export interface CsvOutputConfig {
   columns: ColumnMappingItem[]
 }
 
+export interface DatabaseOutputConfig {
+  type: 'database'
+  connectionId: string
+  table: string
+  mode: 'create' | 'append'
+  if_exists: 'replace' | 'append' | 'skip'
+  sourceTable: string
+  columns: ColumnMappingItem[]
+}
+
 export interface OutputTarget {
-  plugin: 'excel' | 'csv'
-  config: ExcelOutputConfig | CsvOutputConfig
+  plugin: 'excel' | 'csv' | 'database'
+  config: ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig
 }
 
 export interface WizardState {
