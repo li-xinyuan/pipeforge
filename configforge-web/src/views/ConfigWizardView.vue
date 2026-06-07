@@ -385,22 +385,14 @@ function onFileReady(fileId: string) {
   if (isGuideMode.value) {
     const meta = store.uploadedFiles[fileId]
     if (!meta?.columns?.length) return
-    const cols = meta.columns
-    const sampleRows = (meta.sampleRows || []).slice(0, 10)
-    // Fixed message: system read columns (not AI)
-    const colInfo = cols.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
-    let sampleInfo = ''
-    if (sampleRows.length > 0) {
-      sampleInfo = '\n前 ${sampleRows.length} 行数据：\n' + sampleRows.map((row, i) => `  行${i + 1}: ${JSON.stringify(row)}`).join('\n')
-    }
     aiMessages.value.push({
       role: 'user',
-      content: `已上传文件：${meta.originalName || fileId}`,
+      content: `已上传文件：${meta.originalName || fileId}（${meta.columns.length} 列）`,
       step: 2, timestamp: Date.now(),
     })
     aiMessages.value.push({
       role: 'ai',
-      content: `系统已读取文件列信息和前几行数据：\n${colInfo}${sampleInfo}\n\n是否使用AI进一步分析这些数据是否符合场景「${store.scene.name}」的需求？`,
+      content: `系统已读取文件列信息和前几行数据，具体数据见左侧预览。是否使用AI进一步分析这些数据是否符合场景「${store.scene.name}」的需求？`,
       step: 2, type: 'guide',
       actions: [
         { label: '🔍 AI分析数据', value: 'analyze_columns', style: 'primary' },
@@ -411,7 +403,7 @@ function onFileReady(fileId: string) {
     saveMessages(aiMessages.value, store.configId)
     return
   }
-  // Non-guide mode: show generic prompt
+  // Non-guide mode
   aiMessages.value.push({
     role: 'ai',
     content: `检测到文件上传。我可以帮你分析数据列结构，需要的话请点击快捷操作「AI 分析列」。`,
