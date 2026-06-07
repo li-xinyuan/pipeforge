@@ -151,7 +151,13 @@ async function refresh() {
     query.set('page_size', '10')
     const qs = query.toString()
     const resp = await fetch('/api/executions' + (qs ? '?' + qs : ''))
-    if (resp.ok) executions.value = await resp.json()
+    const data = await resp.json()
+    // Backward compat: accept both paginated and flat response
+    if (Array.isArray(data)) {
+      executions.value = { items: data, total: data.length, page: 1, page_size: data.length, total_pages: 1 }
+    } else {
+      executions.value = data
+    }
   } finally {
     loading.value = false
   }

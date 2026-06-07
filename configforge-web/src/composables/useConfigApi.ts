@@ -69,11 +69,13 @@ export function useConfigApi() {
         return { items: [], total: 0, page: 1, page_size: 10, total_pages: 0 }
       }
       const data = await resp.json()
+      // Backward compat: accept both paginated { items: [...] } and flat [...] response
+      const items = Array.isArray(data) ? data : (data.items || [])
       return {
-        items: (data.items || []).map(mapConfig),
-        total: data.total || 0,
+        items: items.map(mapConfig),
+        total: data.total || items.length,
         page: data.page || 1,
-        page_size: data.page_size || 10,
+        page_size: data.page_size || items.length,
         total_pages: data.total_pages || 1,
       }
     } catch {
