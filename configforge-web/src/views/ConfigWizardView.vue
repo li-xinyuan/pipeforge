@@ -646,16 +646,31 @@ function onCancelGuide() { suggesting.value = false }
 async function triggerStepGuide(step: number) {
   if (!isGuideMode.value) return
   suggesting.value = true
-  const ctx = {
+
+  // Build rich step-specific context including user's original intent
+  const ctx: Record<string, any> = {
+    current_step: step,
+    user_intent: guidePrompt.value,
     scene_name: store.scene.name,
     scene_description: store.scene.description,
-    inputs_count: store.inputs.length,
-    input_plugins: store.inputs.map(i => i.plugin),
-    processors_count: store.processors.length,
-    processor_plugins: store.processors.map(p => p.plugin),
-    output_plugin: store.output?.plugin,
-    has_columns: !!(store.output?.config as any)?.columns?.length,
   }
+
+  if (step === 2) {
+    // Step 2: include scene info so AI can suggest specific input sources
+    ctx.inputs_count = store.inputs.length
+    ctx.input_plugins = store.inputs.map(i => i.plugin)
+  } else if (step === 3) {
+    // Step 3: include input info for code generation context
+    ctx.inputs_count = store.inputs.length
+    ctx.input_plugins = store.inputs.map(i => i.plugin)
+    ctx.processors_count = store.processors.length
+  } else if (step === 4) {
+    ctx.processors_count = store.processors.length
+    ctx.processor_plugins = store.processors.map(p => p.plugin)
+    ctx.output_plugin = store.output?.plugin
+    ctx.has_columns = !!(store.output?.config as any)?.columns?.length
+  }
+
   const result = await stepGuide(step, ctx)
   suggesting.value = false
   const msg: ChatMessage = {
@@ -683,11 +698,21 @@ async function triggerStepGuide(step: number) {
 }
 
 function applyPrefill(prefill: Record<string, any>, step: number) {
-  if (step === 1 && prefill['scene.name']) {
-    store.scene.name = prefill['scene.name']; store.markAiPrefilled('scene.name')
+  if (step === 1) {
+    if (prefill['scene.name']) {
+      store.scene.name = prefill['scene.name']; store.markAiPrefilled('scene.name')
+    }
+    if (prefill['scene.description']) {
+      store.scene.description = prefill['scene.description']; store.markAiPrefilled('scene.description')
+    }
   }
-  if (step === 1 && prefill['scene.description']) {
-    store.scene.description = prefill['scene.description']; store.markAiPrefilled('scene.description')
+  // Step 2: AI suggests input types based on scene analysis
+  if (step === 2 && prefill['suggested_inputs'] && Array.isArray(prefill['suggested_inputs'])) {
+    for (const inputType of prefill['suggested_inputs']) {
+      if (['excel', 'csv', 'database'].includes(inputType) && store.inputs.length === 0) {
+        store.addInput(inputType as 'excel' | 'csv' | 'database')
+      }
+    }
   }
 }
 
@@ -793,14 +818,8 @@ onUnmounted(() => {
   height: 100vh;
   background: var(--color-bg);
 }
-.wizard--guide .wizard__main {
-  display: flex;
-  flex-direction: row;
-  flex: 1;
-  overflow: hidden;
-}
-.wizard--guide .wizard__main .wizard__steps {
-  flex: 1;
+.wizard--guide {
+  /* guide panel is floating (fixed position), wizard layout unchanged */
 }
 
 /* === Top Nav === */

@@ -3,12 +3,14 @@
   <div v-if="mode === 'guide'" class="ai-guide-panel" :class="{ 'ai-guide-panel--collapsed': collapsed }">
     <div v-if="collapsed" class="ai-guide-collapsed" @click="collapsed = false">
       <span class="ai-guide-collapsed-icon">🤖</span>
+      <span class="ai-guide-collapsed-text">Forge AI 助手</span>
     </div>
     <template v-else>
-      <div class="ai-guide-header">
+      <div class="ai-guide-header" @mousedown="startGuideDrag" @touchstart="startGuideDragTouch">
         <span class="ai-guide-header-icon">🤖</span>
         <span class="ai-guide-header-title">Forge · AI 助手</span>
-        <button class="ai-guide-collapse-btn" @click="collapsed = true" title="收起面板">◀</button>
+        <span class="ai-guide-header-hint">可拖拽</span>
+        <button class="ai-guide-collapse-btn" @click.stop="collapsed = true" title="收起面板">−</button>
       </div>
       <div class="ai-guide-msgs" ref="guideMsgsEl">
         <div v-for="(msg, i) in messages" :key="i" class="ai-guide-msg" :class="`ai-guide-msg--${msg.role}`">
@@ -106,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, onUnmounted } from 'vue'
+import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import DOMPurify from 'dompurify'
 import OrchestrationResultCard from './OrchestrationResult.vue'
 import type { ChatMessage } from '../../types/wizard'
@@ -144,6 +146,71 @@ const showLongWait = ref(false)
 let cancelTimer: ReturnType<typeof setTimeout> | null = null
 let fiveSecTimer: ReturnType<typeof setTimeout> | null = null
 
+// Drag state
+let dragActive = false, dragStartX = 0, dragStartY = 0, panelStartX = 0, panelStartY = 0
+
+function startGuideDrag(e: MouseEvent) {
+  if ((e.target as HTMLElement).closest('button')) return // don't drag on buttons
+  dragActive = true
+  dragStartX = e.clientX; dragStartY = e.clientY
+  const panel = (e.currentTarget as HTMLElement).closest('.ai-guide-panel') as HTMLElement
+  if (panel) {
+    const r = panel.getBoundingClientRect()
+    panelStartX = r.left; panelStartY = r.top
+  }
+}
+
+function startGuideDragTouch(e: TouchEvent) {
+  if ((e.target as HTMLElement).closest('button')) return
+  dragActive = true
+  dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY
+  const panel = (e.currentTarget as HTMLElement).closest('.ai-guide-panel') as HTMLElement
+  if (panel) {
+    const r = panel.getBoundingClientRect()
+    panelStartX = r.left; panelStartY = r.top
+  }
+}
+
+function onGuideMouseMove(e: MouseEvent) {
+  if (!dragActive) return
+  const panel = document.querySelector('.ai-guide-panel') as HTMLElement
+  if (!panel) return
+  const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY
+  panel.style.right = 'auto'; panel.style.bottom = 'auto'
+  panel.style.left = (panelStartX + dx) + 'px'
+  panel.style.top = (panelStartY + dy) + 'px'
+}
+
+function onGuideMouseUp() { dragActive = false }
+
+function onGuideTouchMove(e: TouchEvent) {
+  if (!dragActive) return
+  const panel = document.querySelector('.ai-guide-panel') as HTMLElement
+  if (!panel) return
+  const dx = e.touches[0].clientX - dragStartX, dy = e.touches[0].clientY - dragStartY
+  panel.style.right = 'auto'; panel.style.bottom = 'auto'
+  panel.style.left = (panelStartX + dx) + 'px'
+  panel.style.top = (panelStartY + dy) + 'px'
+}
+
+function onGuideTouchEnd() { dragActive = false }
+
+onMounted(() => {
+  document.addEventListener('mousemove', onGuideMouseMove)
+  document.addEventListener('mouseup', onGuideMouseUp)
+  document.addEventListener('touchmove', onGuideTouchMove)
+  document.addEventListener('touchend', onGuideTouchEnd)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onGuideMouseMove)
+  document.removeEventListener('mouseup', onGuideMouseUp)
+  document.removeEventListener('touchmove', onGuideTouchMove)
+  document.removeEventListener('touchend', onGuideTouchEnd)
+  if (cancelTimer) clearTimeout(cancelTimer)
+  if (fiveSecTimer) clearTimeout(fiveSecTimer)
+})
+
 function sendGuideMsg() {
   const text = guideInput.value.trim()
   if (!text) return
@@ -167,11 +234,6 @@ watch(() => props.loading, (val) => {
     fiveSecTimer = setTimeout(() => { showLongWait.value = true }, 5000)
     cancelTimer = setTimeout(() => { showCancel.value = true }, 30000)
   }
-})
-
-onUnmounted(() => {
-  if (cancelTimer) clearTimeout(cancelTimer)
-  if (fiveSecTimer) clearTimeout(fiveSecTimer)
 })
 
 // Typewriter state
@@ -519,30 +581,48 @@ watch(() => props.messages.length, async () => {
 
 /* ───── Guide mode ───── */
 .ai-guide-panel {
-  width: 320px; flex-shrink: 0;
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 360px;
+  max-height: 500px;
   background: var(--color-surface);
-  border-left: 1px solid var(--color-border-light);
+  border: 1px solid var(--color-primary);
+  border-radius: 16px;
   display: flex; flex-direction: column;
-  transition: width 0.3s; overflow: hidden;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.15);
+  z-index: 100;
+  overflow: hidden;
+  transition: max-height 0.3s, width 0.3s;
 }
-.ai-guide-panel--collapsed { width: 32px; }
+.ai-guide-panel--collapsed {
+  max-height: 44px;
+  width: auto;
+  min-width: 200px;
+  border-radius: 22px;
+}
 .ai-guide-collapsed {
-  width: 32px; height: 100%; display: flex; align-items: flex-start;
-  justify-content: center; padding-top: 16px; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 18px; cursor: pointer;
   background: var(--color-primary-bg);
 }
-.ai-guide-collapsed-icon { font-size: 20px; }
+.ai-guide-collapsed-icon { font-size: 18px; }
+.ai-guide-collapsed-text { font-size: 12px; color: var(--color-primary); white-space: nowrap; }
 .ai-guide-header {
   display: flex; align-items: center; gap: 8px; padding: 10px 14px;
-  background: var(--color-primary-bg); border-bottom: 1px solid var(--color-border-light); flex-shrink: 0;
+  background: var(--color-primary-bg); border-bottom: 1px solid var(--color-border-light);
+  flex-shrink: 0; cursor: move;
 }
 .ai-guide-header-icon { font-size: 18px; }
 .ai-guide-header-title { font-size: 13px; font-weight: 600; color: var(--color-primary); flex: 1; }
+.ai-guide-header-hint { font-size: 10px; color: var(--color-text-muted); }
 .ai-guide-collapse-btn {
-  width: 24px; height: 24px; border-radius: 4px; border: none;
-  background: transparent; cursor: pointer; font-size: 12px; color: var(--color-text-muted);
+  width: 28px; height: 28px; border-radius: 50%; border: none;
+  background: transparent; cursor: pointer; font-size: 16px; color: var(--color-text-muted);
+  display: flex; align-items: center; justify-content: center;
 }
-.ai-guide-msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.ai-guide-collapse-btn:hover { background: var(--color-surface-hover); }
+.ai-guide-msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; min-height: 60px; max-height: 300px; }
 .ai-guide-msg { display: flex; max-width: 95%; }
 .ai-guide-msg--ai { align-self: flex-start; }
 .ai-guide-msg--user { align-self: flex-end; }
