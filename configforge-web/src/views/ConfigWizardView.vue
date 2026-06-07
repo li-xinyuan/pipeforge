@@ -793,12 +793,14 @@ onUnmounted(() => {
   height: 100vh;
   background: var(--color-bg);
 }
-.wizard--guide {
-  flex-direction: row;
-}
 .wizard--guide .wizard__main {
+  display: flex;
+  flex-direction: row;
   flex: 1;
   overflow: hidden;
+}
+.wizard--guide .wizard__main .wizard__steps {
+  flex: 1;
 }
 
 /* === Top Nav === */

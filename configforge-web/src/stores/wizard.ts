@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { reactive, ref, computed } from 'vue'
 import type { SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState } from '../types/wizard'
 
 export const useWizardStore = defineStore('wizard', () => {
@@ -13,18 +13,18 @@ export const useWizardStore = defineStore('wizard', () => {
   const aiSuggestions = ref<Record<string, AiSuggestion>>({})
 
   // UI 层临时标记，不持久化，刷新后消失
-  const aiPrefilledFields = ref<Map<string, boolean>>(new Map())
+  const aiPrefilledFields = reactive<Record<string, boolean>>({})
 
   function markAiPrefilled(fieldPath: string) {
-    aiPrefilledFields.value.set(fieldPath, true)
+    aiPrefilledFields[fieldPath] = true
   }
 
   function markUserEdited(fieldPath: string) {
-    aiPrefilledFields.value.delete(fieldPath)
+    delete aiPrefilledFields[fieldPath]
   }
 
   function isAiPrefilled(fieldPath: string): boolean {
-    return aiPrefilledFields.value.has(fieldPath)
+    return fieldPath in aiPrefilledFields
   }
 
   const canProceed = computed(() => {
