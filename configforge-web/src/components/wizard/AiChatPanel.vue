@@ -140,14 +140,22 @@ const guideMsgsEl = ref<HTMLElement>()
 // Guide mode state
 const collapsed = ref(false)
 
-// Auto-scroll to bottom when new messages arrive
-watch(() => props.messages.length, () => {
+// Auto-scroll to bottom when new messages arrive or typewriter updates
+function scrollGuideToBottom() {
   nextTick(() => {
     if (guideMsgsEl.value) {
       guideMsgsEl.value.scrollTop = guideMsgsEl.value.scrollHeight
     }
   })
-})
+}
+
+watch(() => props.messages.length, scrollGuideToBottom)
+
+// Also scroll on each typewriter tick (content height grows gradually)
+watch(
+  () => guideTypedTexts.value[props.messages.length - 1]?.length || 0,
+  scrollGuideToBottom
+)
 const guideInput = ref('')
 const showCancel = ref(false)
 const showLongWait = ref(false)
