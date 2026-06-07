@@ -809,7 +809,7 @@ async function triggerStepGuide(step: number) {
   }
   aiMessages.value.push(msg)
 
-  // Parse AI-generated plan from prefill.knowledge
+  // Parse AI-generated plan from prefill.knowledge, or use default
   if (result.prefill?.knowledge?.plan) {
     store.setPlan(result.prefill.knowledge.plan)
   }
@@ -851,9 +851,33 @@ function applyPrefill(prefill: Record<string, any>, step: number) {
   }
 }
 
+// Generate default plan from scene analysis
+function generateDefaultPlan() {
+  const name = store.scene.name || ''
+  const desc = store.scene.description || ''
+  const text = name + desc
+
+  // Detect expected tables from scene text
+  const tableMatches = text.match(/[^\s，,。\.、]{2,8}(?:表|数据|文件)/g) || []
+  const expectedTables = [...new Set(tableMatches)]
+  const tableCount = Math.max(1, expectedTables.length)
+
+  // Default: 1 processing step, 1 output
+  store.setPlan({
+    2: { total: tableCount, items: expectedTables.length > 0 ? expectedTables : [`${tableCount} 个数据源`] },
+    3: { total: 1, items: ['数据处理逻辑'] },
+    4: { total: 1, items: ['输出配置'] },
+  })
+}
+
 // Watch currentStep for guide mode
 watch(currentStep, (step, oldStep) => {
   if (!isGuideMode.value || step === lastGuidedStep.value) return
+
+  // Generate default plan when entering Step 2
+  if (step === 2 && Object.keys(store.plan).length === 0) {
+    generateDefaultPlan()
+  }
 
   // Add transition message for user action
   if (oldStep && step > oldStep) {
