@@ -115,14 +115,15 @@ function onStepClick(step: number, status: StepState['status']) {
   color: var(--color-text-muted);
 }
 .wizard-progress__badge {
-  position: absolute;
-  top: -6px; right: -6px;
+  margin-left: 4px;
   min-width: 18px; height: 18px;
   padding: 0 5px; border-radius: 9px;
   background: #ef4444; color: #fff;
   font-size: 10px; font-weight: 700;
   line-height: 18px; text-align: center;
   cursor: help;
+  flex-shrink: 0;
+  z-index: 1;
 }
 .wizard-progress__connector {
   width: 18px;
