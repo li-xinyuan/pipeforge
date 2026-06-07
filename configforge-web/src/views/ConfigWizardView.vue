@@ -647,7 +647,7 @@ async function triggerStepGuide(step: number) {
   if (!isGuideMode.value) return
   suggesting.value = true
 
-  // Build rich step-specific context including user's original intent
+  // Build detailed context with all accumulated wizard knowledge
   const ctx: Record<string, any> = {
     current_step: step,
     user_intent: guidePrompt.value,
@@ -655,20 +655,38 @@ async function triggerStepGuide(step: number) {
     scene_description: store.scene.description,
   }
 
-  if (step === 2) {
-    // Step 2: include scene info so AI can suggest specific input sources
-    ctx.inputs_count = store.inputs.length
-    ctx.input_plugins = store.inputs.map(i => i.plugin)
-  } else if (step === 3) {
-    // Step 3: include input info for code generation context
-    ctx.inputs_count = store.inputs.length
-    ctx.input_plugins = store.inputs.map(i => i.plugin)
-    ctx.processors_count = store.processors.length
-  } else if (step === 4) {
-    ctx.processors_count = store.processors.length
-    ctx.processor_plugins = store.processors.map(p => p.plugin)
-    ctx.output_plugin = store.output?.plugin
-    ctx.has_columns = !!(store.output?.config as any)?.columns?.length
+  // Input source details (for Steps 2-4)
+  ctx.inputs_count = store.inputs.length
+  ctx.inputs_detail = store.inputs.map(inp => ({
+    paramKey: inp.paramKey || '',
+    plugin: inp.plugin,
+    table: inp.table || '',
+    columns: store.uploadedFiles[inp.fileId]?.columns || [],
+  }))
+
+  // Uploaded file details (for Steps 2-3)
+  ctx.uploaded_files_detail = Object.entries(store.uploadedFiles).map(([fid, meta]) => ({
+    fileId: fid,
+    name: meta.originalName || fid,
+    columns: meta.columns || [],
+  }))
+
+  // Processor details (for Steps 3-4)
+  ctx.processors_count = store.processors.length
+  ctx.processors_detail = store.processors.map(p => ({
+    plugin: p.plugin,
+    name: p.name || '',
+    sql: p.plugin === 'sql' ? p.sql : '',
+    script: p.plugin === 'python' ? p.script : '',
+    inputTables: p.inputTables || [],
+    outputTables: p.outputTables || [],
+    checkpoints: (p.checkpoints || []).map((c: any) => ({ type: c.type, on_failure: c.on_failure })),
+  }))
+
+  // Output details (for Step 4)
+  if (store.output) {
+    ctx.output_plugin = store.output.plugin
+    ctx.output_config = store.output.config
   }
 
   const result = await stepGuide(step, ctx)

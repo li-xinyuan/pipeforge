@@ -15,10 +15,8 @@ export function useAiGuide() {
   const { askSuggestion } = useAiApi()
 
   function parseGuideResponse(aiText: string): GuideResponse {
-    // Try markdown code block
     let jsonMatch = aiText.match(/```json\s*([\s\S]*?)\s*```/)
     if (!jsonMatch) {
-      // Try bare JSON object
       jsonMatch = aiText.match(/\{[\s\S]*"message"[\s\S]*\}/)
     }
     if (jsonMatch) {
@@ -49,106 +47,218 @@ export function useAiGuide() {
     return guide
   }
 
+  // ============================================================
+  // 步骤专用提示词构建器
+  // ============================================================
+
   function buildStepPrompt(step: number, ctx: Record<string, any>): string {
     const scene = ctx.scene_name || ctx.user_intent || ''
     const desc = ctx.scene_description || ''
+    const inputs = ctx.inputs_detail || []
     const inputCount = ctx.inputs_count || 0
     const procCount = ctx.processors_count || 0
+    const procDetail = ctx.processors_detail || []
+    const uploadedFiles = ctx.uploaded_files_detail || []
+    const outputPlugin = ctx.output_plugin || ''
 
     switch (step) {
-      case 2:
-        return (
-          `## 当前步骤：第 2 步 — 输入源配置\n\n` +
-          `用户正在配置数据流水线的输入源。这是第 2 步（共 5 步）。\n\n` +
-          `## 场景上下文\n` +
-          `- 场景名称：${scene}\n` +
-          `- 场景描述：${desc}\n` +
-          `- 已添加输入源：${inputCount} 个\n\n` +
-          `## 你的任务\n` +
-          `1. **仔细分析场景名称和描述**，识别其中提到的数据表、文件、数据来源\n` +
-          `2. 如果用户提到了具体的表名（如"订单表""用户表""销售数据"），逐一提出来\n` +
-          `3. 告诉用户你分析到了哪些数据源，并询问每个数据源的类型\n\n` +
-          `## 引导策略\n` +
-          `- 如果还没有添加任何输入源：先说"我分析你的场景涉及 X 个数据源"，逐一列举，然后引导添加第一个\n` +
-          `- 如果已经添加了一些输入源：确认已添加的，询问是否还有遗漏\n` +
-          `- 推荐的输入类型按常见度排序：Excel > CSV > 数据库\n\n` +
-          `## 回复格式（JSON）\n` +
-          `{\n` +
-          `  "message": "引导消息（先分析场景中的数据源，再引导用户选择类型）",\n` +
-          `  "actions": [\n` +
-          `    {"label": "📊 Excel 文件", "value": "excel"},\n` +
-          `    {"label": "🗄 CSV 文件", "value": "csv"},\n` +
-          `    {"label": "🔌 数据库", "value": "database"}\n` +
-          `  ]\n` +
-          `}\n\n` +
-          `## 示例消息\n` +
-          `"我分析了你的场景「${scene}」，识别到 2 个数据源：\n` +
-          `1. **订单表** — 包含订单信息\n` +
-          `2. **用户表** — 包含用户信息\n\n` +
-          `我们先配置第一个。订单表的数据在哪里？"` +
-          `\n\n## 注意\n` +
-          `- 如果用户明确提到了数据库（如MySQL、PostgreSQL），应直接推荐数据库类型\n` +
-          `- 如果场景描述模糊，主动询问"你的数据是从Excel文件、CSV文件还是数据库来的？"`
-        )
-      case 3:
-        return (
-          `## 当前步骤：第 3 步 — 处理步骤配置\n\n` +
-          `用户正在配置数据处理逻辑。这是第 3 步（共 5 步）。\n\n` +
-          `## 场景上下文\n` +
-          `- 场景名称：${scene}\n` +
-          `- 场景描述：${desc}\n` +
-          `- 已添加输入源：${inputCount} 个\n` +
-          `- 已添加处理器：${procCount} 个\n\n` +
-          `## 你的任务\n` +
-          `1. **分析场景需要的数据处理逻辑**：JOIN关联？GROUP BY分组？聚合计算？过滤条件？\n` +
-          `2. 推荐使用 SQL 处理器（适合表格数据处理）还是 Python 处理器（适合复杂脚本）\n` +
-          `3. 如果场景逻辑清晰，直接生成 SQL 代码建议并解释逻辑\n\n` +
-          `## 引导策略\n` +
-          `- 无处理器时：分析场景逻辑，推荐处理方式，引导用户选择 SQL 或 Python\n` +
-          `- 有处理器时：询问是否需要修改代码，或添加更多处理步骤\n` +
-          `- 代码中标注假设（如关联字段名），提醒用户核对\n\n` +
-          `## 回复格式（JSON）\n` +
-          `{\n` +
-          `  "message": "引导消息（分析处理逻辑 + 建议）",\n` +
-          `  "actions": [\n` +
-          `    {"label": "🧪 用 SQL 处理", "value": "pick_sql", "style": "primary"},\n` +
-          `    {"label": "🐍 用 Python 处理", "value": "pick_python"}\n` +
-          `  ]\n` +
-          `}\n\n` +
-          `## 示例消息\n` +
-          `"分析你的场景「${scene}」，数据处理逻辑是：\n` +
-          `1. 将订单表和用户表通过用户ID关联（JOIN）\n` +
-          `2. 按城市分组（GROUP BY city）\n` +
-          `3. 统计每个城市的订单数和总金额（COUNT + SUM）\n\n` +
-          `我建议用 SQL 实现，代码已生成在下方。你检查一下，特别是关联字段名是否正确。"`
-        )
-      case 4:
-        return (
-          `## 当前步骤：第 4 步 — 输出配置\n\n` +
-          `用户正在配置数据输出方式。这是第 4 步（共 5 步）。\n\n` +
-          `## 场景上下文\n` +
-          `- 场景名称：${scene}\n` +
-          `- 已添加输入源：${inputCount} 个\n` +
-          `- 已添加处理器：${procCount} 个\n` +
-          `- 当前输出类型：${ctx.output_plugin || '未选择'}\n\n` +
-          `## 你的任务\n` +
-          `1. 根据场景判断最佳输出格式（Excel适合报表，CSV适合数据交换，数据库适合持久化）\n` +
-          `2. 确认输出文件名和格式\n` +
-          `3. 引导用户完成列映射（AI自动映射 + 用户确认）\n\n` +
-          `## 回复格式（JSON）\n` +
-          `{\n` +
-          `  "message": "引导消息",\n` +
-          `  "actions": [{"label": "✅ 确认", "value": "confirm", "style": "primary"}]\n` +
-          `}`
-        )
-      default:
-        return `当前步骤：第 ${step} 步。场景：${scene}。请根据上下文引导用户完成此步骤。`
+      case 2: return buildStep2Prompt(scene, desc, inputs, inputCount, uploadedFiles)
+      case 3: return buildStep3Prompt(scene, desc, inputs, inputCount, uploadedFiles, procCount)
+      case 4: return buildStep4Prompt(scene, desc, inputs, inputCount, procCount, procDetail, outputPlugin)
+      default: return `当前步骤：第 ${step} 步。场景：${scene}。请根据上下文引导用户完成此步骤。`
     }
   }
 
+  // ============================================================
+  // Step 2: 输入源 — 深度分析
+  // ============================================================
+  function buildStep2Prompt(
+    scene: string, desc: string,
+    inputs: any[], inputCount: number,
+    uploadedFiles: any[]
+  ): string {
+    // 分析已添加的输入源
+    const addedList = inputs.length > 0
+      ? inputs.map((i: any) => `- ${i.name || '未命名'}（类型：${i.plugin || '未知'}，列：${(i.columns || []).join('、') || '未上传'}）`).join('\n')
+      : '（尚未添加任何输入源）'
+
+    // 已上传文件的列信息
+    const fileDetails = uploadedFiles.length > 0
+      ? uploadedFiles.map((f: any) => `- 文件「${f.name}」：${(f.columns || []).length} 列 → ${(f.columns || []).join('、')}`).join('\n')
+      : '（尚未上传文件）'
+
+    return (
+      `## 当前步骤：第 2 步 — 输入源配置\n\n` +
+      `## 场景目标\n` +
+      `场景名称：${scene}\n` +
+      `场景描述：${desc}\n\n` +
+      `## 当前状态\n` +
+      `已添加输入源：${inputCount} 个\n${addedList}\n\n` +
+      `已上传文件详情：\n${fileDetails}\n\n` +
+      `## 你的分析任务（按优先级）\n\n` +
+      `### 1. 识别需要的输入源\n` +
+      `仔细分析场景名称和描述，列出其中提到的所有数据表/数据源。\n` +
+      `- 例如"订单表和用户表"→ 需要 2 个输入源：订单表、用户表\n` +
+      `- 例如"销售数据"→ 需要 1 个输入源：销售数据\n` +
+      `- 如果场景没明确说几个表，根据业务常识推断\n\n` +
+      `### 2. 检查是否已满足（逐个对比）\n` +
+      `- 需要的输入源数量 vs 已添加数量\n` +
+      `- 如果数量不够：明确告诉用户还缺哪个，引导添加下一个\n` +
+      `- 如果数量够了：进入字段分析\n\n` +
+      `### 3. 字段分析（仅当输入源数量满足时执行）\n` +
+      `对每个已上传文件的列进行分析：\n` +
+      `- 列的语义是否与场景需求匹配？（如场景要"按城市统计"但列中没有城市字段 → 提醒用户）\n` +
+      `- 表之间的关联字段是否存在？（如订单表和用户表需要共同的关联列如 user_id）\n` +
+      `- 缺少关键字段时：明确告诉用户"我注意到缺少 XX 字段，请确认"（用选择题）\n` +
+      `- 字段齐全时：告诉用户"字段检查通过"，记录关联关系备用\n\n` +
+      `### 4. 记录知识\n` +
+      `把你分析出的信息记录到 prefill.knowledge 中，供后续步骤使用：\n` +
+      `- tables: [{name, plugin, columns, role}]\n` +
+      `- relationships: [{from_table, from_column, to_table, to_column}]\n\n` +
+      `## 回复格式（JSON）\n` +
+      `{\n` +
+      `  "message": "引导消息（先分析场景需要几个表→对比当前状态→给出下一步建议）",\n` +
+      `  "actions": [选择题按钮],\n` +
+      `  "prefill": {\n` +
+      `    "knowledge": { "tables": [...], "relationships": [...] }\n` +
+      `  }\n` +
+      `}\n\n` +
+      `## 示例消息（无输入源时）\n` +
+      `"我分析了你的场景，识别到 2 个数据源需要配置：\n` +
+      `1. 📊 订单表 — 包含订单明细\n` +
+      `2. 📊 用户表 — 包含用户信息\n\n` +
+      `我们先配置第一个——订单表的数据格式是什么？"\n\n` +
+      `## 示例消息（有输入源但字段不全时）\n` +
+      `"我检查了用户表的列（id, name），发现缺少「城市」字段。\n` +
+      `你的场景需要按城市统计，请确认：城市信息在哪个列？或者用户表是否包含城市字段？"`
+    )
+  }
+
+  // ============================================================
+  // Step 3: 处理步骤 — 基于前两步的知识生成代码
+  // ============================================================
+  function buildStep3Prompt(
+    scene: string, desc: string,
+    inputs: any[], inputCount: number,
+    uploadedFiles: any[], procCount: number
+  ): string {
+    const inputSummary = inputs.length > 0
+      ? inputs.map((i: any) => `- ${i.name || '输入源'}：类型=${i.plugin}，列=[${(i.columns || []).join(', ')}]`).join('\n')
+      : '（无输入源详情）'
+
+    const fileSummary = uploadedFiles.length > 0
+      ? uploadedFiles.map((f: any) => `- ${f.name}：${(f.columns || []).join(', ')}`).join('\n')
+      : '（未上传文件）'
+
+    return (
+      `## 当前步骤：第 3 步 — 处理步骤配置\n\n` +
+      `你已经完成了输入源配置。现在根据前面收集的信息，生成数据处理逻辑。\n\n` +
+      `## 场景目标\n` +
+      `场景名称：${scene}\n` +
+      `场景描述：${desc}\n\n` +
+      `## 输入源详情（来自步骤 2）\n${inputSummary}\n\n` +
+      `## 文件列详情\n${fileSummary}\n\n` +
+      `## 当前状态\n已添加处理器：${procCount} 个\n\n` +
+      `## 你的任务（按优先级）\n\n` +
+      `### 1. 分析处理逻辑\n` +
+      `根据场景目标 + 输入源列信息，推断需要的数据处理步骤：\n` +
+      `- 是否需要 JOIN？（多个表且有共同列 → 需要关联）\n` +
+      `- 是否需要 GROUP BY？（"按XX统计/分组"→ 需要分组）\n` +
+      `- 需要哪些聚合函数？（"统计""求和""计数""平均"）\n` +
+      `- 是否需要过滤条件？（"大于""排除""只保留"）\n` +
+      `- 是一个 SQL 步骤能完成，还是需要多个步骤？\n\n` +
+      `### 2. 生成处理方案\n` +
+      `把分析结果组织成一个清晰的处理方案：\n` +
+      `- 步骤 A：做什么（如"关联两表"）→ 用什么实现（SQL/Python）→ 关键逻辑\n` +
+      `- 步骤 B：做什么（如"分组聚合"）→ 用什么实现\n` +
+      `- ...\n` +
+      `- 每个步骤标注：输入表 → 输出表、使用的列、假设的关联字段\n\n` +
+      `### 3. 询问用户确认\n` +
+      `把方案总结成简洁的文字，让用户确认。\n` +
+      `如果有不确定的地方（如关联字段名不确定），用选择题让用户选。\n\n` +
+      `## 回复格式（JSON）\n` +
+      `{\n` +
+      `  "message": "处理方案说明（先解释逻辑，再列出步骤，再给出选择）",\n` +
+      `  "actions": [\n` +
+      `    {"label": "✅ 方案正确，开始生成代码", "value": "confirm", "style": "primary"},\n` +
+      `    {"label": "✏ 需要修改", "value": "edit"}\n` +
+      `  ],\n` +
+      `  "prefill": {\n` +
+      `    "plan": [{"step": 1, "action": "...", "method": "sql", "input": "...", "output": "..."}]\n` +
+      `  }\n` +
+      `}\n\n` +
+      `## 示例消息\n` +
+      `"根据你的输入源，我设计了处理方案：\n\n` +
+      `**步骤 1：关联两表**\n` +
+      `- 用 SQL JOIN 将订单表（o）和用户表（u）关联\n` +
+      `- 关联条件：我假设是 o.user_id = u.id（如不对请告诉我）\n` +
+      `- 输出表：joined_data\n\n` +
+      `**步骤 2：分组统计**\n` +
+      `- GROUP BY u.city，计算 COUNT(o.id) 和 SUM(o.amount)\n` +
+      `- 输出表：city_stats\n\n` +
+      `总共 2 个处理步骤，都用 SQL 实现。方案对吗？"`
+    )
+  }
+
+  // ============================================================
+  // Step 4: 输出配置 — 综合前三步推荐
+  // ============================================================
+  function buildStep4Prompt(
+    scene: string, desc: string,
+    inputs: any[], inputCount: number,
+    procCount: number, procDetail: any[],
+    outputPlugin: string
+  ): string {
+    const procSummary = procDetail.length > 0
+      ? procDetail.map((p: any) => `- ${p.plugin}：输出表=[${(p.outputTables || []).join(', ')}]`).join('\n')
+      : `${procCount} 个处理步骤`
+
+    return (
+      `## 当前步骤：第 4 步 — 输出配置\n\n` +
+      `前三个步骤已完成，现在配置最终输出。\n\n` +
+      `## 场景目标\n` +
+      `场景名称：${scene}\n` +
+      `场景描述：${desc}\n\n` +
+      `## 前面的总结\n` +
+      `- 输入源：${inputCount} 个\n` +
+      `- 处理步骤：${procCount} 个\n${procSummary}\n` +
+      `- 当前输出类型：${outputPlugin || '未选择'}\n\n` +
+      `## 你的任务\n\n` +
+      `### 1. 推荐输出格式\n` +
+      `根据场景目标推荐最佳输出格式：\n` +
+      `- 场景提到"导出 Excel"→ Excel，带模板可选\n` +
+      `- 场景提到"导出 CSV"→ CSV\n` +
+      `- 场景提到"写入数据库"→ 数据库\n` +
+      `- 未明确指定 → 根据数据类型推荐（报表用 Excel，数据交换用 CSV）\n\n` +
+      `### 2. 列映射建议\n` +
+      `处理步骤的输出列自动映射到输出文件的列：\n` +
+      `- 列出处理步骤的最终输出列\n` +
+      `- 建议哪些列需要重命名（中文友好名）\n` +
+      `- 确认是否有遗漏\n\n` +
+      `### 3. 选择题确认\n` +
+      `对于需要用户决策的事情，全部用选择题：\n` +
+      `- 输出格式选择\n` +
+      `- 文件名确认\n` +
+      `- 是否需要模板\n` +
+      `- 是否需要数据检查点\n\n` +
+      `## 回复格式（JSON）\n` +
+      `{\n` +
+      `  "message": "推荐方案 + 选择题",\n` +
+      `  "actions": [选择题按钮]\n` +
+      `}\n\n` +
+      `## 示例消息\n` +
+      `"根据场景「${scene}」，我推荐：\n` +
+      `- 输出格式：📊 Excel（你提到了导出Excel）\n` +
+      `- 文件名：订单城市统计-{{date}}.xlsx\n` +
+      `- 输出列：城市、订单数、总金额\n\n` +
+      `还需要调整吗？"`
+    )
+  }
+
+  // ============================================================
+
   async function stepGuide(step: number, context: Record<string, any>): Promise<GuideResponse> {
     const category = STEP_CATEGORY_MAP[step] || 'chat'
-
     const instruction = buildStepPrompt(step, context)
     const enhancedContext = {
       current_step: step,
