@@ -617,6 +617,8 @@ function onGuideAction(value: string) {
     store.addInput(value as 'excel' | 'csv' | 'database')
     aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
+    // Scroll to the newly added input
+    nextTick(() => scrollToStep(2))
     return
   }
 
@@ -634,6 +636,8 @@ function onGuideAction(value: string) {
     store.addProcessor(plugin)
     aiMessages.value.push({ role: 'user', content: value, step: 3, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
+    // Scroll to show the new processor
+    nextTick(() => scrollToStep(3))
     return
   }
 
