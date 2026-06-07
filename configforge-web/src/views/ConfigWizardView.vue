@@ -631,29 +631,35 @@ function onGuideSend(text: string) {
 }
 
 function onGuideAction(value: string) {
-  // Step 2: input type selection
+  // === Actions that trigger real changes + AI follow-up ===
+
+  // Step 2: add input (Excel/CSV/数据库)
   if (currentStep.value === 2 && ['excel', 'csv', 'database'].includes(value)) {
     store.addInput(value as 'excel' | 'csv' | 'database')
     aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
-    // Scroll to newly added input source
     nextTick(() => {
       setTimeout(() => {
         const cards = document.querySelectorAll('.input-source-card')
-        const lastCard = cards[cards.length - 1] as HTMLElement
-        if (lastCard) {
-          lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        } else {
-          scrollToStep(2)
-        }
+        const last = cards[cards.length - 1] as HTMLElement
+        if (last) last.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        else scrollToStep(2)
       }, 400)
     })
-    // Continue AI guidance for this step with updated context
-    triggerStepGuide(2)
+    triggerStepGuide(2)  // AI confirms the new input
     return
   }
 
-  // Step confirmation → trigger actual step navigation
+  // Step 3: add processor (SQL/Python)
+  if (currentStep.value === 3 && ['pick_sql', 'pick_python'].includes(value)) {
+    store.addProcessor(value === 'pick_sql' ? 'sql' : 'python')
+    aiMessages.value.push({ role: 'user', content: value, step: 3, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    triggerStepGuide(3)
+    return
+  }
+
+  // Step confirmation → advance wizard
   if (value === 'confirm' && currentStep.value < 5) {
     aiMessages.value.push({ role: 'user', content: '确认', step: currentStep.value, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
@@ -661,86 +667,29 @@ function onGuideAction(value: string) {
     return
   }
 
-  // Step 3: pick processor type
-  if (currentStep.value === 3 && ['pick_sql', 'pick_python'].includes(value)) {
-    const plugin = value === 'pick_sql' ? 'sql' : 'python'
-    store.addProcessor(plugin)
-    aiMessages.value.push({ role: 'user', content: value, step: 3, timestamp: Date.now() })
-    saveMessages(aiMessages.value, store.configId)
-    nextTick(() => {
-      setTimeout(() => {
-        const cards = document.querySelectorAll('.processor-card')
-        const lastCard = cards[cards.length - 1] as HTMLElement
-        if (lastCard) {
-          lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        } else {
-          scrollToStep(3)
-        }
-      }, 400)
-    })
-    return
-  }
-
-  // Apply prefill from last AI message (table mapping, field assignments, etc.)
-  const lastAiMsg = [...aiMessages.value].reverse().find(m => m.role === 'ai')
-  if (currentStep.value === 2 && lastAiMsg?.prefill) {
-    const pf = lastAiMsg.prefill
-    // AI suggested table name mappings: { "input_0": "订单表", "input_1": "用户表" }
-    if (pf.table_names) {
-      const names = pf.table_names as Record<string, string>
-      for (const [idx, name] of Object.entries(names)) {
-        const i = parseInt(idx)
-        if (i >= 0 && i < store.inputs.length) {
-          store.updateInput(i, { ...store.inputs[i], table: name })
-        }
-      }
-    }
-    // AI suggested single table name for last input
-    if (pf.table_name && typeof pf.table_name === 'string') {
-      const last = store.inputs[store.inputs.length - 1]
-      if (last && (!last.table || last.table === '' || last.table === '新输入源')) {
-        store.updateInput(store.inputs.length - 1, { ...last, table: pf.table_name })
-      }
-    }
-  }
-
-  // Dismiss actions (skip, cancel, etc.) — just acknowledge, don't re-trigger AI
+  // Dismiss actions → just record, no AI trigger
   if (['skip_checkpoints', 'keep_columns', 'skip'].includes(value)) {
     aiMessages.value.push({ role: 'user', content: '跳过', step: currentStep.value, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
     return
   }
 
-  // Table assignment: button text contains table-like name
-  const tablePatterns = [/是(.+表)/, /对应(.+表)/, /选为(.+表)/, /选择(.+表)/]
-  let matchedTable = ''
-  for (const pat of tablePatterns) {
-    const m = value.match(pat)
-    if (m) { matchedTable = m[1]; break }
-  }
-  if (matchedTable && currentStep.value === 2) {
-    for (let i = store.inputs.length - 1; i >= 0; i--) {
-      if (!store.inputs[i].table || store.inputs[i].table === '' || store.inputs[i].table === '新输入源') {
-        store.updateInput(i, { ...store.inputs[i], table: matchedTable })
-        break
+  // === Everything else: just record the user's choice + update table name if applicable ===
+  // Try to update input table name from button text (e.g. "这个文件是订单表" → table="订单表")
+  if (currentStep.value === 2) {
+    const m = value.match(/(?:是|对应|选为|选择)(.+)/)
+    if (m) {
+      const name = m[1]
+      for (let i = store.inputs.length - 1; i >= 0; i--) {
+        if (!store.inputs[i].table || store.inputs[i].table === '' || store.inputs[i].table === '新输入源') {
+          store.updateInput(i, { ...store.inputs[i], table: name })
+          break
+        }
       }
     }
   }
-
-  // For Step 2 non-action clicks: just log the message, DON'T re-trigger AI
-  // (otherwise AI re-analyzes and asks the same question again)
-  if (currentStep.value === 2 && !['excel', 'csv', 'database'].includes(value) && value !== 'confirm') {
-    aiMessages.value.push({ role: 'user', content: value, step: 2, timestamp: Date.now() })
-    saveMessages(aiMessages.value, store.configId)
-    // Only trigger AI if table was matched (needs confirmation of the update)
-    if (matchedTable) {
-      triggerStepGuide(2)
-    }
-    // Otherwise just record the user's choice silently
-    return
-  }
-
-  onGuideSend(value)
+  aiMessages.value.push({ role: 'user', content: value, step: currentStep.value, timestamp: Date.now() })
+  saveMessages(aiMessages.value, store.configId)
 }
 
 function onCancelGuide() { suggesting.value = false }
