@@ -954,7 +954,7 @@ watch(currentStep, (step, oldStep) => {
     generateDefaultPlan()
   }
   // Step 3: fixed welcome — only if no processors yet
-  if (step === 3 && oldStep === 2 && store.processors.length === 0) {
+  if (step === 3 && store.processors.length === 0) {
     aiMessages.value.push({
       role: 'ai',
       content: '请选择处理方式：',
@@ -969,7 +969,7 @@ watch(currentStep, (step, oldStep) => {
     saveMessages(aiMessages.value, store.configId)
   }
   // Step 2: fixed system welcome (not AI) — only if no inputs yet
-  if (step === 2 && oldStep === 1 && store.inputs.length === 0) {
+  if (step === 2 && store.inputs.length === 0) {
     aiMessages.value.push({
       role: 'ai',
       content: '请选择输入源类型：',
