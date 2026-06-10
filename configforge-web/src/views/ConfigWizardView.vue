@@ -961,9 +961,8 @@ onMounted(async () => {
   // Guide mode initialization
   if (isGuideMode.value && !guideInitialized.value) {
     guideInitialized.value = true
-    // Clear stale state for fresh guide session
+    // Clear stale state for fresh guide session (scene name already set by startAiGuide)
     if (!store.configId) {
-      store.resetAll()
       try { localStorage.removeItem('wizard_state_v2') } catch {}
     }
     // Only load history if we have a real config (editing), not for new configs
