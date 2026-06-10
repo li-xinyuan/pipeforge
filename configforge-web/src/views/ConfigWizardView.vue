@@ -702,6 +702,14 @@ function onGuideAction(value: string, label?: string) {
         store.updateProcessor(idx, { ...store.processors[idx], sql, outputTables: tables })
       }
     }
+    // Confirmation message
+    aiMessages.value.push({
+      role: 'ai',
+      content: `${plugin === 'sql' ? 'SQL' : 'Python'} 处理步骤已创建并填入代码。请检查左侧代码块中的逻辑，确认无误后点击下一步。`,
+      step: 3, type: 'guide',
+      actions: [{ label: '确认并进入下一步', value: 'confirm', style: 'primary' }],
+      timestamp: Date.now(),
+    })
     saveMessages(aiMessages.value, store.configId)
     return
   }
