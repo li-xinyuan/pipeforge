@@ -197,9 +197,8 @@ const versionModalConfigId = ref<string | null>(null)
 function startAiGuide() {
   if (!promptText.value.trim()) return
   store.resetAll()
-  store.scene.name = promptText.value.trim().length > 30
-    ? promptText.value.trim().slice(0, 30) + '...'
-    : promptText.value.trim()
+  try { localStorage.removeItem('wizard_state_v2') } catch {}
+  store.scene.name = promptText.value.trim()
   router.push('/config/new?guide=' + encodeURIComponent(promptText.value.trim()))
 }
 
@@ -211,9 +210,7 @@ function startWithPrompt(text: string) {
 function startManualCreate() {
   store.resetAll()
   if (promptText.value.trim()) {
-    store.scene.name = promptText.value.trim().length > 30
-      ? promptText.value.trim().slice(0, 30) + '...'
-      : promptText.value.trim()
+    store.scene.name = promptText.value.trim()
   }
   router.push('/config/new')
 }
