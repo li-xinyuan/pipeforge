@@ -31,9 +31,9 @@
 
           <div class="home__prompt-chips" v-if="showAiEntry">
             <span class="home__prompt-label">试试这样说</span>
-            <button class="home__prompt-chip" @click="startWithPrompt('把用户表的 ID、名称和邮箱导出到 CSV')">导出用户表到 CSV</button>
-            <button class="home__prompt-chip" @click="startWithPrompt('合并订单表和用户表，按城市统计订单金额')">合并并统计订单</button>
-            <button class="home__prompt-chip" @click="startWithPrompt('从数据库读取销售数据，按月份汇总，写入数据库')">月度销售汇总</button>
+            <button class="home__prompt-chip" @click="startWithPrompt('导出用户表到CSV', '把用户表的ID、名称和邮箱导出到CSV')">导出用户表到 CSV</button>
+            <button class="home__prompt-chip" @click="startWithPrompt('合并并统计订单', '合并订单表和用户表，按城市统计订单金额')">合并并统计订单</button>
+            <button class="home__prompt-chip" @click="startWithPrompt('月度销售汇总', '从数据库读取销售数据，按月份汇总写入数据库')">月度销售汇总</button>
           </div>
         </template>
 
@@ -202,9 +202,12 @@ function startAiGuide() {
   router.push('/config/new?guide=' + encodeURIComponent(promptText.value.trim()))
 }
 
-function startWithPrompt(text: string) {
-  promptText.value = text
-  startAiGuide()
+function startWithPrompt(name: string, description?: string) {
+  store.resetAll()
+  try { localStorage.removeItem('wizard_state_v2') } catch {}
+  store.scene.name = name
+  if (description) store.scene.description = description
+  router.push('/config/new?guide=' + encodeURIComponent(description || name))
 }
 
 function startManualCreate() {
