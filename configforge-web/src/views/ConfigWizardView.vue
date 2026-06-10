@@ -679,10 +679,22 @@ function onGuideAction(value: string, label?: string) {
 
   // Step 3: add processor (SQL/Python)
   if (currentStep.value === 3 && ['pick_sql', 'pick_python'].includes(value)) {
-    store.addProcessor(value === 'pick_sql' ? 'sql' : 'python')
-    aiMessages.value.push({ role: 'user', content: value, step: 3, timestamp: Date.now() })
+    const plugin = value === 'pick_sql' ? 'sql' : 'python'
+    store.addProcessor(plugin)
+    // Show Chinese label not English value
+    aiMessages.value.push({ role: 'user', content: label || value, step: 3, timestamp: Date.now() })
+    // Apply SQL prefill from last AI message to the new processor
+    if (plugin === 'sql') {
+      const lastAi = [...aiMessages.value].reverse().find(m => m.role === 'ai')
+      const pf = lastAi?.prefill || {}
+      const sql = pf['sql'] || pf['plan']?.[0]?.sql || ''
+      const tables = pf['output_tables'] || pf['outputTables'] || pf['plan']?.[0]?.output_tables || ['step_3_output']
+      if (sql) {
+        const idx = store.processors.length - 1
+        store.updateProcessor(idx, { ...store.processors[idx], sql, outputTables: tables })
+      }
+    }
     saveMessages(aiMessages.value, store.configId)
-    triggerStepGuide(3)
     return
   }
 
