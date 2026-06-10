@@ -67,7 +67,10 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 2 && store.inputs.length > 0 && store.inputs.every(inp => inp.fileId) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="store.inputs.length === 0 || !store.inputs.every(inp => inp.fileId)" @click="completeStep(2)">下一步</NButton></span>
+            <div style="display:flex;gap:10px;align-items:center">
+              <NButton text size="small" @click="onGoBack(2)">← 返回上一步</NButton>
+              <span :class="{ 'pulse-cta': currentStep === 2 && store.inputs.length > 0 && store.inputs.every(inp => inp.fileId) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="store.inputs.length === 0 || !store.inputs.every(inp => inp.fileId)" @click="completeStep(2)">下一步</NButton></span>
+            </div>
             <p v-if="currentStep === 2 && store.inputs.length === 0" class="wizard__validation-msg">至少需要添加 1 个输入源</p>
           </template>
         </WizardStepCard>
@@ -91,7 +94,10 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() || !p.outputTables.length : !p.script.trim() || !p.outputTables.length))" @click="completeStep(3)">下一步</NButton></span>
+            <div style="display:flex;gap:10px;align-items:center">
+              <NButton text size="small" @click="onGoBack(3)">← 返回上一步</NButton>
+              <span :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() || !p.outputTables.length : !p.script.trim() || !p.outputTables.length))" @click="completeStep(3)">下一步</NButton></span>
+            </div>
             <p v-if="currentStep === 3 && store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) || !p.outputTables.length)" class="wizard__validation-msg">
               {{ store.processors.some(p => p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) ? '请输入代码' : '请输入输出表名' }}
             </p>
@@ -117,7 +123,10 @@
             @action="aiPanelVisible = true"
           />
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 4 && store.output?.config?.columns?.length }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">下一步</NButton></span>
+            <div style="display:flex;gap:10px;align-items:center">
+              <NButton text size="small" @click="onGoBack(4)">← 返回上一步</NButton>
+              <span :class="{ 'pulse-cta': currentStep === 4 && store.output?.config?.columns?.length }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">下一步</NButton></span>
+            </div>
             <p v-if="currentStep === 4 && !store.output?.config?.columns?.length" class="wizard__validation-msg">请先配置列映射</p>
           </template>
         </WizardStepCard>
@@ -138,7 +147,10 @@
             message="配置就绪，可以下载或执行"
           />
           <template #footer>
-            <ExportActions :yaml="yamlPreviewRef?.yamlText || ''" />
+            <div style="display:flex;gap:10px;align-items:center">
+              <NButton text size="small" @click="onGoBack(5)">← 返回上一步</NButton>
+              <ExportActions :yaml="yamlPreviewRef?.yamlText || ''" />
+            </div>
           </template>
         </WizardStepCard>
 
@@ -802,6 +814,26 @@ function onGuideAction(value: string, label?: string) {
 }
 
 function onCancelGuide() { suggesting.value = false }
+
+function onGoBack(fromStep: number) {
+  store.goBackToStep(fromStep)
+  if (isGuideMode.value) {
+    // Clear messages after the step we're going back to
+    aiMessages.value = aiMessages.value.filter(m => !m.step || m.step <= fromStep - 1)
+    // Add fixed welcome for the target step
+    const targetStep = fromStep - 1
+    if (targetStep === 1) {
+      aiMessages.value.push({
+        role: 'ai',
+        content: `已在场景描述中说明数据来源、处理方式和输出格式。完善后点击下方按钮进入下一步。`,
+        step: 1, type: 'guide',
+        actions: [{ label: '确认并进行下一步', value: 'confirm', style: 'primary' }],
+        timestamp: Date.now(),
+      })
+    }
+    saveMessages(aiMessages.value, store.configId)
+  }
+}
 
 async function triggerStepGuide(step: number) {
   if (!isGuideMode.value) return

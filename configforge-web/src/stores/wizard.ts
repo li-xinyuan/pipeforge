@@ -68,6 +68,25 @@ export const useWizardStore = defineStore('wizard', () => {
   function nextStep() { if (canProceed.value && currentStep.value < 5) currentStep.value++ }
   function prevStep() { if (currentStep.value > 1) currentStep.value-- }
   function goToStep(n: number) { if (n >= 1 && n <= currentStep.value && n <= 5) currentStep.value = n }
+
+  /** Go back to previous step and clear downstream data */
+  function goBackToStep(fromStep: number) {
+    const targetStep = fromStep - 1
+    if (targetStep < 1 || targetStep > 5) return
+    // Clear downstream data
+    if (fromStep <= 4) {
+      processors.value = []
+      output.value = null
+    }
+    if (fromStep <= 3) {
+      inputs.value = []
+      uploadedFiles.value = {}
+    }
+    if (fromStep <= 2) {
+      scene.value = { name: '', description: '', version: '1.0' }
+    }
+    currentStep.value = targetStep
+  }
   function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
     let config: { type: 'excel'; sheet: string } | { type: 'csv'; delimiter: string; encoding: string; hasHeader: boolean } | { type: 'database'; connectionId: string; queryType: 'table'; tables: string[]; sql: string }
     if (plugin === 'csv') {
@@ -214,7 +233,7 @@ export const useWizardStore = defineStore('wizard', () => {
   return {
     currentStep, scene, inputs, processors, output, uploadedFiles, aiSuggestions, configId,
     canProceed, stepValidation,
-    nextStep, prevStep, goToStep,
+    nextStep, prevStep, goToStep, goBackToStep,
     addInput, removeInput, updateInput,
     addProcessor, removeProcessor, updateProcessor, setProcessors, setOutput,
     addFileRef, removeFileRef,
