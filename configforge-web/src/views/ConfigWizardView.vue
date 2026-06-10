@@ -677,6 +677,14 @@ function onGuideAction(value: string, label?: string) {
     return
   }
 
+  // Step 3: AI auto-analyze to choose SQL vs Python
+  if (value === 'ai_analyze_step3') {
+    aiMessages.value.push({ role: 'user', content: label || 'AI 分析自动选择', step: 3, timestamp: Date.now() })
+    saveMessages(aiMessages.value, store.configId)
+    triggerStepGuide(3)
+    return
+  }
+
   // Step 3: add processor (SQL/Python)
   if (currentStep.value === 3 && ['pick_sql', 'pick_python'].includes(value)) {
     const plugin = value === 'pick_sql' ? 'sql' : 'python'
@@ -937,6 +945,21 @@ watch(currentStep, (step, oldStep) => {
   if (step === 2 && Object.keys(store.plan).length === 0) {
     generateDefaultPlan()
   }
+  // Step 3: fixed welcome — only if no processors yet
+  if (step === 3 && oldStep === 2 && store.processors.length === 0) {
+    aiMessages.value.push({
+      role: 'ai',
+      content: '请选择处理方式：',
+      step: 3, type: 'guide',
+      actions: [
+        { label: '🧪 SQL 处理', value: 'pick_sql' },
+        { label: '🐍 Python 处理', value: 'pick_python' },
+        { label: '🤖 AI 分析自动选择', value: 'ai_analyze_step3', style: 'primary' },
+      ],
+      timestamp: Date.now(),
+    })
+    saveMessages(aiMessages.value, store.configId)
+  }
   // Step 2: fixed system welcome (not AI) — only if no inputs yet
   if (step === 2 && oldStep === 1 && store.inputs.length === 0) {
     aiMessages.value.push({
@@ -954,9 +977,8 @@ watch(currentStep, (step, oldStep) => {
   }
 
   lastGuidedStep.value = step
-  // Skip AI: Step 2 has fixed messages, Step 3/4 skip if already configured
-  const skipAI = step === 2
-    || (step === 3 && store.processors.length > 0)
+  // Skip AI: Step 2/3 have fixed messages, Step 4 skip if already configured
+  const skipAI = step === 2 || step === 3
     || (step === 4 && store.output?.config)
   if (!skipAI) {
     triggerStepGuide(step)
