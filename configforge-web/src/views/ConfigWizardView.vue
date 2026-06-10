@@ -975,23 +975,17 @@ onMounted(async () => {
       if (!store.configId) {
         try { localStorage.removeItem('configforge-chat-history-new') } catch {}
       }
-      const result = await startGuide(guidePrompt.value)
-      const msg: ChatMessage = {
-        role: 'ai', content: result.message, step: 1, type: 'guide',
-        prefill: result.prefill, timestamp: Date.now(),
-      }
-      // Fixed system confirmation after AI analysis
+      // Fixed welcome — no auto AI call, let user describe first
       aiMessages.value = [
-        msg,
         {
-          role: 'ai', content: '场景名称和描述已根据AI分析自动生成。如有问题可直接修改，确认无误请点击下方按钮进入下一步。',
+          role: 'ai',
+          content: `场景名称已根据你的描述自动填入。请在场景描述中说明：数据来源于什么（Excel/CSV/数据库）、需要对数据做什么处理（如关联、统计、过滤）、期望输出什么格式。完善后可点击下方按钮进入下一步。`,
           step: 1, type: 'guide',
           actions: [{ label: '确认并进行下一步', value: 'confirm', style: 'primary' }],
           timestamp: Date.now(),
         },
       ]
       saveMessages(aiMessages.value, store.configId)
-      if (result.prefill) applyPrefill(result.prefill, 1)
     }
     return
   }
