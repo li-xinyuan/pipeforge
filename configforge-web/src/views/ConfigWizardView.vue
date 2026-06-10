@@ -929,7 +929,7 @@ watch(currentStep, (step, oldStep) => {
   if (step === 2 && oldStep === 1 && store.inputs.length === 0) {
     aiMessages.value.push({
       role: 'ai',
-      content: '请上传输入源信息，类型可以是Excel、CSV、Database。',
+      content: '请选择输入源类型：',
       step: 2, type: 'guide',
       actions: [
         { label: '📊 Excel 文件', value: 'excel' },
