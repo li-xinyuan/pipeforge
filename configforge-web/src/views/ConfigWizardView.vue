@@ -778,9 +778,9 @@ function onGuideAction(value: string, label?: string) {
     return
   }
 
-  // Dismiss actions → just record, no AI trigger
-  if (['keep_columns'].includes(value)) {
-    aiMessages.value.push({ role: 'user', content: '跳过', step: currentStep.value, timestamp: Date.now() })
+  // Dismiss/skip actions → show Chinese label
+  if (['keep_columns', 'skip'].includes(value)) {
+    aiMessages.value.push({ role: 'user', content: label || '跳过', step: currentStep.value, timestamp: Date.now() })
     saveMessages(aiMessages.value, store.configId)
     return
   }
@@ -797,7 +797,7 @@ function onGuideAction(value: string, label?: string) {
       }
     }
   }
-  aiMessages.value.push({ role: 'user', content: value, step: currentStep.value, timestamp: Date.now() })
+  aiMessages.value.push({ role: 'user', content: label || value, step: currentStep.value, timestamp: Date.now() })
   saveMessages(aiMessages.value, store.configId)
 }
 
