@@ -68,7 +68,7 @@
           />
           <template #footer>
             <div style="display:flex;gap:10px;align-items:center">
-              <NButton text size="small" @click="onGoBack(2)">← 返回上一步</NButton>
+              <NButton v-if="currentStep === 2" text size="small" @click="onGoBack(2)">← 返回上一步</NButton>
               <span :class="{ 'pulse-cta': currentStep === 2 && store.inputs.length > 0 && store.inputs.every(inp => inp.fileId) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="store.inputs.length === 0 || !store.inputs.every(inp => inp.fileId)" @click="completeStep(2)">下一步</NButton></span>
             </div>
             <p v-if="currentStep === 2 && store.inputs.length === 0" class="wizard__validation-msg">至少需要添加 1 个输入源</p>
@@ -95,7 +95,7 @@
           />
           <template #footer>
             <div style="display:flex;gap:10px;align-items:center">
-              <NButton text size="small" @click="onGoBack(3)">← 返回上一步</NButton>
+              <NButton v-if="currentStep === 3" text size="small" @click="onGoBack(3)">← 返回上一步</NButton>
               <span :class="{ 'pulse-cta': currentStep === 3 && store.processors.length > 0 && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.processors.length || store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() || !p.outputTables.length : !p.script.trim() || !p.outputTables.length))" @click="completeStep(3)">下一步</NButton></span>
             </div>
             <p v-if="currentStep === 3 && store.processors.some(p => (p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()) || !p.outputTables.length)" class="wizard__validation-msg">
@@ -124,7 +124,7 @@
           />
           <template #footer>
             <div style="display:flex;gap:10px;align-items:center">
-              <NButton text size="small" @click="onGoBack(4)">← 返回上一步</NButton>
+              <NButton v-if="currentStep === 4" text size="small" @click="onGoBack(4)">← 返回上一步</NButton>
               <span :class="{ 'pulse-cta': currentStep === 4 && store.output?.config?.columns?.length }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.output?.config?.columns?.length" @click="completeStep(4)">下一步</NButton></span>
             </div>
             <p v-if="currentStep === 4 && !store.output?.config?.columns?.length" class="wizard__validation-msg">请先配置列映射</p>
@@ -148,7 +148,7 @@
           />
           <template #footer>
             <div style="display:flex;gap:10px;align-items:center">
-              <NButton text size="small" @click="onGoBack(5)">← 返回上一步</NButton>
+              <NButton v-if="currentStep === 5" text size="small" @click="onGoBack(5)">← 返回上一步</NButton>
               <ExportActions :yaml="yamlPreviewRef?.yamlText || ''" />
             </div>
           </template>
