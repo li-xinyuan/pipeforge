@@ -978,7 +978,7 @@ onMounted(async () => {
       aiMessages.value = [
         {
           role: 'ai',
-          content: `场景名称已根据你的描述自动填入。请在场景描述中说明：数据来源于什么（Excel/CSV/数据库）、需要对数据做什么处理（如关联、统计、过滤）、期望输出什么格式。完善后可点击下方按钮进入下一步。`,
+          content: `请在场景描述中补充以下信息，方便后续步骤准确配置：\n1. 数据来源：Excel文件、CSV文件还是数据库？\n2. 数据处理：需要关联、统计、过滤还是其他操作？\n3. 输出格式：Excel、CSV还是写入数据库？\n\n完善后点击下方按钮进入下一步。`,
           step: 1, type: 'guide',
           actions: [{ label: '确认并进行下一步', value: 'confirm', style: 'primary' }],
           timestamp: Date.now(),
