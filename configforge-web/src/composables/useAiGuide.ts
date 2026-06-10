@@ -200,15 +200,17 @@ export function useAiGuide() {
       `**严格要求：所有 label 和 value 必须是中文，禁止使用英文单词！**\n\n` +
       `## 回复格式（JSON）\n` +
       `{\n` +
-      `  "message": "处理方案说明（先解释逻辑，再列出步骤，再给出选择）",\n` +
+      `  "message": "处理方案说明",\n` +
       `  "actions": [\n` +
-      `    {"label": "✅ 方案正确，开始生成代码", "value": "确认方案", "style": "primary"},\n` +
-      `    {"label": "✏ 需要修改", "value": "需要修改"}\n` +
+      `    {"label": "使用 SQL 实现上述方案", "value": "pick_sql", "style": "primary"},\n` +
+      `    {"label": "使用 Python 实现上述方案", "value": "pick_python"}\n` +
       `  ],\n` +
       `  "prefill": {\n` +
-      `    "plan": [{"step": 1, "action": "...", "method": "sql", "input": "...", "output": "..."}]\n` +
+      `    "sql": "完整的 SQL 代码（可直接执行）",\n` +
+      `    "output_tables": ["输出表名"]\n` +
       `  }\n` +
       `}\n\n` +
+      `注意：prefill.sql 必须包含完整可执行的 SQL 代码，不要省略。\n\n` +
       `## 示例消息\n` +
       `"根据你的输入源，我设计了处理方案：\n\n` +
       `**步骤 1：关联两表**\n` +
