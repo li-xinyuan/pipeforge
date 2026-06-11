@@ -1,7 +1,7 @@
-import type { WizardState, SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig, CheckRule } from '../types/wizard'
+import type { WizardState, SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig, CheckRule } from '../types/wizard'
 
 type InputConfig = ExcelInputConfig | CsvInputConfig | DatabaseInputConfig
-type OutputConfig = ExcelOutputConfig | CsvOutputConfig
+type OutputConfig = ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig
 
 export interface SnakeState {
   current_step: number
@@ -55,6 +55,19 @@ export function buildInputConfig(config: InputConfig) {
 }
 
 export function buildOutputConfig(config: OutputConfig) {
+  if (config.type === 'database') {
+    return {
+      type: 'database',
+      connection_id: getConfigField<string>(config, 'connectionId'),
+      table: getConfigField<string>(config, 'table'),
+      mode: getConfigField<'create' | 'append'>(config, 'mode'),
+      if_exists: getConfigField<'replace' | 'append' | 'skip'>(config, 'if_exists'),
+      source_table: getConfigField<string>(config, 'sourceTable'),
+      columns: (getConfigField<Array<{ source: string; target: string }>>(config, 'columns') || []).map(
+        (c) => ({ source: c.source, target: c.target }),
+      ),
+    }
+  }
   const base = {
     source_table: getConfigField<string>(config, 'sourceTable'),
     output_dir: getConfigField<string>(config, 'outputDir'),

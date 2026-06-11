@@ -1,14 +1,19 @@
 <template>
-  <div class="input-source-card bg-white border border-slate-200 rounded-lg overflow-hidden relative">
+  <div class="input-source-card bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden relative">
     <!-- Header: name + plugin badge + delete -->
-    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
       <span class="text-lg">{{ input.plugin === 'csv' ? '🗄' : input.plugin === 'database' ? '🔌' : '📊' }}</span>
       <span class="text-sm font-medium truncate flex-1">{{ input.table || '新输入源' }}</span>
       <NTag :type="input.plugin === 'csv' ? 'info' : input.plugin === 'database' ? 'warning' : 'success'" size="small">
         {{ input.plugin === 'csv' ? 'CSV' : input.plugin === 'database' ? 'DB' : 'Excel' }}
       </NTag>
       <NTag v-if="analyzing" type="warning" size="small">AI 分析中...</NTag>
-      <NButton text type="error" size="tiny" class="ml-auto" @click="$emit('remove')">删除</NButton>
+      <NPopconfirm @positive-click="$emit('remove')">
+        <template #trigger>
+          <NButton text type="error" size="tiny" class="ml-auto">删除</NButton>
+        </template>
+        确定删除此输入源？
+      </NPopconfirm>
     </div>
 
     <!-- Body: Configuration fields -->
@@ -33,7 +38,7 @@
         >
           <span :class="{ 'pulse-cta': pulseUpload }" class="block w-full">
             <div class="border-2 border-dashed rounded-lg py-5 px-6 text-center cursor-pointer transition-colors"
-                 :class="uploading ? 'border-slate-300 bg-slate-50' : 'border-slate-300 hover:border-teal-400 hover:bg-teal-50/30'"
+                 :class="uploading ? 'border-slate-300 bg-slate-50 dark:bg-slate-700/50' : 'border-slate-300 hover:border-teal-400 hover:bg-teal-50/30'"
             >
               <span class="text-3xl block mb-1.5">{{ uploading ? '⏳' : '📤' }}</span>
               <span class="text-sm text-slate-500 block">
@@ -117,7 +122,7 @@
       </template>
 
       <!-- Database-specific fields -->
-      <div v-if="input.plugin === 'database'" class="pt-3 border-t border-dashed border-slate-200">
+      <div v-if="input.plugin === 'database'" class="pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
         <DatabaseForm :input="input" :index="index" @update="handleUpdate" />
       </div>
 
@@ -198,7 +203,7 @@
     </div>
 
     <!-- AI analysis overlay -->
-    <div v-if="analyzing" class="absolute inset-0 bg-white/65 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 rounded-md">
+    <div v-if="analyzing" class="absolute inset-0 bg-white/65 dark:bg-slate-900/65 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 rounded-md">
       <NSpin size="medium" />
       <span class="text-sm text-teal-600 font-medium">AI 分析中...</span>
     </div>
@@ -228,7 +233,7 @@ import type { InputSource, CsvInputConfig, ExcelInputConfig, ConfirmedAnalysis }
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
 import { useFileUpload } from '../../composables/useFileUpload'
-import { NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NSpin } from 'naive-ui'
+import { NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NSpin, NPopconfirm } from 'naive-ui'
 import type { UploadCustomRequestOptions } from 'naive-ui'
 import ColumnPreview from './ColumnPreview.vue'
 import AiColumnConfirmModal from './AiColumnConfirmModal.vue'

@@ -65,7 +65,7 @@ async function downloadResult() {
     if (blob) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      const storedFilename = store.output?.config?.filename || 'output.xlsx'
+      const storedFilename = (store.output?.config as any)?.filename || 'output.xlsx'
       a.href = url; a.download = buildExecutionFilename(storedFilename); a.click()
       URL.revokeObjectURL(url)
       confettiRef.value?.burst()
@@ -81,31 +81,7 @@ async function downloadResult() {
 async function saveConfigHandler() {
   saving.value = true
   try {
-    const state = {
-      currentStep: 5,
-      scene: {
-        name: store.scene.name,
-        description: store.scene.description,
-        version: store.scene.version,
-      },
-      inputs: store.inputs.map(inp => ({
-        name: inp.table,
-        plugin: inp.plugin,
-        table: inp.table,
-        paramKey: inp.paramKey,
-        fileId: inp.fileId,
-        config: inp.config,
-      })),
-      processors: store.processors.map(p => ({
-        plugin: p.plugin,
-        ...(p.plugin === 'python' ? { script: p.script } : { sql: p.sql }),
-        outputTables: p.outputTables,
-        inputTables: p.inputTables,
-        name: p.name,
-        checkpoints: p.checkpoints || [],
-      })),
-      output: store.output,
-    }
+    const state = stateToSnakeCase(store.getWizardState())
     const id = await saveConfig(state, store.configId)
     if (id) {
       store.setConfigId(id)

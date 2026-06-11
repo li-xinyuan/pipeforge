@@ -5,7 +5,7 @@
       <div
         :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
           props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
+          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50 dark:bg-green-900/20' : 'border-dashed border-slate-200 dark:border-slate-700 hover:border-teal-400 hover:bg-teal-50/30']"
         @click="switchOutputType('excel'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">📊</span>
@@ -14,7 +14,7 @@
       <div
         :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
           props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
+          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'border-dashed border-slate-200 dark:border-slate-700 hover:border-teal-400 hover:bg-teal-50/30']"
         @click="switchOutputType('csv'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">🗄</span>
@@ -23,31 +23,31 @@
       <div
         :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
           props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'database' ? 'border-purple-600 bg-purple-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
+          store.output?.plugin === 'database' ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20' : 'border-dashed border-slate-200 dark:border-slate-700 hover:border-teal-400 hover:bg-teal-50/30']"
         @click="switchOutputType('database'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">🔌</span>
         <span class="text-sm font-semibold">Database</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
+      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.3</NTag>
         <span class="text-2xl block mb-2">📄</span>
         <span class="text-sm font-semibold">PDF</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
+      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
         <span class="text-2xl block mb-2">🖥</span>
         <span class="text-sm font-semibold">PPT</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
+      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.5</NTag>
         <span class="text-2xl block mb-2">🌐</span>
         <span class="text-sm font-semibold">API</span>
       </div>
       <p class="col-span-3 text-xs text-slate-400 mt-1 text-center">选择输出类型后开始配置输出</p>
     </div>
-    <div v-else class="bg-white border border-slate-200 rounded-lg overflow-hidden">
-      <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+    <div v-else class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+      <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
         <span class="text-lg">{{ outputTypeInfo.icon }}</span>
         <span class="text-sm font-medium truncate flex-1">{{ outputTypeInfo.desc }}</span>
         <NTag size="small" :type="store.output?.plugin === 'csv' ? 'info' : 'success'">{{ outputTypeInfo.label }}</NTag>
@@ -86,7 +86,7 @@
           accept=".xlsx,.xls"
           class="w-full"
         >
-          <div class="border-2 border-dashed rounded-lg py-4 px-6 text-center cursor-pointer transition-colors border-slate-300 hover:border-teal-400 hover:bg-teal-50/30">
+          <div class="border-2 border-dashed rounded-lg py-4 px-6 text-center cursor-pointer transition-colors border-slate-300 dark:border-slate-600 hover:border-teal-400 hover:bg-teal-50/30">
             <span class="text-2xl block mb-1.5">{{ templateUploading ? '⏳' : '📤' }}</span>
             <span class="text-sm text-slate-500 block">{{ templateUploading ? '上传中...' : '将模板文件拖拽到此处，或点击选择文件' }}</span>
             <span class="text-xs text-slate-400 mt-1 block">支持 .xlsx / .xls 格式</span>
@@ -123,7 +123,7 @@
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
-        <div class="flex items-center flex-wrap gap-1 border border-slate-200 rounded px-2 py-1.5 min-h-[32px] bg-white">
+        <div class="flex items-center flex-wrap gap-1 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-h-[32px] bg-white dark:bg-slate-800">
           <template v-for="(part, i) in filenameParts" :key="i">
             <NTag size="tiny" :type="part.tag ? 'info' : 'default'" :bordered="true" closable @close="removeTagPart(i)">{{ part.text }}</NTag>
           </template>
@@ -224,7 +224,7 @@
             <NButton v-if="store.output?.plugin !== 'csv'" size="small" @click="addColumn">+ 添加列</NButton>
           </div>
         </div>
-        <ColumnMapping v-if="outputConfig.columns.length > 0" :columns="outputConfig.columns" @remove="removeColumn" />
+        <ColumnMapping v-if="outputConfig.columns.length > 0" :columns="outputConfig.columns" @remove="removeColumn" @map-all="onMapAll" @smart-match="onSmartMatch" />
         <p v-else class="text-xs text-slate-400 mt-1">{{ store.output?.plugin === 'csv' ? `点击"${inferColumnLabel}"自动填充列映射` : '点击"+ 添加列"添加源列到目标列的映射' }}</p>
       </div>
       </div>
@@ -594,6 +594,69 @@ function addColumn() {
 
 function removeColumn(index: number) {
   outputConfig.value.columns.splice(index, 1)
+}
+
+/** Normalize a column name for fuzzy matching: lowercase + remove underscores/spaces */
+function normalizeColumnName(name: string): string {
+  return name.toLowerCase().replace(/[_\s]/g, '')
+}
+
+/** Get all available source column names from processor SQL or input files */
+function getSourceColumns(): string[] {
+  // Try processor SQL first
+  const p0 = store.processors[0]
+  if (p0?.plugin === 'sql') {
+    const cols = inferSelectColumns(p0.sql)
+    if (cols.length > 0) return cols
+  }
+  // Fall back to input file columns
+  const sourceCols: string[] = []
+  for (const inp of store.inputs) {
+    const fileMeta = store.uploadedFiles[inp.fileId]
+    if (fileMeta?.columns) {
+      sourceCols.push(...fileMeta.columns)
+    }
+  }
+  return sourceCols
+}
+
+/** 一键映射: map each source column to a target with the same name */
+function onMapAll() {
+  const sourceCols = getSourceColumns()
+  if (sourceCols.length === 0) {
+    message.warning('无法获取源列名，请确认已配置处理器 SQL 或上传了输入文件')
+    return
+  }
+  outputConfig.value.columns = sourceCols.map(col => ({ source: col, target: col }))
+}
+
+/** 智能匹配: fuzzy-match source columns to existing target columns */
+function onSmartMatch() {
+  const sourceCols = getSourceColumns()
+  if (sourceCols.length === 0) {
+    message.warning('无法获取源列名，请确认已配置处理器 SQL 或上传了输入文件')
+    return
+  }
+  const targetCols = outputConfig.value.columns
+  if (targetCols.length === 0) {
+    message.warning('请先添加目标列（如上传模板文件或点击「+ 添加列」）')
+    return
+  }
+  // Build a lookup from normalized source name → original source name
+  const normalizedSourceMap = new Map<string, string>()
+  for (const col of sourceCols) {
+    normalizedSourceMap.set(normalizeColumnName(col), col)
+  }
+  // Match each target column to a source column
+  const usedSources = new Set<string>()
+  for (const col of targetCols) {
+    const normalizedTarget = normalizeColumnName(col.target)
+    const matchedSource = normalizedSourceMap.get(normalizedTarget)
+    if (matchedSource && !usedSources.has(matchedSource)) {
+      col.source = matchedSource
+      usedSources.add(matchedSource)
+    }
+  }
 }
 
 function clearOutputType() {

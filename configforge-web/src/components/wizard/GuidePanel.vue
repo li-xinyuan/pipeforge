@@ -65,18 +65,22 @@ const currentTip = computed(() => {
     if (store.scene.name.trim()) {
       return '场景名称已填写 ✓ 点击「下一步」继续'
     }
-    return '请填写场景名称，描述你想完成的数据处理任务。例如：\'销售报表生成\'、\'用户数据清洗\''
+    return '请填写场景名称，描述你想完成的数据处理任务。例如：\'销售报表生成\'、\'用户数据清洗\'\n\n版本号用于配置版本管理，默认 1.0 即可'
   }
 
   if (step === 2) {
     const hasFile = store.inputs.length > 0 && store.inputs.every(inp => inp.fileId)
     if (hasFile) {
-      return '文件已上传 ✓ 系统已自动读取列信息。点击「下一步」继续'
+      return '文件已上传 ✓ 系统已自动读取列信息。如需修改表名，点击表名旁的编辑图标。点击「下一步」继续。'
+    }
+    const hasDatabase = store.inputs.some(inp => inp.plugin === 'database')
+    if (hasDatabase) {
+      return '选择已配置的数据库连接，或前往「设置」页面添加新连接。输入表名后系统会自动读取列信息。'
     }
     if (store.inputs.length > 0) {
-      return '请点击上传区域选择文件，或拖拽文件到上传区域'
+      return '请点击上传区域选择文件，或拖拽文件到上传区域。上传后系统会自动解析列信息。'
     }
-    return '选择数据来源类型，然后上传对应文件。系统会自动读取列信息。'
+    return '选择数据来源类型，然后上传对应文件。系统会自动读取列信息。\n\n• Excel：支持 .xlsx 文件，自动读取第一个工作表\n• CSV：支持 .csv 文件，自动识别分隔符\n• Database：从已有数据库连接读取数据'
   }
 
   if (step === 3) {
@@ -85,20 +89,23 @@ const currentTip = computed(() => {
     )
     const hasOutput = store.processors.length > 0 && store.processors.every(p => p.outputTables.length > 0)
     if (hasCode && hasOutput) {
-      return '代码已填写 ✓ 填写输出表名后点击「下一步」继续'
+      return '代码已填写 ✓ 填写输出表名后点击「下一步」继续。输出表名建议使用有意义的英文名，如 order_summary。'
+    }
+    if (store.processors.length > 0 && !hasCode) {
+      return '请在代码编辑器中编写处理逻辑。输出表名是处理结果的临时表名，后续步骤会引用此表名。'
     }
     if (store.processors.length > 0) {
-      return '请在代码编辑器中编写处理逻辑'
+      return '请在代码编辑器中编写处理逻辑。输出表名是处理结果的临时表名，后续步骤会引用此表名。'
     }
-    return '添加处理步骤来加工数据。SQL 适合查询统计，Python 适合复杂逻辑。'
+    return '添加处理步骤来加工数据。\n\n常见 SQL 模式：\n• 统计：SELECT COUNT(*) AS total FROM 表名\n• 分组：SELECT 分类, COUNT(*) AS 数量 FROM 表名 GROUP BY 分类\n• 关联：SELECT a.*, b.* FROM 表1 a JOIN 表2 b ON a.id = b.id\n• 过滤：SELECT * FROM 表名 WHERE 条件\n\nPython 适合复杂逻辑，如自定义函数、正则处理等。'
   }
 
   if (step === 4) {
     const hasColumns = store.output?.config?.columns?.length
     if (hasColumns) {
-      return '列映射已配置 ✓ 点击「下一步」继续'
+      return '列映射已配置 ✓ 点击「下一步」继续。'
     }
-    return '配置输出格式和列映射。选择输出类型后，添加目标列并映射源列。'
+    return '配置输出格式和列映射。\n\n1. 选择输出类型（Excel/CSV/Database）\n2. 点击「添加列映射」\n3. 将源列映射到目标列\n\n源列来自上一步 SQL 的 SELECT 字段。'
   }
 
   if (step === 5) {

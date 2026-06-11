@@ -109,7 +109,7 @@
       <div class="flex items-center gap-2">
         <span class="text-xs text-slate-400">共 {{ dryRunResult.length }} 个表</span>
       </div>
-      <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 rounded p-2">
+      <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 dark:border-slate-700 rounded p-2">
         <div class="flex items-center gap-2 mb-2">
           <NTag size="tiny" :bordered="false" type="info">{{ table.table_name }}</NTag>
           <span class="text-xs text-slate-400">{{ table.columns.length }} 列 / {{ table.total_rows }} 行</span>

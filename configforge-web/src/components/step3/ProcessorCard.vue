@@ -1,12 +1,17 @@
 <template>
-  <div class="processor-card bg-white border border-slate-200 rounded-lg overflow-hidden">
+  <div class="processor-card bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
     <!-- Header: name + plugin badge + delete -->
-    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
       <span class="text-lg">{{ proc.plugin === 'python' ? '🐍' : '🧪' }}</span>
       <span class="text-sm font-medium truncate flex-1">{{ proc.name || '处理步骤 ' + (index + 1) }}</span>
       <NTag size="small" :type="proc.plugin === 'python' ? 'warning' : 'success'">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }}</NTag>
       <NTag v-if="proc.checkpoints?.length" size="small" type="info">检查点 ×{{ proc.checkpoints.length }}</NTag>
-      <NButton text type="error" size="tiny" class="ml-auto" @click="$emit('remove')">删除</NButton>
+      <NPopconfirm @positive-click="$emit('remove')">
+        <template #trigger>
+          <NButton text type="error" size="tiny" class="ml-auto">删除</NButton>
+        </template>
+        确定删除此处理步骤？
+      </NPopconfirm>
     </div>
     <!-- Body -->
     <div class="p-3 space-y-3">
@@ -35,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { NButton, NTag } from 'naive-ui'
+import { NButton, NTag, NPopconfirm } from 'naive-ui'
 import type { ProcessorStep, CheckRule } from '../../types/wizard'
 import SqlProcessorContent from './SqlProcessorContent.vue'
 import PythonProcessorContent from './PythonProcessorContent.vue'

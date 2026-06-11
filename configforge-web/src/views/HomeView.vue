@@ -83,7 +83,7 @@
 
     <!-- 删除确认弹窗 -->
     <NModal v-model:show="deleteModalVisible" preset="card" title="确认删除" style="max-width: 400px">
-      <p class="text-sm text-slate-600 mb-0">
+      <p class="text-sm text-slate-600 dark:text-slate-300 mb-0">
         确定要删除配置 "<strong>{{ deletingConfig?.sceneName }}</strong>" 吗？此操作不可撤销。
       </p>
       <template #footer>

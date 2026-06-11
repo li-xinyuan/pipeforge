@@ -181,14 +181,10 @@ async function saveSettings() {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--color-surface-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border-light);
-}
-
-[data-theme="dark"] .settings__nav {
-  background: rgba(10, 28, 20, 0.72);
 }
 
 .settings__nav-inner {

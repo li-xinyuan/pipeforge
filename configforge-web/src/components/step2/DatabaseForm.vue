@@ -10,17 +10,17 @@
         size="small"
         @update:value="onConnectionSelected"
       />
-      <p class="text-xs text-slate-400 mt-1">
+      <p v-if="connections.length === 0" class="text-xs text-amber-600 mt-1">请先在设置页面添加数据库连接</p>
+      <p v-else class="text-xs text-slate-400 mt-1">
         或前往
         <RouterLink to="/settings" class="text-blue-600 underline">设置页</RouterLink>
         管理连接
       </p>
     </div>
 
-    <!-- Test connection + load tables -->
+    <!-- Test connection -->
     <div v-if="selectedConnectionId" class="flex gap-2">
       <NButton size="small" :loading="testing" @click="onTestConnection">测试连通</NButton>
-      <NButton size="small" :loading="loadingTables" @click="onLoadTables">加载表列表</NButton>
     </div>
     <p v-if="testResult" :class="testResult.ok ? 'text-green-600' : 'text-red-500'" class="text-xs mt-1">
       {{ testResult.ok ? '连接成功' : testResult.error }}
@@ -41,10 +41,27 @@
       <NSelect
         v-model:value="selectedTable"
         :options="tableOptions"
-        placeholder="选择数据库表..."
+        :loading="loadingTables"
+        :placeholder="loadingTables ? '加载表列表中...' : '选择数据库表...'"
         size="small"
-        @update:value="emitUpdate"
+        @update:value="onTableSelected"
       />
+      <p v-if="loadTablesError" class="text-xs text-red-500 mt-1">{{ loadTablesError }}</p>
+    </div>
+
+    <!-- Column info -->
+    <div v-if="selectedTable && queryType === 'table'">
+      <label class="block text-xs font-medium text-slate-500 mb-1">
+        列信息
+        <NSpin v-if="loadingColumns" :size="12" class="ml-1" />
+      </label>
+      <div v-if="loadColumnsError" class="text-xs text-red-500">{{ loadColumnsError }}</div>
+      <div v-else-if="columnList.length > 0" class="flex flex-wrap gap-1.5">
+        <NTag v-for="col in columnList" :key="col.name" size="small" :bordered="false" type="info">
+          {{ col.name }} <span class="text-slate-400 ml-1">{{ col.type }}</span>
+        </NTag>
+      </div>
+      <p v-else-if="!loadingColumns" class="text-xs text-slate-400">暂无列信息</p>
     </div>
 
     <!-- SQL editor -->
@@ -63,8 +80,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { NSelect, NButton, NRadioGroup, NRadio, NInput } from 'naive-ui'
+import { computed, onMounted, ref, watch } from 'vue'
+import { NSelect, NButton, NRadioGroup, NRadio, NInput, NTag, NSpin } from 'naive-ui'
 import { RouterLink } from 'vue-router'
 import { useConnectionApi } from '../../composables/useWizardApi'
 import type { InputSource, DatabaseInputConfig, DbConnectionSummary } from '../../types/wizard'
@@ -85,9 +102,13 @@ const selectedTable = ref('')
 const sqlQuery = ref(getDbConfig()?.sql || '')
 const testing = ref(false)
 const loadingTables = ref(false)
+const loadingColumns = ref(false)
+const loadTablesError = ref<string | null>(null)
+const loadColumnsError = ref<string | null>(null)
 const testResult = ref<{ ok: boolean; error?: string } | null>(null)
 const connections = ref<DbConnectionSummary[]>([])
 const tableList = ref<string[]>([])
+const columnList = ref<{ name: string; type: string }[]>([])
 
 const connectionOptions = computed(() =>
   connections.value.map(c => ({ label: c.name, value: c.id }))
@@ -110,14 +131,65 @@ function emitUpdate() {
 
 onMounted(async () => {
   connections.value = await api.fetchConnections()
+  // If a connection was already selected (e.g. editing), auto-load tables
+  if (selectedConnectionId.value) {
+    await autoLoadTables()
+    // Restore previously selected table
+    const prevTables = getDbConfig()?.tables
+    if (prevTables && prevTables.length > 0) {
+      selectedTable.value = prevTables[0]
+      // Auto-load columns for the previously selected table
+      await autoLoadColumns()
+    }
+  }
 })
+
+async function autoLoadTables() {
+  if (!selectedConnectionId.value) return
+  loadingTables.value = true
+  loadTablesError.value = null
+  try {
+    tableList.value = await api.fetchTables(selectedConnectionId.value)
+  } catch (e: any) {
+    loadTablesError.value = e.message || '加载表列表失败'
+    tableList.value = []
+  } finally {
+    loadingTables.value = false
+  }
+}
+
+async function autoLoadColumns() {
+  if (!selectedConnectionId.value || !selectedTable.value) return
+  loadingColumns.value = true
+  loadColumnsError.value = null
+  try {
+    columnList.value = await api.fetchColumns(selectedConnectionId.value, selectedTable.value)
+  } catch (e: any) {
+    loadColumnsError.value = e.message || '加载列信息失败'
+    columnList.value = []
+  } finally {
+    loadingColumns.value = false
+  }
+}
+
+async function onTableSelected() {
+  columnList.value = []
+  loadColumnsError.value = null
+  emitUpdate()
+  await autoLoadColumns()
+}
 
 async function onConnectionSelected() {
   testResult.value = null
   tableList.value = []
+  columnList.value = []
   selectedTable.value = ''
   sqlQuery.value = ''
+  loadTablesError.value = null
+  loadColumnsError.value = null
   emitUpdate()
+  // Auto-load tables after connection is selected
+  await autoLoadTables()
 }
 
 async function onTestConnection() {
@@ -126,9 +198,14 @@ async function onTestConnection() {
   testing.value = false
 }
 
-async function onLoadTables() {
-  loadingTables.value = true
-  tableList.value = await api.fetchTables(selectedConnectionId.value)
-  loadingTables.value = false
-}
+// When queryType changes to 'table' and tables haven't been loaded yet, auto-load
+watch(queryType, async (newType) => {
+  if (newType === 'table' && selectedConnectionId.value && tableList.value.length === 0) {
+    await autoLoadTables()
+  }
+  selectedTable.value = ''
+  columnList.value = []
+  loadColumnsError.value = null
+  emitUpdate()
+})
 </script>

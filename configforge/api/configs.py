@@ -354,6 +354,11 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
     exec_output_path = os.path.join(exec_output_dir, filename)
     shutil.move(output_path, exec_output_path)
 
+    # Clean up the intermediate output directory (data/outputs/{id}/)
+    output_intermediate_dir = os.path.dirname(output_path)
+    if os.path.isdir(output_intermediate_dir):
+        shutil.rmtree(output_intermediate_dir, ignore_errors=True)
+
     # Save execution record
     record = ExecutionRecord(
         id=exec_id,

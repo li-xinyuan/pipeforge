@@ -5,8 +5,8 @@ import tempfile
 from contextlib import contextmanager
 
 
-# SQL identifier whitelist: Unicode letters, digits, underscores
-_SQL_ID_RE = re.compile(r"^[\w][\w]{0,63}$")
+# SQL identifier whitelist: Unicode letters, digits, underscores (supports Chinese etc.)
+_SQL_ID_RE = re.compile(r"^[\w][\w]{0,63}$", re.UNICODE)
 
 
 def safe_identifier(name: str, param_name: str = "identifier") -> str:
@@ -16,7 +16,7 @@ def safe_identifier(name: str, param_name: str = "identifier") -> str:
     if not _SQL_ID_RE.fullmatch(name):
         raise ValueError(
             f"{param_name} '{name}' is not a valid SQL identifier "
-            "(must start with letter/underscore, contain only letters/digits/underscores, max 64 chars)"
+            "(must start with letter/underscore/Chinese, contain only letters/digits/underscores, max 64 chars)"
         )
     return name
 

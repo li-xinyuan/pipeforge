@@ -14,15 +14,31 @@ from configforge.services.excel_reader import read_excel_info
 from configforge.services.csv_reader import read_csv_info
 from configforge.services.yaml_builder import build_yaml
 from configforge.utils.security import validate_id
+import atexit
 import copy
+import glob
 import os
 import re
 import shutil
 import tempfile
+import uuid
+
 from pipeforge.core.engine import PipelineEngine
 
 UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
 LOG_DIR = os.environ.get("CONFIGFORGE_LOG_DIR", "tmp/logs")
+OUTPUT_DIR = os.environ.get("CONFIGFORGE_OUTPUT_DIR", os.path.join(os.getcwd(), "data", "outputs"))
+
+
+def _cleanup_temp_dirs():
+    """atexit handler: remove any leftover pipeforge_out_* and pipeforge_exec_* temp dirs."""
+    tmp_base = tempfile.gettempdir()
+    for pattern in ("pipeforge_out_*", "pipeforge_exec_*"):
+        for d in glob.glob(os.path.join(tmp_base, pattern)):
+            shutil.rmtree(d, ignore_errors=True)
+
+
+atexit.register(_cleanup_temp_dirs)
 
 
 def init_scene(req: SceneInitRequest) -> SceneInitResponse:
@@ -239,7 +255,9 @@ def execute_pipeline(state: WizardState) -> str:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise RuntimeError("Pipeline executed but no output file was generated")
 
-    persist_dir = tempfile.mkdtemp(prefix="pipeforge_out_")
+    execution_id = uuid.uuid4().hex[:8]
+    persist_dir = os.path.join(OUTPUT_DIR, execution_id)
+    os.makedirs(persist_dir, exist_ok=True)
     output_filename = os.path.basename(output_path)
     persisted_path = os.path.join(persist_dir, output_filename)
     shutil.move(output_path, persisted_path)

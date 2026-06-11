@@ -22,21 +22,22 @@
           <div class="wizard__form-grid">
             <div class="wizard__form-group">
               <label class="wizard__label">场景名称 <span class="wizard__required">*</span></label>
-              <input class="wizard__input" :class="{ 'pulse-cta-input': currentStep === 1 && !store.scene.name.trim() }" v-model="store.scene.name" placeholder="例如：销售报表生成" />
+              <NInput size="small" :class="{ 'pulse-cta-input': currentStep === 1 && !store.scene.name.trim() }" v-model:value="store.scene.name" placeholder="例如：销售报表生成" />
               <p v-if="currentStep === 1 && !store.scene.name.trim()" class="wizard__validation-msg">请输入场景名称</p>
             </div>
             <div class="wizard__form-group">
               <label class="wizard__label">版本号（可选）</label>
-              <input class="wizard__input" v-model="store.scene.version" placeholder="1.0" />
+              <NInput size="small" v-model:value="store.scene.version" placeholder="1.0" />
             </div>
             <div class="wizard__form-group wizard__form-group--full">
               <label class="wizard__label">场景描述（可选）</label>
-              <textarea
-                class="wizard__textarea"
-                v-model="store.scene.description"
+              <NInput
+                type="textarea"
+                size="small"
+                v-model:value="store.scene.description"
                 placeholder="描述这个配置管道的用途..."
-                rows="3"
-              ></textarea>
+                :rows="3"
+              />
             </div>
           </div>
           <template #footer>
@@ -140,7 +141,7 @@ import { useRoute } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useTheme } from '../composables/useTheme'
-import { NButton } from 'naive-ui'
+import { NButton, NInput } from 'naive-ui'
 import WizardProgress from '../components/wizard/WizardProgress.vue'
 import type { StepState } from '../components/wizard/WizardProgress.vue'
 import WizardStepCard from '../components/wizard/WizardStepCard.vue'
@@ -369,48 +370,6 @@ onUnmounted(() => {
   color: var(--color-error);
 }
 
-.wizard__input {
-  padding: 5px 8px;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  transition: border-color var(--transition-fast);
-  font-family: var(--font-family);
-}
-
-.wizard__input:focus {
-  border-color: var(--color-primary-lighter);
-  outline: none;
-}
-
-.wizard__input::placeholder {
-  color: var(--color-text-muted);
-}
-
-.wizard__textarea {
-  padding: 5px 8px;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  transition: border-color var(--transition-fast);
-  font-family: var(--font-family);
-  resize: vertical;
-  min-height: 60px;
-}
-
-.wizard__textarea:focus {
-  border-color: var(--color-primary-lighter);
-  outline: none;
-}
-
-.wizard__textarea::placeholder {
-  color: var(--color-text-muted);
-}
-
 /* === Validation message === */
 .wizard__validation-msg {
   margin: 8px 0 0;
@@ -442,14 +401,6 @@ onUnmounted(() => {
   }
   .wizard__form-grid {
     grid-template-columns: 1fr;
-  }
-  .wizard__input {
-    padding: 10px 12px;
-    font-size: var(--font-size-base);
-  }
-  .wizard__textarea {
-    padding: 10px 12px;
-    font-size: var(--font-size-base);
   }
   .wizard__bottom-spacer {
     height: 100px;
