@@ -3,6 +3,7 @@
     class="wizard-step-card"
     :class="{
       'wizard-step-card--active': status === 'active',
+      'wizard-step-card--completed': status === 'completed',
       'wizard-step-card--locked': status === 'locked',
     }"
   >
@@ -61,6 +62,10 @@ defineProps<{
 .wizard-step-card--active {
   border: 2px solid var(--color-primary-lighter);
   box-shadow: var(--shadow-active);
+}
+.wizard-step-card--completed {
+  border: 1px solid var(--color-primary-border);
+  opacity: 0.85;
 }
 .wizard-step-card--locked {
   opacity: 0.35;

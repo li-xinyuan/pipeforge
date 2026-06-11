@@ -69,22 +69,23 @@ export const useWizardStore = defineStore('wizard', () => {
   function prevStep() { if (currentStep.value > 1) currentStep.value-- }
   function goToStep(n: number) { if (n >= 1 && n <= currentStep.value && n <= 5) currentStep.value = n }
 
-  /** Go back to previous step and clear downstream data */
+  /** Go back to previous step and only clear the current step's data */
   function goBackToStep(fromStep: number) {
     const targetStep = fromStep - 1
     if (targetStep < 1 || targetStep > 5) return
-    // Clear downstream data
-    if (fromStep <= 4) {
-      processors.value = []
-      output.value = null
-    }
-    if (fromStep <= 3) {
+
+    // Only clear the step being left, NOT downstream steps
+    if (fromStep === 2) {
       inputs.value = []
       uploadedFiles.value = {}
+    } else if (fromStep === 3) {
+      processors.value = []
+      output.value = null
+    } else if (fromStep === 4) {
+      output.value = null
     }
-    if (fromStep <= 2) {
-      scene.value = { name: '', description: '', version: '1.0' }
-    }
+    // fromStep === 5: nothing to clear
+
     currentStep.value = targetStep
   }
   function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
