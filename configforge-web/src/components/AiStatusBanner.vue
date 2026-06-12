@@ -1,8 +1,8 @@
 <template>
   <div class="ai-banner">
     <!-- Not configured: prominent warning -->
-    <div v-if="aiConfigured === false" class="ai-banner__warning">
-      <span class="ai-banner__warning-icon" aria-hidden="true">⚡</span>
+    <div v-if="!aiConfigured" class="ai-banner__warning">
+      <span class="ai-banner__warning-icon" aria-hidden="true">⚙️</span>
       <div class="ai-banner__warning-body">
         <p class="ai-banner__warning-title">AI 模型未配置</p>
         <p class="ai-banner__warning-desc">配置后可启用 AI 辅助 SQL 生成、列映射和场景描述等功能。</p>
@@ -26,25 +26,24 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton } from 'naive-ui'
-import { useAiStatus } from '../composables/useAiStatus'
 
 const router = useRouter()
-const { aiConfigured, checkStatus } = useAiStatus()
+const aiConfigured = ref(false)
 const aiProvider = ref('')
 const aiModel = ref('')
 
 onMounted(async () => {
-  await checkStatus()
-  if (aiConfigured.value) {
-    try {
-      const resp = await fetch('/api/ai/settings')
-      if (resp.ok) {
-        const data = await resp.json()
+  try {
+    const resp = await fetch('/api/ai/settings')
+    if (resp.ok) {
+      const data = await resp.json()
+      aiConfigured.value = !!(data.enabled && data.api_key)
+      if (aiConfigured.value) {
         aiProvider.value = data.provider || ''
         aiModel.value = data.model || ''
       }
-    } catch { /* ignore */ }
-  }
+    }
+  } catch { /* ignore */ }
 })
 </script>
 

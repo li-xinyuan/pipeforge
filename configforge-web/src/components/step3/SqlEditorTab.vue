@@ -7,14 +7,14 @@
       </div>
       <div class="grid grid-cols-2 gap-3">
         <span style="display:inline-block;border-radius:8px;">
-          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta ? 'pulse-cta' : '', 'border-blue-600 bg-blue-50 dark:bg-blue-900/20']" @click="pickProcessor('sql')">
+          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta ? 'pulse-cta' : '', 'border-blue-600 bg-blue-50']" @click="pickProcessor('sql')">
             <span class="text-2xl block mb-2">🧪</span>
             <span class="text-sm font-semibold">SQL</span>
             <span class="text-xs text-slate-500 mt-1 block">SQLite 查询处理</span>
           </div>
         </span>
         <span style="display:inline-block;border-radius:8px;">
-          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta ? 'pulse-cta' : '', 'border-orange-500 bg-orange-50 dark:bg-orange-900/20']" @click="pickProcessor('python')">
+          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta ? 'pulse-cta' : '', 'border-orange-500 bg-orange-50']" @click="pickProcessor('python')">
             <span class="text-2xl block mb-2">🐍</span>
             <span class="text-sm font-semibold">Python</span>
             <span class="text-xs text-slate-500 mt-1 block">Python 脚本处理</span>
@@ -35,6 +35,7 @@
       </div>
 
       <!-- Processor cards -->
+      <div class="space-y-3">
       <ProcessorCard
         v-for="(proc, i) in store.processors"
         :key="i"
@@ -46,6 +47,7 @@
         @remove="store.removeProcessor(i)"
         @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
       />
+      </div>
 
       <!-- Type selector for adding more steps -->
       <template v-if="showAddSelector">
@@ -55,14 +57,14 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <span style="display:inline-block;border-radius:8px;">
-            <div class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('sql')">
+            <div class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('sql')">
               <span class="text-2xl block mb-2">🧪</span>
               <span class="text-sm font-semibold">SQL</span>
               <span class="text-xs text-slate-500 mt-1 block">SQLite 查询处理</span>
             </div>
           </span>
           <span style="display:inline-block;border-radius:8px;">
-            <div class="cursor-pointer text-center border-2 border-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('python')">
+            <div class="cursor-pointer text-center border-2 border-orange-500 bg-orange-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('python')">
               <span class="text-2xl block mb-2">🐍</span>
               <span class="text-sm font-semibold">Python</span>
               <span class="text-xs text-slate-500 mt-1 block">Python 脚本处理</span>
@@ -82,8 +84,8 @@
       >添加处理步骤</NButton>
 
       <!-- Validation -->
-      <p v-if="store.stepValidation.length" class="text-xs text-amber-600 mt-3">
-        <span v-for="(msg, i) in store.stepValidation" :key="msg">{{ i > 0 ? ' · ' : '' }}{{ msg }}</span>
+      <p v-if="store.stepValidation.length" class="wizard__validation-msg">
+        <span v-for="(msg, i) in store.stepValidation" :key="msg">{{ i > 0 ? '；' : '' }}{{ msg }}</span>
       </p>
 
       <AiSuggestPanel
@@ -100,7 +102,7 @@
 import { computed, onMounted, provide, ref, watch } from 'vue'
 import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
-import { NButton, NTag } from 'naive-ui'
+import { NButton } from 'naive-ui'
 import AiSuggestPanel from '../common/AiSuggestPanel.vue'
 import ProcessorCard from './ProcessorCard.vue'
 import { inferOutputTable } from '../../utils/sql'
@@ -395,3 +397,11 @@ watch(() => hasNoSteps.value, (v) => {
   if (v) showAddSelector.value = true
 })
 </script>
+
+<style scoped>
+.wizard__validation-msg {
+  margin: 8px 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+}
+</style>

@@ -51,10 +51,16 @@
 
     <!-- SQL textarea -->
     <div>
-      <label class="block text-xs font-medium text-slate-500 mb-1">
-        <span class="text-red-500">*</span> SQL
-      </label>
+      <div class="flex items-center justify-between mb-1">
+        <label class="block text-xs font-medium text-slate-500">
+          <span class="text-red-500">*</span> SQL
+        </label>
+        <NDropdown :options="sqlTemplates" trigger="click" @select="onSqlTemplateSelect">
+          <NButton size="tiny" quaternary>📋 SQL 模板</NButton>
+        </NDropdown>
+      </div>
       <textarea
+        ref="sqlTextareaRef"
         :value="proc.sql"
         @input="emit('update', { sql: ($event.target as HTMLTextAreaElement).value })"
         rows="8"
@@ -122,7 +128,7 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, type Ref } from 'vue'
-import { NButton, NTag, NInput, NSelect } from 'naive-ui'
+import { NButton, NTag, NInput, NSelect, NDropdown } from 'naive-ui'
 import ColumnPreview from '../step2/ColumnPreview.vue'
 import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
@@ -152,6 +158,74 @@ const dryRunRunning = ref(false)
 const dryRunResult = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
 const dryRunError = ref('')
 const dryRunVisible = ref(false)
+const sqlTextareaRef = ref<HTMLTextAreaElement | null>(null)
+
+// SQL template library
+const sqlTemplates = [
+  { label: '统计', key: 'cat-stats', children: [
+    { label: 'SELECT COUNT(*) AS total FROM {table}', key: 'stats-count' },
+    { label: 'SELECT COUNT(*) AS total, {column} FROM {table} GROUP BY {column}', key: 'stats-group-count' },
+  ]},
+  { label: '过滤', key: 'cat-filter', children: [
+    { label: 'SELECT * FROM {table} WHERE {condition}', key: 'filter-where' },
+    { label: 'SELECT * FROM {table} WHERE {column} > {value}', key: 'filter-gt' },
+  ]},
+  { label: '关联', key: 'cat-join', children: [
+    { label: 'SELECT a.*, b.* FROM {table1} a JOIN {table2} b ON a.{key} = b.{key}', key: 'join-basic' },
+  ]},
+  { label: '排序', key: 'cat-sort', children: [
+    { label: 'SELECT * FROM {table} ORDER BY {column} DESC', key: 'sort-desc' },
+    { label: 'SELECT * FROM {table} ORDER BY {column} ASC LIMIT {n}', key: 'sort-asc-limit' },
+  ]},
+  { label: '去重', key: 'cat-distinct', children: [
+    { label: 'SELECT DISTINCT {column} FROM {table}', key: 'distinct-col' },
+  ]},
+  { label: '聚合', key: 'cat-agg', children: [
+    { label: 'SELECT {column}, SUM({value}) AS total, AVG({value}) AS avg FROM {table} GROUP BY {column}', key: 'agg-sum-avg' },
+  ]},
+]
+
+const sqlTemplateMap: Record<string, string> = {
+  'stats-count': 'SELECT COUNT(*) AS total FROM {table}',
+  'stats-group-count': 'SELECT COUNT(*) AS total, {column} FROM {table} GROUP BY {column}',
+  'filter-where': 'SELECT * FROM {table} WHERE {condition}',
+  'filter-gt': 'SELECT * FROM {table} WHERE {column} > {value}',
+  'join-basic': 'SELECT a.*, b.* FROM {table1} a JOIN {table2} b ON a.{key} = b.{key}',
+  'sort-desc': 'SELECT * FROM {table} ORDER BY {column} DESC',
+  'sort-asc-limit': 'SELECT * FROM {table} ORDER BY {column} ASC LIMIT {n}',
+  'distinct-col': 'SELECT DISTINCT {column} FROM {table}',
+  'agg-sum-avg': 'SELECT {column}, SUM({value}) AS total, AVG({value}) AS avg FROM {table} GROUP BY {column}',
+}
+
+function onSqlTemplateSelect(key: string) {
+  const template = sqlTemplateMap[key]
+  if (!template) return
+  // Replace {table} with actual input table name if available
+  const tableName = props.availableTables[0]?.value || inputTableNames.value[0] || ''
+  let sql = template
+  if (tableName) {
+    sql = sql.replace(/\{table\}/g, `"${tableName}"`)
+  }
+  // Insert at cursor position in textarea
+  const textarea = sqlTextareaRef.value
+  if (textarea) {
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const currentSql = props.proc.sql
+    const newSql = currentSql.slice(0, start) + sql + currentSql.slice(end)
+    emit('update', { sql: newSql })
+    // Set cursor position after inserted text
+    requestAnimationFrame(() => {
+      textarea.focus()
+      const newPos = start + sql.length
+      textarea.setSelectionRange(newPos, newPos)
+    })
+  } else {
+    // Fallback: append to existing SQL
+    const currentSql = props.proc.sql
+    emit('update', { sql: currentSql ? currentSql + '\n' + sql : sql })
+  }
+}
 
 onMounted(async () => {
   const settings = await getAiSettings()

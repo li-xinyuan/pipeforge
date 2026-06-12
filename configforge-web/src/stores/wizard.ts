@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { reactive, ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState } from '../types/wizard'
 
 export const useWizardStore = defineStore('wizard', () => {
@@ -7,52 +7,41 @@ export const useWizardStore = defineStore('wizard', () => {
   const scene = ref<SceneInfo>({ name: '', description: '', version: '1.0' })
   const inputs = ref<InputSource[]>([])
   const processors = ref<ProcessorStep[]>([])
-  const output = ref<OutputTarget | null>(null)
+  const output = ref<OutputTarget>({ plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } })
   const configId = ref<string | null>(null)
   const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
   const aiSuggestions = ref<Record<string, AiSuggestion>>({})
 
-  // AI 生成的执行计划（待办列表）
-  const plan = ref<Record<number, { total: number; items: string[] }>>({})
+  // Dry-run 预览结果
+  const dryRunResults = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
 
-  function setPlan(p: Record<number, { total: number; items: string[] }>) {
-    plan.value = p
+  function setDryRunResults(results: { table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null) {
+    dryRunResults.value = results
   }
 
-  // UI 层临时标记，不持久化，刷新后消失
-  const aiPrefilledFields = reactive<Record<string, boolean>>({})
-
-  function markAiPrefilled(fieldPath: string) {
-    aiPrefilledFields[fieldPath] = true
-  }
-
-  function markUserEdited(fieldPath: string) {
-    delete aiPrefilledFields[fieldPath]
-  }
-
-  function isAiPrefilled(fieldPath: string): boolean {
-    return fieldPath in aiPrefilledFields
-  }
-
-  const canProceed = computed(() => {
-    if (currentStep.value === 1) return scene.value.name.trim().length > 0
-    if (currentStep.value === 2) return inputs.value.length > 0
-    if (currentStep.value === 3) {
+  function canProceed(n: number): boolean {
+    if (n === 1) return scene.value.name.trim().length > 0
+    if (n === 2) return inputs.value.length > 0 && inputs.value.every(inp => !!inp.fileId && inp.table.trim().length > 0)
+    if (n === 3) {
       return processors.value.length > 0
         && processors.value.every(p => {
           const hasCode = p.plugin === 'sql' ? p.sql.trim().length > 0 : p.script.trim().length > 0
           return hasCode && p.outputTables.length > 0
         })
     }
-    if (currentStep.value === 4) return output.value.config?.sourceTable && output.value.config?.columns?.length > 0
+    if (n === 4) return !!output.value.config?.sourceTable && (output.value.config?.columns?.length ?? 0) > 0
     return true
-  })
+  }
 
-  const stepValidation = computed(() => {
+  function stepValidation(n: number): string[] {
     const msgs: string[] = []
-    if (currentStep.value === 1 && !scene.value.name.trim()) msgs.push('场景名称不能为空')
-    if (currentStep.value === 2 && inputs.value.length === 0) msgs.push('至少需要 1 个输入源')
-    if (currentStep.value === 3) {
+    if (n === 1 && !scene.value.name.trim()) msgs.push('请输入场景名称')
+    if (n === 2) {
+      if (inputs.value.length === 0) msgs.push('至少需要添加 1 个输入源')
+      if (inputs.value.some(inp => !inp.fileId)) msgs.push('请为所有输入源上传文件')
+      if (inputs.value.some(inp => !inp.table.trim())) msgs.push('请为所有输入源填写表名')
+    }
+    if (n === 3) {
       if (processors.value.length === 0) msgs.push('至少需要 1 个处理步骤')
       processors.value.forEach((p, i) => {
         const codeEmpty = p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim()
@@ -60,34 +49,16 @@ export const useWizardStore = defineStore('wizard', () => {
         if (p.outputTables.length === 0) msgs.push(`步骤 ${i + 1}: 输出表名不能为空`)
       })
     }
-    if (currentStep.value === 4 && !output.value.config?.sourceTable) msgs.push('请选择数据源表')
-    if (currentStep.value === 4 && output.value.config?.columns?.length === 0) msgs.push('尚未配置列映射')
+    if (n === 4) {
+      if (!output.value.config?.sourceTable) msgs.push('请选择数据源表')
+      if ((output.value.config?.columns?.length ?? 0) === 0) msgs.push('请先配置列映射')
+    }
     return msgs
-  })
+  }
 
-  function nextStep() { if (canProceed.value && currentStep.value < 5) currentStep.value++ }
+  function nextStep() { if (canProceed(currentStep.value) && currentStep.value < 5) currentStep.value++ }
   function prevStep() { if (currentStep.value > 1) currentStep.value-- }
   function goToStep(n: number) { if (n >= 1 && n <= currentStep.value && n <= 5) currentStep.value = n }
-
-  /** Go back to previous step and only clear the current step's data */
-  function goBackToStep(fromStep: number) {
-    const targetStep = fromStep - 1
-    if (targetStep < 1 || targetStep > 5) return
-
-    // Only clear the step being left, NOT downstream steps
-    if (fromStep === 2) {
-      inputs.value = []
-      uploadedFiles.value = {}
-    } else if (fromStep === 3) {
-      processors.value = []
-      output.value = null
-    } else if (fromStep === 4) {
-      output.value = null
-    }
-    // fromStep === 5: nothing to clear
-
-    currentStep.value = targetStep
-  }
   function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
     let config: { type: 'excel'; sheet: string } | { type: 'csv'; delimiter: string; encoding: string; hasHeader: boolean } | { type: 'database'; connectionId: string; queryType: 'table'; tables: string[]; sql: string }
     if (plugin === 'csv') {
@@ -148,10 +119,11 @@ export const useWizardStore = defineStore('wizard', () => {
     scene.value = { name: '', description: '', version: '1.0' }
     inputs.value = []
     processors.value = []
-    output.value = null
+    output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } }
     configId.value = null
     uploadedFiles.value = {}
     aiSuggestions.value = {}
+    dryRunResults.value = null
   }
 
   function loadFromConfigState(stateDict: any) {
@@ -168,10 +140,12 @@ export const useWizardStore = defineStore('wizard', () => {
         delete cfg.has_header
       } else if (cfg.type === 'database') {
         cfg.connectionId = cfg.connection_id || ''
+        cfg.dbType = cfg.db_type || ''
         cfg.queryType = cfg.query_type || 'table'
         cfg.tables = cfg.tables || []
         cfg.sql = cfg.sql || ''
         delete cfg.connection_id
+        delete cfg.db_type
         delete cfg.query_type
       }
       return {
@@ -210,7 +184,7 @@ export const useWizardStore = defineStore('wizard', () => {
         config: cfg,
       }
     } else {
-      output.value = null
+      output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } }
     }
 
     currentStep.value = 5
@@ -234,14 +208,13 @@ export const useWizardStore = defineStore('wizard', () => {
   return {
     currentStep, scene, inputs, processors, output, uploadedFiles, aiSuggestions, configId,
     canProceed, stepValidation,
-    nextStep, prevStep, goToStep, goBackToStep,
+    nextStep, prevStep, goToStep,
     addInput, removeInput, updateInput,
     addProcessor, removeProcessor, updateProcessor, setProcessors, setOutput,
     addFileRef, removeFileRef,
     setSuggestion, acceptSuggestion, rejectSuggestion,
     setConfigId, loadFromConfigState, resetAll, getWizardState,
-    aiPrefilledFields, markAiPrefilled, markUserEdited, isAiPrefilled,
-    plan, setPlan
+    dryRunResults, setDryRunResults
   }
 }, {
   persist: { key: 'wizard_state_v2', storage: localStorage }

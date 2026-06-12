@@ -3,9 +3,10 @@
     class="wizard-step-card"
     :class="{
       'wizard-step-card--active': status === 'active',
-      'wizard-step-card--completed': status === 'completed',
       'wizard-step-card--locked': status === 'locked',
     }"
+    tabindex="-1"
+    :data-step="step"
   >
     <div class="wizard-step-card__header">
       <div
@@ -29,7 +30,8 @@
     </div>
 
     <!-- Locked overlay -->
-    <div v-if="status === 'locked'" class="wizard-step-card__lock-overlay">
+    <div v-if="status === 'locked'" class="wizard-step-card__lock-overlay" aria-hidden="true">
+      <span class="wizard-step-card__lock-icon">🔒</span>
       <span class="wizard-step-card__lock-text">请先完成上一步</span>
     </div>
   </section>
@@ -43,6 +45,7 @@ defineProps<{
   status: 'completed' | 'active' | 'locked'
   badge?: string
   iconBg?: string
+  step?: number
 }>()
 </script>
 
@@ -63,10 +66,6 @@ defineProps<{
   border: 2px solid var(--color-primary-lighter);
   box-shadow: var(--shadow-active);
 }
-.wizard-step-card--completed {
-  border: 1px solid var(--color-primary-border);
-  opacity: 0.85;
-}
 .wizard-step-card--locked {
   opacity: 0.35;
 }
@@ -83,16 +82,10 @@ defineProps<{
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-radius: inherit;
-  pointer-events: none;
-}
-.wizard-step-card__lock-overlay::before {
-  content: '';
-  position: absolute;
-  inset: 0;
   background: var(--color-surface);
   opacity: 0.6;
   border-radius: inherit;
+  pointer-events: none;
 }
 .wizard-step-card__lock-icon {
   font-size: 28px;

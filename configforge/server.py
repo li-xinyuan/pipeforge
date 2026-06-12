@@ -1,4 +1,6 @@
+import os
 import re
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,9 +13,19 @@ from configforge.api.wizard import router as wizard_router
 from configforge.api.configs import router as configs_router
 from configforge.api.connections import router as connections_router
 from configforge.api.executions import router as exec_router
+from configforge.api.schedules import router as schedules_router
 from configforge.models.wizard import ErrorResponse
+from configforge.scheduler import start_scheduler, shutdown_scheduler
 
-app = FastAPI(title="ConfigForge", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler()
+    yield
+    shutdown_scheduler()
+
+
+app = FastAPI(title="ConfigForge", version="0.1.0", lifespan=lifespan)
 
 # URL-encoded path traversal patterns — checked against raw_path (URL-encoded) before Starlette normalizes
 _RAW_TRAVERSAL_RE = re.compile(r"(%[2eE][%2eE]|%[2fF]|%[5cC]|%00)", re.IGNORECASE)
@@ -30,9 +42,12 @@ async def block_encoded_traversal(request: Request, call_next):
     return await call_next(request)
 
 
+_cors_origins_env = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
+_cors_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,6 +77,7 @@ app.include_router(wizard_router, prefix="/api/wizard")
 app.include_router(configs_router, prefix="/api/configs")
 app.include_router(connections_router, prefix="/api")
 app.include_router(exec_router)
+app.include_router(schedules_router)
 
 
 @app.get("/api/health")
@@ -70,7 +86,6 @@ async def health():
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import os
 
 _static_dir = os.path.join(os.path.dirname(__file__), "static")
 

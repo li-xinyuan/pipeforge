@@ -15,13 +15,13 @@ describe('useWizardStore', () => {
   it('canProceed is false when scene name is empty', () => {
     const store = useWizardStore()
     store.scene.name = ''
-    expect(store.canProceed).toBe(false)
+    expect(store.canProceed(1)).toBe(false)
   })
 
   it('canProceed is true when scene name is set', () => {
     const store = useWizardStore()
     store.scene.name = '测试场景'
-    expect(store.canProceed).toBe(true)
+    expect(store.canProceed(1)).toBe(true)
   })
 
   it('nextStep advances step', () => {
@@ -198,7 +198,7 @@ describe('useWizardStore', () => {
       { name: '', plugin: 'sql', sql: 'SELECT 1', inputTables: [], outputTables: ['t1'] },
       { name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: ['t2'] },
     ]
-    expect(store.canProceed).toBe(false)
+    expect(store.canProceed(3)).toBe(false)
   })
 
   it('canProceed is true when all processors have sql and outputTables at step 3', () => {
@@ -208,14 +208,14 @@ describe('useWizardStore', () => {
       { name: '', plugin: 'sql', sql: 'SELECT 1', inputTables: [], outputTables: ['t1'] },
       { name: '', plugin: 'sql', sql: 'SELECT 2', inputTables: ['t1'], outputTables: ['t2'] },
     ]
-    expect(store.canProceed).toBe(true)
+    expect(store.canProceed(3)).toBe(true)
   })
 
   it('stepValidation reports errors for empty processors array', () => {
     const store = useWizardStore()
     store.currentStep = 3
     store.processors = []
-    expect(store.stepValidation).toContain('至少需要 1 个处理步骤')
+    expect(store.stepValidation(3)).toContain('至少需要 1 个处理步骤')
   })
 
   it('stepValidation reports per-step errors', () => {
@@ -225,7 +225,7 @@ describe('useWizardStore', () => {
       { name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [] },
       { name: '', plugin: 'sql', sql: 'SELECT 2', inputTables: [], outputTables: [] },
     ]
-    const msgs = store.stepValidation
+    const msgs = store.stepValidation(3)
     expect(msgs).toContain('步骤 1: 代码不能为空')
     expect(msgs).toContain('步骤 1: 输出表名不能为空')
     expect(msgs).toContain('步骤 2: 输出表名不能为空')
@@ -265,7 +265,7 @@ describe('useWizardStore', () => {
     store.processors = [
       { name: 'p1', plugin: 'python', script: '', inputTables: [], outputTables: ['out'] },
     ]
-    expect(store.canProceed).toBe(false)
+    expect(store.canProceed(3)).toBe(false)
   })
 
   it('canProceed is true when Python script and outputTables are set', () => {
@@ -274,7 +274,7 @@ describe('useWizardStore', () => {
     store.processors = [
       { name: 'p1', plugin: 'python', script: 'def process(ctx): pass', inputTables: ['t1'], outputTables: ['out'] },
     ]
-    expect(store.canProceed).toBe(true)
+    expect(store.canProceed(3)).toBe(true)
   })
 
   it('stepValidation reports Python script empty error', () => {
@@ -283,7 +283,7 @@ describe('useWizardStore', () => {
     store.processors = [
       { name: '', plugin: 'python', script: '', inputTables: [], outputTables: [] },
     ]
-    const msgs = store.stepValidation
+    const msgs = store.stepValidation(3)
     expect(msgs).toContain('步骤 1: 代码不能为空')
   })
 
@@ -293,7 +293,7 @@ describe('useWizardStore', () => {
     store.processors = [
       { name: '', plugin: 'python', script: 'def process(ctx): pass', inputTables: [], outputTables: [] },
     ]
-    const msgs = store.stepValidation
+    const msgs = store.stepValidation(3)
     expect(msgs).toContain('步骤 1: 输出表名不能为空')
   })
 
@@ -330,8 +330,8 @@ describe('useWizardStore', () => {
       { name: 'sql_step', plugin: 'sql', sql: 'SELECT 1', inputTables: ['t1'], outputTables: ['r1'] },
       { name: 'py_step', plugin: 'python', script: 'def process(ctx): pass', inputTables: ['r1'], outputTables: ['r2'] },
     ]
-    expect(store.canProceed).toBe(true)
-    expect(store.stepValidation).toEqual([])
+    expect(store.canProceed(3)).toBe(true)
+    expect(store.stepValidation(3)).toEqual([])
     const state = store.getWizardState()
     expect(state.processors[0].sql).toBe('SELECT 1')
     expect(state.processors[1].script).toBe('def process(ctx): pass')

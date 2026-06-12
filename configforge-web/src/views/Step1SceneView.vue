@@ -17,7 +17,7 @@
 
     <div class="flex justify-between items-center pt-6">
       <NButton text @click="router.push('/')">取消</NButton>
-      <NButton type="primary" :disabled="!store.canProceed" @click="onNext">下一步</NButton>
+      <NButton type="primary" :disabled="!store.canProceed(1)" @click="onNext">下一步</NButton>
     </div>
   </div>
 </template>
@@ -37,12 +37,12 @@ function onStepClick(step: number) {
   const s = step
   if (s <= store.currentStep) {
     store.goToStep(s); router.push(`/step/${s}`)
-  } else if (s === store.currentStep + 1 && store.canProceed) {
+  } else if (s === store.currentStep + 1 && store.canProceed(store.currentStep)) {
     store.goToStep(s); router.push(`/step/${s}`)
   }
 }
 
 async function onNext() {
-  if (store.canProceed) { store.nextStep(); await nextTick(); router.push('/step/2') }
+  if (store.canProceed(store.currentStep)) { store.nextStep(); await nextTick(); router.push('/step/2') }
 }
 </script>

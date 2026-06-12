@@ -2,9 +2,9 @@
   <div class="max-w-3xl mx-auto px-4 py-8">
     <NSteps :current="store.currentStep" @update:current="onStepClick">
       <NStep title="场景信息" description="基本信息" />
-      <NStep title="输入源配置" description="上传与解析" />
+      <NStep title="数据源配置" description="上传与解析" />
       <NStep title="数据转换/处理" description="SQL 编写" />
-      <NStep title="输出定义" description="格式与列映射" />
+      <NStep title="输出定义" description="格式与映射" />
       <NStep title="预览与导出" description="YAML 查看" />
     </NSteps>
 
@@ -61,7 +61,7 @@ function onStepClick(step: number) {
   const s = step
   if (s <= store.currentStep) {
     store.goToStep(s); router.push(`/step/${s}`)
-  } else if (s === store.currentStep + 1 && store.canProceed) {
+  } else if (s === store.currentStep + 1 && store.canProceed(store.currentStep)) {
     store.goToStep(s); router.push(`/step/${s}`)
   }
 }
@@ -75,18 +75,19 @@ async function onTestRun() {
       current_step: store.currentStep,
       scene: { name: store.scene.name, description: store.scene.description, version: store.scene.version },
       inputs: store.inputs.map(inp => ({
-        name: inp.paramKey || inp.table,
+        name: inp.table,
         plugin: inp.plugin,
         table: inp.table,
         param_key: inp.paramKey,
         file_id: inp.fileId,
         config: inp.config,
       })),
-      processor: {
-        plugin: store.processors[0]?.plugin ?? 'sql',
-        sql: store.processors[0]?.plugin === 'sql' ? store.processors[0].sql : '',
-        output_tables: store.processors[0]?.outputTables ?? [],
-      },
+      processors: store.processors.map(p => ({
+        plugin: p.plugin,
+        sql: p.plugin === 'sql' ? p.sql : '',
+        script: p.plugin === 'python' ? p.script : '',
+        output_tables: p.outputTables,
+      })),
       output: store.output ? {
         plugin: store.output.plugin,
         config: {
@@ -122,7 +123,7 @@ async function onTestRun() {
 }
 
 function onNext() {
-  if (store.canProceed) {
+  if (store.canProceed(store.currentStep)) {
     store.nextStep()
     router.push('/step/5')
   }

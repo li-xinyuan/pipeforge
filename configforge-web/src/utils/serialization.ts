@@ -55,19 +55,6 @@ export function buildInputConfig(config: InputConfig) {
 }
 
 export function buildOutputConfig(config: OutputConfig) {
-  if (config.type === 'database') {
-    return {
-      type: 'database',
-      connection_id: getConfigField<string>(config, 'connectionId'),
-      table: getConfigField<string>(config, 'table'),
-      mode: getConfigField<'create' | 'append'>(config, 'mode'),
-      if_exists: getConfigField<'replace' | 'append' | 'skip'>(config, 'if_exists'),
-      source_table: getConfigField<string>(config, 'sourceTable'),
-      columns: (getConfigField<Array<{ source: string; target: string }>>(config, 'columns') || []).map(
-        (c) => ({ source: c.source, target: c.target }),
-      ),
-    }
-  }
   const base = {
     source_table: getConfigField<string>(config, 'sourceTable'),
     output_dir: getConfigField<string>(config, 'outputDir'),
@@ -82,6 +69,21 @@ export function buildOutputConfig(config: OutputConfig) {
       ...base,
       delimiter: getConfigField<string>(config, 'delimiter'),
       encoding: getConfigField<string>(config, 'encoding'),
+    }
+  }
+  if (config.type === 'database') {
+    return {
+      type: 'database',
+      source_table: getConfigField<string>(config, 'sourceTable'),
+      columns: (getConfigField<Array<{ source: string; target: string }>>(config, 'columns') || []).map(
+        (c) => ({ source: c.source, target: c.target }),
+      ),
+      connection_id: getConfigField<string>(config, 'connectionId'),
+      target_table: getConfigField<string>(config, 'targetTable'),
+      write_mode: getConfigField<string>(config, 'writeMode'),
+      create_table_if_not_exists: getConfigField<boolean>(config, 'createTableIfNotExists'),
+      primary_key_columns: getConfigField<string[]>(config, 'primaryKeyColumns'),
+      batch_size: getConfigField<number>(config, 'batchSize'),
     }
   }
   return {

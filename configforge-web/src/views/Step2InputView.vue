@@ -2,14 +2,14 @@
   <div class="max-w-3xl mx-auto px-4 py-8">
     <NSteps :current="store.currentStep" @update:current="onStepClick">
       <NStep title="场景信息" description="基本信息" />
-      <NStep title="输入源配置" description="上传与解析" />
+      <NStep title="数据源配置" description="上传与解析" />
       <NStep title="数据转换/处理" description="SQL 编写" />
-      <NStep title="输出定义" description="格式与列映射" />
+      <NStep title="输出定义" description="格式与映射" />
       <NStep title="预览与导出" description="YAML 查看" />
     </NSteps>
 
     <div class="mb-6 mt-8">
-      <h2 class="text-lg font-semibold mb-1">输入源配置</h2>
+      <h2 class="text-lg font-semibold mb-1">数据源配置</h2>
       <p class="text-sm text-slate-500">点击「添加输入源」选择文件，上传后自动解析工作表和列信息，确认表名和参数键即可。</p>
       <p v-if="store.inputs.length === 0" class="text-xs text-red-500 mt-1">* 至少需要添加一个输入源</p>
       <NTooltip>
@@ -94,7 +94,7 @@ function onStepClick(step: number) {
   const s = step
   if (s <= store.currentStep) {
     store.goToStep(s); router.push(`/step/${s}`)
-  } else if (s === store.currentStep + 1 && store.canProceed) {
+  } else if (s === store.currentStep + 1 && store.canProceed(store.currentStep)) {
     store.goToStep(s); router.push(`/step/${s}`)
   }
 }
@@ -158,7 +158,7 @@ function onFileReady(_fileId: string) {
 }
 
 function onNext() {
-  if (store.canProceed) {
+  if (store.canProceed(store.currentStep)) {
     store.nextStep()
     router.push('/step/3')
   }

@@ -2,19 +2,36 @@
   <div class="home">
     <AppNavBar current-route="home" />
 
-    <!-- Hero section — simple entry -->
+    <AiStatusBanner />
+
+    <!-- Hero section -->
     <section class="home__hero">
       <div class="home__hero-inner">
-        <div class="home__hero-badge">⚡ ConfigForge · 数据管道配置工具</div>
+        <div class="home__hero-badge">⚡ AI 驱动的数据流水线配置工具</div>
         <h1 class="home__hero-title">
-          创建你的数据处理管道<br>
-          <span class="home__hero-gradient">五步完成配置</span>
+          用自然语言描述需求<br>
+          <span class="home__hero-gradient">AI 自动生成配置</span>
         </h1>
         <p class="home__hero-subtitle">
-          通过向导逐步配置数据输入、处理逻辑和输出格式
+          5 步向导帮你把数据处理需求变成可运行的配置文件。支持 AI 辅助 SQL 生成与列映射，所有数据本地处理，不上传至外部服务。
         </p>
-
-        <button class="home__cta" @click="startNewConfig">开始新配置</button>
+        <div v-if="!loading && configs.length === 0" class="home__hero-anim">
+          <PipelineAnimation />
+        </div>
+        <div class="home__hero-actions">
+          <NButton type="primary" size="large" class="btn-primary" @click="startNewConfig">
+            ✏ 开始新配置
+          </NButton>
+          <NButton size="large" class="btn-secondary" @click="router.push('/guide')">
+            📖 使用指南
+          </NButton>
+        </div>
+        <div class="home__prompt-chips">
+          <span class="home__prompt-label">试试这样说</span>
+          <button class="home__prompt-chip" @click="startWithPrompt('把用户表的 ID、名称和邮箱导出到 CSV')">把用户表的 ID、名称和邮箱导出到 CSV</button>
+          <button class="home__prompt-chip" @click="startWithPrompt('合并订单表和用户表，按城市统计订单金额')">合并订单表和用户表，按城市统计订单金额</button>
+          <button class="home__prompt-chip" @click="startWithPrompt('从 API 获取天气数据，清洗后写入数据库')">从 API 获取天气数据，清洗后写入数据库</button>
+        </div>
       </div>
     </section>
 
@@ -22,17 +39,7 @@
     <section class="home__configs">
       <div class="home__configs-header">
         <h2 class="home__configs-title">最近配置</h2>
-        <div class="home__configs-header-right">
-          <NInput
-            v-model:value="searchQuery"
-            size="small"
-            placeholder="搜索配置..."
-            clearable
-            class="home__search-input"
-            @update:value="onSearchChange"
-          />
-          <NTag v-if="totalCount" size="small" :bordered="false" class="home__configs-count">{{ totalCount }} 个配置</NTag>
-        </div>
+        <NTag v-if="configs.length" size="small" :bordered="false" class="home__configs-count">{{ configs.length }} 个配置</NTag>
       </div>
 
       <div v-if="loading" class="home__skeleton">
@@ -41,8 +48,8 @@
 
       <NAlert v-else-if="error" type="error" :title="error" />
 
-      <div v-else-if="configs.items.length > 0" class="home__config-list">
-        <div v-for="cfg in configs.items" :key="cfg.id" class="home__config-card card-lift">
+      <div v-else-if="configs.length > 0" class="home__config-list">
+        <div v-for="cfg in configs" :key="cfg.id" class="home__config-card card-lift">
           <div class="home__config-card-left">
             <span class="home__config-card-icon">📋</span>
             <div class="home__config-card-info">
@@ -50,7 +57,7 @@
               <div class="home__config-card-meta">
                 <span class="home__meta-item">{{ cfg.version }}</span>
                 <span class="home__meta-sep">·</span>
-                <span class="home__meta-item">{{ cfg.inputCount }} 个输入源</span>
+                <span class="home__meta-item">{{ cfg.inputCount }} 个数据源</span>
                 <span class="home__meta-sep">·</span>
                 <span class="home__meta-item">{{ cfg.outputType }}</span>
                 <span class="home__meta-sep">·</span>
@@ -72,18 +79,11 @@
         <p style="font-size: var(--font-size-base); font-weight: 500; margin-bottom: 8px;">还没有配置</p>
         <p style="font-size: var(--font-size-sm);">点击上方按钮开始创建你的第一个数据管道配置</p>
       </div>
-
-      <!-- Pagination — outside the v-if chain so it shows alongside the list -->
-      <div v-if="configs.total_pages > 1" class="home__pagination">
-        <NButton size="small" :disabled="configs.page <= 1" @click="goToPage(configs.page - 1)">← 上一页</NButton>
-        <span class="home__pagination-info">第 {{ configs.page }}/{{ configs.total_pages }} 页</span>
-        <NButton size="small" :disabled="configs.page >= configs.total_pages" @click="goToPage(configs.page + 1)">下一页 →</NButton>
-      </div>
     </section>
 
     <!-- 删除确认弹窗 -->
     <NModal v-model:show="deleteModalVisible" preset="card" title="确认删除" style="max-width: 400px">
-      <p class="text-sm text-slate-600 dark:text-slate-300 mb-0">
+      <p class="text-sm text-slate-600 mb-0">
         确定要删除配置 "<strong>{{ deletingConfig?.sceneName }}</strong>" 吗？此操作不可撤销。
       </p>
       <template #footer>
@@ -119,13 +119,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useConfigApi, type PaginatedResponse } from '../composables/useConfigApi'
+import { useConfigApi } from '../composables/useConfigApi'
 import { useWizardStore } from '../stores/wizard'
 import type { SavedConfig } from '../types/wizard'
-import { NButton, NInput, NAlert, NModal, NTag, NDropdown, useMessage } from 'naive-ui'
+import { NButton, NAlert, NModal, NTag, NDropdown, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import ExecuteConfigModal from '../components/ExecuteConfigModal.vue'
 import ConfigVersionPanel from '../components/config/ConfigVersionPanel.vue'
+import AiStatusBanner from '../components/AiStatusBanner.vue'
+import PipelineAnimation from '../components/PipelineAnimation.vue'
 
 const router = useRouter()
 const store = useWizardStore()
@@ -134,13 +136,7 @@ const { listConfigs, deleteConfig, downloadConfigYaml } = useConfigApi()
 
 const loading = ref(true)
 const error = ref('')
-const configs = ref<PaginatedResponse<SavedConfig>>({ items: [], total: 0, page: 1, page_size: 10, total_pages: 1 })
-const searchQuery = ref('')
-const currentPage = ref(1)
-const pageSize = ref(10)
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-
-const totalCount = ref(0)
+const configs = ref<SavedConfig[]>([])
 
 const deleteModalVisible = ref(false)
 const deletingConfig = ref<SavedConfig | null>(null)
@@ -154,36 +150,18 @@ const versionModalConfigId = ref<string | null>(null)
 
 function startNewConfig() {
   store.resetAll()
-  try { localStorage.removeItem('wizard_state_v2') } catch {}
   router.push('/config/new')
 }
 
-async function fetchConfigs() {
-  loading.value = true
-  const result = await listConfigs({
-    search: searchQuery.value || undefined,
-    page: currentPage.value,
-    pageSize: pageSize.value,
-  })
-  configs.value = result
-  totalCount.value = result.total
+function startWithPrompt(prompt: string) {
+  store.resetAll()
+  router.push('/config/new?prompt=' + encodeURIComponent(prompt))
+}
+
+onMounted(async () => {
+  configs.value = await listConfigs()
   loading.value = false
-}
-
-onMounted(() => { fetchConfigs() })
-
-function goToPage(page: number) {
-  currentPage.value = page
-  fetchConfigs()
-}
-
-function onSearchChange() {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    currentPage.value = 1
-    fetchConfigs()
-  }, 300)
-}
+})
 
 async function onLoadConfig(id: string) {
   router.push('/config/new?load=' + id)
@@ -204,8 +182,7 @@ async function onConfirmDelete() {
   const ok = await deleteConfig(deletingConfig.value.id)
   if (ok) {
     message.success('已删除')
-    configs.value.items = configs.value.items.filter(c => c.id !== deletingConfig.value!.id)
-    totalCount.value = Math.max(0, totalCount.value - 1)
+    configs.value = configs.value.filter(c => c.id !== deletingConfig.value!.id)
     deleteModalVisible.value = false
     deletingConfig.value = null
   } else {
@@ -242,10 +219,7 @@ function openVersionModal(configId: string) {
 
 function onVersionRefreshed() {
   // Reload config list after rollback to reflect updated version info
-  listConfigs({ page: currentPage.value, pageSize: pageSize.value }).then(data => {
-    configs.value = data
-    totalCount.value = data.total
-  })
+  listConfigs().then(data => { configs.value = data })
 }
 
 function formatTime(iso: string): string {
@@ -314,19 +288,48 @@ function formatTime(iso: string): string {
   margin: 0 0 24px;
 }
 
-.home__cta {
-  padding: 12px 40px;
-  border-radius: 12px;
-  border: none;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-  color: #fff;
-  margin-bottom: 14px;
-  transition: transform 0.2s, box-shadow 0.2s;
+.home__hero-anim {
+  margin-bottom: 28px;
 }
-.home__cta:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(13,148,136,0.3); }
+
+.home__hero-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+/* ───── prompt chips ───── */
+.home__prompt-chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.home__prompt-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.home__prompt-chip {
+  display: inline-block;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.home__prompt-chip:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary-border);
+}
 
 /* ───── config list ───── */
 .home__configs {
@@ -340,15 +343,6 @@ function formatTime(iso: string): string {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
-  gap: 12px;
-}
-.home__configs-header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.home__search-input {
-  width: 200px;
 }
 
 .home__configs-title {
@@ -449,19 +443,6 @@ function formatTime(iso: string): string {
   background: var(--color-surface-hover) !important;
 }
 
-/* ───── pagination ───── */
-.home__pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 20px;
-}
-.home__pagination-info {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
 /* ───── misc ───── */
 .config-name-link {
   font-weight: 600;
@@ -511,6 +492,17 @@ function formatTime(iso: string): string {
     font-size: 13px;
     line-height: 1.6;
     margin-bottom: 24px;
+  }
+  .home__hero-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .home__prompt-chips {
+    gap: 6px;
+  }
+  .home__prompt-chip {
+    font-size: 11px;
+    padding: 5px 10px;
   }
   .home__configs {
     padding: 32px 16px 64px;

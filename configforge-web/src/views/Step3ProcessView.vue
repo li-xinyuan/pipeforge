@@ -37,10 +37,13 @@ const store = useWizardStore()
 onMounted(() => {
   store.currentStep = 3
 
-  const firstProc = store.processors[0]
-  if (firstProc && firstProc.plugin === 'sql' && !firstProc.sql.trim() && store.inputs.length > 0) {
-    const firstTable = store.inputs[0]?.table
-    if (firstTable) firstProc.sql = `SELECT * FROM ${firstTable}`
+  if (store.processors.length === 0 || store.processors.every(p => p.plugin === 'sql' ? !p.sql.trim() : !p.script.trim())) {
+    if (store.inputs.length > 0) {
+      const firstTable = store.inputs[0]?.table
+      if (firstTable && store.processors.length > 0 && store.processors[0].plugin === 'sql') {
+        store.processors[0].sql = `SELECT * FROM ${firstTable}`
+      }
+    }
   }
 })
 
@@ -48,13 +51,13 @@ function onStepClick(step: number) {
   const s = step
   if (s <= store.currentStep) {
     store.goToStep(s); router.push(`/step/${s}`)
-  } else if (s === store.currentStep + 1 && store.canProceed) {
+  } else if (s === store.currentStep + 1 && store.canProceed(store.currentStep)) {
     store.goToStep(s); router.push(`/step/${s}`)
   }
 }
 
 function onNext() {
-  if (store.canProceed) {
+  if (store.canProceed(store.currentStep)) {
     store.nextStep()
     router.push('/step/4')
   }

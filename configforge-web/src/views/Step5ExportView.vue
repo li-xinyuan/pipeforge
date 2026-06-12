@@ -24,6 +24,27 @@
       <YamlPreview ref="yamlRef" />
     </NCard>
 
+    <!-- 数据预览 -->
+    <NCard class="mt-4">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-base font-semibold">数据预览</h2>
+        <NButton size="small" type="info" :loading="dryRunLoading" @click="runDryRun">运行预览</NButton>
+      </div>
+      <p v-if="dryRunError" class="text-xs text-red-500 mb-2">{{ dryRunError }}</p>
+      <div v-if="store.dryRunResults && store.dryRunResults.length > 0" class="space-y-4">
+        <div v-for="table in store.dryRunResults" :key="table.table_name" class="border border-slate-200 dark:border-slate-700 rounded p-3">
+          <div class="flex items-center gap-2 mb-2">
+            <NTag size="tiny" :bordered="false" type="info">{{ table.table_name }}</NTag>
+            <span class="text-xs text-slate-400">{{ table.columns.length }} 列 / {{ table.total_rows }} 行</span>
+          </div>
+          <DataPreviewTable :columns="table.columns" :rows="table.rows" :table-name="table.table_name" />
+        </div>
+      </div>
+      <div v-else-if="!dryRunLoading" class="text-center py-6 text-slate-400 text-sm">
+        点击「运行预览」查看数据处理结果
+      </div>
+    </NCard>
+
     <div v-if="descUpdated" class="mt-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-start gap-2">
       <span class="text-green-500 mt-0.5">✓</span>
       <span>场景描述已更新：<span class="font-medium">{{ descUpdated }}</span></span>
@@ -48,19 +69,24 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
-import { NSteps, NStep, NButton, NCard } from 'naive-ui'
+import { NSteps, NStep, NButton, NCard, NTag } from 'naive-ui'
 import YamlPreview from '../components/step4/YamlPreview.vue'
 import ExportActions from '../components/step4/ExportActions.vue'
-import { useAiApi } from '../composables/useWizardApi'
+import DataPreviewTable from '../components/step4/DataPreviewTable.vue'
+import { useAiApi, useWizardApi } from '../composables/useWizardApi'
 import { useConfigApi } from '../composables/useConfigApi'
+import { stateToSnakeCase } from '../utils/serialization'
 
 const router = useRouter()
 const store = useWizardStore()
 const yamlRef = ref<InstanceType<typeof YamlPreview>>()
 const { askSuggestion } = useAiApi()
+const { dryRun: dryRunApi, error: wizardApiError } = useWizardApi()
 const { saveConfig, error: apiError } = useConfigApi()
 const aiLoading = ref(false)
 const yamlLoading = ref(false)
+const dryRunLoading = ref(false)
+const dryRunError = ref('')
 const descUpdated = ref('')
 const saving = ref(false)
 const saveMsg = ref('')
@@ -90,15 +116,15 @@ async function autoUpdateSceneDesc() {
       plugin: i.plugin,
       file: store.uploadedFiles[i.fileId]?.originalName || '',
     }))
-    const outputConfig = store.output.config as any
+    const outputConfig = store.output?.config as any
     const context = {
       inputs: inputSummary,
       sql: store.processors[0]?.plugin === 'sql' ? store.processors[0].sql : '',
       outputTables: store.processors[0]?.outputTables ?? [],
       output: {
-        plugin: store.output.plugin,
-        filename: outputConfig.filename || '',
-        columns: (outputConfig.columns || []).map((c: any) => ({ source: c.source, target: c.target })),
+        plugin: store.output?.plugin,
+        filename: outputConfig?.filename || '',
+        columns: (outputConfig?.columns || []).map((c: any) => ({ source: c.source, target: c.target })),
       },
     }
     const content = await askSuggestion('scene', context)
@@ -123,6 +149,23 @@ async function refreshPreview() {
   yamlLoading.value = true
   try { await yamlRef.value?.loadYaml() }
   finally { yamlLoading.value = false }
+}
+
+async function runDryRun() {
+  dryRunError.value = ''
+  dryRunLoading.value = true
+  try {
+    const state = stateToSnakeCase(store.getWizardState())
+    const result = await dryRunApi(state)
+    if (result?.tables?.length) {
+      store.setDryRunResults(result.tables)
+    } else {
+      const apiMsg = wizardApiError.value?.message || ''
+      dryRunError.value = apiMsg ? `预览执行失败: ${apiMsg}` : '预览执行失败，请检查配置'
+    }
+  } finally {
+    dryRunLoading.value = false
+  }
 }
 
 async function onSaveConfig() {

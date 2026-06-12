@@ -15,14 +15,19 @@ const router = createRouter({
       component: () => import('../views/GuideView.vue'),
     },
     {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('../views/SettingsPage.vue'),
+    },
+    {
       path: '/history',
       name: 'history',
       component: () => import('../views/ExecutionHistoryView.vue'),
     },
     {
-      path: '/settings',
-      name: 'settings',
-      component: () => import('../views/SettingsPage.vue'),
+      path: '/schedules',
+      name: 'schedules',
+      component: () => import('../views/SchedulesPage.vue'),
     },
     {
       path: '/step/:step(\\d)',

@@ -9,8 +9,15 @@ export function useWizardApi() {
     loading.value = true; error.value = null
     try {
       const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const data = await resp.json()
-      if (!resp.ok) { error.value = { message: data.error || data.detail || 'Unknown error', code: data.code || 'ERROR' }; return null }
+      const data = await resp.json().catch(() => null)
+      if (!resp.ok) {
+        if (data) {
+          error.value = { message: data.error || data.detail || `请求失败 (${resp.status})`, code: data.code || 'API_ERROR' }
+        } else {
+          error.value = { message: `服务器错误 (${resp.status})`, code: 'SERVER_ERROR' }
+        }
+        return null
+      }
       return data as T
     } catch {
       error.value = { message: 'Network error', code: 'NETWORK_ERROR' }

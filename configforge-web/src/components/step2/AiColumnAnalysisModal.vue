@@ -13,15 +13,15 @@
           <p v-if="sourceStates.length === 0 && !rawText" class="text-slate-400 text-center py-4">请先上传文件以使用 AI 列分析</p>
 
           <!-- Raw text fallback -->
-          <div v-if="rawText" class="p-3 bg-amber-50 border border-amber-200 rounded-md">
-            <p class="text-xs text-amber-700 mb-1">AI 返回内容无法解析为结构化结果：</p>
-            <pre class="text-xs text-amber-800 whitespace-pre-wrap max-h-32 overflow-y-auto">{{ rawText }}</pre>
+          <div v-if="rawText" class="p-3 bg-red-50 border border-red-200 rounded-md">
+            <p class="text-xs text-red-700 mb-1">AI 返回内容无法解析为结构化结果：</p>
+            <pre class="text-xs text-red-800 whitespace-pre-wrap max-h-32 overflow-y-auto">{{ rawText }}</pre>
           </div>
 
           <!-- Join Keys (shared) -->
-          <div v-if="joinKeys.length" class="p-3 bg-amber-50 border border-amber-200 rounded-md">
-            <h4 class="text-xs font-semibold text-amber-800 mb-1">关联键检测</h4>
-            <div v-for="(jk, i) in joinKeys" :key="i" class="text-xs text-amber-700">
+          <div v-if="joinKeys.length" class="p-3 bg-red-50 border border-red-200 rounded-md">
+            <h4 class="text-xs font-semibold text-red-800 mb-1">关联键检测</h4>
+            <div v-for="(jk, i) in joinKeys" :key="i" class="text-xs text-red-700">
               {{ jk.file1 || jk.file }}.{{ jk.column || jk.col }} ↔ {{ jk.file2 }}.{{ jk.column2 || jk.col2 || jk.column || jk.col }}
             </div>
           </div>

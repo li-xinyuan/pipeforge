@@ -1,11 +1,12 @@
 <template>
   <div>
     <!-- Output type selector -->
+    <p v-if="showOutputTypeChoices" style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 12px;">选择输出格式，配置数据的导出方式</p>
     <div v-if="showOutputTypeChoices" class="grid grid-cols-3 gap-3 mb-5">
       <div
         :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
           props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50 dark:bg-green-900/20' : 'border-dashed border-slate-200 dark:border-slate-700 hover:border-teal-400 hover:bg-teal-50/30']"
+          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
         @click="switchOutputType('excel'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">📊</span>
@@ -14,40 +15,35 @@
       <div
         :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
           props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'border-dashed border-slate-200 dark:border-slate-700 hover:border-teal-400 hover:bg-teal-50/30']"
+          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
         @click="switchOutputType('csv'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">🗄</span>
         <span class="text-sm font-semibold">CSV</span>
       </div>
-      <div
-        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
-          props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'database' ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20' : 'border-dashed border-slate-200 dark:border-slate-700 hover:border-teal-400 hover:bg-teal-50/30']"
-        @click="switchOutputType('database'); showOutputTypeChoices = false"
-      >
+      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
+        <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
         <span class="text-2xl block mb-2">🔌</span>
         <span class="text-sm font-semibold">Database</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
+      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.3</NTag>
         <span class="text-2xl block mb-2">📄</span>
         <span class="text-sm font-semibold">PDF</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
+      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
         <span class="text-2xl block mb-2">🖥</span>
         <span class="text-sm font-semibold">PPT</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
+      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.5</NTag>
         <span class="text-2xl block mb-2">🌐</span>
         <span class="text-sm font-semibold">API</span>
       </div>
-      <p class="col-span-3 text-xs text-slate-400 mt-1 text-center">选择输出类型后开始配置输出</p>
     </div>
-    <div v-else class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-      <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+    <div v-else class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
         <span class="text-lg">{{ outputTypeInfo.icon }}</span>
         <span class="text-sm font-medium truncate flex-1">{{ outputTypeInfo.desc }}</span>
         <NTag size="small" :type="store.output?.plugin === 'csv' ? 'info' : 'success'">{{ outputTypeInfo.label }}</NTag>
@@ -86,7 +82,7 @@
           accept=".xlsx,.xls"
           class="w-full"
         >
-          <div class="border-2 border-dashed rounded-lg py-4 px-6 text-center cursor-pointer transition-colors border-slate-300 dark:border-slate-600 hover:border-teal-400 hover:bg-teal-50/30">
+          <div class="border-2 border-dashed rounded-lg py-4 px-6 text-center cursor-pointer transition-colors border-slate-300 hover:border-teal-400 hover:bg-teal-50/30">
             <span class="text-2xl block mb-1.5">{{ templateUploading ? '⏳' : '📤' }}</span>
             <span class="text-sm text-slate-500 block">{{ templateUploading ? '上传中...' : '将模板文件拖拽到此处，或点击选择文件' }}</span>
             <span class="text-xs text-slate-400 mt-1 block">支持 .xlsx / .xls 格式</span>
@@ -123,7 +119,7 @@
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
-        <div class="flex items-center flex-wrap gap-1 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-h-[32px] bg-white dark:bg-slate-800">
+        <div class="flex items-center flex-wrap gap-1 border border-slate-200 rounded px-2 py-1.5 min-h-[32px] bg-white">
           <template v-for="(part, i) in filenameParts" :key="i">
             <NTag size="tiny" :type="part.tag ? 'info' : 'default'" :bordered="true" closable @close="removeTagPart(i)">{{ part.text }}</NTag>
           </template>
@@ -167,44 +163,6 @@
         <NInput v-model:value="outputConfig.outputDir" size="small" />
       </div>
 
-      <!-- Database-specific config -->
-      <template v-if="store.output?.plugin === 'database'">
-        <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">数据库连接 <span class="text-red-500">*</span></label>
-          <NSelect
-            v-model:value="(store.output!.config as any).connectionId"
-            :options="connectionOptions"
-            placeholder="选择已有连接..."
-            size="small"
-          />
-          <p class="text-xs text-slate-400 mt-1">
-            或前往 <RouterLink to="/settings" class="text-blue-600 underline">设置页</RouterLink> 管理连接
-          </p>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">目标表名 <span class="text-red-500">*</span></label>
-          <NInput v-model:value="(store.output!.config as any).table" size="small" placeholder="例如：output_results" />
-        </div>
-        <div class="flex gap-3">
-          <div class="flex-1">
-            <label class="block text-xs font-medium text-slate-500 mb-1">写入模式</label>
-            <NSelect
-              v-model:value="(store.output!.config as any).mode"
-              :options="[{ label: '创建新表', value: 'create' }, { label: '追加数据', value: 'append' }]"
-              size="small"
-            />
-          </div>
-          <div class="flex-1">
-            <label class="block text-xs font-medium text-slate-500 mb-1">表已存在时</label>
-            <NSelect
-              v-model:value="(store.output!.config as any).if_exists"
-              :options="[{ label: '替换', value: 'replace' }, { label: '追加', value: 'append' }, { label: '跳过', value: 'skip' }]"
-              size="small"
-            />
-          </div>
-        </div>
-      </template>
-
       <!-- Column mapping -->
       <div>
         <div class="flex items-center justify-between mb-2">
@@ -220,12 +178,12 @@
               size="small"
               :loading="mappingLoading"
               @click="onAiMapping"
-            >AI 自动映射</NButton>
-            <NButton v-if="store.output?.plugin !== 'csv'" size="small" @click="addColumn">+ 添加列</NButton>
+            >AI 推断列映射</NButton>
+            <NButton v-if="store.output?.plugin !== 'csv'" size="small" @click="addColumn">+ 添加列映射</NButton>
           </div>
         </div>
-        <ColumnMapping v-if="outputConfig.columns.length > 0" :columns="outputConfig.columns" @remove="removeColumn" @map-all="onMapAll" @smart-match="onSmartMatch" />
-        <p v-else class="text-xs text-slate-400 mt-1">{{ store.output?.plugin === 'csv' ? `点击"${inferColumnLabel}"自动填充列映射` : '点击"+ 添加列"添加源列到目标列的映射' }}</p>
+        <ColumnMapping v-if="outputConfig.columns.length > 0" :columns="outputConfig.columns" @remove="removeColumn" />
+        <p v-else class="text-xs text-slate-400 mt-1">{{ store.output?.plugin === 'csv' ? `点击"${inferColumnLabel}"自动填充列映射` : '点击"+ 添加列映射"添加源列到目标列的映射' }}</p>
       </div>
       </div>
     </div>
@@ -236,11 +194,10 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
-import { useWizardApi, useAiApi, useConnectionApi } from '../../composables/useWizardApi'
+import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
 import type { ExcelOutputConfig, CsvOutputConfig, ColumnMappingItem } from '../../types/wizard'
 import type { UploadCustomRequestOptions } from 'naive-ui'
-import { NInput, NButton, NTag, NUpload, NSelect, useMessage } from 'naive-ui'
-import { RouterLink } from 'vue-router'
+import { NInput, NButton, NTag, NUpload, NSelect, useMessage, useDialog } from 'naive-ui'
 import { inferSelectColumns } from '../../utils/sql'
 import ColumnMapping from './ColumnMapping.vue'
 
@@ -250,18 +207,15 @@ const templateUploadRef = ref<InstanceType<typeof NUpload>>()
 
 const inferColumnLabel = computed(() => {
   const lastProcessor = store.processors[0]
-  return lastProcessor?.plugin === 'python' ? '从代码自动推断列' : '从 SQL 自动推断列'
+  return lastProcessor?.plugin === 'python' ? '推断列映射' : '推断列映射'
 })
 const message = useMessage()
+const dialog = useDialog()
 const { fetchPreview, executeSql } = useWizardApi()
-const connectionApi = useConnectionApi()
-const connections = ref<Array<{ id: string; name: string }>>([])
-const connectionOptions = computed(() => connections.value.map(c => ({ label: c.name, value: c.id })))
-onMounted(async () => { connections.value = await connectionApi.fetchConnections() })
 const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()
 const { suggesting: mappingLoading, askSuggestion } = useAiApi()
-// Show type selector when no output type chosen yet; can be toggled back by "更换类型"
-const showOutputTypeChoices = ref(!store.output)
+// Show type selector initially, same pattern as Step 2/3
+const showOutputTypeChoices = ref(!store.output?.plugin)
 const lastAutoFilename = ref('')
 const templateSheets = ref<string[]>([])
 
@@ -290,7 +244,7 @@ const encodingOptions = [
   { label: 'GBK', value: 'gbk' },
 ]
 
-const outputConfig = computed(() => (store.output?.config || { type: 'excel', template: '', sheet: 'Sheet1', sourceTable: '', filename: '', columns: [], outputDir: './output/' }) as ExcelOutputConfig | CsvOutputConfig)
+const outputConfig = computed(() => store.output!.config as ExcelOutputConfig | CsvOutputConfig)
 const fileExtension = computed(() => store.output?.plugin === 'csv' ? '.csv' : '.xlsx')
 const baseFilename = computed(() => {
   const fn = outputConfig.value.filename || ''
@@ -319,7 +273,6 @@ const sourceTableOptions = computed(() => {
 
 const outputTypeInfo = computed(() => {
   if (store.output?.plugin === 'csv') return { icon: '🗄', label: 'CSV', desc: '纯文本逗号分隔' }
-  if (store.output?.plugin === 'database') return { icon: '🔌', label: 'Database', desc: '写入数据库表' }
   return { icon: '📊', label: 'Excel', desc: '模板样式输出' }
 })
 
@@ -560,15 +513,7 @@ async function onAiMapping() {
       sourceCols.push(...fileMeta.columns)
     }
   }
-  if (sourceCols.length === 0) {
-    message.warning('请先在步骤 2 上传输入文件（Excel/CSV），AI 才能分析列结构')
-    return
-  }
   const targetCols = outputConfig.value.columns.map((c: ColumnMappingItem) => c.target)
-  if (targetCols.length === 0) {
-    message.warning('请先上传模板文件或点击「+ 添加列」添加目标列')
-    return
-  }
   const content = await askSuggestion('mapping', {
     sourceColumns: sourceCols,
     targetColumns: targetCols,
@@ -580,11 +525,7 @@ async function onAiMapping() {
         outputConfig.value.columns = parsed.mappings
       }
       store.setSuggestion('mapping', { category: 'mapping', status: 'pending', content, timestamp: Date.now() })
-    } catch {
-      message.error('AI 返回格式异常，请重试')
-    }
-  } else {
-    message.error('AI 映射失败。请确认已在「设置 → AI 模型」中配置并启用 AI')
+    } catch { /* ignore */ }
   }
 }
 
@@ -596,83 +537,26 @@ function removeColumn(index: number) {
   outputConfig.value.columns.splice(index, 1)
 }
 
-/** Normalize a column name for fuzzy matching: lowercase + remove underscores/spaces */
-function normalizeColumnName(name: string): string {
-  return name.toLowerCase().replace(/[_\s]/g, '')
-}
-
-/** Get all available source column names from processor SQL or input files */
-function getSourceColumns(): string[] {
-  // Try processor SQL first
-  const p0 = store.processors[0]
-  if (p0?.plugin === 'sql') {
-    const cols = inferSelectColumns(p0.sql)
-    if (cols.length > 0) return cols
-  }
-  // Fall back to input file columns
-  const sourceCols: string[] = []
-  for (const inp of store.inputs) {
-    const fileMeta = store.uploadedFiles[inp.fileId]
-    if (fileMeta?.columns) {
-      sourceCols.push(...fileMeta.columns)
-    }
-  }
-  return sourceCols
-}
-
-/** 一键映射: map each source column to a target with the same name */
-function onMapAll() {
-  const sourceCols = getSourceColumns()
-  if (sourceCols.length === 0) {
-    message.warning('无法获取源列名，请确认已配置处理器 SQL 或上传了输入文件')
-    return
-  }
-  outputConfig.value.columns = sourceCols.map(col => ({ source: col, target: col }))
-}
-
-/** 智能匹配: fuzzy-match source columns to existing target columns */
-function onSmartMatch() {
-  const sourceCols = getSourceColumns()
-  if (sourceCols.length === 0) {
-    message.warning('无法获取源列名，请确认已配置处理器 SQL 或上传了输入文件')
-    return
-  }
-  const targetCols = outputConfig.value.columns
-  if (targetCols.length === 0) {
-    message.warning('请先添加目标列（如上传模板文件或点击「+ 添加列」）')
-    return
-  }
-  // Build a lookup from normalized source name → original source name
-  const normalizedSourceMap = new Map<string, string>()
-  for (const col of sourceCols) {
-    normalizedSourceMap.set(normalizeColumnName(col), col)
-  }
-  // Match each target column to a source column
-  const usedSources = new Set<string>()
-  for (const col of targetCols) {
-    const normalizedTarget = normalizeColumnName(col.target)
-    const matchedSource = normalizedSourceMap.get(normalizedTarget)
-    if (matchedSource && !usedSources.has(matchedSource)) {
-      col.source = matchedSource
-      usedSources.add(matchedSource)
-    }
-  }
-}
-
 function clearOutputType() {
-  // Reset columns to prevent stale data from enabling save button
-  outputConfig.value.columns = []
-  lastAutoInferred = false
-  showOutputTypeChoices.value = true
+  dialog.warning({
+    title: '确认删除',
+    content: '确定要删除输出配置吗？所有列映射和相关配置将丢失。',
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: () => {
+      outputConfig.value.columns = []
+      lastAutoInferred = false
+      showOutputTypeChoices.value = true
+    },
+  })
 }
 
-function switchOutputType(plugin: 'excel' | 'csv' | 'database') {
+function switchOutputType(plugin: 'excel' | 'csv') {
   if (plugin === store.output?.plugin) return
-  const prevConfig = store.output?.config
   const ext = plugin === 'csv' ? 'csv' : 'xlsx'
   const common = {
-    sourceTable: (prevConfig as any)?.sourceTable || '',
-    outputDir: (prevConfig as any)?.outputDir || './output/',
+    sourceTable: outputConfig.value.sourceTable,
+    outputDir: outputConfig.value.outputDir,
     filename: buildFilename(ext),
     columns: [] as ColumnMappingItem[],
   }
@@ -688,19 +572,6 @@ function switchOutputType(plugin: 'excel' | 'csv' | 'database') {
       },
     })
     onInferColumns()
-  } else if (plugin === 'database') {
-    store.setOutput({
-      plugin: 'database',
-      config: {
-        type: 'database' as const,
-        connectionId: '',
-        table: '',
-        mode: 'create' as const,
-        if_exists: 'replace' as const,
-        sourceTable: common.sourceTable,
-        columns: common.columns,
-      } as any,
-    })
   } else {
     store.setOutput({
       plugin: 'excel',

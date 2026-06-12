@@ -1,6 +1,5 @@
 <template>
   <div class="settings">
-    <!-- Nav bar -->
     <AppNavBar current-route="settings" />
 
     <!-- Page content -->
@@ -9,13 +8,15 @@
 
       <NTabs type="segment" animated>
         <NTabPane name="ai" tab="AI 模型">
+          <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
+            配置 AI 模型后，可在向导中使用 AI 辅助生成 SQL、自动列映射和场景描述等功能。
+          </p>
           <div class="settings__card">
             <!-- Enable switch -->
             <div class="settings__row">
               <span class="settings__label">启用 AI</span>
               <NSwitch :value="form.enabled" @update:value="form.enabled = $event" />
             </div>
-            <p v-if="!form.enabled && !maskedKey" class="settings__guide">首次使用？配置 AI 提供商和 API Key 后即可启用智能辅助功能，如自动生成代码、列映射和场景描述。</p>
 
             <div class="settings__divider" />
 
@@ -47,9 +48,9 @@
 
             <!-- Temperature -->
             <div class="settings__field">
-              <div class="settings__field-label-row">
-                <label class="settings__field-label">Temperature</label>
-                <span class="settings__field-value">{{ form.temperature }}</span>
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <label class="settings__field-label" style="margin-bottom: 0;">Temperature</label>
+                <span style="font-size: var(--font-size-sm); font-weight: 600; color: var(--color-primary);">{{ form.temperature }}</span>
               </div>
               <NSlider v-model:value="form.temperature" :min="0" :max="2" :step="0.1" />
             </div>
@@ -64,9 +65,13 @@
 
             <!-- Actions -->
             <div class="settings__actions">
-              <NButton :loading="testing" @click="testConnection">保存并测试</NButton>
+              <NButton :loading="testing" @click="testConnection">测试连接</NButton>
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">测试前将自动保存当前设置</span>
               <NButton type="primary" class="btn-primary" :loading="saving" @click="saveSettings">保存设置</NButton>
             </div>
+            <p v-if="testResult" class="settings__result" :class="testResult.ok ? 'settings__result--ok' : 'settings__result--error'">
+              {{ testResult.msg }}
+            </p>
             <p v-if="saveMsg" class="settings__result settings__result--ok">{{ saveMsg }}</p>
           </div>
         </NTabPane>
@@ -83,12 +88,10 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAiApi } from '../composables/useWizardApi'
-import { useTheme } from '../composables/useTheme'
 import { NButton, NInput, NSelect, NSwitch, NSlider, NInputNumber, NTabs, NTabPane, useMessage } from 'naive-ui'
-import ConnectionManager from '../components/common/ConnectionManager.vue'
 import AppNavBar from '../components/common/AppNavBar.vue'
+import ConnectionManager from '../components/common/ConnectionManager.vue'
 
 interface AiSettingsForm {
   provider: string
@@ -100,10 +103,8 @@ interface AiSettingsForm {
   enabled: boolean
 }
 
-const router = useRouter()
-const message = useMessage()
-const { isDark, toggleTheme } = useTheme()
 const { getAiSettings, updateAiSettings, testAiConnection } = useAiApi()
+const message = useMessage()
 
 const form = reactive<AiSettingsForm>({
   provider: 'openai', api_key: '', base_url: '', model: '',
@@ -119,6 +120,7 @@ const providerOptions = [
 const maskedKey = ref('')
 const testing = ref(false)
 const saving = ref(false)
+const testResult = ref<{ ok: boolean; msg: string } | null>(null)
 const saveMsg = ref('')
 
 const defaultModel = computed(() => {
@@ -141,16 +143,23 @@ onMounted(async () => {
 
 async function testConnection() {
   testing.value = true
+  testResult.value = null
   try {
     await saveSettings()
     const { ok, data } = await testAiConnection()
     if (ok && data) {
-      message.success(`连接成功！${data.provider}/${data.model}，延迟 ${data.latency_ms}ms`)
+      const msg = `连接成功！${data.provider}/${data.model}，延迟 ${data.latency_ms}ms`
+      testResult.value = { ok: true, msg }
+      message.success(msg)
     } else {
-      message.error(data?.detail || '连接失败')
+      const msg = data?.detail || '连接失败'
+      testResult.value = { ok: false, msg }
+      message.error(msg)
     }
   } catch (e) {
-    message.error('网络请求失败')
+    const msg = '网络请求失败'
+    testResult.value = { ok: false, msg }
+    message.error(msg)
   } finally {
     testing.value = false
   }
@@ -176,88 +185,6 @@ async function saveSettings() {
 </script>
 
 <style scoped>
-/* Nav bar — same as HomeView */
-.settings__nav {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--color-surface-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.settings__nav-inner {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 0 24px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.settings__brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.settings__brand-icon {
-  font-size: 20px;
-}
-
-.settings__brand-text {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text);
-  letter-spacing: -0.02em;
-}
-
-.settings__nav-links {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.settings__nav-link {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.settings__nav-link:hover {
-  color: var(--color-text);
-}
-
-.settings__nav-link--active {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.settings__theme-toggle {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-border-light);
-  border-radius: 50%;
-  background: transparent;
-  cursor: pointer;
-  font-size: 16px;
-  color: var(--color-text-muted);
-  transition: all 0.2s;
-}
-
-.settings__theme-toggle:hover {
-  border-color: var(--color-border);
-  color: var(--color-text);
-}
-
 /* Page body */
 .settings__body {
   max-width: 600px;
@@ -316,35 +243,6 @@ async function saveSettings() {
   margin-bottom: 6px;
 }
 
-.settings__field-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.settings__field-label-row .settings__field-label {
-  margin-bottom: 0;
-}
-
-.settings__field-value {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.settings__guide {
-  margin: 8px 0 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  line-height: 1.5;
-  padding: 8px 12px;
-  background: var(--color-primary-bg);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-primary-border);
-}
-
 .settings__hint {
   margin: 4px 0 0;
   font-size: var(--font-size-xs);
@@ -372,9 +270,6 @@ async function saveSettings() {
 
 /* Responsive */
 @media (max-width: 767px) {
-  .settings__nav-inner {
-    padding: 0 16px;
-  }
   .settings__body {
     padding: 24px 16px 64px;
   }
