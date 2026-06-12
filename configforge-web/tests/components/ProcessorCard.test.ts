@@ -1,9 +1,29 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { NTag } from 'naive-ui'
 import ProcessorCard from '../../src/components/step3/ProcessorCard.vue'
 import type { ProcessorStep } from '../../src/types/wizard'
+
+// Mock fetch to prevent happy-dom from making real network requests
+vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+  ok: true,
+  json: () => Promise.resolve({}),
+})))
+
+// Mock composables used by SqlProcessorContent
+vi.mock('../../src/composables/useWizardApi', () => ({
+  useWizardApi: () => ({
+    dryRun: vi.fn(() => Promise.resolve(null)),
+    error: { value: null },
+  }),
+  useAiApi: () => ({
+    suggesting: { value: false },
+    aiError: { value: null },
+    askSuggestion: vi.fn(),
+    getAiSettings: vi.fn(() => Promise.resolve({ enabled: false, api_key: '' })),
+  }),
+}))
 
 function createSqlProc(): ProcessorStep {
   return { name: 'SQL 查询', plugin: 'sql', sql: 'SELECT 1', inputTables: [], outputTables: ['r1'], checkpoints: [] }
@@ -17,7 +37,21 @@ describe('ProcessorCard', () => {
   const baseOptions = {
     global: {
       plugins: [createPinia()],
-      stubs: { CheckpointSection: { template: '<div class="checkpoint-stub" />', props: ['checkpoints', 'procIndex'] } },
+      stubs: {
+        CheckpointSection: { template: '<div class="checkpoint-stub" />', props: ['checkpoints', 'procIndex'] },
+        NPopconfirm: {
+          template: '<div class="n-popconfirm-stub"><slot name="trigger" /><slot /></div>',
+          emits: ['positive-click'],
+        },
+        SqlProcessorContent: {
+          template: '<div class="sql-processor-stub" />',
+          props: ['proc', 'index', 'availableTables', 'pulseSql'],
+        },
+        PythonProcessorContent: {
+          template: '<div class="python-processor-stub" />',
+          props: ['proc', 'index', 'availableTables'],
+        },
+      },
     },
   }
 
@@ -69,14 +103,27 @@ describe('ProcessorCard', () => {
     expect(wrapper.text()).toContain('步骤 3')
   })
 
-  it('emits remove when delete button clicked', async () => {
+  it('emits remove when delete is confirmed via NPopconfirm', async () => {
     const wrapper = mount(ProcessorCard, {
       props: { proc: createSqlProc(), index: 0, availableTables: [] },
       ...baseOptions,
     })
-    const deleteBtns = wrapper.findAll('button')
-    const deleteBtn = deleteBtns.find(b => b.text() === '删除')
-    await deleteBtn!.trigger('click')
+    // The NPopconfirm is stubbed but naive-ui registers it internally as 'Popconfirm'
+    // Try both names
+    let popconfirm = wrapper.findComponent({ name: 'NPopconfirm' })
+    if (!popconfirm.exists()) {
+      popconfirm = wrapper.findComponent({ name: 'Popconfirm' })
+    }
+    // If still not found by name, find by the stub's class
+    if (!popconfirm.exists()) {
+      const stubEl = wrapper.find('.n-popconfirm-stub')
+      if (stubEl.exists()) {
+        popconfirm = wrapper.findComponent(stubEl)
+      }
+    }
+    expect(popconfirm.exists()).toBe(true)
+    await popconfirm.vm.$emit('positive-click')
+    await wrapper.vm.$nextTick()
     expect(wrapper.emitted('remove')).toBeTruthy()
   })
 })

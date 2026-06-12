@@ -37,8 +37,8 @@ class TestConfigVersions:
         assert resp.status_code == 200
         config_id = resp.json()["id"]
 
-        index_resp = client.get("/api/configs")
-        metas = [m for m in index_resp.json() if m["id"] == config_id]
+        index_resp = client.get("/api/configs", params={"page_size": 9999})
+        metas = [m for m in index_resp.json()["items"] if m["id"] == config_id]
         assert len(metas) == 1
         assert metas[0]["current_version"] == 1
         assert metas[0]["created_at"] != ""
@@ -70,8 +70,8 @@ class TestConfigVersions:
         assert resp2.status_code == 200
 
         # Check current version
-        index_resp = client.get("/api/configs")
-        metas = [m for m in index_resp.json() if m["id"] == config_id]
+        index_resp = client.get("/api/configs", params={"page_size": 9999})
+        metas = [m for m in index_resp.json()["items"] if m["id"] == config_id]
         assert metas[0]["current_version"] == 2
 
     def test_list_versions(self):

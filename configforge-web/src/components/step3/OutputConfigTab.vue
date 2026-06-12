@@ -179,6 +179,8 @@
               :loading="mappingLoading"
               @click="onAiMapping"
             >AI 推断列映射</NButton>
+            <NButton v-if="outputConfig.columns.length > 0" size="small" @click="onMapAll">全部映射</NButton>
+            <NButton v-if="outputConfig.columns.length > 0" size="small" @click="onSmartMatch">智能匹配</NButton>
             <NButton v-if="store.output?.plugin !== 'csv'" size="small" @click="addColumn">+ 添加列映射</NButton>
           </div>
         </div>
@@ -535,6 +537,42 @@ function addColumn() {
 
 function removeColumn(index: number) {
   outputConfig.value.columns.splice(index, 1)
+}
+
+function normalizeColumnName(name: string): string {
+  return name.toLowerCase().replace(/[_\s]/g, '')
+}
+
+function onMapAll() {
+  const columns = outputConfig.value.columns as ColumnMappingItem[]
+  for (const col of columns) {
+    if (!col.source && col.target) {
+      // Find source column matching the target name exactly
+      const sourceCols = getSourceColumns()
+      const match = sourceCols.find(s => s === col.target)
+      if (match) col.source = match
+    }
+  }
+}
+
+function onSmartMatch() {
+  const columns = outputConfig.value.columns as ColumnMappingItem[]
+  const sourceCols = getSourceColumns()
+  for (const col of columns) {
+    if (col.source) continue
+    const normalizedTarget = normalizeColumnName(col.target)
+    const match = sourceCols.find(s => normalizeColumnName(s) === normalizedTarget)
+    if (match) col.source = match
+  }
+}
+
+function getSourceColumns(): string[] {
+  const cols: string[] = []
+  for (const inp of store.inputs) {
+    const meta = store.uploadedFiles[inp.fileId]
+    if (meta?.columns) cols.push(...meta.columns)
+  }
+  return cols
 }
 
 function clearOutputType() {

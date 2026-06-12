@@ -12,6 +12,20 @@ vi.mock('../../src/composables/useWizardApi', () => ({
   }),
 }))
 
+// Mock useMessage to avoid requiring <n-message-provider>
+vi.mock('naive-ui', async () => {
+  const actual = await vi.importActual('naive-ui')
+  return {
+    ...actual,
+    useMessage: () => ({
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+    }),
+  }
+})
+
 // Stubs for Naive UI components used by YamlPreview
 const stubs = {
   NCode: {
@@ -20,6 +34,16 @@ const stubs = {
   },
   NSkeleton: { template: '<div class="skeleton" />', props: ['text', 'repeat'] },
   NAlert: { template: '<div class="alert">{{ title }}</div>', props: ['type', 'title'] },
+  NInput: {
+    template: '<textarea :value="modelValue" />',
+    props: ['modelValue', 'type', 'rows', 'font', 'placeholder'],
+    emits: ['update:value'],
+  },
+  NButton: {
+    template: '<button :disabled="disabled" :type="type"><slot /></button>',
+    props: ['size', 'type', 'disabled'],
+    emits: ['click'],
+  },
 }
 
 describe('YamlPreview', () => {

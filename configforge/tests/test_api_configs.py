@@ -23,7 +23,9 @@ async def test_list_configs_empty():
     ) as client:
         resp = await client.get("/api/configs")
     assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
+    data = resp.json()
+    assert "items" in data
+    assert isinstance(data["items"], list)
 
 
 @pytest.mark.anyio

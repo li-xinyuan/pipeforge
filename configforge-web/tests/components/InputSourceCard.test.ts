@@ -1,8 +1,47 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { ref } from 'vue'
 import InputSourceCard from '../../src/components/step2/InputSourceCard.vue'
 import type { InputSource } from '../../src/types/wizard'
+
+// Mock fetch to prevent happy-dom from making real network requests
+vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+  ok: true,
+  json: () => Promise.resolve({}),
+})))
+
+// Mock useDialog to avoid requiring <n-dialog-provider>
+vi.mock('naive-ui', async () => {
+  const actual = await vi.importActual('naive-ui')
+  return {
+    ...actual,
+    useDialog: () => ({
+      warning: vi.fn(),
+    }),
+  }
+})
+
+// Mock composables to prevent real API calls
+vi.mock('../../src/composables/useWizardApi', () => ({
+  useWizardApi: () => ({
+    fetchPreview: vi.fn(() => Promise.resolve(null)),
+    error: { value: null },
+  }),
+  useAiApi: () => ({
+    suggesting: ref(false),
+    aiError: ref(null),
+    askSuggestion: vi.fn(),
+  }),
+}))
+
+vi.mock('../../src/composables/useFileUpload', () => ({
+  useFileUpload: () => ({
+    uploading: { value: false },
+    error: { value: null },
+    upload: vi.fn(),
+  }),
+}))
 
 const makeInput = (overrides: Partial<InputSource> = {}): InputSource => ({
   plugin: 'excel',
@@ -62,6 +101,24 @@ const ColumnPreviewStub = {
   props: ['columns', 'rows'],
 }
 
+const AiColumnConfirmModalStub = {
+  template: '<div />',
+  props: ['visible', 'analyzing', 'parsed', 'rawText', 'errorMessage', 'input', 'columns', 'conflictingTableNames'],
+  emits: ['confirm', 'regenerate', 'close'],
+}
+
+const DatabaseFormStub = {
+  template: '<div />',
+  props: ['input', 'index'],
+  emits: ['update'],
+}
+
+const NPopconfirmStub = {
+  template: '<div><slot name="trigger" /><slot /></div>',
+  props: [],
+  emits: ['positive-click'],
+}
+
 describe('InputSourceCard', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -81,6 +138,9 @@ describe('InputSourceCard', () => {
           NCheckbox: NCheckboxStub,
           NSpin: NSpinStub,
           ColumnPreview: ColumnPreviewStub,
+          AiColumnConfirmModal: AiColumnConfirmModalStub,
+          DatabaseForm: DatabaseFormStub,
+          NPopconfirm: NPopconfirmStub,
         },
       },
     })

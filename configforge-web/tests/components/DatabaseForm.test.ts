@@ -6,6 +6,7 @@ import DatabaseForm from '../../src/components/step2/DatabaseForm.vue'
 const mockFetchConnections = vi.fn()
 const mockTestConnection = vi.fn()
 const mockFetchTables = vi.fn()
+const mockFetchColumns = vi.fn()
 
 vi.mock('../../src/composables/useWizardApi', () => ({
   useConnectionApi: () => ({
@@ -17,7 +18,7 @@ vi.mock('../../src/composables/useWizardApi', () => ({
     createConnection: vi.fn(),
     updateConnection: vi.fn(),
     deleteConnection: vi.fn(),
-    fetchColumns: vi.fn(),
+    fetchColumns: mockFetchColumns,
   }),
 }))
 
@@ -64,10 +65,22 @@ const RouterLinkStub = {
   props: ['to'],
 }
 
+const NTagStub = {
+  template: '<span><slot /></span>',
+  props: ['size', 'bordered', 'type'],
+}
+
+const NSpinStub = {
+  template: '<div class="n-spin-stub" />',
+  props: ['size'],
+}
+
 describe('DatabaseForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockFetchConnections.mockResolvedValue([])
+    mockFetchTables.mockResolvedValue([])
+    mockFetchColumns.mockResolvedValue([])
   })
 
   function mountForm(input: InputSource = makeInput(), index = 0) {
@@ -81,6 +94,8 @@ describe('DatabaseForm', () => {
           NRadio: NRadioStub,
           NInput: NInputStub,
           RouterLink: RouterLinkStub,
+          NTag: NTagStub,
+          NSpin: NSpinStub,
         },
       },
     })
@@ -107,12 +122,11 @@ describe('DatabaseForm', () => {
     expect(wrapper.text()).not.toContain('加载表列表')
   })
 
-  it('shows test and load table buttons when connection selected', async () => {
+  it('shows test button when connection selected', async () => {
     mockFetchConnections.mockResolvedValue([{ id: 'c1', name: 'TestDB', dbType: 'sqlite', host: '/tmp/test.db', passwordSet: false, verified: true, createdAt: '', updatedAt: '' }])
     const wrapper = mountForm(makeInput({ config: { type: 'database', connectionId: 'c1', queryType: 'table', tables: [], sql: '' } }))
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('测试连通')
-    expect(wrapper.text()).toContain('加载表列表')
   })
 
   it('shows query type radio group when connection selected', async () => {
@@ -146,6 +160,9 @@ describe('DatabaseForm', () => {
     const select = wrapper.findComponent({ name: 'Select' })
     expect(select.exists()).toBe(true)
     await select.vm.$emit('update:value', 'c1')
+    await wrapper.vm.$nextTick()
+    // Wait for async onConnectionSelected to complete (autoLoadTables)
+    await new Promise(r => setTimeout(r, 50))
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('update')).toBeTruthy()
   })
