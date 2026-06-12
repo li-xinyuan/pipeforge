@@ -21,8 +21,12 @@
         <span class="text-2xl block mb-2">🗄</span>
         <span class="text-sm font-semibold">CSV</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
-        <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
+      <div
+        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+          props.pulseCta ? 'pulse-cta' : '',
+          store.output?.plugin === 'database' ? 'border-amber-600 bg-amber-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
+        @click="switchOutputType('database'); showOutputTypeChoices = false"
+      >
         <span class="text-2xl block mb-2">🔌</span>
         <span class="text-sm font-semibold">Database</span>
       </div>
@@ -46,7 +50,7 @@
       <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
         <span class="text-lg">{{ outputTypeInfo.icon }}</span>
         <span class="text-sm font-medium truncate flex-1">{{ outputTypeInfo.desc }}</span>
-        <NTag size="small" :type="store.output?.plugin === 'csv' ? 'info' : 'success'">{{ outputTypeInfo.label }}</NTag>
+        <NTag size="small" :type="store.output?.plugin === 'csv' ? 'info' : store.output?.plugin === 'database' ? 'warning' : 'success'">{{ outputTypeInfo.label }}</NTag>
         <NButton text size="tiny" type="error" class="ml-auto" @click="clearOutputType">更换类型</NButton>
       </div>
 
@@ -113,7 +117,7 @@
       </div>
 
       <!-- Filename template -->
-      <div>
+      <div v-if="store.output?.plugin !== 'database'">
         <div class="flex items-center gap-1 mb-1">
           <label class="block text-xs font-medium text-slate-500">输出文件名</label>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
@@ -157,10 +161,59 @@
         />
       </div>
 
+      <!-- Database output fields -->
+      <template v-if="store.output?.plugin === 'database'">
+        <!-- Connection selector -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1"><span class="text-red-500">*</span> 数据库连接</label>
+          <NSelect
+            v-model:value="dbConfig.connectionId"
+            :options="connectionOptions"
+            placeholder="-- 选择连接 --"
+            size="small"
+            @update:value="onConnectionSelected"
+          />
+        </div>
+        <!-- Target table name -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1"><span class="text-red-500">*</span> 目标表名</label>
+          <NInput v-model:value="dbConfig.targetTable" placeholder="例如：report_data" size="small" />
+        </div>
+        <!-- Write mode -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">写入模式</label>
+          <NSelect
+            v-model:value="dbConfig.writeMode"
+            :options="writeModeOptions"
+            size="small"
+          />
+        </div>
+        <!-- Create table if not exists -->
+        <div>
+          <NCheckbox v-model:checked="dbConfig.createTableIfNotExists" size="small">自动建表</NCheckbox>
+        </div>
+        <!-- Primary key columns -->
+        <div v-if="dbConfig.writeMode === 'upsert'">
+          <label class="block text-xs font-medium text-slate-500 mb-1">主键列</label>
+          <NSelect
+            v-model:value="dbConfig.primaryKeyColumns"
+            :options="primaryKeyOptions"
+            multiple
+            placeholder="选择主键列"
+            size="small"
+          />
+        </div>
+        <!-- Batch size -->
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">批量大小</label>
+          <NInputNumber v-model:value="dbConfig.batchSize" :min="1" :max="10000" size="small" />
+        </div>
+      </template>
+
       <!-- Output directory -->
-      <div>
+      <div v-if="store.output?.plugin !== 'database'">
         <label class="block text-xs font-medium text-slate-500 mb-1">输出目录</label>
-        <NInput v-model:value="outputConfig.outputDir" size="small" />
+        <NInput v-model:value="fileOutputConfig!.outputDir" size="small" />
       </div>
 
       <!-- Column mapping -->
@@ -197,9 +250,9 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
-import type { ExcelOutputConfig, CsvOutputConfig, ColumnMappingItem } from '../../types/wizard'
+import type { ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig, ColumnMappingItem } from '../../types/wizard'
 import type { UploadCustomRequestOptions } from 'naive-ui'
-import { NInput, NButton, NTag, NUpload, NSelect, useMessage, useDialog } from 'naive-ui'
+import { NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NInputNumber, useMessage, useDialog } from 'naive-ui'
 import { inferSelectColumns } from '../../utils/sql'
 import ColumnMapping from './ColumnMapping.vue'
 
@@ -216,8 +269,11 @@ const dialog = useDialog()
 const { fetchPreview, executeSql } = useWizardApi()
 const { uploading: templateUploading, error: templateUploadError, upload: uploadTemplate } = useFileUpload()
 const { suggesting: mappingLoading, askSuggestion } = useAiApi()
-// Show type selector initially, same pattern as Step 2/3
-const showOutputTypeChoices = ref(!store.output?.plugin)
+// Show type selector when no output plugin is selected
+const showOutputTypeChoices = ref(true)
+watch(() => store.output?.plugin, (plugin) => {
+  if (plugin) showOutputTypeChoices.value = false
+}, { immediate: true })
 const lastAutoFilename = ref('')
 const templateSheets = ref<string[]>([])
 
@@ -235,10 +291,11 @@ function buildFilename(ext: string): string {
 }
 
 function applyAutoFilename(ext: string) {
+  if (!fileOutputConfig.value) return
   const name = buildFilename(ext)
   // Strip extension — setBaseFilename will append the correct one
-  outputConfig.value.filename = name.endsWith('.' + ext) ? name.slice(0, -ext.length - 1) + fileExtension.value : name + fileExtension.value
-  lastAutoFilename.value = outputConfig.value.filename
+  fileOutputConfig.value.filename = name.endsWith('.' + ext) ? name.slice(0, -ext.length - 1) + fileExtension.value : name + fileExtension.value
+  lastAutoFilename.value = fileOutputConfig.value.filename
 }
 
 const encodingOptions = [
@@ -246,18 +303,55 @@ const encodingOptions = [
   { label: 'GBK', value: 'gbk' },
 ]
 
-const outputConfig = computed(() => store.output!.config as ExcelOutputConfig | CsvOutputConfig)
-const fileExtension = computed(() => store.output?.plugin === 'csv' ? '.csv' : '.xlsx')
+const outputConfig = computed(() => store.output!.config as ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig)
+const fileOutputConfig = computed(() => store.output?.plugin !== 'database' ? store.output!.config as ExcelOutputConfig | CsvOutputConfig : null)
+const fileExtension = computed(() => {
+  if (store.output?.plugin === 'csv') return '.csv'
+  if (store.output?.plugin === 'database') return ''
+  return '.xlsx'
+})
 const baseFilename = computed(() => {
-  const fn = outputConfig.value.filename || ''
+  const fn = fileOutputConfig.value?.filename || ''
   const ext = fileExtension.value
   return fn.endsWith(ext) ? fn.slice(0, -ext.length) : fn
 })
 function setBaseFilename(v: string) {
-  outputConfig.value.filename = v + fileExtension.value
+  if (fileOutputConfig.value) fileOutputConfig.value.filename = v + fileExtension.value
 }
 const excelConfig = computed(() => store.output!.config as ExcelOutputConfig)
 const csvConfig = computed(() => store.output!.config as CsvOutputConfig)
+const dbConfig = computed(() => store.output!.config as DatabaseOutputConfig)
+
+// Database connection options
+const connectionOptions = ref<Array<{label: string; value: string}>>([])
+
+const writeModeOptions = [
+  { label: '追加 (INSERT)', value: 'insert' },
+  { label: '替换 (DROP+CREATE+INSERT)', value: 'replace' },
+  { label: '更新插入 (UPSERT)', value: 'upsert' },
+]
+
+const primaryKeyOptions = computed(() => {
+  return outputConfig.value.columns
+    .filter((c: ColumnMappingItem) => c.source)
+    .map((c: ColumnMappingItem) => ({ label: c.target || c.source, value: c.target || c.source }))
+})
+
+async function loadConnections() {
+  try {
+    const resp = await fetch('/api/connections')
+    if (resp.ok) {
+      const data = await resp.json()
+      connectionOptions.value = (Array.isArray(data) ? data : data.items || []).map(
+        (c: any) => ({ label: `${c.name} (${c.db_type})`, value: c.id })
+      )
+    }
+  } catch { /* ignore */ }
+}
+
+function onConnectionSelected(connId: string) {
+  dbConfig.value.connectionId = connId
+}
 
 const sourceTableOptions = computed(() => {
   const tables: Array<{ label: string; value: string }> = []
@@ -275,6 +369,7 @@ const sourceTableOptions = computed(() => {
 
 const outputTypeInfo = computed(() => {
   if (store.output?.plugin === 'csv') return { icon: '🗄', label: 'CSV', desc: '纯文本逗号分隔' }
+  if (store.output?.plugin === 'database') return { icon: '🔌', label: 'Database', desc: '写入数据库表' }
   return { icon: '📊', label: 'Excel', desc: '模板样式输出' }
 })
 
@@ -298,24 +393,24 @@ const filenameParts = computed(() => {
 })
 
 function insertTag(tag: string) {
-  outputConfig.value.filename = baseFilename.value + tag + fileExtension.value
+  if (fileOutputConfig.value) fileOutputConfig.value.filename = baseFilename.value + tag + fileExtension.value
 }
 
 function commitPlainText() {
   const v = plainText.value.trim()
   if (!v) return
-  outputConfig.value.filename = baseFilename.value + v + fileExtension.value
+  if (fileOutputConfig.value) fileOutputConfig.value.filename = baseFilename.value + v + fileExtension.value
   plainText.value = ''
 }
 
 function removeTagPart(idx: number) {
   const parts = filenameParts.value
   const removed = parts[idx].text
-  outputConfig.value.filename = baseFilename.value.replace(removed, '') + fileExtension.value
+  if (fileOutputConfig.value) fileOutputConfig.value.filename = baseFilename.value.replace(removed, '') + fileExtension.value
 }
 
 function clearFilename() {
-  outputConfig.value.filename = fileExtension.value
+  if (fileOutputConfig.value) fileOutputConfig.value.filename = fileExtension.value
   plainText.value = ''
 }
 let lastAutoInferred = false
@@ -385,6 +480,7 @@ watch(showOutputTypeChoices, (showing) => {
 
 onMounted(() => {
   syncSourceTable()
+  loadConnections()
   const p0 = store.processors[0]; const hasCode = p0 && (p0.plugin === 'sql' ? p0.sql.trim() : p0.script.trim())
   if (store.output?.plugin === 'csv' && outputConfig.value.columns.length === 0 && hasCode) {
     prevSql.value = p0.plugin === 'sql' ? p0.sql : p0.script
@@ -589,12 +685,33 @@ function clearOutputType() {
   })
 }
 
-function switchOutputType(plugin: 'excel' | 'csv') {
+function switchOutputType(plugin: 'excel' | 'csv' | 'database') {
   if (plugin === store.output?.plugin) return
+  // Safely get sourceTable from current output config (may be null)
+  const currentSourceTable = store.output?.config?.sourceTable || ''
+  const currentOutputDir = (store.output?.config as ExcelOutputConfig | CsvOutputConfig)?.outputDir || ''
+  if (plugin === 'database') {
+    store.setOutput({
+      plugin: 'database',
+      config: {
+        type: 'database',
+        sourceTable: currentSourceTable,
+        columns: [] as ColumnMappingItem[],
+        connectionId: '',
+        targetTable: '',
+        writeMode: 'insert',
+        createTableIfNotExists: true,
+        primaryKeyColumns: [],
+        batchSize: 1000,
+      },
+    })
+    lastAutoFilename.value = ''
+    return
+  }
   const ext = plugin === 'csv' ? 'csv' : 'xlsx'
   const common = {
-    sourceTable: outputConfig.value.sourceTable,
-    outputDir: outputConfig.value.outputDir,
+    sourceTable: currentSourceTable,
+    outputDir: currentOutputDir,
     filename: buildFilename(ext),
     columns: [] as ColumnMappingItem[],
   }
@@ -625,7 +742,7 @@ function switchOutputType(plugin: 'excel' | 'csv') {
 }
 
 watch(() => store.scene.name, () => {
-  if (outputConfig.value.filename !== lastAutoFilename.value) return
+  if (!fileOutputConfig.value || fileOutputConfig.value.filename !== lastAutoFilename.value) return
   const ext = store.output?.plugin === 'csv' ? 'csv' : 'xlsx'
   applyAutoFilename(ext)
 })

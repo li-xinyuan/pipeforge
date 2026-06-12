@@ -80,12 +80,12 @@ class TestBuildUpsertSql:
     def test_mysql_with_non_pk(self):
         sql = _build_upsert_sql("users", ["id", "name"], ["id"], "mysql")
         assert "ON DUPLICATE KEY UPDATE" in sql
-        assert '"name" = VALUES("name")' in sql
+        assert '`name` = new.`name`' in sql
 
     def test_mysql_all_pk(self):
         sql = _build_upsert_sql("users", ["id"], ["id"], "mysql")
         # All columns are PK — just INSERT (no update clause needed)
-        assert sql == 'INSERT INTO "users" ("id") VALUES (:id)'
+        assert sql == 'INSERT INTO `users` (`id`) VALUES (:id)'
 
     def test_postgresql_with_non_pk(self):
         sql = _build_upsert_sql("users", ["id", "name"], ["id"], "postgresql")

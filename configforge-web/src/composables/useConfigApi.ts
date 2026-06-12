@@ -50,7 +50,8 @@ export function useConfigApi() {
         return []
       }
       const data = await resp.json()
-      return (data || []).map(mapConfig)
+      const items = Array.isArray(data) ? data : (data.items || [])
+      return items.map(mapConfig)
     } catch {
       error.value = { message: 'Network error', code: 'NETWORK_ERROR' }
       return []

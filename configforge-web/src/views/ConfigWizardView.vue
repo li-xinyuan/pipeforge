@@ -127,6 +127,22 @@
               <div style="font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-primary);">{{ store.output?.plugin === 'excel' ? 'Excel' : store.output?.plugin === 'csv' ? 'CSV' : store.output?.plugin === 'database' ? 'Database' : '未配置' }}</div>
             </div>
           </div>
+
+          <!-- Data Preview -->
+          <div style="margin-bottom: 16px;">
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-medium text-slate-500">数据预览</label>
+              <NButton size="small" :loading="dryRunLoading" @click="runDryRun">运行预览</NButton>
+            </div>
+            <div v-if="dryRunError" class="text-xs text-red-500 mb-2">{{ dryRunError }}</div>
+            <DataPreviewTable
+              v-if="previewColumns.length > 0"
+              :columns="previewColumns"
+              :rows="previewRows"
+            />
+            <p v-else-if="!dryRunLoading" class="text-xs text-slate-400">点击"运行预览"查看数据处理结果</p>
+          </div>
+
           <YamlPreview ref="yamlPreviewRef" />
           <template #footer>
             <NButton size="small" @click="onGoBack(5)">← 上一步</NButton>
@@ -148,6 +164,8 @@ import { computed, onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import { useConfigApi } from '../composables/useConfigApi'
+import { useWizardApi } from '../composables/useWizardApi'
+import { stateToSnakeCase } from '../utils/serialization'
 import { NButton, NInput } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import WizardProgress from '../components/wizard/WizardProgress.vue'
@@ -159,13 +177,41 @@ import SqlEditorTab from '../components/step3/SqlEditorTab.vue'
 import OutputConfigTab from '../components/step3/OutputConfigTab.vue'
 import YamlPreview from '../components/step4/YamlPreview.vue'
 import ExportActions from '../components/step4/ExportActions.vue'
+import DataPreviewTable from '../components/step4/DataPreviewTable.vue'
 
 const store = useWizardStore()
 const route = useRoute()
 const { loadConfigState } = useConfigApi()
+const { dryRun } = useWizardApi()
 
 // Local state
 const currentStep = ref(1)
+
+// Dry-run preview state
+const dryRunLoading = ref(false)
+const dryRunError = ref('')
+const previewColumns = ref<string[]>([])
+const previewRows = ref<string[][]>([])
+
+async function runDryRun() {
+  dryRunLoading.value = true
+  dryRunError.value = ''
+  try {
+    const state = stateToSnakeCase(store.getWizardState())
+    const result = await dryRun(state)
+    if (result && result.tables && result.tables.length > 0) {
+      const firstTable = result.tables[0]
+      previewColumns.value = firstTable.columns
+      previewRows.value = firstTable.rows
+    } else {
+      dryRunError.value = '预览未返回数据'
+    }
+  } catch (e: any) {
+    dryRunError.value = e.message || '预览执行失败'
+  } finally {
+    dryRunLoading.value = false
+  }
+}
 
 watch(() => store.inputs.length, (len) => {
   if (len === 0 && currentStep.value > 2) currentStep.value = 2

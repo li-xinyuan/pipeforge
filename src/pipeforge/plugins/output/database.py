@@ -27,9 +27,15 @@ def _detect_dialect(conn_str: str) -> str:
     raise ValueError(f"Unsupported database dialect in connection string: {conn_str[:30]}...")
 
 
-def _quote(identifier: str) -> str:
-    """Quote a SQL identifier using double-quotes (works for SQLite/PostgreSQL/MySQL in ANSI mode)."""
+def _quote(identifier: str, dialect: str = "sqlite") -> str:
+    """Quote a SQL identifier using the appropriate quoting for the dialect.
+
+    SQLite / PostgreSQL: double quotes (")
+    MySQL: backticks (`)
+    """
     safe_identifier(identifier, "identifier")
+    if dialect == "mysql":
+        return f"`{identifier}`"
     return f'"{identifier}"'
 
 
@@ -38,18 +44,18 @@ def _build_create_table_sql(table_name: str, columns: list[str], dialect: str, p
 
     If *pk_columns* is provided, a PRIMARY KEY constraint is added.
     """
-    col_defs = [f"{_quote(c)} TEXT" for c in columns]
+    col_defs = [f"{_quote(c, dialect)} TEXT" for c in columns]
     if pk_columns:
-        pk = ", ".join(_quote(c) for c in pk_columns)
+        pk = ", ".join(_quote(c, dialect) for c in pk_columns)
         col_defs.append(f"PRIMARY KEY ({pk})")
-    return f"CREATE TABLE {_quote(table_name)} ({', '.join(col_defs)})"
+    return f"CREATE TABLE {_quote(table_name, dialect)} ({', '.join(col_defs)})"
 
 
-def _build_insert_sql(table_name: str, columns: list[str]) -> str:
+def _build_insert_sql(table_name: str, columns: list[str], dialect: str = "sqlite") -> str:
     """Build a parameterised INSERT statement."""
-    quoted_cols = ", ".join(_quote(c) for c in columns)
+    quoted_cols = ", ".join(_quote(c, dialect) for c in columns)
     placeholders = ", ".join(f":{c}" for c in columns)
-    return f"INSERT INTO {_quote(table_name)} ({quoted_cols}) VALUES ({placeholders})"
+    return f"INSERT INTO {_quote(table_name, dialect)} ({quoted_cols}) VALUES ({placeholders})"
 
 
 def _build_upsert_sql(
@@ -59,27 +65,27 @@ def _build_upsert_sql(
     dialect: str,
 ) -> str:
     """Build a dialect-specific upsert (INSERT … ON CONFLICT) statement."""
-    quoted_cols = ", ".join(_quote(c) for c in columns)
+    quoted_cols = ", ".join(_quote(c, dialect) for c in columns)
     placeholders = ", ".join(f":{c}" for c in columns)
-    insert = f"INSERT INTO {_quote(table_name)} ({quoted_cols}) VALUES ({placeholders})"
+    insert = f"INSERT INTO {_quote(table_name, dialect)} ({quoted_cols}) VALUES ({placeholders})"
 
     non_pk = [c for c in columns if c not in pk_columns]
 
     if dialect == "sqlite":
-        return f"INSERT OR REPLACE INTO {_quote(table_name)} ({quoted_cols}) VALUES ({placeholders})"
+        return f"INSERT OR REPLACE INTO {_quote(table_name, dialect)} ({quoted_cols}) VALUES ({placeholders})"
 
     if dialect == "mysql":
         if non_pk:
-            update_clause = ", ".join(f"{_quote(c)} = VALUES({_quote(c)})" for c in non_pk)
-            return f"{insert} ON DUPLICATE KEY UPDATE {update_clause}"
+            update_clause = ", ".join(f"{_quote(c, dialect)} = new.{_quote(c, dialect)}" for c in non_pk)
+            return f"{insert} AS new ON DUPLICATE KEY UPDATE {update_clause}"
         return insert  # all columns are PK — INSERT OR REPLACE equivalent
 
     if dialect == "postgresql":
         if non_pk:
-            conflict_cols = ", ".join(_quote(c) for c in pk_columns)
-            update_clause = ", ".join(f"{_quote(c)} = EXCLUDED.{_quote(c)}" for c in non_pk)
+            conflict_cols = ", ".join(_quote(c, dialect) for c in pk_columns)
+            update_clause = ", ".join(f"{_quote(c, dialect)} = EXCLUDED.{_quote(c, dialect)}" for c in non_pk)
             return f"{insert} ON CONFLICT ({conflict_cols}) DO UPDATE SET {update_clause}"
-        conflict_cols = ", ".join(_quote(c) for c in pk_columns)
+        conflict_cols = ", ".join(_quote(c, dialect) for c in pk_columns)
         return f"{insert} ON CONFLICT ({conflict_cols}) DO NOTHING"
 
     raise ValueError(f"Upsert not supported for dialect: {dialect}")
@@ -105,6 +111,7 @@ class DatabaseOutputPlugin(OutputPlugin[DatabaseOutputConfig]):
             source_table = context.db.list_tables()[-1] if context.db.list_tables() else ""
         if not source_table:
             raise ValueError("No source table found for database output")
+        safe_identifier(source_table, "source_table")
 
         # Read column info and data from the intermediate SQLite DB
         col_rows = context.db._conn.execute(
@@ -130,14 +137,13 @@ class DatabaseOutputPlugin(OutputPlugin[DatabaseOutputConfig]):
                 pk = config.primary_key_columns if config.primary_key_columns else columns[:1]
                 if config.write_mode == "replace":
                     # DROP if exists, then CREATE
-                    conn.execute(text(f"DROP TABLE IF EXISTS {_quote(target)}"))
+                    conn.execute(text(f"DROP TABLE IF EXISTS {_quote(target, dialect)}"))
                     conn.execute(text(_build_create_table_sql(target, columns, dialect, pk_columns=pk)))
-                    conn.commit()
-                    self._batch_insert(conn, target, columns, rows, config.batch_size)
+                    self._batch_insert(conn, target, columns, rows, config.batch_size, dialect)
                 elif config.write_mode == "append":
                     if config.create_table_if_not_exists:
                         self._ensure_table(conn, target, columns, dialect)
-                    self._batch_insert(conn, target, columns, rows, config.batch_size)
+                    self._batch_insert(conn, target, columns, rows, config.batch_size, dialect)
                 elif config.write_mode == "upsert":
                     if config.create_table_if_not_exists:
                         self._ensure_table(conn, target, columns, dialect, pk_columns=pk)
@@ -167,9 +173,9 @@ class DatabaseOutputPlugin(OutputPlugin[DatabaseOutputConfig]):
             conn.commit()
 
     @staticmethod
-    def _batch_insert(conn, table_name: str, columns: list[str], rows: list[tuple], batch_size: int) -> None:
+    def _batch_insert(conn, table_name: str, columns: list[str], rows: list[tuple], batch_size: int, dialect: str = "sqlite") -> None:
         """Insert rows in batches using parameterised statements."""
-        insert_sql = text(_build_insert_sql(table_name, columns))
+        insert_sql = text(_build_insert_sql(table_name, columns, dialect))
         for i in range(0, len(rows), batch_size):
             batch = rows[i : i + batch_size]
             params = [dict(zip(columns, row)) for row in batch]

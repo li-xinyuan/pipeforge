@@ -7,7 +7,7 @@ export const useWizardStore = defineStore('wizard', () => {
   const scene = ref<SceneInfo>({ name: '', description: '', version: '1.0' })
   const inputs = ref<InputSource[]>([])
   const processors = ref<ProcessorStep[]>([])
-  const output = ref<OutputTarget>({ plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } })
+  const output = ref<OutputTarget | null>(null)
   const configId = ref<string | null>(null)
   const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
   const aiSuggestions = ref<Record<string, AiSuggestion>>({})
@@ -21,7 +21,10 @@ export const useWizardStore = defineStore('wizard', () => {
 
   function canProceed(n: number): boolean {
     if (n === 1) return scene.value.name.trim().length > 0
-    if (n === 2) return inputs.value.length > 0 && inputs.value.every(inp => !!inp.fileId && inp.table.trim().length > 0)
+    if (n === 2) return inputs.value.length > 0 && inputs.value.every(inp => {
+      const hasFile = inp.plugin === 'database' || !!inp.fileId
+      return hasFile && inp.table.trim().length > 0
+    })
     if (n === 3) {
       return processors.value.length > 0
         && processors.value.every(p => {
@@ -29,7 +32,7 @@ export const useWizardStore = defineStore('wizard', () => {
           return hasCode && p.outputTables.length > 0
         })
     }
-    if (n === 4) return !!output.value.config?.sourceTable && (output.value.config?.columns?.length ?? 0) > 0
+    if (n === 4) return !!output.value && !!output.value.config?.sourceTable && (output.value.config?.columns?.length ?? 0) > 0
     return true
   }
 
@@ -38,7 +41,7 @@ export const useWizardStore = defineStore('wizard', () => {
     if (n === 1 && !scene.value.name.trim()) msgs.push('请输入场景名称')
     if (n === 2) {
       if (inputs.value.length === 0) msgs.push('至少需要添加 1 个输入源')
-      if (inputs.value.some(inp => !inp.fileId)) msgs.push('请为所有输入源上传文件')
+      if (inputs.value.some(inp => inp.plugin !== 'database' && !inp.fileId)) msgs.push('请为所有输入源上传文件')
       if (inputs.value.some(inp => !inp.table.trim())) msgs.push('请为所有输入源填写表名')
     }
     if (n === 3) {
@@ -50,8 +53,11 @@ export const useWizardStore = defineStore('wizard', () => {
       })
     }
     if (n === 4) {
-      if (!output.value.config?.sourceTable) msgs.push('请选择数据源表')
-      if ((output.value.config?.columns?.length ?? 0) === 0) msgs.push('请先配置列映射')
+      if (!output.value) msgs.push('请选择输出格式')
+      else {
+        if (!output.value.config?.sourceTable) msgs.push('请选择数据源表')
+        if ((output.value.config?.columns?.length ?? 0) === 0) msgs.push('请先配置列映射')
+      }
     }
     return msgs
   }
@@ -60,8 +66,8 @@ export const useWizardStore = defineStore('wizard', () => {
     const targetStep = fromStep - 1
     if (targetStep < 1 || targetStep > 5) return
     if (fromStep === 2) { inputs.value = []; uploadedFiles.value = {} }
-    else if (fromStep === 3) { processors.value = []; output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } } }
-    else if (fromStep === 4) { output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } } }
+    else if (fromStep === 3) { processors.value = []; output.value = null }
+    else if (fromStep === 4) { output.value = null }
     currentStep.value = targetStep
   }
 
@@ -128,7 +134,7 @@ export const useWizardStore = defineStore('wizard', () => {
     scene.value = { name: '', description: '', version: '1.0' }
     inputs.value = []
     processors.value = []
-    output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } }
+    output.value = null
     configId.value = null
     uploadedFiles.value = {}
     aiSuggestions.value = {}
@@ -193,7 +199,7 @@ export const useWizardStore = defineStore('wizard', () => {
         config: cfg,
       }
     } else {
-      output.value = { plugin: 'excel', config: { type: 'excel', template: '', sheet: 'Sheet1', outputDir: './output/', sourceTable: '', filename: '{{scene_name}}-{{date:%Y%m%d}}.xlsx', columns: [] } }
+      output.value = null
     }
 
     currentStep.value = 5
