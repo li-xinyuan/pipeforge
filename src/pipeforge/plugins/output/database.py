@@ -111,15 +111,18 @@ class DatabaseOutputPlugin(OutputPlugin[DatabaseOutputConfig]):
             source_table = context.db.list_tables()[-1] if context.db.list_tables() else ""
         if not source_table:
             raise ValueError("No source table found for database output")
+        # Validate source_table against SQL injection
         safe_identifier(source_table, "source_table")
 
         # Read column info and data from the intermediate SQLite DB
+        # Use safe_identifier-validated name with proper quoting
+        quoted_source = _quote(source_table, "sqlite")
         col_rows = context.db._conn.execute(
-            f'PRAGMA table_info("{source_table}")'
+            f'PRAGMA table_info({quoted_source})'
         ).fetchall()
         columns = [c[1] for c in col_rows]
 
-        rows = context.db.query(f'SELECT * FROM "{source_table}"')
+        rows = context.db.query(f'SELECT * FROM {quoted_source}')
 
         # Build SQLAlchemy engine
         pool_kwargs = {"poolclass": NullPool} if dialect == "sqlite" else {"pool_size": 5}

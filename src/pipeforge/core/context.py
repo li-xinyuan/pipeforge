@@ -78,3 +78,4 @@ class Context:
     output_path: str | None = None
     logger: Logger = field(default_factory=Logger)
     result: ExecutionResult = field(default_factory=ExecutionResult)
+    db_is_temp: bool = True

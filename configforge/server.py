@@ -70,6 +70,17 @@ async def http_exception_handler(request, exc):
     )
 
 
+@app.exception_handler(ValueError)
+async def value_error_handler(request, exc):
+    """Handle ValueError (e.g., from validate_id) as 400 Bad Request."""
+    return JSONResponse(
+        status_code=400,
+        content=ErrorResponse(
+            error=str(exc), code="VALIDATION_ERROR", recoverable=True
+        ).model_dump(),
+    )
+
+
 app.include_router(preview_router, prefix="/api/preview")
 app.include_router(files_router, prefix="/api/files")
 app.include_router(ai_router, prefix="/api/ai")

@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from configforge.models.wizard import ExecutionRecord, ErrorResponse
+from configforge.utils.security import validate_id
 
 router = APIRouter(prefix="/api/executions", tags=["executions"])
 
@@ -161,6 +162,7 @@ async def list_executions(
 @router.get("/{exec_id}")
 async def get_execution(exec_id: str):
     """Get execution detail."""
+    validate_id(exec_id, "exec_id")
     result_path = os.path.join(EXEC_DIR, exec_id, "result.json")
     if not os.path.exists(result_path):
         raise HTTPException(status_code=404, detail="Execution not found")
@@ -171,6 +173,7 @@ async def get_execution(exec_id: str):
 @router.get("/{exec_id}/download")
 async def download_execution_output(exec_id: str):
     """Download execution output file."""
+    validate_id(exec_id, "exec_id")
     result_path = os.path.join(EXEC_DIR, exec_id, "result.json")
     if not os.path.exists(result_path):
         raise HTTPException(status_code=404, detail="Execution not found")
@@ -189,6 +192,7 @@ async def download_execution_output(exec_id: str):
 @router.delete("/{exec_id}")
 async def delete_execution(exec_id: str):
     """Delete an execution record and its files."""
+    validate_id(exec_id, "exec_id")
     exec_dir = os.path.join(EXEC_DIR, exec_id)
     if os.path.exists(exec_dir):
         shutil.rmtree(exec_dir)

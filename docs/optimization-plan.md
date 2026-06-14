@@ -1,7 +1,20 @@
 # ConfigForge 优化与修复方案
 
-> 生成时间：2026-06-13
-> 状态：待审查
+> 更新时间：2026-06-14
+> 状态：已审查，待执行
+> 审查参考：
+> - `docs/superpowers/reviews/2026-06-14-plan-review-and-code-scan.md`
+> - `docs/superpowers/reviews/2026-06-14-optimization-plan-review.md`
+
+---
+
+## 变更记录
+
+| 日期 | 变更 |
+|------|------|
+| 2026-06-13 | 初始版本 |
+| 2026-06-14 | 第一次更新：移除已修复项、新增审查发现、调整优先级 |
+| 2026-06-14 | 第二次更新：根据优化方案审查调整优先级（B-5↓、H-2↑、H-7↑、H-4↓、H-5/H-6↓、M-13↑），移除 M-2/H-8 已修复项，补充 B-1/H-7 方案细节 |
 
 ---
 
@@ -17,7 +30,7 @@
 
 **修复方案**:
 
-方案 A（推荐）：对真实数据库连接增加 SQL 语句白名单检查
+方案 A（推荐）：对真实数据库连接增加 SQL 语句白名单检查 + `--allow-write` CLI 参数
 
 ```python
 # src/pipeforge/plugins/processor/sql.py
@@ -40,13 +53,27 @@ class SqlProcessor(BaseProcessor):
         rendered_sql = self._render_template(context)
         
         # 对真实数据库连接（非 SQLite 临时库）强制只读
+        # 除非通过 --allow-write CLI 参数显式允许写操作
         if not context.db_is_temp and not _is_read_only_sql(rendered_sql):
-            raise ValueError(
-                "出于安全考虑，连接真实数据库时仅允许 SELECT 查询。"
-                "如需写入，请使用 CSV/Excel 输出方式。"
-            )
+            if not context.allow_write:
+                raise ValueError(
+                    "出于安全考虑，连接真实数据库时仅允许 SELECT 查询。"
+                    "如需写入，请使用 CSV/Excel 输出方式，或在启动时添加 --allow-write 参数。"
+                )
         
         context.db.execute(rendered_sql)
+```
+
+```python
+# configforge/server.py 或 configforge/cli.py
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--allow-write", action="store_true",
+                    help="允许 SQL 处理器对真实数据库执行写操作（DROP/INSERT/UPDATE 等）")
+args = parser.parse_args()
+
+# 将 allow_write 传递到 PipelineContext
 ```
 
 方案 B：在数据库连接配置中增加"只读模式"选项，默认开启
@@ -54,6 +81,26 @@ class SqlProcessor(BaseProcessor):
 - 在 `ConnectionConfig` 模型中增加 `read_only: bool = True` 字段
 - 连接真实数据库时，使用只读事务 (`SET TRANSACTION READ ONLY`)
 - 用户明确需要写操作时，需手动关闭只读模式
+
+---
+
+### B-1b. 数据库输出 SQL 注入 — source_table 直接拼入 SQL
+
+**问题文件**: `src/pipeforge/plugins/output/database.py`
+
+**现状**: `source_table` 直接拼入 SQL 语句（如 `INSERT INTO {source_table}`），未使用 `safe_identifier` 校验。恶意表名可注入 SQL。
+
+**修复方案**:
+
+```python
+# src/pipeforge/plugins/output/database.py
+from pipeforge.utils.security import safe_identifier
+
+class DatabaseOutput(BaseOutput):
+    def write(self, context: PipelineContext) -> None:
+        safe_table = safe_identifier(self.source_table)
+        # 使用 safe_table 替代 self.source_table 拼接 SQL
+```
 
 ---
 
@@ -135,57 +182,9 @@ async def toggle_schedule(schedule_id: str):
 
 ---
 
-### B-5. 无认证/授权机制
+### B-5. ~~无认证/授权机制~~ → 降为 HIGH（H-13）
 
-**问题文件**: `configforge/server.py`
-
-**现状**: 整个应用无任何认证机制。所有 API 端点（包括数据库连接管理、AI 密钥配置、pipeline 执行）完全开放。
-
-**修复方案**:
-
-方案 A（推荐）：基于 API Key 的简单认证
-
-```python
-# configforge/middleware/auth.py
-import os
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-
-API_KEY = os.environ.get("CONFIGFORGE_API_KEY", "")
-
-class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # 无需认证的路径
-        public_paths = ["/", "/health"]
-        if not API_KEY or request.url.path in public_paths:
-            return await call_next(request)
-        
-        # 检查 API Key
-        key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
-        if key != API_KEY:
-            return JSONResponse(
-                status_code=401,
-                content={"error": "Unauthorized", "code": "AUTH_FAILED"},
-            )
-        
-        return await call_next(request)
-
-# configforge/server.py
-from configforge.middleware.auth import AuthMiddleware
-app.add_middleware(AuthMiddleware)
-```
-
-使用方式：
-- 启动时设置环境变量 `CONFIGFORGE_API_KEY=your-secret-key`
-- 前端请求时在 header 中携带 `X-API-Key`
-- 不设置 `CONFIGFORGE_API_KEY` 则不启用认证（开发模式）
-
-方案 B：Basic Auth
-
-- 适合单用户场景
-- 用户名/密码通过环境变量配置
-- 前端在 axios/fetch 中自动处理
+审查意见：ConfigForge 是本地开发工具，认证不是 P0。降为 HIGH 级别，移至第二章节。
 
 ---
 
@@ -244,6 +243,73 @@ except Exception as e:
 
 ---
 
+### B-7. SQL 预览 DDL/DML 过滤可被绕过（原 H-7，升为 BLOCKER）
+
+**问题文件**: `configforge/api/preview.py` 第51-54行、第160-166行
+
+**现状**:
+1. `PRAGMA query_only=ON` 在数据加载之后才设置，但用户 SQL 执行前存在窗口期
+2. DDL/DML 正则不覆盖 `REPLACE INTO`、`ANALYZE`、`PRAGMA` 等语句
+3. 可注入 `DROP TABLE` 等破坏性语句，有数据安全风险
+
+**修复方案**:
+
+1. 确保 `PRAGMA query_only=ON` 在数据加载完成后、用户 SQL 执行前设置
+
+```python
+# preview.py — 正确的执行顺序
+conn = sqlite3.connect(":memory:")
+
+# 步骤1：加载数据（需要写权限）
+for table_name, rows in sample_data.items():
+    conn.execute(f"CREATE TABLE [{table_name}] (...)")
+    conn.executemany(f"INSERT INTO [{table_name}] VALUES (...)", rows)
+
+# 步骤2：数据加载完成后立即设置只读
+conn.execute("PRAGMA query_only=ON")
+
+# 步骤3：此后所有用户 SQL 只能 SELECT
+# 任何 DROP/INSERT/UPDATE 都会被 SQLite 拒绝
+```
+
+2. 扩展 DDL/DML 正则（双重防护）
+
+```python
+_DDL_DML_RE = re.compile(
+    r'\b(ALTER|ANALYZE|ATTACH|BEGIN|COMMIT|CREATE|DELETE|DETACH|DROP|INSERT|'
+    r'PRAGMA|REINDEX|RELEASE|REPLACE|ROLLBACK|SAVEPOINT|UPDATE|VACUUM)\b',
+    re.IGNORECASE,
+)
+```
+
+---
+
+### B-8. 文件上传整个读入内存（原 H-2，升为 BLOCKER）
+
+**问题文件**: `configforge/api/files.py` 第78行
+
+**现状**: `content = await file.read()` 将整个文件读入内存。50MB 限制下，并发上传可能导致内存溢出。
+
+**修复方案**: 使用流式写入
+
+```python
+# configforge/api/files.py
+
+@router.post("/upload")
+async def upload_file(file: UploadFile):
+    file_id = uuid.uuid4().hex
+    dest = os.path.join(UPLOAD_DIR, file_id)
+    
+    # 流式写入，避免整个文件读入内存
+    with open(dest, "wb") as f:
+        while chunk := await file.read(1024 * 1024):  # 1MB chunks
+            f.write(chunk)
+    
+    return {"file_id": file_id, "filename": file.filename}
+```
+
+---
+
 ## 二、HIGH 级别（重大功能缺失 / 严重 UX 问题）
 
 ### H-1. 文件操作竞态条件 — scheduler 和 executions 模块
@@ -297,34 +363,7 @@ def write_json_locked(path: str, data: Any) -> None:
 
 ---
 
-### H-2. 文件上传整个读入内存
-
-**问题文件**: `configforge/api/files.py` 第78行
-
-**现状**: `content = await file.read()` 将整个文件读入内存。50MB 限制下，并发上传可能导致内存溢出。
-
-**修复方案**: 使用流式写入
-
-```python
-# configforge/api/files.py
-import shutil
-
-@router.post("/upload")
-async def upload_file(file: UploadFile):
-    file_id = uuid.uuid4().hex
-    dest = os.path.join(UPLOAD_DIR, file_id)
-    
-    # 流式写入，避免整个文件读入内存
-    with open(dest, "wb") as f:
-        while chunk := await file.read(1024 * 1024):  # 1MB chunks
-            f.write(chunk)
-    
-    return {"file_id": file_id, "filename": file.filename}
-```
-
----
-
-### H-3. SQL 预览基于样本数据，结果与实际不一致
+### H-2. SQL 预览基于样本数据，结果与实际不一致
 
 **问题文件**: `configforge/api/preview.py` 第139行
 
@@ -355,153 +394,7 @@ return {
 
 ---
 
-### H-4. 前端大量使用 `any` 类型
-
-**问题文件**: 多个前端文件（共 44 处 `: any`）
-
-**修复方案**: 分批替换，优先处理 API 层
-
-```typescript
-// configforge-web/src/types/api.ts — 新增 API 响应类型
-
-export interface ConfigListResponse {
-  items: SavedConfig[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
-}
-
-export interface ExecutionListResponse {
-  items: ExecutionSummary[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
-}
-
-export interface WizardStateResponse {
-  scene: { name: string; version: string; description: string }
-  inputs: InputSourceResponse[]
-  processors: ProcessorConfigResponse[]
-  output: OutputConfigResponse
-}
-
-export interface InputSourceResponse {
-  name: string
-  plugin: string
-  table: string
-  param_key: string
-  file_id: string
-  config: Record<string, unknown>
-}
-```
-
-然后在 `useConfigApi.ts` 和 `useWizardApi.ts` 中替换 `any` 为具体类型。
-
----
-
-### H-5/H-6. 执行历史/定时任务视图缺少分页
-
-**问题文件**:
-- `configforge-web/src/views/ExecutionHistoryView.vue`
-- `configforge-web/src/views/SchedulesPage.vue`
-
-**修复方案**: 参照 `HomeView.vue` 的分页实现，添加分页控件
-
-```vue
-<!-- ExecutionHistoryView.vue 增加分页 -->
-<div class="flex items-center justify-between mt-4">
-  <span class="text-xs text-slate-400">共 {{ total }} 条</span>
-  <NPagination
-    v-model:page="currentPage"
-    :page-count="totalPages"
-    :page-size="pageSize"
-    size="small"
-    @update:page="refresh"
-  />
-</div>
-```
-
-后端已支持分页参数（`page`、`page_size`），只需前端传参。
-
----
-
-### H-7. SQL 预览 DDL/DML 过滤可被绕过
-
-**问题文件**: `configforge/api/preview.py` 第51-54行、第160-166行
-
-**现状**:
-1. `PRAGMA query_only=ON` 在数据加载之后才设置，`CREATE TABLE` 和 `INSERT` 在非只读模式下执行
-2. DDL/DML 正则不覆盖 `REPLACE INTO`、`ANALYZE`、`PRAGMA` 等语句
-
-**修复方案**:
-
-1. 将 `PRAGMA query_only=ON` 移到数据加载之前
-
-```python
-# preview.py — 修改执行顺序
-conn = sqlite3.connect(":memory:")
-conn.execute("PRAGMA query_only=ON")  # 先设置只读
-
-# 然后用另一个连接加载数据
-load_conn = sqlite3.connect(":memory:")
-# ... 加载 sample_rows 到 load_conn ...
-
-# 将数据从 load_conn 附加到只读 conn
-# 或者：先加载数据，再设置 query_only
-```
-
-注意：SQLite 的 `query_only` 会阻止 `CREATE TABLE` 和 `INSERT`，所以需要在数据加载完成后再设置。更好的方案是：
-
-```python
-# 先加载数据（需要写权限）
-conn = sqlite3.connect(":memory:")
-for table_name, rows in sample_data.items():
-    conn.execute(f"CREATE TABLE [{table_name}] (...)")
-    conn.executemany(f"INSERT INTO [{table_name}] VALUES (...)", rows)
-
-# 数据加载完成后设置只读
-conn.execute("PRAGMA query_only=ON")
-
-# 此后所有用户 SQL 只能 SELECT
-```
-
-2. 扩展 DDL/DML 正则
-
-```python
-_DDL_DML_RE = re.compile(
-    r'\b(ALTER|ANALYZE|ATTACH|BEGIN|COMMIT|CREATE|DELETE|DETACH|DROP|INSERT|'
-    r'PRAGMA|REINDEX|RELEASE|REPLACE|ROLLBACK|SAVEPOINT|UPDATE|VACUUM)\b',
-    re.IGNORECASE,
-)
-```
-
----
-
-### H-8. CORS 配置过于宽松
-
-**问题文件**: `configforge/server.py` 第48-54行
-
-**修复方案**: 收紧 CORS 配置
-
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # Vite dev server
-        "http://localhost:4173",   # Vite preview
-        os.environ.get("CONFIGFORGE_ORIGIN", ""),  # 生产环境域名
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],  # 限制方法
-    allow_headers=["Content-Type", "X-API-Key"],     # 限制头
-)
-```
-
----
-
-### H-9. 废弃的 Step 视图文件未清理
+### H-3. 废弃的 Step 视图文件未清理
 
 **问题文件**: `configforge-web/src/views/Step1SceneView.vue` ~ `Step5ExportView.vue`
 
@@ -518,9 +411,153 @@ app.add_middleware(
 
 ---
 
+### H-4. MySQL 兼容性问题（审查新增）
+
+**问题文件**: `src/pipeforge/plugins/output/database.py`
+
+**现状**:
+1. `_quote()` 使用双引号，MySQL 默认需反引号（\`table\`）
+2. MySQL 8.0.20+ 不再支持 `ON DUPLICATE KEY UPDATE ... VALUES(col)` 语法
+
+**修复方案**:
+
+1. 根据数据库类型使用不同的引号
+
+```python
+def _quote(identifier: str, dialect: str = "sqlite") -> str:
+    """Quote identifier based on database dialect."""
+    if dialect == "mysql":
+        return f"`{identifier}`"
+    return f'"{identifier}"'
+```
+
+2. 使用别名替代 `VALUES()` 函数
+
+```python
+# 旧写法（MySQL 8.0.20+ 已弃用）
+# ON DUPLICATE KEY UPDATE col = VALUES(col)
+
+# 新写法
+# INSERT INTO table (col) VALUES (?) AS new_val
+# ON DUPLICATE KEY UPDATE col = new_val.col
+```
+
+---
+
+### H-5. 数据库输出 replace 模式事务一致性（审查新增）
+
+**问题文件**: `src/pipeforge/plugins/output/database.py`
+
+**现状**: replace 模式下先 `DROP TABLE` 再 `INSERT`，如果 `INSERT` 失败，数据丢失且表不存在。
+
+**修复方案**: 将 `DROP + INSERT` 放在同一事务中
+
+```python
+with engine.begin() as conn:
+    conn.execute(text(f"DROP TABLE IF EXISTS {_quote(table)}"))
+    conn.execute(text(f"CREATE TABLE {_quote(table)} (...)"))
+    conn.execute(insert_stmt)
+    # 事务提交：要么全部成功，要么全部回滚
+```
+
+---
+
+### H-6. DataPreviewTable 未集成到 Step 5（审查新增，P1）
+
+**问题文件**: `configforge-web/src/components/step5/DataPreviewTable.vue`
+
+**现状**: 组件已实现但未在 `ConfigWizardView` Step 5 中集成，用户执行后看不到数据预览。
+
+**修复方案**: 在 Step 5 的执行结果区域添加 DataPreviewTable
+
+```vue
+<!-- ConfigWizardView.vue Step 5 区域 -->
+<DataPreviewTable v-if="previewData" :data="previewData" />
+```
+
+---
+
+### H-7. Pipeline 执行超时未设置（原 M-13，升为 HIGH）
+
+**问题文件**: `configforge/core/pipeline.py`
+
+**现状**: `engine.execute(params)` 没有超时限制。如果用户编写了死循环 Python 脚本或长时间运行的 SQL，pipeline 会无限挂起，耗尽服务器资源。
+
+**修复方案**: 使用 `signal.alarm`（Unix）或 `multiprocessing` 实现超时
+
+```python
+import signal
+
+class PipelineTimeoutError(Exception):
+    pass
+
+def _timeout_handler(signum, frame):
+    raise PipelineTimeoutError("Pipeline execution timed out")
+
+# 在 execute_pipeline 中
+signal.signal(signal.SIGALRM, _timeout_handler)
+signal.alarm(300)  # 5分钟超时
+try:
+    result = engine.execute(params, log_dir=LOG_DIR)
+finally:
+    signal.alarm(0)
+```
+
+---
+
+### H-8. API Key 认证（原 B-5，降为 HIGH）
+
+**问题文件**: `configforge/server.py`
+
+**现状**: 整个应用无任何认证机制。所有 API 端点完全开放。
+
+**审查意见**: ConfigForge 是本地开发工具，认证不是 P0，降为 HIGH。
+
+**修复方案**:
+
+方案 A（推荐）：基于 API Key 的简单认证
+
+```python
+# configforge/middleware/auth.py
+import os
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+API_KEY = os.environ.get("CONFIGFORGE_API_KEY", "")
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # 无需认证的路径
+        public_paths = ["/", "/health"]
+        if not API_KEY or request.url.path in public_paths:
+            return await call_next(request)
+        
+        # 检查 API Key
+        key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+        if key != API_KEY:
+            return JSONResponse(
+                status_code=401,
+                content={"error": "Unauthorized", "code": "AUTH_FAILED"},
+            )
+        
+        return await call_next(request)
+
+# configforge/server.py
+from configforge.middleware.auth import AuthMiddleware
+app.add_middleware(AuthMiddleware)
+```
+
+使用方式：
+- 启动时设置环境变量 `CONFIGFORGE_API_KEY=your-secret-key`
+- 前端请求时在 header 中携带 `X-API-Key`
+- 不设置 `CONFIGFORGE_API_KEY` 则不启用认证（开发模式）
+
+---
+
 ## 三、MEDIUM 级别（质量改进 / 边界情况处理）
 
-### M-1/M-2. state.json 读写无文件锁
+### M-1. state.json 读写无文件锁
 
 **问题文件**: `configforge/api/configs.py` 第150-155行、第232-234行
 
@@ -528,11 +565,15 @@ app.add_middleware(
 
 ---
 
-### M-3. deepdiff 未在 requirements 中声明
+### M-2. ~~configs.py index.json 无文件锁~~（已修复）
 
-**问题文件**: `configforge/api/configs.py` 第464行
+审查确认：`_load_index/_save_index` 已使用 `fcntl.flock`。**从待修列表中移除。**
 
-**修复方案**: 在 `pyproject.toml` 或 `requirements.txt` 中添加 `deepdiff` 依赖
+---
+
+### M-3. ~~deepdiff 未在 requirements 中声明~~（已修复）
+
+审查确认：`deepdiff>=5.0` 已在 `requirements.txt` 中声明。**从待修列表中移除。**
 
 ---
 
@@ -600,7 +641,6 @@ export function useApi() {
 // main.ts
 app.config.errorHandler = (err, instance, info) => {
   console.error('Global error:', err, info)
-  // 可选：上报到错误追踪服务
 }
 
 // 或在 App.vue 中
@@ -674,33 +714,148 @@ def validate_sqlite_path(path: str) -> bool:
 
 ---
 
-### M-13. Pipeline 执行超时未设置
+### M-13. Python 处理器沙箱不完善
 
-**修复方案**: 使用 `signal.alarm`（Unix）或 `multiprocessing` 实现超时
+**修复方案**: 在文档中明确警告安全风险；长期考虑 `RestrictedPython` 或容器化执行。
 
-```python
-import signal
+---
 
-class TimeoutError(Exception):
-    pass
+### M-14. 前端大量使用 `any` 类型（原 H-4，降为 MEDIUM）
 
-def _timeout_handler(signum, frame):
-    raise TimeoutError("Pipeline execution timed out")
+**问题文件**: 多个前端文件（共 44 处 `: any`）
 
-# 在 execute_pipeline 中
-signal.signal(signal.SIGALRM, _timeout_handler)
-signal.alarm(300)  # 5分钟超时
-try:
-    result = engine.execute(params, log_dir=LOG_DIR)
-finally:
-    signal.alarm(0)
+**审查意见**: TypeScript `any` 类型是技术债务，不影响功能，降为 MEDIUM。
+
+**修复方案**: 分批替换，优先处理 API 层
+
+```typescript
+// configforge-web/src/types/api.ts — 新增 API 响应类型
+
+export interface ConfigListResponse {
+  items: SavedConfig[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export interface ExecutionListResponse {
+  items: ExecutionSummary[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export interface WizardStateResponse {
+  scene: { name: string; version: string; description: string }
+  inputs: InputSourceResponse[]
+  processors: ProcessorConfigResponse[]
+  output: OutputConfigResponse
+}
+
+export interface InputSourceResponse {
+  name: string
+  plugin: string
+  table: string
+  param_key: string
+  file_id: string
+  config: Record<string, unknown>
+}
+```
+
+然后在 `useConfigApi.ts` 和 `useWizardApi.ts` 中替换 `any` 为具体类型。
+
+---
+
+### M-15. 执行历史/定时任务视图缺少分页（原 H-5/H-6，降为 MEDIUM）
+
+**问题文件**:
+- `configforge-web/src/views/ExecutionHistoryView.vue`
+- `configforge-web/src/views/SchedulesPage.vue`
+
+**审查意见**: 后端分页已就绪，前端补 UI 即可，降为 MEDIUM。
+
+**修复方案**: 参照 `HomeView.vue` 的分页实现，添加分页控件
+
+```vue
+<!-- ExecutionHistoryView.vue 增加分页 -->
+<div class="flex items-center justify-between mt-4">
+  <span class="text-xs text-slate-400">共 {{ total }} 条</span>
+  <NPagination
+    v-model:page="currentPage"
+    :page-count="totalPages"
+    :page-size="pageSize"
+    size="small"
+    @update:page="refresh"
+  />
+</div>
 ```
 
 ---
 
-### M-14. Python 处理器沙箱不完善
+### M-16. 死代码 — 4 个未使用的 Composable（审查新增）
 
-**修复方案**: 在文档中明确警告安全风险；长期考虑 `RestrictedPython` 或容器化执行。
+**问题文件**:
+- `configforge-web/src/composables/useColumnDiff.ts`
+- `configforge-web/src/composables/useConversationHistory.ts`
+- `configforge-web/src/composables/useTypewriter.ts`
+- `configforge-web/src/composables/useErrorHandler.ts`
+
+**现状**: 无任何组件引用这些 composable，属于 AI 功能移除后的遗留代码。
+
+**修复方案**: 删除这 4 个文件。
+
+---
+
+### M-17. 死代码 — 3 个 AI 遗留组件（审查新增）
+
+**问题文件**:
+- `configforge-web/src/components/ai/AiChatPanel.vue`
+- `configforge-web/src/components/ai/AiInlineTip.vue`
+- `configforge-web/src/components/ai/OrchestrationResult.vue`
+
+**现状**: 在 `ConfigWizardView` 中已移除引用。
+
+**修复方案**: 评估是否保留（后续 AI 增强可能需要），如不保留则删除。建议暂时保留，标记为 `@deprecated`。
+
+---
+
+### M-18. 死代码 — useAiGuide.ts 无引用（审查新增）
+
+**问题文件**: `configforge-web/src/composables/useAiGuide.ts`
+
+**现状**: 仅被已移除 AI 流程的旧代码引用。
+
+**修复方案**: 删除该文件。
+
+---
+
+### M-19. useAiStatus.ts 与 AiStatusBanner.vue 重复实现（审查新增）
+
+**问题文件**:
+- `configforge-web/src/composables/useAiStatus.ts`
+- `configforge-web/src/components/common/AiStatusBanner.vue`
+
+**现状**: 两个文件各自维护 AI 状态检测逻辑，存在冗余。
+
+**修复方案**: 统一由 `useAiStatus.ts` 提供状态，`AiStatusBanner.vue` 仅做展示。
+
+---
+
+### M-20. 后端测试失败 — 3 个（审查新增，P1）
+
+**现状**: 分页 API 格式变更后测试断言未更新。
+
+**修复方案**: 更新测试中的 API 响应断言，匹配新的分页格式 `{items, total, page, page_size, total_pages}`。
+
+---
+
+### M-21. 前端测试失败 — 11 个（审查新增）
+
+**现状**: happy-dom 网络请求超时。
+
+**修复方案**: 调整测试配置，增加超时时间或 mock 网络请求。
 
 ---
 
@@ -739,11 +894,69 @@ finally:
 
 ---
 
-## 五、实施优先级总览
+## 五、实施优先级总览（二次审查后调整）
 
-| 阶段 | 内容 | 涉及项 | 预计影响范围 |
-|------|------|--------|-------------|
-| **第一阶段** | 安全加固 | B-1 ~ B-6 | 后端 6 个文件 |
-| **第二阶段** | 数据安全与稳定性 | H-1, H-2, H-7, H-8, M-1 ~ M-3, M-13 | 后端 5 个文件 + 中间件 |
-| **第三阶段** | 功能完善 | H-3 ~ H-6, H-9, M-4 ~ M-9 | 前端 8 个文件 |
-| **第四阶段** | 质量提升 | M-10 ~ M-14, L-1 ~ L-10 | 前后端多个文件 |
+### 第一阶段：安全漏洞（6 项）
+
+| 序号 | 任务 | 涉及项 | 影响范围 |
+|------|------|--------|---------|
+| 1 | 路径遍历修复 | B-2/B-3/B-4 | connections.py, executions.py, schedules.py |
+| 2 | SQL 处理器 SELECT-only 白名单 + --allow-write | B-1 | sql.py |
+| 3 | SQL 预览 DDL/DML 扩展 + query_only 正确时序 | B-7 | preview.py |
+| 4 | 文件上传流式写入 | B-8 | files.py |
+| 5 | 数据库输出 source_table 注入修复 | B-1b | database.py |
+| 6 | 密码泄露防护 | B-6 | connection_store.py |
+
+### 第二阶段：数据安全与稳定性（5 项）
+
+| 序号 | 任务 | 涉及项 | 影响范围 |
+|------|------|--------|---------|
+| 7 | scheduler + executions 文件锁 | H-1 | scheduler.py, executions.py |
+| 8 | Pipeline 执行超时 | H-7 | pipeline.py |
+| 9 | MySQL 兼容性 + replace 事务一致性 | H-4, H-5 | database.py |
+| 10 | SQLite 路径限制 | M-11 | connections.py |
+| 11 | 表名 safe_identifier 校验 | M-12 | connections.py |
+
+### 第三阶段：功能完善 + 代码清理（6 项）
+
+| 序号 | 任务 | 涉及项 | 影响范围 |
+|------|------|--------|---------|
+| 12 | 删除死代码（5 View + 4 Composable + useAiGuide） | H-3, M-16, M-18 | 前端 10 个文件 |
+| 13 | SQL 预览样本提示 | H-2 | 前端 + 后端 |
+| 14 | 执行历史/定时任务分页 | M-15 | 前端 2 个文件 |
+| 15 | DataPreviewTable 集成 | H-6 | ConfigWizardView.vue |
+| 16 | snakeToCamel + useApi 重构 | M-5, M-6 | 前端多个文件 |
+| 17 | 前端错误边界 | M-7 | App.vue |
+
+### 第四阶段：认证 + 质量提升（按需）
+
+| 序号 | 任务 | 涉及项 | 影响范围 |
+|------|------|--------|---------|
+| 18 | API Key 认证 | H-8 | server.py + middleware |
+| 19 | 修复后端测试 | M-20 | tests/ |
+| 20 | 修复前端测试 | M-21 | configforge-web/tests/ |
+| 21 | any 类型替换 | M-14 | 前端多个文件 |
+| 22 | processor→processors 迁移 | M-4 | models/wizard.py |
+| 23 | 其余 M/L 项 | M-8~M-10, M-13, M-17, M-19, L-1~L-10 | 多个文件 |
+
+---
+
+## 六、AI 增强建议（审查后调整）
+
+原方案中 P4-3 标注为"重新设计 AI 辅助方案"。审查建议：**不应从零重新设计，而应在当前 GuidePanel 基础上迭代增强**：
+
+1. 保留固定提示作为主线引导
+2. AI 只在用户主动触发时介入（如"AI 分析数据"、"AI 推荐处理方式"）
+3. 每个步骤增加一个"🤖 AI 建议"按钮，点击后调 AI，结果作为建议展示（不自动执行）
+
+---
+
+## 七、已修复项（审查确认，无需处理）
+
+| 项 | 原问题 | 修复状态 | 证据 |
+|----|--------|---------|------|
+| S-1 | 插件注册不完整 | 已修复 | `pipeforge/__init__.py` 已导入全部 8 个插件 |
+| S-2 | requirements 缺少依赖 | 已修复 | 5 个依赖全部已声明 |
+| M-2 | configs.py index.json 无文件锁 | 已修复 | `_load_index/_save_index` 已使用 `fcntl.flock` |
+| M-3 | deepdiff 未声明 | 已修复 | `requirements.txt` 已声明 `deepdiff>=5.0` |
+| H-8（旧） | CORS 配置过于宽松 | 已修复 | 已使用 `CORS_ORIGINS` 环境变量限制为 localhost |

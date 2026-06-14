@@ -60,7 +60,19 @@ class SQLiteManager:
         """Expose the underlying SQLite connection for use by Python processors."""
         return self._conn
 
+    # Dangerous SQL statements that should be blocked in user-supplied SQL
+    _DANGEROUS_SQL_RE = re.compile(
+        r'\b(ATTACH|DETACH|PRAGMA)\b',
+        re.IGNORECASE,
+    )
+
     def execute(self, sql: str) -> None:
+        # Block dangerous statements that could access external files or modify DB settings
+        if self._DANGEROUS_SQL_RE.search(sql):
+            raise ValueError(
+                "SQL contains disallowed statements (ATTACH/DETACH/PRAGMA). "
+                "These are blocked for security reasons."
+            )
         self._conn.executescript(sql)
         self._conn.commit()
 

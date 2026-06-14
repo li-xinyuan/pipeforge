@@ -12,6 +12,7 @@ from configforge.scheduler import (
     get_next_run_time,
 )
 from configforge.api.configs import _load_index
+from configforge.utils.security import validate_id
 
 router = APIRouter(prefix="/api/schedules", tags=["schedules"])
 
@@ -69,6 +70,7 @@ async def api_add_schedule(req: CreateScheduleRequest):
 @router.put("/{schedule_id}")
 async def api_update_schedule(schedule_id: str, req: UpdateScheduleRequest):
     """Update a schedule."""
+    validate_id(schedule_id, "schedule_id")
     try:
         schedule = update_schedule(
             schedule_id=schedule_id,
@@ -87,6 +89,7 @@ async def api_update_schedule(schedule_id: str, req: UpdateScheduleRequest):
 @router.delete("/{schedule_id}")
 async def api_delete_schedule(schedule_id: str):
     """Delete a schedule."""
+    validate_id(schedule_id, "schedule_id")
     removed = remove_schedule(schedule_id)
     if not removed:
         raise HTTPException(status_code=404, detail="定时任务不存在")
@@ -96,6 +99,7 @@ async def api_delete_schedule(schedule_id: str):
 @router.post("/{schedule_id}/toggle")
 async def api_toggle_schedule(schedule_id: str):
     """Toggle a schedule's enabled state."""
+    validate_id(schedule_id, "schedule_id")
     schedule = toggle_schedule(schedule_id)
     if schedule is None:
         raise HTTPException(status_code=404, detail="定时任务不存在")

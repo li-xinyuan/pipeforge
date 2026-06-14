@@ -29,7 +29,7 @@ from configforge.api.executions import (
     _sanitize_summary,
 )
 from configforge.services.yaml_builder import build_yaml
-from configforge.utils.security import validate_id
+from configforge.utils.security import validate_id, sanitize_connection_string
 from pipeforge.config.exceptions import CheckpointError
 
 router = APIRouter()
@@ -304,6 +304,7 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
     try:
         output_path = execute_pipeline(state)
     except (ValueError, SyntaxError, TimeoutError) as e:
+        safe_msg = sanitize_connection_string(str(e))
         _save_failed_execution(
             exec_id=exec_id,
             started_at=started_at,
@@ -313,9 +314,9 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
             inputs_summary=inputs_summary,
             processors_summary=processors_summary,
             output_type=output_type,
-            error_message=str(e),
+            error_message=safe_msg,
         )
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=safe_msg)
     except CheckpointError as e:
         checks = [r.model_dump() for r in e.results]
         _save_failed_execution(
@@ -333,6 +334,7 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
         raise HTTPException(status_code=422, detail={"message": "数据检查点未通过", "checks": checks})
     except Exception as e:
         logger.exception("pipeline execution failed")
+        safe_msg = sanitize_connection_string(str(e))
         _save_failed_execution(
             exec_id=exec_id,
             started_at=started_at,
@@ -342,9 +344,9 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
             inputs_summary=inputs_summary,
             processors_summary=processors_summary,
             output_type=output_type,
-            error_message=str(e),
+            error_message=safe_msg,
         )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_msg)
 
     finished_at = datetime.now(UTC).isoformat()
 

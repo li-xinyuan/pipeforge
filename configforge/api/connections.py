@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from configforge.services.connection_store import ConnectionStore
 from configforge.models.wizard import ErrorResponse
+from configforge.utils.security import validate_id, sanitize_connection_string
 
 router = APIRouter()
 
@@ -70,6 +71,7 @@ def list_connections():
 
 @router.get("/connections/{conn_id}")
 def get_connection(conn_id: str):
+    validate_id(conn_id, "conn_id")
     conn = ConnectionStore.get(conn_id)
     if not conn:
         raise HTTPException(404, detail=ErrorResponse(
@@ -80,6 +82,7 @@ def get_connection(conn_id: str):
 
 @router.put("/connections/{conn_id}")
 def update_connection(conn_id: str, req: UpdateConnectionRequest):
+    validate_id(conn_id, "conn_id")
     data = {k: v for k, v in req.model_dump().items() if v is not None}
     if not data:
         raise HTTPException(400, detail=ErrorResponse(
@@ -95,6 +98,7 @@ def update_connection(conn_id: str, req: UpdateConnectionRequest):
 
 @router.delete("/connections/{conn_id}")
 def delete_connection(conn_id: str):
+    validate_id(conn_id, "conn_id")
     refs = ConnectionStore.count_references(conn_id)
     if refs:
         raise HTTPException(409, detail=ErrorResponse(
@@ -111,6 +115,7 @@ def delete_connection(conn_id: str):
 
 @router.post("/connections/{conn_id}/test")
 def test_connection(conn_id: str):
+    validate_id(conn_id, "conn_id")
     from sqlalchemy import create_engine, text
     from sqlalchemy.pool import NullPool
 
@@ -134,14 +139,13 @@ def test_connection(conn_id: str):
     except Exception as e:
         ConnectionStore._update_verified(conn_id, False)
         # Sanitize error message to avoid leaking connection strings with passwords
-        error_msg = str(e)
-        if "@" in error_msg or "://" in error_msg:
-            error_msg = "Connection failed — please check your connection settings"
+        error_msg = sanitize_connection_string(str(e))
         return {"ok": False, "error": error_msg}
 
 
 @router.get("/connections/{conn_id}/tables")
 def list_tables(conn_id: str):
+    validate_id(conn_id, "conn_id")
     from sqlalchemy import create_engine, inspect
     from sqlalchemy.pool import NullPool
 
@@ -160,12 +164,14 @@ def list_tables(conn_id: str):
         return {"tables": tables}
     except Exception as e:
         raise HTTPException(500, detail=ErrorResponse(
-            error=f"Failed to list tables: {e}", code="DB_ERROR", recoverable=True,
+            error=sanitize_connection_string(f"Failed to list tables: {e}"),
+            code="DB_ERROR", recoverable=True,
         ).model_dump())
 
 
 @router.get("/connections/{conn_id}/tables/{table}/columns")
 def get_table_columns(conn_id: str, table: str):
+    validate_id(conn_id, "conn_id")
     from sqlalchemy import create_engine, inspect
     from sqlalchemy.pool import NullPool
 
@@ -184,5 +190,6 @@ def get_table_columns(conn_id: str, table: str):
         return {"columns": [{"name": c["name"], "type": str(c["type"])} for c in cols]}
     except Exception as e:
         raise HTTPException(500, detail=ErrorResponse(
-            error=f"Failed to get columns: {e}", code="DB_ERROR", recoverable=True,
+            error=sanitize_connection_string(f"Failed to get columns: {e}"),
+            code="DB_ERROR", recoverable=True,
         ).model_dump())
