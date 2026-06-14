@@ -14,7 +14,7 @@ export interface ConfirmedAnalysis {
 
 export interface AiSuggestion {
   content: string
-  category: 'scene' | 'columns' | 'sql' | 'python' | 'mapping' | 'diagnose' | 'chat' | 'orchestrate'
+  category: 'scene' | 'columns' | 'sql' | 'python' | 'mapping' | 'diagnose' | 'precheck' | 'chat' | 'orchestrate'
   status: 'pending' | 'accepted' | 'rejected' | 'auto'
   timestamp: number
 }

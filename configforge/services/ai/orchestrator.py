@@ -100,6 +100,23 @@ SYSTEM_PROMPTS = {
         "你是一个数据管道调试专家。根据 YAML 配置和错误日志，分析失败原因并给出修复建议。"
         "返回 JSON: {\"cause\": \"根因一句话\", \"suggestions\": [\"具体修复步骤\"], \"severity\": \"error|warning\"}。"
     ),
+    "precheck": (
+        "你是一个数据管道配置审查专家。用户即将执行一个数据管道，你需要检查配置的完整性和潜在问题。\n\n"
+        "## 检查维度\n"
+        "1. **完整性**：输入源是否已配置？处理步骤是否有代码？输出是否已配置？列映射是否完整？\n"
+        "2. **一致性**：SQL 中引用的表名是否与输入源表名匹配？列映射的源列是否存在于处理步骤输出中？\n"
+        "3. **潜在问题**：SQL 是否缺少 WHERE 条件（可能处理全量数据）？列映射是否有未映射的重要列？输出文件名是否合理？\n"
+        "4. **建议优化**：是否有更高效的写法？是否缺少索引建议？\n\n"
+        "## 返回格式\n"
+        "返回纯 JSON（不要包裹在 markdown 代码块中）：\n"
+        "{\"issues\": [{\"severity\": \"error|warning|info\", \"step\": 1-5, \"message\": \"问题描述\"}], "
+        "\"summary\": \"一句话总结\"}\n\n"
+        "severity 说明：\n"
+        "- error：必须修复才能执行（如缺少输入源、SQL 为空）\n"
+        "- warning：建议修复（如列映射不完整、SQL 无 WHERE）\n"
+        "- info：优化建议（如可添加索引）\n\n"
+        "如果配置没有问题，返回空 issues 数组，summary 写「配置完整，可安全执行」。"
+    ),
     "orchestrate": (
         "你是一个数据流水线架构师。用户提供输入源和输出目标，你需要规划处理步骤链。\n\n"
         "## 上下文\n"
@@ -229,6 +246,14 @@ def build_prompt(category: str, context: dict) -> str:
     elif category == "diagnose":
         prompt += f"YAML: {context.get('yaml', '')}。"
         prompt += f"错误: {context.get('errorLog', '')}。"
+    elif category == "precheck":
+        prompt += f"场景名称: {context.get('scene_name', '')}。"
+        prompt += f"输入源: {json.dumps(context.get('inputs', []), ensure_ascii=False)[:1000]}。"
+        prompt += f"处理步骤: {json.dumps(context.get('processors', []), ensure_ascii=False)[:1000]}。"
+        prompt += f"输出配置: {json.dumps(context.get('output', {}), ensure_ascii=False)[:500]}。"
+        yaml_text = context.get('yaml', '')
+        if yaml_text:
+            prompt += f"YAML 配置: {yaml_text[:2000]}。"
     elif category == "chat":
         # Non-guide mode only (guide mode handled above with early return)
         current_step = context.get("current_step", context.get("currentStep", 1))

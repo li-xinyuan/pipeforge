@@ -147,6 +147,24 @@
           </div>
 
           <YamlPreview ref="yamlPreviewRef" />
+
+          <!-- AI Precheck -->
+          <div style="margin-top: 16px;">
+            <div class="flex items-center gap-2 mb-2">
+              <AiTriggerButton label="AI 预检配置" :loading="precheckLoading" :disabled="precheckLoading" @click="runPrecheck" />
+            </div>
+            <div v-if="precheckResult" class="ai-precheck-result">
+              <div class="ai-precheck-result__summary" :class="precheckSummaryClass">{{ precheckResult.summary }}</div>
+              <div v-if="precheckResult.issues.length" class="ai-precheck-result__issues">
+                <div v-for="(issue, i) in precheckResult.issues" :key="i" class="ai-precheck-result__issue" :class="`ai-precheck-result__issue--${issue.severity}`">
+                  <span class="ai-precheck-result__badge">{{ issue.severity === 'error' ? '错误' : issue.severity === 'warning' ? '警告' : '提示' }}</span>
+                  <span class="ai-precheck-result__step">步骤 {{ issue.step }}</span>
+                  <span class="ai-precheck-result__msg">{{ issue.message }}</span>
+                </div>
+              </div>
+            </div>
+            <p v-if="precheckError" class="text-xs text-red-500 mt-1">{{ precheckError }}</p>
+          </div>
           <template #footer>
             <NButton @click="onGoBack(5)">← 上一步</NButton>
             <ExportActions :yaml="yamlPreviewRef?.yamlText || ''" />
@@ -167,7 +185,7 @@ import { computed, onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import { useConfigApi } from '../composables/useConfigApi'
-import { useWizardApi } from '../composables/useWizardApi'
+import { useWizardApi, useAiApi } from '../composables/useWizardApi'
 import { NButton, NInput } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import WizardProgress from '../components/wizard/WizardProgress.vue'
@@ -180,11 +198,72 @@ import OutputConfigTab from '../components/step3/OutputConfigTab.vue'
 import YamlPreview from '../components/step4/YamlPreview.vue'
 import ExportActions from '../components/step4/ExportActions.vue'
 import DataPreviewTable from '../components/step4/DataPreviewTable.vue'
+import AiTriggerButton from '../components/common/AiTriggerButton.vue'
 
 const store = useWizardStore()
 const route = useRoute()
 const { loadConfigState } = useConfigApi()
 const { dryRun } = useWizardApi()
+const { suggesting: precheckLoading, aiError: precheckAiError, askSuggestion } = useAiApi()
+
+// AI Precheck state
+interface PrecheckIssue {
+  severity: 'error' | 'warning' | 'info'
+  step: number
+  message: string
+}
+const precheckResult = ref<{ issues: PrecheckIssue[]; summary: string } | null>(null)
+const precheckError = ref('')
+
+const precheckSummaryClass = computed(() => {
+  if (!precheckResult.value) return ''
+  const hasError = precheckResult.value.issues.some(i => i.severity === 'error')
+  const hasWarning = precheckResult.value.issues.some(i => i.severity === 'warning')
+  if (hasError) return 'ai-precheck-result__summary--error'
+  if (hasWarning) return 'ai-precheck-result__summary--warning'
+  return 'ai-precheck-result__summary--ok'
+})
+
+async function runPrecheck() {
+  precheckError.value = ''
+  precheckResult.value = null
+  try {
+    const yamlText = yamlPreviewRef.value?.yamlText || ''
+    const content = await askSuggestion('precheck', {
+      scene_name: store.scene.name,
+      inputs: store.inputs.map(inp => ({
+        table: inp.table,
+        plugin: inp.plugin,
+        fileId: inp.fileId ? '(已上传)' : '(未上传)',
+      })),
+      processors: store.processors.map(p => ({
+        name: p.name,
+        plugin: p.plugin,
+        outputTables: p.outputTables,
+        hasCode: p.plugin === 'sql' ? !!p.sql.trim() : !!(p as any).script?.trim(),
+      })),
+      output: store.output ? {
+        plugin: store.output.plugin,
+        hasColumns: (store.output.config?.columns?.length || 0) > 0,
+        sourceTable: store.output.config?.sourceTable || '',
+      } : {},
+      yaml: yamlText,
+    })
+    if (content) {
+      try {
+        const parsed = JSON.parse(content)
+        precheckResult.value = {
+          issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+          summary: parsed.summary || '预检完成',
+        }
+      } catch {
+        precheckResult.value = { issues: [], summary: content }
+      }
+    }
+  } catch (e) {
+    precheckError.value = e instanceof Error ? e.message : '预检失败'
+  }
+}
 
 // Summary computed properties
 const inputTypeSummary = computed(() => {
@@ -487,6 +566,87 @@ onUnmounted(() => {
 /* === Bottom Spacer === */
 .wizard__bottom-spacer {
   height: 80px;
+}
+
+/* === AI Precheck Result === */
+.ai-precheck-result {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.ai-precheck-result__summary {
+  padding: 10px 14px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.ai-precheck-result__summary--error {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.ai-precheck-result__summary--warning {
+  background: rgba(245, 158, 11, 0.08);
+  color: #d97706;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.ai-precheck-result__summary--ok {
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+}
+
+.ai-precheck-result__issues {
+  padding: 8px 14px;
+}
+
+.ai-precheck-result__issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: var(--font-size-xs);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.ai-precheck-result__issue:last-child {
+  border-bottom: none;
+}
+
+.ai-precheck-result__badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ai-precheck-result__issue--error .ai-precheck-result__badge {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.ai-precheck-result__issue--warning .ai-precheck-result__badge {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.ai-precheck-result__issue--info .ai-precheck-result__badge {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.ai-precheck-result__step {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  min-width: 42px;
+}
+
+.ai-precheck-result__msg {
+  color: var(--color-text);
+  line-height: 1.5;
 }
 
 /* ─── Step card entrance animation ─── */

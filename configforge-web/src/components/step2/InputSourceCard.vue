@@ -50,14 +50,12 @@
       </div>
 
       <!-- AI Analysis inline prompt (full width) -->
-      <div v-if="input.fileId && !input.confirmedAnalysis && !analyzing" class="col-span-2 flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 rounded-md">
-        <span class="text-sm">⚡</span>
-        <span class="text-xs text-blue-600 dark:text-blue-400 flex-1">AI 可分析此文件，推荐表名、参数键和列类型</span>
-        <NButton size="tiny" type="info" @click="triggerAiAnalysis">立即分析</NButton>
+      <div v-if="input.fileId && !input.confirmedAnalysis && !analyzing" class="col-span-2">
+        <AiTriggerButton label="AI 分析此文件" :loading="analyzing" @click="triggerAiAnalysis" />
       </div>
       <div v-if="input.fileId && !input.confirmedAnalysis && aiError && !analyzing" class="col-span-2 flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/30 border border-red-200 rounded-md">
         <span class="text-xs text-red-600 dark:text-red-400 flex-1">{{ aiError }}</span>
-        <NButton size="tiny" type="error" @click="triggerAiAnalysis">重试</NButton>
+        <AiTriggerButton label="重试" @click="triggerAiAnalysis" />
       </div>
 
       <!-- Sheet name (Excel) -->
@@ -233,6 +231,7 @@ import { NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NSpin, useDialog } 
 import type { UploadCustomRequestOptions } from 'naive-ui'
 import ColumnPreview from './ColumnPreview.vue'
 import AiColumnConfirmModal from './AiColumnConfirmModal.vue'
+import AiTriggerButton from '../common/AiTriggerButton.vue'
 import DatabaseForm from './DatabaseForm.vue'
 
 const props = defineProps<{

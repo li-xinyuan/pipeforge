@@ -229,12 +229,12 @@
               size="small"
               @click="onInferColumns"
             >{{ inferColumnLabel }}</NButton>
-            <NButton
+            <AiTriggerButton
               v-else
-              size="small"
+              label="AI 推断列映射"
               :loading="mappingLoading"
               @click="onAiMapping"
-            >AI 推断列映射</NButton>
+            />
             <NButton v-if="outputConfig.columns.length > 0" size="small" @click="onMapAll">全部映射</NButton>
             <NButton v-if="outputConfig.columns.length > 0" size="small" @click="onSmartMatch">智能匹配</NButton>
             <NButton v-if="store.output?.plugin !== 'csv'" size="small" @click="addColumn">+ 添加列映射</NButton>
@@ -258,6 +258,7 @@ import type { UploadCustomRequestOptions } from 'naive-ui'
 import { NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NInputNumber, useMessage, useDialog } from 'naive-ui'
 import { inferSelectColumns } from '../../utils/sql'
 import ColumnMapping from './ColumnMapping.vue'
+import AiTriggerButton from '../common/AiTriggerButton.vue'
 
 const props = defineProps<{ pulseCta?: boolean }>()
 const store = useWizardStore()

@@ -37,7 +37,7 @@ class AiSettingsUpdate(BaseModel):
 class AiSuggestionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    category: Literal["scene", "columns", "sql", "mapping", "diagnose", "chat"]
+    category: Literal["scene", "columns", "sql", "mapping", "diagnose", "precheck", "chat"]
     context: dict
 
 

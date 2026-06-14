@@ -106,7 +106,7 @@
     <div class="flex gap-2 items-center flex-wrap">
       <NButton v-if="!dryRunVisible || !dryRunResult" size="tiny" type="info" :loading="dryRunRunning" :disabled="!proc.sql.trim()" @click="runDryRun">▶ 预览结果</NButton>
       <NButton v-else size="tiny" type="info" @click="dryRunVisible = false">收起结果</NButton>
-      <NButton size="tiny" :disabled="!aiConfigured" @click="showNlInput = !showNlInput">✨ AI 生成 SQL</NButton>
+      <AiTriggerButton label="AI 生成 SQL" :disabled="!aiConfigured" :loading="showNlInput && suggesting" @click="showNlInput = !showNlInput" />
     </div>
 
     <p v-if="dryRunError" class="text-xs text-red-500 mt-1">{{ dryRunError }}</p>
@@ -132,6 +132,7 @@ import { computed, inject, onMounted, ref, type Ref } from 'vue'
 import { NButton, NTag, NInput, NSelect, NDropdown } from 'naive-ui'
 import ColumnPreview from '../step2/ColumnPreview.vue'
 import CodeEditor from '../common/CodeEditor.vue'
+import AiTriggerButton from '../common/AiTriggerButton.vue'
 import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
