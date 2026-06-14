@@ -77,11 +77,8 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
         state_dict = json.load(f)
 
     # Migrate old format
-    if "processor" in state_dict and not state_dict.get("processors"):
-        proc = state_dict.pop("processor")
-        if "outputTable" in proc:
-            proc["output_tables"] = [proc.pop("outputTable")]
-        state_dict["processors"] = [proc]
+    from configforge.api.configs import _migrate_state_dict
+    _migrate_state_dict(state_dict)
 
     # Remove internal fields that are not part of WizardState schema
     state_dict.pop("_saved_at", None)

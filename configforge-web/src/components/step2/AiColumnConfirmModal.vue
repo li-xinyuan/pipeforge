@@ -3,6 +3,8 @@
     :show="visible"
     preset="card"
     title="AI 列分析结果"
+    :trap-focus="true"
+    :auto-focus="true"
     style="max-width: 520px"
     @update:show="$emit('close')"
   >

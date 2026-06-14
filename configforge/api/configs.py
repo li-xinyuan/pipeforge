@@ -38,11 +38,14 @@ logger = logging.getLogger(__name__)
 
 def _migrate_state_dict(state_dict: dict) -> None:
     """Upgrade old format (single processor) to new format (processors list)."""
-    if "processor" in state_dict and not state_dict.get("processors"):
-        proc = state_dict.pop("processor")
-        if "outputTable" in proc:
-            proc["output_tables"] = [proc.pop("outputTable")]
-        state_dict["processors"] = [proc]
+    if "processor" in state_dict:
+        if not state_dict.get("processors"):
+            proc = state_dict.pop("processor")
+            if "outputTable" in proc:
+                proc["output_tables"] = [proc.pop("outputTable")]
+            state_dict["processors"] = [proc]
+        else:
+            state_dict.pop("processor")
 
 
 def _validate_config_id(config_id: str) -> str:

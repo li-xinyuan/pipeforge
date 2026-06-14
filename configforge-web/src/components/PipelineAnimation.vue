@@ -92,7 +92,7 @@
               <span class="mock-yaml__key">pipeline</span>: sales_report<br>
               <span class="mock-yaml__key">inputs</span>:<br>
               &nbsp;&nbsp;- sales_data<br>
-              <span class="mock-yaml__key">processor</span>: python<br>
+              <span class="mock-yaml__key">processors</span>: python<br>
               <span class="mock-yaml__key">output</span>: report.xlsx
             </div>
           </div>

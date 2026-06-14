@@ -1,7 +1,7 @@
 <template>
-  <div class="input-source-card bg-white border border-slate-200 rounded-lg overflow-hidden relative">
+  <div class="input-source-card bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden relative">
     <!-- Header: name + plugin badge + delete -->
-    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
       <span class="text-lg">{{ input.plugin === 'csv' ? '🗄' : input.plugin === 'database' ? '🔌' : '📊' }}</span>
       <span class="text-sm font-medium truncate flex-1">{{ input.table || '新输入源' }}</span>
       <NTag :type="input.plugin === 'csv' ? 'info' : input.plugin === 'database' ? 'warning' : 'success'" size="small">
@@ -37,11 +37,11 @@
           >
               <NSpin v-if="uploading" size="small" />
               <span v-else class="text-3xl block mb-1.5">📤</span>
-              <span class="text-sm text-slate-500 block">
+              <span class="text-sm text-slate-500 dark:text-slate-400 block">
                 <template v-if="uploading"><span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">上传中...</span></template>
                 <template v-else>将文件拖拽到此处，或点击选择文件</template>
               </span>
-              <span class="text-xs text-slate-400 mt-1 block">
+              <span class="text-xs text-slate-400 dark:text-slate-500 mt-1 block">
                 支持 {{ input.plugin === 'csv' ? '.csv / .tsv' : '.xlsx / .xls' }} 格式
               </span>
           </div>
@@ -50,13 +50,13 @@
       </div>
 
       <!-- AI Analysis inline prompt (full width) -->
-      <div v-if="input.fileId && !input.confirmedAnalysis && !analyzing" class="col-span-2 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+      <div v-if="input.fileId && !input.confirmedAnalysis && !analyzing" class="col-span-2 flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 rounded-md">
         <span class="text-sm">⚡</span>
-        <span class="text-xs text-blue-600 flex-1">AI 可分析此文件，推荐表名、参数键和列类型</span>
+        <span class="text-xs text-blue-600 dark:text-blue-400 flex-1">AI 可分析此文件，推荐表名、参数键和列类型</span>
         <NButton size="tiny" type="info" @click="triggerAiAnalysis">立即分析</NButton>
       </div>
-      <div v-if="input.fileId && !input.confirmedAnalysis && aiError && !analyzing" class="col-span-2 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
-        <span class="text-xs text-red-600 flex-1">{{ aiError }}</span>
+      <div v-if="input.fileId && !input.confirmedAnalysis && aiError && !analyzing" class="col-span-2 flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/30 border border-red-200 rounded-md">
+        <span class="text-xs text-red-600 dark:text-red-400 flex-1">{{ aiError }}</span>
         <NButton size="tiny" type="error" @click="triggerAiAnalysis">重试</NButton>
       </div>
 
@@ -118,7 +118,7 @@
       </template>
 
       <!-- Database-specific fields -->
-      <div v-if="input.plugin === 'database'" class="cf-form-group--full pt-3 border-t border-dashed border-slate-200">
+      <div v-if="input.plugin === 'database'" class="cf-form-group--full pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
         <DatabaseForm :input="input" :index="index" @update="handleUpdate" />
       </div>
 
@@ -174,9 +174,9 @@
     </div>
 
     <!-- Confirmed AI Analysis -->
-    <div v-if="input.confirmedAnalysis" class="mb-4 border border-blue-200 bg-blue-50/40 rounded-md px-3 py-2">
+    <div v-if="input.confirmedAnalysis" class="mb-4 border border-blue-200 bg-blue-50/40 dark:bg-blue-900/30 rounded-md px-3 py-2">
       <div class="flex items-center gap-2 mb-1.5">
-        <span class="text-xs font-medium text-blue-700">AI 分析确认</span>
+        <span class="text-xs font-medium text-blue-700 dark:text-blue-300">AI 分析确认</span>
       </div>
       <div v-if="Object.keys(input.confirmedAnalysis.columnTypes).length" class="flex flex-wrap gap-1 mb-1.5">
         <NTag
@@ -188,7 +188,7 @@
         >{{ col }}: {{ type }}</NTag>
       </div>
       <div v-if="input.confirmedAnalysis.paramKeys.length" class="flex flex-wrap gap-1">
-        <span class="text-[10px] text-slate-400 mr-0.5">Keys:</span>
+        <span class="text-[10px] text-slate-400 dark:text-slate-500 mr-0.5">Keys:</span>
         <NTag
           v-for="key in input.confirmedAnalysis.paramKeys"
           :key="key"
@@ -199,12 +199,12 @@
     </div>
 
     <!-- AI analysis overlay -->
-    <div v-if="analyzing" class="absolute inset-0 bg-white/65 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 rounded-md" style="pointer-events: auto; cursor: wait;">
+    <div v-if="analyzing" class="absolute inset-0 bg-white/65 dark:bg-slate-800/65 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 rounded-md" style="pointer-events: auto; cursor: wait;">
       <NSpin size="medium" />
       <span class="text-sm text-teal-600 font-medium">AI 分析中...</span>
     </div>
 
-    <p v-if="!input.fileId" class="text-xs text-slate-400 mt-2">请先上传文件以加载列预览</p>
+    <p v-if="!input.fileId" class="text-xs text-slate-400 dark:text-slate-500 mt-2">请先上传文件以加载列预览</p>
 
     <!-- AI Column Confirm Modal -->
     <AiColumnConfirmModal

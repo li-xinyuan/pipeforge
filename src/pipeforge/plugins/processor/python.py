@@ -110,6 +110,17 @@ def _validate_script(script: str) -> None:
 
 @register_plugin("python", "processor")
 class PythonProcessorPlugin(ProcessorPlugin):
+    """Python processor plugin that executes user-defined process(ctx) functions.
+
+    SECURITY WARNING: This plugin uses AST whitelisting and a restricted builtins
+    dictionary to limit what user scripts can do, but this is NOT a full sandbox.
+    Determined users can bypass these restrictions through various Python introspection
+    techniques (e.g., accessing object.__subclasses__(), using type() to reconstruct
+    dangerous objects, etc.). For production use with untrusted code, consider:
+    1. Running in a container/VM with restricted permissions
+    2. Using RestrictedPython for stricter compilation-time checks
+    3. Using a separate process with resource limits (ulimit, cgroups)
+    """
     TIMEOUT_SECONDS = 30
 
     @classmethod

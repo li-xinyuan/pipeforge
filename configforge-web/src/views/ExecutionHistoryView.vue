@@ -7,9 +7,9 @@
         <NButton size="small" @click="refresh">刷新</NButton>
       </div>
 
-      <div v-if="loading" class="text-sm text-slate-400 text-center py-12">加载中...</div>
+      <div v-if="loading" class="text-sm text-slate-400 dark:text-slate-500 text-center py-12">加载中...</div>
 
-      <div v-else-if="!executions.length" class="text-sm text-slate-400 text-center py-12">
+      <div v-else-if="!executions.length" class="text-sm text-slate-400 dark:text-slate-500 text-center py-12">
         暂无执行记录
       </div>
 
@@ -17,19 +17,19 @@
         <div
           v-for="exec in executions"
           :key="exec.id"
-          class="border border-slate-200 rounded-lg p-3 flex items-center gap-3"
+          class="border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
         >
           <NTag size="small" :type="exec.status === 'success' ? 'success' : 'error'">
             {{ exec.status === 'success' ? '成功' : '失败' }}
           </NTag>
           <div class="flex-1 min-w-0">
             <div class="text-sm font-medium truncate">{{ exec.scene_name || '未命名' }}</div>
-            <div class="text-xs text-slate-400">
+            <div class="text-xs text-slate-400 dark:text-slate-500">
               {{ exec.started_at?.slice(0, 16) || '' }} · {{ exec.duration_ms }}ms
               <span v-if="exec.config_id !== 'adhoc'"> · 配置 {{ exec.config_id?.slice(0, 8) }}</span>
             </div>
           </div>
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-1 flex-shrink-0">
             <NButton size="tiny" quaternary @click="showDetail(exec)">详情</NButton>
             <NButton
               v-if="exec.output_file_name"
@@ -47,7 +47,7 @@
 
       <!-- Pagination -->
       <div v-if="total > pageSize" class="flex items-center justify-between mt-4">
-        <span class="text-xs text-slate-400">共 {{ total }} 条</span>
+        <span class="text-xs text-slate-400 dark:text-slate-500">共 {{ total }} 条</span>
         <NPagination
           v-model:page="currentPage"
           :page-count="Math.ceil(total / pageSize)"
@@ -58,29 +58,29 @@
       </div>
 
       <!-- Detail modal -->
-      <NModal v-model:show="detailVisible" preset="card" title="执行详情" style="max-width: 560px">
+      <NModal v-model:show="detailVisible" preset="card" title="执行详情" style="max-width: 560px" :trap-focus="true" :auto-focus="true">
         <div v-if="detailRecord" class="p-4 space-y-3 max-w-lg">
           <div class="grid grid-cols-2 gap-2 text-sm">
-            <div class="text-slate-400">执行 ID</div>
+            <div class="text-slate-400 dark:text-slate-500">执行 ID</div>
             <div class="font-mono">{{ detailRecord.id }}</div>
-            <div class="text-slate-400">场景名称</div>
+            <div class="text-slate-400 dark:text-slate-500">场景名称</div>
             <div>{{ detailRecord.scene_name }}</div>
-            <div class="text-slate-400">状态</div>
+            <div class="text-slate-400 dark:text-slate-500">状态</div>
             <div>
               <NTag size="tiny" :type="detailRecord.status === 'success' ? 'success' : 'error'">
                 {{ detailRecord.status === 'success' ? '成功' : '失败' }}
               </NTag>
             </div>
-            <div class="text-slate-400">耗时</div>
+            <div class="text-slate-400 dark:text-slate-500">耗时</div>
             <div>{{ detailRecord.duration_ms }}ms</div>
-            <div class="text-slate-400">输出类型</div>
+            <div class="text-slate-400 dark:text-slate-500">输出类型</div>
             <div>{{ detailRecord.output_type || '-' }}</div>
-            <div class="text-slate-400">输入源</div>
+            <div class="text-slate-400 dark:text-slate-500">输入源</div>
             <div>{{ detailRecord.inputs_summary?.length || 0 }} 个</div>
-            <div class="text-slate-400">处理步骤</div>
+            <div class="text-slate-400 dark:text-slate-500">处理步骤</div>
             <div>{{ detailRecord.processors_summary?.length || 0 }} 个</div>
           </div>
-          <div v-if="detailRecord.error_message" class="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700">
+          <div v-if="detailRecord.error_message" class="bg-red-50 dark:bg-red-900/30 border border-red-200 rounded p-2 text-sm text-red-700 dark:text-red-300">
             {{ detailRecord.error_message }}
           </div>
         </div>

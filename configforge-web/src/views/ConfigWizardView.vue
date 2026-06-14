@@ -58,7 +58,7 @@
         >
           <InputSourceList :pulse-cta="currentStep === 2" />
           <template #footer>
-            <NButton size="small" @click="onGoBack(2)">← 上一步</NButton>
+            <NButton @click="onGoBack(2)">← 上一步</NButton>
             <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 2 && store.canProceed(2) }" :disabled="!store.canProceed(2)" @click="completeStep(2)">下一步 ↓</NButton>
             <p v-if="currentStep === 2 && store.stepValidation(2).length" class="wizard__validation-msg">{{ store.stepValidation(2).join('；') }}</p>
           </template>
@@ -77,7 +77,7 @@
         >
           <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && !store.canProceed(3)" />
           <template #footer>
-            <NButton size="small" @click="onGoBack(3)">← 上一步</NButton>
+            <NButton @click="onGoBack(3)">← 上一步</NButton>
             <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 3 && store.canProceed(3) }" :disabled="!store.canProceed(3)" @click="completeStep(3)">下一步 ↓</NButton>
             <p v-if="currentStep === 3 && store.stepValidation(3).length" class="wizard__validation-msg">{{ store.stepValidation(3).join('；') }}</p>
           </template>
@@ -96,7 +96,7 @@
         >
           <OutputConfigTab :pulse-cta="currentStep === 4" />
           <template #footer>
-            <NButton size="small" @click="onGoBack(4)">← 上一步</NButton>
+            <NButton @click="onGoBack(4)">← 上一步</NButton>
             <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 4 && store.canProceed(4) }" :disabled="!store.canProceed(4)" @click="completeStep(4)">下一步 ↓</NButton>
             <p v-if="currentStep === 4 && store.stepValidation(4).length" class="wizard__validation-msg">{{ store.stepValidation(4).join('；') }}</p>
           </template>
@@ -148,7 +148,7 @@
 
           <YamlPreview ref="yamlPreviewRef" />
           <template #footer>
-            <NButton size="small" @click="onGoBack(5)">← 上一步</NButton>
+            <NButton @click="onGoBack(5)">← 上一步</NButton>
             <ExportActions :yaml="yamlPreviewRef?.yamlText || ''" />
           </template>
         </WizardStepCard>
@@ -168,7 +168,6 @@ import { useRoute } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useWizardApi } from '../composables/useWizardApi'
-import { stateToSnakeCase } from '../utils/serialization'
 import { NButton, NInput } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import WizardProgress from '../components/wizard/WizardProgress.vue'
@@ -222,8 +221,7 @@ async function runDryRun() {
   dryRunLoading.value = true
   dryRunError.value = ''
   try {
-    const state = stateToSnakeCase(store.getWizardState())
-    const result = await dryRun(state)
+    const result = await dryRun(store.getWizardState())
     if (result && result.tables && result.tables.length > 0) {
       const firstTable = result.tables[0]
       previewColumns.value = firstTable.columns
@@ -231,8 +229,8 @@ async function runDryRun() {
     } else {
       dryRunError.value = '预览未返回数据'
     }
-  } catch (e: any) {
-    dryRunError.value = e.message || '预览执行失败'
+  } catch (e: unknown) {
+    dryRunError.value = e instanceof Error ? e.message : '预览执行失败'
   } finally {
     dryRunLoading.value = false
   }

@@ -139,9 +139,6 @@ class WizardState(BaseModel):
     current_step: int = 1
     scene: SceneInfo = Field(default_factory=lambda: SceneInfo(name="Untitled Scene"))
     inputs: list[InputSource] = []
-    processor: ProcessorConfig = Field(
-        default_factory=lambda: ProcessorConfig(sql="", output_tables=[])
-    )
     processors: list[ProcessorConfig] = []
     output: Optional[OutputTarget] = None
     uploaded_files: dict[str, dict] = {}

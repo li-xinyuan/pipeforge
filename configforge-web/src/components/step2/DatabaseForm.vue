@@ -10,13 +10,13 @@
         size="small"
         @update:value="onConnectionSelected"
       />
-      <p v-if="connections.length === 0" class="text-xs text-amber-600 mt-1">请先在设置页面添加数据库连接</p>
+      <p v-if="connections.length === 0" class="text-xs text-amber-600 dark:text-amber-400 mt-1">请先在设置页面添加数据库连接</p>
     </div>
 
     <!-- Test connection -->
     <div v-if="selectedConnectionId" class="flex items-end gap-2">
       <NButton size="small" :loading="testing" @click="onTestConnection">测试连通</NButton>
-      <p v-if="testResult" :class="testResult.ok ? 'text-green-600' : 'text-red-500'" class="text-xs">
+      <p v-if="testResult" :class="testResult.ok ? 'text-green-600' : 'text-red-500 dark:text-red-400'" class="text-xs">
         {{ testResult.ok ? '连接成功' : testResult.error }}
       </p>
       <p v-else-if="connections.length > 0" class="text-xs" style="color: var(--color-text-muted);">
@@ -44,7 +44,7 @@
         size="small"
         @update:value="onTableSelected"
       />
-      <p v-if="loadTablesError" class="text-xs text-red-500 mt-1">{{ loadTablesError }}</p>
+      <p v-if="loadTablesError" class="text-xs text-red-500 dark:text-red-400 mt-1">{{ loadTablesError }}</p>
     </div>
 
     <!-- Column info -->
@@ -53,10 +53,10 @@
         列信息
         <NSpin v-if="loadingColumns" :size="12" class="ml-1" />
       </label>
-      <div v-if="loadColumnsError" class="text-xs text-red-500">{{ loadColumnsError }}</div>
+      <div v-if="loadColumnsError" class="text-xs text-red-500 dark:text-red-400">{{ loadColumnsError }}</div>
       <div v-else-if="columnList.length > 0" class="flex flex-wrap gap-1.5">
         <NTag v-for="col in columnList" :key="col.name" size="small" :bordered="false" type="info">
-          {{ col.name }} <span class="text-slate-400 ml-1">{{ col.type }}</span>
+          {{ col.name }} <span class="text-slate-400 dark:text-slate-500 ml-1">{{ col.type }}</span>
         </NTag>
       </div>
       <p v-else-if="!loadingColumns" class="text-xs" style="color: var(--color-text-muted);">暂无列信息</p>
@@ -148,8 +148,8 @@ async function autoLoadTables() {
   loadTablesError.value = null
   try {
     tableList.value = await api.fetchTables(selectedConnectionId.value)
-  } catch (e: any) {
-    loadTablesError.value = e.message || '加载表列表失败'
+  } catch (e: unknown) {
+    loadTablesError.value = e instanceof Error ? e.message : '加载表列表失败'
     tableList.value = []
   } finally {
     loadingTables.value = false
@@ -162,8 +162,8 @@ async function autoLoadColumns() {
   loadColumnsError.value = null
   try {
     columnList.value = await api.fetchColumns(selectedConnectionId.value, selectedTable.value)
-  } catch (e: any) {
-    loadColumnsError.value = e.message || '加载列信息失败'
+  } catch (e: unknown) {
+    loadColumnsError.value = e instanceof Error ? e.message : '加载列信息失败'
     columnList.value = []
   } finally {
     loadingColumns.value = false

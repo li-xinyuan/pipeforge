@@ -12,6 +12,11 @@ router = APIRouter()
 logger = logging.getLogger("configforge.ai")
 
 # Simple in-memory rate limiter: 10 requests per 60s window per IP
+# NOTE: This rate limiter uses in-memory storage and only works correctly
+# with a single worker. In multi-worker deployments (e.g., uvicorn --workers N),
+# each worker maintains its own rate limit state, effectively multiplying the
+# limit by the number of workers. For production multi-worker setups, consider
+# using a shared store (e.g., Redis) or an API gateway with rate limiting.
 _rate_window_sec = 60
 _rate_max_requests = 10
 _rate_store: dict[str, list[float]] = {}

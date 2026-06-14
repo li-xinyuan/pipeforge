@@ -26,7 +26,7 @@
             class="cursor-pointer"
             @click="switchTable(tbl.value)"
           >{{ tbl.label }}</NTag>
-          <span v-if="availableTables.length === 0" class="text-xs text-slate-400">暂无可用表，请先在步骤 2 上传文件</span>
+          <span v-if="availableTables.length === 0" class="text-xs text-slate-400 dark:text-slate-500">暂无可用表，请先在步骤 2 上传文件</span>
         </div>
       </div>
 
@@ -44,12 +44,12 @@
             <span :class="colTypeTextClass(col.type)" class="text-[11px] font-medium">{{ col.name }}</span>
             <span :class="colTypeBadgeClass(col.type)" class="text-[9px] px-1 py-0.5 rounded ml-1">{{ col.type }}</span>
           </NTag>
-          <span v-if="currentTableColumns.length === 0" class="text-xs text-slate-400">加载列信息中...</span>
+          <span v-if="currentTableColumns.length === 0" class="text-xs text-slate-400 dark:text-slate-500">加载列信息中...</span>
         </div>
       </div>
     </div>
 
-    <!-- SQL textarea -->
+    <!-- SQL editor -->
     <div>
       <div class="flex items-center justify-between mb-1">
         <label class="cf-label">
@@ -59,13 +59,14 @@
           <NButton size="tiny" quaternary>📋 SQL 模板</NButton>
         </NDropdown>
       </div>
-      <textarea
-        ref="sqlTextareaRef"
-        :value="proc.sql"
-        @input="emit('update', { sql: ($event.target as HTMLTextAreaElement).value })"
-        rows="8"
+      <CodeEditor
+        ref="sqlEditorRef"
+        :model-value="proc.sql"
+        @update:model-value="(v: string) => emit('update', { sql: v })"
+        language="sql"
         :placeholder="sqlPlaceholder"
-        :class="['cf-code-editor', { 'pulse-cta-input': pulseSql }]"
+        min-height="200px"
+        :class="{ 'pulse-cta-input': pulseSql }"
         :data-testid="`processor-sql-${index}`"
       />
     </div>
@@ -98,7 +99,7 @@
         size="small"
       />
       <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
-      <p v-if="equivalenceSql" class="text-xs text-slate-400 mt-1.5 font-mono">{{ equivalenceSql }}</p>
+      <p v-if="equivalenceSql" class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 font-mono">{{ equivalenceSql }}</p>
     </div>
 
     <!-- Preview execution -->
@@ -112,13 +113,13 @@
 
     <div v-if="dryRunResult && dryRunVisible" class="space-y-2 mt-2">
       <div class="flex items-center gap-2">
-        <span class="text-xs text-slate-400">共 {{ dryRunResult.length }} 个表</span>
+        <span class="text-xs text-slate-400 dark:text-slate-500">共 {{ dryRunResult.length }} 个表</span>
         <span class="text-xs text-amber-500">⚠ 预览基于样本数据，结果可能与实际执行不同</span>
       </div>
       <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 dark:border-slate-700 rounded p-2">
         <div class="flex items-center gap-2 mb-2">
           <NTag size="tiny" :bordered="false" type="info">{{ table.table_name }}</NTag>
-          <span class="text-xs text-slate-400">{{ table.columns.length }} 列 / {{ table.total_rows }} 行</span>
+          <span class="text-xs text-slate-400 dark:text-slate-500">{{ table.columns.length }} 列 / {{ table.total_rows }} 行</span>
         </div>
         <ColumnPreview :columns="table.columns" :rows="table.rows" />
       </div>
@@ -130,6 +131,7 @@
 import { computed, inject, onMounted, ref, type Ref } from 'vue'
 import { NButton, NTag, NInput, NSelect, NDropdown } from 'naive-ui'
 import ColumnPreview from '../step2/ColumnPreview.vue'
+import CodeEditor from '../common/CodeEditor.vue'
 import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
@@ -158,7 +160,7 @@ const dryRunRunning = ref(false)
 const dryRunResult = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
 const dryRunError = ref('')
 const dryRunVisible = ref(false)
-const sqlTextareaRef = ref<HTMLTextAreaElement | null>(null)
+const sqlEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
 
 // SQL template library
 const sqlTemplates = [
@@ -206,20 +208,10 @@ function onSqlTemplateSelect(key: string) {
   if (tableName) {
     sql = sql.replace(/\{table\}/g, `"${tableName}"`)
   }
-  // Insert at cursor position in textarea
-  const textarea = sqlTextareaRef.value
-  if (textarea) {
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const currentSql = props.proc.sql
-    const newSql = currentSql.slice(0, start) + sql + currentSql.slice(end)
-    emit('update', { sql: newSql })
-    // Set cursor position after inserted text
-    requestAnimationFrame(() => {
-      textarea.focus()
-      const newPos = start + sql.length
-      textarea.setSelectionRange(newPos, newPos)
-    })
+  // Insert at cursor position in editor
+  const editor = sqlEditorRef.value
+  if (editor) {
+    editor.insertAtCursor(sql)
   } else {
     // Fallback: append to existing SQL
     const currentSql = props.proc.sql
@@ -280,9 +272,9 @@ function inferColType(values: string[]): string {
   return 'TEXT'
 }
 
-const typeBgMap: Record<string, string> = { INT: 'bg-blue-50', NUM: 'bg-purple-50', BOOL: 'bg-amber-50', DATE: 'bg-green-50', TEXT: '' }
-const typeTextMap: Record<string, string> = { INT: 'text-blue-700', NUM: 'text-purple-700', BOOL: 'text-amber-700', DATE: 'text-green-700', TEXT: 'text-slate-600' }
-const typeBadgeMap: Record<string, string> = { INT: 'bg-blue-200/60 text-blue-800', NUM: 'bg-purple-200/60 text-purple-800', BOOL: 'bg-amber-200/60 text-amber-800', DATE: 'bg-green-200/60 text-green-800', TEXT: 'bg-slate-200/60 text-slate-700' }
+const typeBgMap: Record<string, string> = { INT: 'bg-blue-50 dark:bg-blue-900/30', NUM: 'bg-purple-50 dark:bg-purple-900/30', BOOL: 'bg-amber-50 dark:bg-amber-900/30', DATE: 'bg-green-50 dark:bg-green-900/30', TEXT: '' }
+const typeTextMap: Record<string, string> = { INT: 'text-blue-700 dark:text-blue-300', NUM: 'text-purple-700 dark:text-purple-300', BOOL: 'text-amber-700 dark:text-amber-300', DATE: 'text-green-700 dark:text-green-300', TEXT: 'text-slate-600 dark:text-slate-300' }
+const typeBadgeMap: Record<string, string> = { INT: 'bg-blue-200/60 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200', NUM: 'bg-purple-200/60 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200', BOOL: 'bg-amber-200/60 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200', DATE: 'bg-green-200/60 text-green-800 dark:bg-green-900/40 dark:text-green-200', TEXT: 'bg-slate-200/60 text-slate-700 dark:bg-slate-600/40 dark:text-slate-200' }
 
 const currentTableColumns = computed(() => {
   if (!displayTable.value) return []
@@ -375,7 +367,7 @@ async function runDryRun() {
     // Cache column info for downstream steps
     for (const t of result.tables) {
       columnsCache.value[t.table_name] = t.columns.map((name: string, ci: number) => {
-        const samples = t.rows.slice(0, 10).map((r: any) => r[ci]).filter((v: any) => v != null)
+        const samples = t.rows.slice(0, 10).map((r: unknown[]) => r[ci]).filter((v: unknown) => v != null)
         return { name, type: inferColType(samples.map(String)) }
       })
     }
@@ -417,18 +409,3 @@ async function onAiGenerateSql() {
 }
 </script>
 
-<style scoped>
-.code-editor-textarea {
-  width: 100%;
-  background: var(--color-code-bg, #1e293b);
-  color: var(--color-code-text, #e2e8f0);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  padding: 10px;
-  border: 1px solid var(--color-border, #334155);
-  border-radius: 8px;
-  resize: vertical;
-  outline: none;
-}
-</style>

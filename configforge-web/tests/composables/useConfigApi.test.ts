@@ -12,34 +12,39 @@ describe('useConfigApi', () => {
   describe('listConfigs', () => {
     it('returns mapped configs on success', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-        new Response(JSON.stringify([
-          {
-            id: 'c1', scene_name: '月度报表', description: 'desc',
-            input_count: 2, output_type: 'excel', version: '1.0',
-            updated_at: '2026-05-12', inputs: [{ name: 'in1', param_key: 'f1', plugin: 'excel' }],
-          },
-        ]), { status: 200 })
+        new Response(JSON.stringify({
+          items: [
+            {
+              id: 'c1', scene_name: '月度报表', description: 'desc',
+              input_count: 2, output_type: 'excel', version: '1.0',
+              updated_at: '2026-05-12', inputs: [{ name: 'in1', param_key: 'f1', plugin: 'excel' }],
+            },
+          ],
+          total: 1, page: 1, page_size: 10, total_pages: 1,
+        }), { status: 200 })
       )
-      const configs = await api.listConfigs()
-      expect(configs).toHaveLength(1)
-      expect(configs[0].id).toBe('c1')
-      expect(configs[0].sceneName).toBe('月度报表')
-      expect(configs[0].inputs).toHaveLength(1)
+      const result = await api.listConfigs()
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0].id).toBe('c1')
+      expect(result.items[0].sceneName).toBe('月度报表')
+      expect(result.items[0].inputs).toHaveLength(1)
     })
 
-    it('returns empty array on error', async () => {
+    it('returns empty result on error', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
         new Response(JSON.stringify({ error: 'DB down' }), { status: 500 })
       )
-      const configs = await api.listConfigs()
-      expect(configs).toEqual([])
+      const result = await api.listConfigs()
+      expect(result.items).toEqual([])
+      expect(result.total).toBe(0)
       expect(api.error.value?.message).toBe('DB down')
     })
 
-    it('returns empty array on network error', async () => {
+    it('returns empty result on network error', async () => {
       vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Offline'))
-      const configs = await api.listConfigs()
-      expect(configs).toEqual([])
+      const result = await api.listConfigs()
+      expect(result.items).toEqual([])
+      expect(result.total).toBe(0)
     })
   })
 

@@ -3,6 +3,7 @@ import tempfile
 import pytest
 from fastapi.testclient import TestClient
 from configforge.server import app
+import configforge.utils.security as security
 
 
 @pytest.fixture(autouse=True)
@@ -11,6 +12,8 @@ def temp_data_dir(monkeypatch):
     tmp = tempfile.mkdtemp()
     monkeypatch.setattr(cs, "DATA_DIR", tmp)
     monkeypatch.setattr(cs, "STORE_PATH", os.path.join(tmp, "db_connections.json"))
+    # Reset SQLite allowed dirs so it recalculates with current cwd
+    monkeypatch.setattr(security, "_SQLITE_ALLOWED_DIRS", None)
     yield
     import shutil
     shutil.rmtree(tmp, ignore_errors=True)
@@ -23,7 +26,7 @@ def client():
 
 def test_create_connection_sqlite(client):
     resp = client.post("/api/connections", json={
-        "name": "Test SQLite", "db_type": "sqlite", "file_path": "/tmp/test.db",
+        "name": "Test SQLite", "db_type": "sqlite", "file_path": "tmp/test.db",
     })
     assert resp.status_code == 200
     data = resp.json()
@@ -44,15 +47,15 @@ def test_create_connection_mysql(client):
 
 
 def test_list_connections(client):
-    client.post("/api/connections", json={"name": "A", "db_type": "sqlite", "file_path": "/tmp/a.db"})
-    client.post("/api/connections", json={"name": "B", "db_type": "sqlite", "file_path": "/tmp/b.db"})
+    client.post("/api/connections", json={"name": "A", "db_type": "sqlite", "file_path": "tmp/a.db"})
+    client.post("/api/connections", json={"name": "B", "db_type": "sqlite", "file_path": "tmp/b.db"})
     resp = client.get("/api/connections")
     assert resp.status_code == 200
     assert len(resp.json()) == 2
 
 
 def test_get_connection(client):
-    resp = client.post("/api/connections", json={"name": "GetMe", "db_type": "sqlite", "file_path": "/tmp/g.db"})
+    resp = client.post("/api/connections", json={"name": "GetMe", "db_type": "sqlite", "file_path": "tmp/g.db"})
     conn_id = resp.json()["id"]
     resp = client.get(f"/api/connections/{conn_id}")
     assert resp.status_code == 200
@@ -60,7 +63,7 @@ def test_get_connection(client):
 
 
 def test_update_connection(client):
-    resp = client.post("/api/connections", json={"name": "Old", "db_type": "sqlite", "file_path": "/tmp/old.db"})
+    resp = client.post("/api/connections", json={"name": "Old", "db_type": "sqlite", "file_path": "tmp/old.db"})
     conn_id = resp.json()["id"]
     resp = client.put(f"/api/connections/{conn_id}", json={"name": "New"})
     assert resp.status_code == 200
@@ -68,7 +71,7 @@ def test_update_connection(client):
 
 
 def test_delete_connection(client):
-    resp = client.post("/api/connections", json={"name": "Del", "db_type": "sqlite", "file_path": "/tmp/del.db"})
+    resp = client.post("/api/connections", json={"name": "Del", "db_type": "sqlite", "file_path": "tmp/del.db"})
     conn_id = resp.json()["id"]
     resp = client.delete(f"/api/connections/{conn_id}")
     assert resp.status_code == 200
@@ -105,5 +108,12 @@ def test_delete_nonexistent_connection(client):
 def test_create_sqlite_missing_file_path(client):
     resp = client.post("/api/connections", json={
         "name": "Bad SQLite", "db_type": "sqlite",
+    })
+    assert resp.status_code == 400
+
+
+def test_create_sqlite_path_traversal(client):
+    resp = client.post("/api/connections", json={
+        "name": "Evil SQLite", "db_type": "sqlite", "file_path": "../etc/passwd",
     })
     assert resp.status_code == 400

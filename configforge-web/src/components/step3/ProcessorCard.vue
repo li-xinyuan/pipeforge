@@ -21,14 +21,14 @@
         :index="index"
         :available-tables="availableTables"
         :pulse-sql="pulseSql"
-        @update="(p: any) => $emit('update', p)"
+        @update="(p: Partial<ProcessorStep>) => $emit('update', p)"
       />
       <PythonProcessorContent
         v-else-if="proc.plugin === 'python'"
         :proc="proc"
         :index="index"
         :available-tables="availableTables"
-        @update="(p: any) => $emit('update', p)"
+        @update="(p: Partial<ProcessorStep>) => $emit('update', p)"
       />
     </div>
     <CheckpointSection

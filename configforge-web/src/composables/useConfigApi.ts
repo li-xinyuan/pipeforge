@@ -1,20 +1,20 @@
 import { ref } from 'vue'
-import type { SavedConfig } from '../types/wizard'
+import type { SavedConfig, WizardState } from '../types/wizard'
 import { stateToSnakeCase } from '../utils/serialization'
 
-function mapConfig(raw: any): SavedConfig {
+function mapConfig(raw: Record<string, unknown>): SavedConfig {
   return {
-    id: raw.id,
-    sceneName: raw.scene_name,
-    description: raw.description || '',
-    inputCount: raw.input_count,
-    outputType: raw.output_type,
-    version: raw.version,
-    updatedAt: raw.updated_at,
-    inputs: (raw.inputs || []).map((i: any) => ({
-      name: i.name,
-      paramKey: i.param_key,
-      plugin: i.plugin,
+    id: raw.id as string,
+    sceneName: raw.scene_name as string,
+    description: (raw.description || '') as string,
+    inputCount: raw.input_count as number,
+    outputType: raw.output_type as string,
+    version: raw.version as string,
+    updatedAt: raw.updated_at as string,
+    inputs: ((raw.inputs || []) as Record<string, unknown>[]).map((i) => ({
+      name: i.name as string,
+      paramKey: i.param_key as string,
+      plugin: i.plugin as string,
     })),
   }
 }
@@ -31,7 +31,7 @@ export function useConfigApi() {
   const loading = ref(false)
   const error = ref<{ message: string; code: string } | null>(null)
 
-  async function post<T>(url: string, body: any): Promise<T | null> {
+  async function post<T>(url: string, body: unknown): Promise<T | null> {
     loading.value = true; error.value = null
     try {
       const resp = await fetch(url, {
@@ -74,7 +74,7 @@ export function useConfigApi() {
     } finally { loading.value = false }
   }
 
-  async function saveConfig(state: any, configId?: string | null): Promise<string | null> {
+  async function saveConfig(state: WizardState, configId?: string | null): Promise<string | null> {
     const body = {
       config_id: configId || null,
       state: stateToSnakeCase(state),
@@ -99,7 +99,7 @@ export function useConfigApi() {
     } finally { loading.value = false }
   }
 
-  async function loadConfigState(id: string): Promise<any | null> {
+  async function loadConfigState(id: string): Promise<Record<string, unknown> | null> {
     loading.value = true; error.value = null
     try {
       const resp = await fetch(`/api/configs/${id}`)

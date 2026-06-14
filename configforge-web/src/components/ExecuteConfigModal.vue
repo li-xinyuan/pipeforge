@@ -1,5 +1,5 @@
 <template>
-  <NModal :show="visible" preset="card" :title="'执行：' + (config?.sceneName || '')" style="max-width: 600px" @update:show="$emit('close')">
+  <NModal :show="visible" preset="card" :title="'执行：' + (config?.sceneName || '')" style="max-width: 600px" :trap-focus="true" :auto-focus="true" @update:show="$emit('close')">
     <div class="exec-modal__body">
       <p class="exec-modal__hint">请为每个数据源上传对应的文件：</p>
 
@@ -22,7 +22,7 @@
         </template>
         <NUpload
           v-else
-          :custom-request="(opts: any) => onUpload(inp.paramKey, opts)"
+          :custom-request="(opts) => onUpload(inp.paramKey, opts)"
           :show-file-list="false"
           :accept="inp.plugin === 'csv' ? '.csv' : '.xlsx,.xls'"
         >
@@ -107,7 +107,7 @@ const allReady = computed(() => {
   return props.config.inputs.every(inp => !!fileStates.value[inp.paramKey]?.fileId)
 })
 
-async function onUpload(paramKey: string, { file, onFinish, onError }: any) {
+async function onUpload(paramKey: string, { file, onFinish, onError }: { file: { file: File | null }; onFinish: () => void; onError: (msg?: string) => void }) {
   if (!file.file) return
   const st = fileStates.value[paramKey]
   if (!st) return

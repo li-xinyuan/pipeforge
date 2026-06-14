@@ -66,6 +66,7 @@
           <NInput
             v-model:value="searchQuery"
             placeholder="搜索配置名称..."
+            aria-label="搜索配置名称"
             size="small"
             clearable
             class="home__search-input"
@@ -114,7 +115,7 @@
           <div v-if="!batchMode" class="home__config-card-right">
             <NButton v-if="cfg.inputCount > 0" size="small" secondary type="primary" @click.stop="openExecuteModal(cfg)">执行</NButton>
             <NDropdown trigger="click" :options="getMenuOptions(cfg)" @select="(key: string) => onMenuSelect(key, cfg)">
-              <NButton text size="tiny" class="home__menu-btn" style="min-width: 44px; min-height: 44px;">···</NButton>
+              <NButton text size="tiny" class="home__menu-btn" style="min-width: 44px; min-height: 44px;" aria-label="更多操作">···</NButton>
             </NDropdown>
           </div>
         </div>
@@ -146,8 +147,8 @@
     </section>
 
     <!-- 删除确认弹窗 -->
-    <NModal v-model:show="deleteModalVisible" preset="card" title="确认删除" style="max-width: 400px">
-      <p class="text-sm text-slate-600 mb-0">
+    <NModal v-model:show="deleteModalVisible" preset="card" title="确认删除" style="max-width: 400px" :trap-focus="true" :auto-focus="true">
+      <p class="text-sm text-slate-600 dark:text-slate-300 mb-0">
         确定要删除配置 "<strong>{{ deletingConfig?.sceneName }}</strong>" 吗？此操作不可撤销。
       </p>
       <template #footer>
@@ -159,8 +160,8 @@
     </NModal>
 
     <!-- 批量删除确认弹窗 -->
-    <NModal v-model:show="batchDeleteModalVisible" preset="card" title="确认批量删除" style="max-width: 400px">
-      <p class="text-sm text-slate-600 mb-0">
+    <NModal v-model:show="batchDeleteModalVisible" preset="card" title="确认批量删除" style="max-width: 400px" :trap-focus="true" :auto-focus="true">
+      <p class="text-sm text-slate-600 dark:text-slate-300 mb-0">
         确定要删除选中的 <strong>{{ selectedIds.size }}</strong> 个配置吗？此操作不可撤销。
       </p>
       <template #footer>
@@ -179,7 +180,7 @@
     />
 
     <!-- 版本历史弹窗 -->
-    <NModal v-model:show="versionModalVisible" preset="card" title="版本历史" style="max-width: 520px">
+    <NModal v-model:show="versionModalVisible" preset="card" title="版本历史" style="max-width: 520px" :trap-focus="true" :auto-focus="true">
       <ConfigVersionPanel
         v-if="versionModalConfigId"
         :config-id="versionModalConfigId"

@@ -241,5 +241,5 @@ export interface CheckResult {
 export interface GuideResponse {
   message: string
   actions?: Array<{ label: string; value: string; style?: string }>
-  prefill?: Record<string, any>
+  prefill?: Record<string, unknown>
 }

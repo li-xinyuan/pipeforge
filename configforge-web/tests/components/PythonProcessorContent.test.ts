@@ -29,14 +29,15 @@ describe('PythonProcessorContent', () => {
     expect(wrapper.text()).toContain('步骤名称')
   })
 
-  it('renders the Python script textarea', () => {
+  it('renders the Python script editor', () => {
     const wrapper = mount(PythonProcessorContent, {
       props: { proc: createPythonProc(), index: 0, availableTables: [] },
       global: { plugins: [createPinia()] },
     })
-    const textarea = wrapper.find('textarea')
-    expect(textarea.exists()).toBe(true)
-    expect(textarea.element.value).toBe('def process(ctx):\n  pass')
+    // CodeEditor renders either CodeMirror or fallback textarea
+    const editor = wrapper.findComponent({ name: 'CodeEditor' })
+    expect(editor.exists()).toBe(true)
+    expect(editor.props('modelValue')).toBe('def process(ctx):\n  pass')
   })
 
   it('renders output table input', () => {
@@ -64,22 +65,22 @@ describe('PythonProcessorContent', () => {
     expect(wrapper.text()).toContain('预览结果')
   })
 
-  it('shows script placeholder when empty', () => {
+  it('passes placeholder to CodeEditor when script is empty', () => {
     const wrapper = mount(PythonProcessorContent, {
       props: { proc: createPythonProc({ script: '' }), index: 0, availableTables: [] },
       global: { plugins: [createPinia()] },
     })
-    const textarea = wrapper.find('textarea')
-    expect(textarea.element.placeholder).toContain('def process(ctx)')
+    const editor = wrapper.findComponent({ name: 'CodeEditor' })
+    expect(editor.props('placeholder')).toContain('def process(ctx)')
   })
 
-  it('emits update when textarea changes', async () => {
+  it('emits update when script changes via CodeEditor', async () => {
     const wrapper = mount(PythonProcessorContent, {
       props: { proc: createPythonProc(), index: 0, availableTables: [] },
       global: { plugins: [createPinia()] },
     })
-    const textarea = wrapper.find('textarea')
-    await textarea.setValue('def process(ctx):\n  return 42')
+    const editor = wrapper.findComponent({ name: 'CodeEditor' })
+    editor.vm.$emit('update:modelValue', 'def process(ctx):\n  return 42')
     expect(wrapper.emitted('update')).toBeTruthy()
   })
 })

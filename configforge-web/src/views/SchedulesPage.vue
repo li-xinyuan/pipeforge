@@ -7,9 +7,9 @@
         <NButton type="primary" size="small" @click="showAddModal = true">新建定时任务</NButton>
       </div>
 
-      <div v-if="loading" class="text-sm text-slate-400 text-center py-12">加载中...</div>
+      <div v-if="loading" class="text-sm text-slate-400 dark:text-slate-500 text-center py-12">加载中...</div>
 
-      <div v-else-if="!schedules.length" class="text-sm text-slate-400 text-center py-12">
+      <div v-else-if="!schedules.length" class="text-sm text-slate-400 dark:text-slate-500 text-center py-12">
         暂无定时任务，点击上方按钮创建
       </div>
 
@@ -17,9 +17,9 @@
         <div
           v-for="s in schedules"
           :key="s.id"
-          class="border border-slate-200 rounded-lg p-4"
+          class="border border-slate-200 dark:border-slate-700 rounded-lg p-4"
         >
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between flex-wrap gap-2">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
                 <span class="text-sm font-medium">{{ s.config_name || '未知配置' }}</span>
@@ -30,14 +30,14 @@
                   上次: {{ s.last_run_status === 'success' ? '成功' : '失败' }}
                 </NTag>
               </div>
-              <div class="text-xs text-slate-400 space-y-0.5">
-                <div>Cron: <code class="bg-slate-100 px-1 rounded">{{ s.cron_expression }}</code></div>
-                <div v-if="s.description" class="text-slate-500">{{ s.description }}</div>
+              <div class="text-xs text-slate-400 dark:text-slate-500 space-y-0.5">
+                <div>Cron: <code class="bg-slate-100 dark:bg-slate-700 px-1 rounded">{{ s.cron_expression }}</code></div>
+                <div v-if="s.description" class="text-slate-500 dark:text-slate-400">{{ s.description }}</div>
                 <div v-if="s.next_run_time">下次运行: {{ formatTime(s.next_run_time) }}</div>
                 <div v-if="s.last_run_at">上次运行: {{ formatTime(s.last_run_at) }}</div>
               </div>
             </div>
-            <div class="flex items-center gap-1 ml-4">
+            <div class="flex items-center gap-1 ml-0 sm:ml-4 flex-shrink-0">
               <NButton size="tiny" quaternary @click="openEditModal(s)">编辑</NButton>
               <NButton size="tiny" quaternary :type="s.enabled ? 'warning' : 'success'" @click="onToggle(s)">
                 {{ s.enabled ? '禁用' : '启用' }}
@@ -49,7 +49,7 @@
       </div>
 
       <!-- Add schedule modal -->
-      <NModal v-model:show="showAddModal" preset="card" title="新建定时任务" style="max-width: 440px">
+      <NModal v-model:show="showAddModal" preset="card" title="新建定时任务" style="max-width: 440px" :trap-focus="true" :auto-focus="true">
         <div class="space-y-4">
           <div>
             <div class="text-sm font-medium mb-1">选择配置</div>
@@ -62,7 +62,7 @@
           <div>
             <div class="text-sm font-medium mb-1">Cron 表达式</div>
             <NInput v-model:value="addForm.cron_expression" placeholder="0 8 * * *（每天 8:00）" />
-            <div class="text-xs text-slate-400 mt-1">格式: 分 时 日 月 周，例如 0 8 * * *</div>
+            <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">格式: 分 时 日 月 周，例如 0 8 * * *</div>
           </div>
           <div>
             <div class="text-sm font-medium mb-1">描述</div>
@@ -78,11 +78,11 @@
       </NModal>
 
       <!-- Edit schedule modal -->
-      <NModal v-model:show="showEditModal" preset="card" title="编辑定时任务" style="max-width: 440px">
+      <NModal v-model:show="showEditModal" preset="card" title="编辑定时任务" style="max-width: 440px" :trap-focus="true" :auto-focus="true">
         <div v-if="editingSchedule" class="space-y-4">
           <div>
             <div class="text-sm font-medium mb-1">配置</div>
-            <div class="text-sm text-slate-500">{{ editingSchedule.config_name }}</div>
+            <div class="text-sm text-slate-500 dark:text-slate-400">{{ editingSchedule.config_name }}</div>
           </div>
           <div>
             <div class="text-sm font-medium mb-1">Cron 表达式</div>
@@ -154,10 +154,10 @@ async function refresh() {
     if (schedResp.ok) schedules.value = await schedResp.json()
     if (configResp.ok) {
       const data = await configResp.json()
-      configOptions.value = (data.items || []).map((c: any) => ({
-        label: c.scene_name || '未命名',
-        value: c.id,
-        hasFileInput: (c.inputs || []).some((inp: any) => inp.plugin !== 'database'),
+      configOptions.value = (data.items || []).map((c: Record<string, unknown>) => ({
+        label: (c.scene_name || '未命名') as string,
+        value: c.id as string,
+        hasFileInput: ((c.inputs || []) as Record<string, unknown>[]).some((inp) => inp.plugin !== 'database'),
       }))
     }
   } finally {

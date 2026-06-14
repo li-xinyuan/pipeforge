@@ -3,14 +3,14 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-semibold">版本历史</h3>
-      <span class="text-xs text-slate-400">当前版本: v{{ currentVersion }}</span>
+      <span class="text-xs text-slate-400 dark:text-slate-500">当前版本: v{{ currentVersion }}</span>
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="text-xs text-slate-400 text-center py-4">加载中...</div>
+    <div v-if="loading" class="text-xs text-slate-400 dark:text-slate-500 text-center py-4">加载中...</div>
 
     <!-- Empty -->
-    <div v-else-if="!versions.length" class="text-xs text-slate-400 text-center py-4">
+    <div v-else-if="!versions.length" class="text-xs text-slate-400 dark:text-slate-500 text-center py-4">
       暂无历史版本（首次保存后生成版本记录）
     </div>
 
@@ -20,17 +20,17 @@
         v-for="v in versions"
         :key="v.version"
         class="border rounded-lg p-2 flex items-center gap-3"
-        :class="selectedVersion === v.version ? 'border-teal-400 bg-teal-50' : 'border-slate-200'"
+        :class="selectedVersion === v.version ? 'border-teal-400 bg-teal-50' : 'border-slate-200 dark:border-slate-700'"
       >
         <div class="flex-1">
           <div class="flex items-center gap-2">
             <NTag size="tiny" :type="v.version === currentVersion ? 'success' : 'default'">
               v{{ v.version }}
             </NTag>
-            <span class="text-xs text-slate-500">{{ v.scene_version }}</span>
-            <span v-if="v.change_summary" class="text-xs text-slate-400">{{ v.change_summary }}</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{ v.scene_version }}</span>
+            <span v-if="v.change_summary" class="text-xs text-slate-400 dark:text-slate-500">{{ v.change_summary }}</span>
           </div>
-          <div class="text-xs text-slate-400 mt-0.5">
+          <div class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
             {{ v.input_count }} 输入 · {{ v.processor_count }} 步骤 · {{ v.output_type || '-' }} · {{ v.created_at?.slice(0, 16) || '' }}
           </div>
         </div>
@@ -47,18 +47,18 @@
         <h4 class="text-xs font-semibold">v{{ selectedVersion }} 配置详情</h4>
         <NButton size="tiny" quaternary @click="versionDetail = null; selectedVersion = null">关闭</NButton>
       </div>
-      <div class="bg-slate-50 rounded-lg p-3 max-h-48 overflow-y-auto text-xs space-y-1">
-        <div><span class="text-slate-400">场景:</span> {{ versionDetail.scene?.name || '-' }}</div>
-        <div><span class="text-slate-400">版本:</span> {{ versionDetail.scene?.version || '-' }}</div>
-        <div><span class="text-slate-400">输入源:</span> {{ versionDetail.inputs?.length || 0 }} 个</div>
-        <div v-for="(inp, i) in versionDetail.inputs" :key="i" class="ml-3 text-slate-500">
-          {{ i + 1 }}. {{ inp.name || inp.table || '-' }} ({{ inp.plugin }})
+      <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 max-h-48 overflow-y-auto text-xs space-y-1">
+        <div><span class="text-slate-400 dark:text-slate-500">场景:</span> {{ versionDetail.scene?.name || '-' }}</div>
+        <div><span class="text-slate-400 dark:text-slate-500">版本:</span> {{ versionDetail.scene?.version || '-' }}</div>
+        <div><span class="text-slate-400 dark:text-slate-500">输入源:</span> {{ versionDetail.inputs?.length || 0 }} 个</div>
+        <div v-for="(inp, i) in versionDetail.inputs" :key="i" class="ml-3 text-slate-500 dark:text-slate-400">
+          {{ i + 1 }}. {{ inp.table || inp.name || '-' }} ({{ inp.plugin }})
         </div>
-        <div><span class="text-slate-400">处理步骤:</span> {{ versionDetail.processors?.length || 0 }} 个</div>
-        <div v-for="(proc, i) in versionDetail.processors" :key="i" class="ml-3 text-slate-500">
+        <div><span class="text-slate-400 dark:text-slate-500">处理步骤:</span> {{ versionDetail.processors?.length || 0 }} 个</div>
+        <div v-for="(proc, i) in versionDetail.processors" :key="i" class="ml-3 text-slate-500 dark:text-slate-400">
           {{ i + 1 }}. {{ proc.name || proc.plugin || '-' }} ({{ proc.plugin }})
         </div>
-        <div><span class="text-slate-400">输出:</span> {{ versionDetail.output?.plugin || '-' }}</div>
+        <div><span class="text-slate-400 dark:text-slate-500">输出:</span> {{ versionDetail.output?.plugin || '-' }}</div>
       </div>
     </div>
 
@@ -73,7 +73,7 @@
           style="width: 110px"
           placeholder="v1"
         />
-        <span class="text-xs text-slate-400">vs</span>
+        <span class="text-xs text-slate-400 dark:text-slate-500">vs</span>
         <NSelect
           v-model:value="diffV2"
           :options="versionOptions"
@@ -86,13 +86,13 @@
 
       <!-- Diff results -->
       <div v-if="diffResult" class="mt-2 max-h-48 overflow-y-auto">
-        <div v-if="!diffResult.changes?.length" class="text-xs text-slate-400 text-center py-2">
+        <div v-if="!diffResult.changes?.length" class="text-xs text-slate-400 dark:text-slate-500 text-center py-2">
           两个版本无差异
         </div>
         <div
           v-for="(change, i) in (diffResult.changes || [])"
           :key="i"
-          class="text-xs py-1 border-b border-slate-100 last:border-0"
+          class="text-xs py-1 border-b border-slate-100 dark:border-slate-700 last:border-0"
         >
           <NTag size="tiny" :type="change.type === 'added' ? 'success' : change.type === 'removed' ? 'error' : 'warning'">
             {{ change.type === 'added' ? '新增' : change.type === 'removed' ? '删除' : '修改' }}

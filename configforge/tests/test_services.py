@@ -12,7 +12,7 @@ def test_build_yaml_has_all_sections():
         scene=SceneInfo(name="测试", description="测试描述", version="1.0"),
         inputs=[InputSource(name="in1", plugin="excel", table="t1", param_key="f1", file_id="x1",
                              config=ExcelInputConfig(sheet="Sheet1"))],
-        processor=ProcessorConfig(sql="SELECT 1", output_tables=["t1"]),
+        processors=[ProcessorConfig(sql="SELECT 1", output_tables=["t1"])],
         output=OutputTarget(plugin="excel", config=ExcelOutputConfig(
             template="t.xlsx", source_table="t1", filename="out.xlsx",
             columns=[ColumnMappingItem(source="a", target="a")],
@@ -40,7 +40,7 @@ def test_build_yaml_with_csv_input():
             name="csv_in", plugin="csv", table="t1", param_key="f1", file_id="x1",
             config=CsvInputConfig(delimiter=",", encoding="utf-8", has_header=True),
         )],
-        processor=ProcessorConfig(sql="SELECT 1", output_tables=["t1"]),
+        processors=[ProcessorConfig(sql="SELECT 1", output_tables=["t1"])],
         output=None,
     )
     y = build_yaml(state)
@@ -56,7 +56,7 @@ def test_build_yaml_with_csv_output():
     state = WizardState(
         scene=SceneInfo(name="CSV输出", description="", version="1.0"),
         inputs=[],
-        processor=ProcessorConfig(sql="SELECT 1", output_tables=["t1"]),
+        processors=[ProcessorConfig(sql="SELECT 1", output_tables=["t1"])],
         output=OutputTarget(
             plugin="csv",
             config=CsvOutputConfig(
@@ -86,7 +86,7 @@ def test_build_yaml_with_database_input():
                 query_type="table", tables=["users"],
             ),
         )],
-        processor=ProcessorConfig(sql="SELECT * FROM users", output_tables=["users"]),
+        processors=[ProcessorConfig(sql="SELECT * FROM users", output_tables=["users"])],
         output=None,
     )
     y = build_yaml(state)
@@ -103,7 +103,7 @@ def test_build_yaml_still_works_for_excel():
         scene=SceneInfo(name="测试", description="测试描述", version="1.0"),
         inputs=[InputSource(name="in1", plugin="excel", table="t1", param_key="f1", file_id="x1",
                              config=ExcelInputConfig(sheet="Sheet1"))],
-        processor=ProcessorConfig(sql="SELECT 1", output_tables=["t1"]),
+        processors=[ProcessorConfig(sql="SELECT 1", output_tables=["t1"])],
         output=OutputTarget(plugin="excel", config=ExcelOutputConfig(
             template="t.xlsx", source_table="t1", filename="out.xlsx",
             columns=[ColumnMappingItem(source="a", target="a")],

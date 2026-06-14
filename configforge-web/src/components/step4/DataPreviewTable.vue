@@ -1,11 +1,11 @@
 <template>
   <div class="data-preview-table">
-    <div v-if="columns.length === 0 || rows.length === 0" class="text-center py-8 text-slate-400 text-sm">
+    <div v-if="columns.length === 0 || rows.length === 0" class="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">
       暂无预览数据
     </div>
     <template v-else>
       <div class="flex items-center gap-3 mb-2">
-        <span class="text-xs text-slate-400">{{ columns.length }} 列 / {{ rows.length }} 行</span>
+        <span class="text-xs text-slate-400 dark:text-slate-500">{{ columns.length }} 列 / {{ rows.length }} 行</span>
       </div>
       <NDataTable
         :columns="tableColumns"

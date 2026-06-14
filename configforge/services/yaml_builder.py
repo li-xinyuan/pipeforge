@@ -29,54 +29,29 @@ def build_yaml(state: WizardState) -> str:
             "param_key": inp.param_key, "config": config_dict,
         })
     d["processors"] = []
-    if state.processors:
-        for i, proc in enumerate(state.processors):
-            if proc.plugin == "python":
-                entry = {
-                    "name": proc.name or f"step_{i+1}",
-                    "plugin": "python",
-                    "input_tables": proc.input_tables,
-                    "output_tables": proc.output_tables,
-                    "config": {"type": "python", "script": proc.script},
-                }
-                if proc.checkpoints:
-                    entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in proc.checkpoints]
-                d["processors"].append(entry)
-            else:
-                entry = {
-                    "name": proc.name or f"step_{i+1}",
-                    "plugin": proc.plugin,
-                    "input_tables": proc.input_tables,
-                    "output_tables": proc.output_tables,
-                    "config": {"type": "sql", "sql": proc.sql},
-                }
-                if proc.checkpoints:
-                    entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in proc.checkpoints]
-                d["processors"].append(entry)
-    elif state.processor.plugin == "python" and state.processor.script.strip():
-        # Backward compatibility: single Python processor
-        entry = {
-            "name": state.processor.name or state.scene.name + "处理",
-            "plugin": "python",
-            "input_tables": state.processor.input_tables,
-            "output_tables": state.processor.output_tables,
-            "config": {"type": "python", "script": state.processor.script},
-        }
-        if state.processor.checkpoints:
-            entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in state.processor.checkpoints]
-        d["processors"].append(entry)
-    elif state.processor.sql.strip() or state.processor.output_tables:
-        # Backward compatibility: single processor
-        entry = {
-            "name": state.processor.name or state.scene.name + "处理",
-            "plugin": state.processor.plugin,
-            "input_tables": state.processor.input_tables,
-            "output_tables": state.processor.output_tables,
-            "config": {"type": "sql", "sql": state.processor.sql},
-        }
-        if state.processor.checkpoints:
-            entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in state.processor.checkpoints]
-        d["processors"].append(entry)
+    for i, proc in enumerate(state.processors):
+        if proc.plugin == "python":
+            entry = {
+                "name": proc.name or f"step_{i+1}",
+                "plugin": "python",
+                "input_tables": proc.input_tables,
+                "output_tables": proc.output_tables,
+                "config": {"type": "python", "script": proc.script},
+            }
+            if proc.checkpoints:
+                entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in proc.checkpoints]
+            d["processors"].append(entry)
+        else:
+            entry = {
+                "name": proc.name or f"step_{i+1}",
+                "plugin": proc.plugin,
+                "input_tables": proc.input_tables,
+                "output_tables": proc.output_tables,
+                "config": {"type": "sql", "sql": proc.sql},
+            }
+            if proc.checkpoints:
+                entry["checkpoints"] = [r.model_dump(exclude_defaults=False) for r in proc.checkpoints]
+            d["processors"].append(entry)
     if state.output:
         out_cfg = state.output.config
         if out_cfg.type == "csv":

@@ -65,11 +65,11 @@ async def test_generate():
     state = {
         "scene": {"name": "测试", "description": "", "version": "1.0"},
         "inputs": [],
-        "processor": {
+        "processors": [{
             "plugin": "sql",
             "sql": "SELECT 1",
             "output_tables": ["t1"],
-        },
+        }],
         "output": None,
         "current_step": 4,
         "uploaded_files": {},

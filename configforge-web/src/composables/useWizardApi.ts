@@ -1,19 +1,20 @@
 import { ref } from 'vue'
-import type { DbConnectionSummary } from '../types/wizard'
+import type { DbConnectionSummary, WizardState } from '../types/wizard'
 import { stateToSnakeCase } from '../utils/serialization'
 
 export function useWizardApi() {
   const loading = ref(false)
   const error = ref<{ message: string; code: string } | null>(null)
 
-  async function post<T>(url: string, body: any): Promise<T | null> {
+  async function post<T>(url: string, body: unknown): Promise<T | null> {
     loading.value = true; error.value = null
     try {
       const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const data = await resp.json().catch(() => null)
+      let data: Record<string, unknown> | null = null
+      try { data = await resp.json() } catch { /* ignore parse error */ }
       if (!resp.ok) {
         if (data) {
-          error.value = { message: data.error || data.detail || `请求失败 (${resp.status})`, code: data.code || 'API_ERROR' }
+          error.value = { message: (data.error || data.detail || `请求失败 (${resp.status})`) as string, code: (data.code || 'API_ERROR') as string }
         } else {
           error.value = { message: `服务器错误 (${resp.status})`, code: 'SERVER_ERROR' }
         }
@@ -26,13 +27,13 @@ export function useWizardApi() {
     } finally { loading.value = false }
   }
 
-  async function initScene(fileIds: string[]) { return post<any>('/api/wizard/init-scene', { file_ids: fileIds }) }
+  async function initScene(fileIds: string[]) { return post<Record<string, unknown>>('/api/wizard/init-scene', { file_ids: fileIds }) }
 
   async function fetchPreview(fileId: string, sheet?: string) {
     return post<{ sheets: string[]; columns: string[]; rows: string[][] }>('/api/preview/file', { file_id: fileId, sheet })
   }
 
-  async function generateYaml(state: any) {
+  async function generateYaml(state: WizardState) {
     return post<{ yaml: string }>('/api/wizard/generate', { state: stateToSnakeCase(state) })
   }
 
@@ -46,15 +47,15 @@ export function useWizardApi() {
     }>('/api/preview/sql', { sql, table_mapping: tableMapping })
   }
 
-  async function dryRun(state: any) {
+  async function dryRun(state: WizardState) {
     return post<{
       tables: { table_name: string; columns: string[]; rows: string[][]; total_rows: number }[]
-      inputs: Record<string, any>
-      processors: any[]
+      inputs: Record<string, unknown>
+      processors: Record<string, unknown>[]
     }>('/api/wizard/dry-run', { state: stateToSnakeCase(state) })
   }
 
-  async function executePipeline(state: any): Promise<Blob | { status: string; message: string; exec_id: string } | null> {
+  async function executePipeline(state: WizardState): Promise<Blob | { status: string; message: string; exec_id: string } | null> {
     loading.value = true; error.value = null
     try {
       const resp = await fetch('/api/wizard/execute', {
@@ -63,8 +64,9 @@ export function useWizardApi() {
         body: JSON.stringify({ state: stateToSnakeCase(state) }),
       })
       if (!resp.ok) {
-        const data = await resp.json().catch(() => null)
-        error.value = { message: data?.error || data?.detail || '执行失败', code: data?.code || 'EXECUTE_ERROR' }
+        let data: Record<string, unknown> | null = null
+        try { data = await resp.json() } catch { /* ignore parse error */ }
+        error.value = { message: (data?.error || data?.detail || `请求失败 (${resp.status})`) as string, code: (data?.code || 'EXECUTE_ERROR') as string }
         return null
       }
       const contentType = resp.headers.get('content-type') || ''
@@ -85,7 +87,7 @@ export function useAiApi() {
   const suggesting = ref(false)
   const aiError = ref<string | null>(null)
 
-  async function askSuggestion(category: string, context: Record<string, any>): Promise<string | null> {
+  async function askSuggestion(category: string, context: Record<string, unknown>): Promise<string | null> {
     suggesting.value = true
     aiError.value = null
     const controller = new AbortController()
@@ -117,7 +119,7 @@ export function useAiApi() {
     return null
   }
 
-  async function updateAiSettings(body: Record<string, any>) {
+  async function updateAiSettings(body: Record<string, unknown>) {
     const resp = await fetch('/api/ai/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -173,7 +175,7 @@ export function useConnectionApi() {
   const connecting = ref(false)
   const connectionError = ref<string | null>(null)
 
-  async function request<T>(method: string, url: string, body?: any): Promise<T | null> {
+  async function request<T>(method: string, url: string, body?: unknown): Promise<T | null> {
     try {
       const opts: RequestInit = {
         method,
@@ -187,8 +189,8 @@ export function useConnectionApi() {
         return null
       }
       return await res.json()
-    } catch (e: any) {
-      connectionError.value = e.message || 'Network error'
+    } catch (e: unknown) {
+      connectionError.value = e instanceof Error ? e.message : 'Network error'
       return null
     }
   }
@@ -198,11 +200,11 @@ export function useConnectionApi() {
     return result || []
   }
 
-  async function createConnection(data: Record<string, any>): Promise<DbConnectionSummary | null> {
+  async function createConnection(data: Record<string, unknown>): Promise<DbConnectionSummary | null> {
     return request<DbConnectionSummary>('POST', '/api/connections', data)
   }
 
-  async function updateConnection(id: string, data: Record<string, any>): Promise<DbConnectionSummary | null> {
+  async function updateConnection(id: string, data: Record<string, unknown>): Promise<DbConnectionSummary | null> {
     return request<DbConnectionSummary>('PUT', `/api/connections/${id}`, data)
   }
 

@@ -4,50 +4,53 @@
     <p v-if="showOutputTypeChoices" style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 12px;">选择输出格式，配置数据的导出方式</p>
     <div v-if="showOutputTypeChoices" class="grid grid-cols-3 gap-3 mb-5">
       <div
-        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-green-900/30',
           props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
+          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-green-600 bg-green-50']"
         @click="switchOutputType('excel'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">📊</span>
         <span class="text-sm font-semibold">Excel</span>
+        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.xlsx 模板输出</span>
       </div>
       <div
-        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-blue-900/30',
           props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
+          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-blue-600 bg-blue-50']"
         @click="switchOutputType('csv'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">🗄</span>
         <span class="text-sm font-semibold">CSV</span>
+        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.csv / .tsv 导出</span>
       </div>
       <div
-        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors',
+        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-purple-900/30',
           props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'database' ? 'border-amber-600 bg-amber-50' : 'border-dashed border-slate-200 hover:border-teal-400 hover:bg-teal-50/30']"
+          store.output?.plugin === 'database' ? 'border-purple-600 bg-purple-50' : 'border-purple-600 bg-purple-50']"
         @click="switchOutputType('database'); showOutputTypeChoices = false"
       >
         <span class="text-2xl block mb-2">🔌</span>
         <span class="text-sm font-semibold">Database</span>
+        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">MySQL / PostgreSQL</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
+      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.3</NTag>
         <span class="text-2xl block mb-2">📄</span>
         <span class="text-sm font-semibold">PDF</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
+      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
         <span class="text-2xl block mb-2">🖥</span>
         <span class="text-sm font-semibold">PPT</span>
       </div>
-      <div class="text-center opacity-55 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-3 relative">
+      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
         <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.5</NTag>
         <span class="text-2xl block mb-2">🌐</span>
         <span class="text-sm font-semibold">API</span>
       </div>
     </div>
-    <div v-else class="bg-white border border-slate-200 rounded-lg overflow-hidden">
-      <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200">
+    <div v-else class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+      <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
         <span class="text-lg">{{ outputTypeInfo.icon }}</span>
         <span class="text-sm font-medium truncate flex-1">{{ outputTypeInfo.desc }}</span>
         <NTag size="small" :type="store.output?.plugin === 'csv' ? 'info' : store.output?.plugin === 'database' ? 'warning' : 'success'">{{ outputTypeInfo.label }}</NTag>
@@ -135,7 +138,7 @@
             @keyup.enter="commitPlainText"
             @blur="commitPlainText"
           />
-          <NButton v-if="baseFilename" text size="tiny" type="error" class="ml-auto" @click="clearFilename">✕</NButton>
+          <NButton v-if="baseFilename" text size="tiny" type="error" class="ml-auto" aria-label="清除文件名" @click="clearFilename">✕</NButton>
         </div>
         <span class="text-sm text-slate-400 font-medium">{{ fileExtension }}</span>
       </div>
@@ -343,7 +346,7 @@ async function loadConnections() {
     if (resp.ok) {
       const data = await resp.json()
       connectionOptions.value = (Array.isArray(data) ? data : data.items || []).map(
-        (c: any) => ({ label: `${c.name} (${c.db_type})`, value: c.id })
+        (c: Record<string, unknown>) => ({ label: `${c.name} (${c.db_type})`, value: c.id as string })
       )
     }
   } catch { /* ignore */ }

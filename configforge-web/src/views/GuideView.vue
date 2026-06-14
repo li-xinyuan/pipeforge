@@ -29,12 +29,13 @@
           <h2>第二步：输入源</h2>
           <p>添加数据处理流水线的输入数据：</p>
           <ul>
-            <li>点击 <strong>+ Excel</strong> 或 <strong>+ CSV</strong> 添加输入源。</li>
-            <li>上传数据文件（.xlsx / .xls / .csv 格式，最大 50MB）。</li>
+            <li>点击 <strong>+ Excel</strong>、<strong>+ CSV</strong> 或 <strong>+ 数据库</strong> 添加输入源。</li>
+            <li><strong>文件输入</strong>：上传数据文件（.xlsx / .xls / .csv 格式，最大 50MB）。</li>
+            <li><strong>数据库输入</strong>：选择已配置的数据库连接，指定表名或编写 SQL 查询。需先在"数据库连接"管理器中创建连接。</li>
             <li>设置数据表名，后续 SQL 中将以此表名引用数据。</li>
             <li>参数键（param_key）用于在运行时指定文件路径，可留空使用默认值。</li>
           </ul>
-          <p>每个输入源会以表的形式加载到 SQLite 引擎中供后续 SQL 查询使用。</p>
+          <p>每个输入源会以表的形式加载到 SQLite 引擎中供后续 SQL 查询使用。数据库输入源在预览时使用样本数据，实际执行时连接真实数据库。</p>
         </section>
 
         <section class="guide__section">
@@ -47,16 +48,18 @@
             <li>设置<strong>输出表名</strong>，查询结果将保存到此表中供输出步骤使用。</li>
             <li>点击 <strong>预览结果</strong> 可实时查看 SQL 执行结果。</li>
           </ul>
-          <p>SQL 引擎为 SQLite，支持标准 SQL 语法。Python 脚本通过 ctx.db API 访问数据库。</p>
+          <p>支持<strong>多步骤处理</strong>：点击"添加处理步骤"可添加多个 SQL/Python 处理器，它们按顺序执行，前一步的输出表可作为后一步的输入表。</p>
+          <p>SQL 引擎为 SQLite，支持标准 SQL 语法。连接真实数据库时仅允许 SELECT 查询。Python 脚本通过 ctx.db API 访问数据库。</p>
         </section>
 
         <section class="guide__section">
           <h2>第四步：输出配置</h2>
           <p>配置输出文件的格式和内容：</p>
           <ul>
-            <li>选择输出格式：<strong>Excel</strong> 或 <strong>CSV</strong>。</li>
+            <li>选择输出格式：<strong>Excel</strong>、<strong>CSV</strong> 或 <strong>数据库</strong>。</li>
             <li><strong>Excel 输出</strong>：可上传模板文件定义样式，系统会将数据填充到模板中。</li>
             <li><strong>CSV 输出</strong>：可设置分隔符和编码。</li>
+            <li><strong>数据库输出</strong>：选择已配置的数据库连接和目标表名，支持追加（append）和替换（replace）两种写入模式。</li>
             <li><strong>列映射</strong>：设置源列到目标列的映射关系。点击 <strong>AI 自动列映射</strong> 或 <strong>从代码自动推断列</strong> 可自动完成。</li>
             <li><strong>输入源表</strong>：选择要输出的源表（来自 SQL 处理的结果表）。</li>
             <li><strong>输出目录</strong>和<strong>文件名</strong>：指定输出文件的保存位置和名称。执行下载时文件名中的日期会自动替换为实际执行时间。</li>
@@ -112,6 +115,41 @@
             <li>AI 请求通过加密通道发送到你配置的 API 端点。</li>
             <li>上传文件在 24 小时后自动清理。</li>
             <li>API Key 使用 Fernet 加密存储。</li>
+            <li>连接真实数据库时仅允许 SELECT 查询，防止误操作修改数据。</li>
+            <li>可通过设置 <code>CONFIGFORGE_API_KEY</code> 环境变量启用 API Key 认证保护接口。</li>
+          </ul>
+        </section>
+
+        <section class="guide__section">
+          <h2>配置管理与版本历史</h2>
+          <p>在首页可以管理已保存的配置：</p>
+          <ul>
+            <li><strong>保存配置</strong>：在向导中点击"保存"将当前配置存入服务器，再次保存会自动创建新版本。</li>
+            <li><strong>版本历史</strong>：点击配置卡片菜单中的"版本历史"可查看所有历史版本，支持版本对比（diff）和回滚。</li>
+            <li><strong>回滚</strong>：选择某个历史版本回滚，当前版本会被保存为新版本，目标版本的内容恢复为当前状态。</li>
+            <li><strong>批量操作</strong>：支持批量选择和批量删除配置。</li>
+          </ul>
+        </section>
+
+        <section class="guide__section">
+          <h2>执行历史</h2>
+          <p>在 <router-link to="/history">执行历史</router-link> 页面可查看所有流水线执行记录：</p>
+          <ul>
+            <li>查看每次执行的状态（成功/失败）、耗时、场景名称等信息。</li>
+            <li>点击"详情"查看完整的执行信息，包括错误消息。</li>
+            <li>成功执行的记录可下载输出文件。</li>
+            <li>支持删除不需要的执行记录。</li>
+          </ul>
+        </section>
+
+        <section class="guide__section">
+          <h2>定时任务</h2>
+          <p>在 <router-link to="/schedules">定时任务</router-link> 页面可配置自动执行：</p>
+          <ul>
+            <li>选择一个已保存的配置，设置 Cron 表达式（5 字段格式，如 <code>0 8 * * *</code> 表示每天 8:00）。</li>
+            <li>启用/禁用定时任务，编辑 Cron 表达式和描述。</li>
+            <li>定时任务仅支持使用数据库输入源的配置（文件输入无法自动上传）。</li>
+            <li>执行结果会记录在执行历史中。</li>
           </ul>
         </section>
       </article>

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState } from '../types/wizard'
+import type { SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig } from '../types/wizard'
+import { snakeToCamel } from '../utils/transform'
 
 export const useWizardStore = defineStore('wizard', () => {
   const currentStep = ref(1)
@@ -141,69 +142,69 @@ export const useWizardStore = defineStore('wizard', () => {
     dryRunResults.value = null
   }
 
-  function loadFromConfigState(stateDict: any) {
+  function loadFromConfigState(stateDict: Record<string, unknown>) {
+    // Use snakeToCamel to normalize backend snake_case keys to frontend camelCase
+    const normalized = snakeToCamel(stateDict) as Record<string, unknown>
+
+    const sceneData = (normalized.scene || {}) as Record<string, unknown>
     scene.value = {
-      name: stateDict.scene?.name || '',
-      description: stateDict.scene?.description || '',
-      version: stateDict.scene?.version || '1.0',
+      name: (sceneData.name || '') as string,
+      description: (sceneData.description || '') as string,
+      version: (sceneData.version || '1.0') as string,
     }
 
-    inputs.value = (stateDict.inputs || []).map((inp: any) => {
-      const cfg = inp.config || {}
-      if (cfg.type === 'csv') {
-        if (cfg.has_header !== undefined) { cfg.hasHeader = cfg.hasHeader ?? cfg.has_header; delete cfg.has_header }
-      } else if (cfg.type === 'database') {
-        cfg.connectionId = cfg.connectionId || cfg.connection_id || ''
-        cfg.dbType = cfg.dbType || cfg.db_type || ''
-        cfg.queryType = cfg.queryType || cfg.query_type || 'table'
-        cfg.tables = cfg.tables || []
-        cfg.sql = cfg.sql || ''
-        delete cfg.connection_id
-        delete cfg.db_type
-        delete cfg.query_type
+    inputs.value = ((normalized.inputs || []) as Record<string, unknown>[]).map((inp) => {
+      const cfg = (inp.config || {}) as Record<string, unknown>
+      // Set defaults for database config fields
+      if (inp.plugin === 'database' || cfg.type === 'database') {
+        cfg.connectionId = cfg.connectionId ?? ''
+        cfg.dbType = cfg.dbType ?? ''
+        cfg.queryType = cfg.queryType ?? 'table'
+        cfg.tables = cfg.tables ?? []
+        cfg.sql = cfg.sql ?? ''
       }
       return {
-        plugin: inp.plugin || 'excel',
-        table: inp.table || inp.name || '',
-        paramKey: inp.param_key || '',
+        plugin: (inp.plugin || 'excel') as 'excel' | 'csv' | 'database',
+        table: (inp.table || inp.name || '') as string,
+        paramKey: (inp.paramKey || '') as string,
         fileId: '',
-        config: cfg,
+        config: cfg as unknown as ExcelInputConfig | CsvInputConfig | DatabaseInputConfig,
       }
     })
 
     // If stateDict has "processor" (singular, old format), wrap as [processor]
-    const rawProcessors = stateDict.processors || (stateDict.processor ? [stateDict.processor] : [])
-    processors.value = rawProcessors.map((raw: any) => {
-      const plugin = raw.plugin || 'sql'
+    const rawProcessors = (normalized.processors || (normalized.processor ? [normalized.processor] : [])) as Record<string, unknown>[]
+    processors.value = rawProcessors.map((raw) => {
+      const plugin = (raw.plugin || 'sql') as string
       const base = {
-        name: raw.name || '',
+        name: (raw.name || '') as string,
         plugin,
-        inputTables: raw.input_tables || raw.inputTables || [],
-        outputTables: raw.output_tables || raw.outputTables || (raw.outputTable ? [raw.outputTable] : []),
+        inputTables: (raw.inputTables || []) as string[],
+        outputTables: (raw.outputTables || (raw.outputTable ? [raw.outputTable] : [])) as string[],
         // CheckRule fields use snake_case matching backend, no camelCase conversion needed
-        checkpoints: (raw.checkpoints || []).map((c: any) => ({ ...c, on_failure: c.on_failure || 'block' })),
+        checkpoints: ((raw.checkpoints || []) as Record<string, unknown>[]).map((c) => ({ ...c, on_failure: c.on_failure || 'block' })),
       }
       if (plugin === 'python') {
-        return { ...base, script: raw.config?.script || raw.script || '' } as ProcessorStep
+        return { ...base, script: ((raw.config as Record<string, unknown>)?.script || raw.script || '') as string } as ProcessorStep
       }
-      return { ...base, sql: raw.config?.sql || raw.sql || '' } as ProcessorStep
+      return { ...base, sql: ((raw.config as Record<string, unknown>)?.sql || raw.sql || '') as string } as ProcessorStep
     })
 
-    if (stateDict.output) {
-      const cfg = { ...stateDict.output.config }
-      // Handle both camelCase (from by_alias=True storage) and snake_case
-      if (cfg.source_table) { cfg.sourceTable = cfg.sourceTable || cfg.source_table; delete cfg.source_table }
-      if (cfg.output_dir) { cfg.outputDir = cfg.outputDir || cfg.output_dir; delete cfg.output_dir }
-      if (cfg.target_table) { cfg.targetTable = cfg.targetTable || cfg.target_table; delete cfg.target_table }
-      if (cfg.write_mode) { cfg.writeMode = cfg.writeMode || cfg.write_mode; delete cfg.write_mode }
-      if (cfg.create_table_if_not_exists !== undefined) { cfg.createTableIfNotExists = cfg.createTableIfNotExists ?? cfg.create_table_if_not_exists; delete cfg.create_table_if_not_exists }
-      if (cfg.primary_key_columns) { cfg.primaryKeyColumns = cfg.primaryKeyColumns || cfg.primary_key_columns; delete cfg.primary_key_columns }
-      if (cfg.batch_size !== undefined) { cfg.batchSize = cfg.batchSize ?? cfg.batch_size; delete cfg.batch_size }
-      if (cfg.connection_id) { cfg.connectionId = cfg.connectionId || cfg.connection_id; delete cfg.connection_id }
-      if (cfg.has_header !== undefined) { cfg.hasHeader = cfg.hasHeader ?? cfg.has_header; delete cfg.has_header }
+    if (normalized.output) {
+      const outputData = normalized.output as Record<string, unknown>
+      const cfg = (outputData.config || {}) as Record<string, unknown>
+      // Set defaults for output config fields
+      cfg.sourceTable = cfg.sourceTable ?? ''
+      cfg.targetTable = cfg.targetTable ?? ''
+      cfg.writeMode = cfg.writeMode ?? 'append'
+      cfg.createTableIfNotExists = cfg.createTableIfNotExists ?? true
+      cfg.primaryKeyColumns = cfg.primaryKeyColumns ?? []
+      cfg.batchSize = cfg.batchSize ?? 1000
+      cfg.connectionId = cfg.connectionId ?? ''
+      cfg.hasHeader = cfg.hasHeader ?? true
       output.value = {
-        plugin: stateDict.output.plugin || 'excel',
-        config: cfg,
+        plugin: (outputData.plugin || 'excel') as 'excel' | 'csv' | 'database',
+        config: cfg as unknown as ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig,
       }
     } else {
       output.value = null

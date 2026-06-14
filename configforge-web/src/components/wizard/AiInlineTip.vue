@@ -1,3 +1,4 @@
+<!-- @deprecated This component is not currently used. Kept for potential future AI features. -->
 <template>
   <div class="ai-inline-tip">
     <span class="ai-inline-tip__icon">⚡</span>

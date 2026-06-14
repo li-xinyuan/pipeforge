@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 from contextlib import asynccontextmanager
@@ -7,22 +8,38 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from configforge.api.preview import router as preview_router
-from configforge.api.files import router as files_router
+from configforge.api.files import router as files_router, cleanup_old_files, cleanup_old_logs
 from configforge.api.ai import router as ai_router
 from configforge.api.wizard import router as wizard_router
 from configforge.api.configs import router as configs_router
 from configforge.api.connections import router as connections_router
-from configforge.api.executions import router as exec_router
+from configforge.api.executions import router as exec_router, _cleanup_old_outputs
 from configforge.api.schedules import router as schedules_router
 from configforge.models.wizard import ErrorResponse
 from configforge.scheduler import start_scheduler, shutdown_scheduler
 from configforge.middleware.auth import AuthMiddleware
 
+_CLEANUP_INTERVAL_SECONDS = 3600  # Run cleanup every hour
+
+
+async def _periodic_cleanup():
+    """Background task: periodically clean old temp files, logs, and outputs."""
+    while True:
+        await asyncio.sleep(_CLEANUP_INTERVAL_SECONDS)
+        try:
+            cleanup_old_files()
+            cleanup_old_logs()
+            _cleanup_old_outputs()
+        except Exception:
+            pass  # Don't crash the background task
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_scheduler()
+    cleanup_task = asyncio.create_task(_periodic_cleanup())
     yield
+    cleanup_task.cancel()
     shutdown_scheduler()
 
 

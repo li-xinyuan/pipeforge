@@ -328,6 +328,7 @@ class TestDatabaseOutputPluginMySQL:
 
             mock_engine = MagicMock()
             mock_engine.connect.return_value = mock_conn
+            mock_engine.begin.return_value = mock_conn
             mock_create_engine.return_value = mock_engine
 
             source_db = SQLiteManager()
@@ -378,6 +379,7 @@ class TestDatabaseOutputPluginPostgreSQL:
 
             mock_engine = MagicMock()
             mock_engine.connect.return_value = mock_conn
+            mock_engine.begin.return_value = mock_conn
             mock_create_engine.return_value = mock_engine
 
             source_db = SQLiteManager()

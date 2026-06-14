@@ -12,7 +12,7 @@
       <router-link to="/history" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'history' }" :aria-current="currentRoute === 'history' ? 'page' : undefined">执行历史</router-link>
       <router-link to="/schedules" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'schedules' }" :aria-current="currentRoute === 'schedules' ? 'page' : undefined">定时任务</router-link>
       <router-link to="/settings" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'settings' }" :aria-current="currentRoute === 'settings' ? 'page' : undefined">设置</router-link>
-      <button class="app-nav-bar__theme-btn" @click="toggleTheme" :title="isDark ? '切换亮色模式' : '切换暗色模式'">
+      <button class="app-nav-bar__theme-btn" @click="toggleTheme" :title="isDark ? '切换亮色模式' : '切换暗色模式'" :aria-label="isDark ? '切换亮色模式' : '切换暗色模式'">
         {{ isDark ? '☀' : '☾' }}
       </button>
     </div>
@@ -20,24 +20,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useTheme } from '../../composables/useTheme'
 
 defineProps<{
   currentRoute: 'home' | 'wizard' | 'settings' | 'history' | 'schedules' | 'guide'
   badge?: string
 }>()
 
-const isDark = ref(false)
-
-onMounted(() => {
-  isDark.value = document.documentElement.getAttribute('data-theme') === 'dark'
-})
-
-function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
-}
+const { isDark, toggleTheme } = useTheme()
 </script>
 
 <style scoped>

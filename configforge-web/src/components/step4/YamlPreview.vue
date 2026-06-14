@@ -9,31 +9,24 @@
       </NButton>
       <span v-if="parseError" class="yaml-preview__error">{{ parseError }}</span>
     </div>
-    <div v-if="isEditing">
-      <NInput
-        v-model:value="editText"
-        type="textarea"
-        :rows="20"
-        font="monospace"
-        placeholder="YAML 配置内容..."
-        @update:value="onEditChange"
-      />
-    </div>
-    <div v-else>
-      <NCode v-if="yamlText" :code="yamlText" language="yaml" word-wrap />
-      <NSkeleton v-else-if="loading" text :repeat="8" />
-      <NAlert v-else-if="apiError" type="error" :title="apiError" />
-    </div>
+    <CodeEditor
+      :model-value="isEditing ? editText : (yamlText || '')"
+      @update:model-value="onEditorChange"
+      language="yaml"
+      :read-only="!isEditing"
+      min-height="300px"
+      placeholder="YAML 配置内容..."
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
-import { stateToSnakeCase } from '../../utils/serialization'
 import { useWizardApi } from '../../composables/useWizardApi'
-import { NCode, NSkeleton, NAlert, NInput, NButton, useMessage } from 'naive-ui'
+import { NButton, useMessage } from 'naive-ui'
 import yaml from 'js-yaml'
+import CodeEditor from '../common/CodeEditor.vue'
 
 const store = useWizardStore()
 const { generateYaml } = useWizardApi()
@@ -49,8 +42,7 @@ async function loadYaml() {
   loading.value = true
   apiError.value = ''
 
-  const state = stateToSnakeCase(store.getWizardState())
-  const data = await generateYaml(state)
+  const data = await generateYaml(store.getWizardState())
   if (data) {
     yamlText.value = data.yaml
   } else {
@@ -67,13 +59,14 @@ function toggleEdit() {
   isEditing.value = !isEditing.value
 }
 
-function onEditChange(value: string) {
+function onEditorChange(value: string) {
+  if (!isEditing.value) return
   editText.value = value
   try {
     yaml.load(value)
     parseError.value = ''
-  } catch (e: any) {
-    parseError.value = e.message || 'YAML 语法错误'
+  } catch (e: unknown) {
+    parseError.value = e instanceof Error ? e.message : 'YAML 语法错误'
   }
 }
 
@@ -84,8 +77,8 @@ function saveEdit() {
       yamlText.value = editText.value
       message.success('YAML 配置已更新')
     }
-  } catch (e: any) {
-    message.error('YAML 格式错误，无法保存：' + (e.message || ''))
+  } catch (e: unknown) {
+    message.error('YAML 格式错误，无法保存：' + (e instanceof Error ? e.message : ''))
   }
 }
 

@@ -23,28 +23,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton } from 'naive-ui'
+import { useAiStatus } from '../composables/useAiStatus'
 
 const router = useRouter()
-const aiConfigured = ref(false)
-const aiProvider = ref('')
-const aiModel = ref('')
+const { aiConfigured, aiProvider, aiModel, checkStatus } = useAiStatus()
 
-onMounted(async () => {
-  try {
-    const resp = await fetch('/api/ai/settings')
-    if (resp.ok) {
-      const data = await resp.json()
-      aiConfigured.value = !!(data.enabled && data.api_key)
-      if (aiConfigured.value) {
-        aiProvider.value = data.provider || ''
-        aiModel.value = data.model || ''
-      }
-    }
-  } catch { /* ignore */ }
-})
+onMounted(checkStatus)
 </script>
 
 <style scoped>

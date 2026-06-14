@@ -91,7 +91,7 @@ class TestGenerate:
                     file_id="abc",
                 )
             ],
-            processor=ProcessorConfig(sql="SELECT 1", output_tables=["out1"]),
+            processors=[ProcessorConfig(sql="SELECT 1", output_tables=["out1"])],
             output=OutputTarget(
                 plugin="excel",
                 config=ExcelOutputConfig(
@@ -122,7 +122,7 @@ class TestGenerate:
                     file_id="xyz",
                 )
             ],
-            processor=ProcessorConfig(sql="SELECT * FROM csv_t", output_tables=["res"]),
+            processors=[ProcessorConfig(sql="SELECT * FROM csv_t", output_tables=["res"])],
             output=OutputTarget(
                 plugin="excel",
                 config=ExcelOutputConfig(
@@ -139,7 +139,7 @@ class TestGenerate:
         state = WizardState(
             scene=SceneInfo(name="Minimal"),
             inputs=[],
-            processor=ProcessorConfig(sql="", output_tables=[]),
+            processors=[],
             output=None,
         )
         result = generate(state)

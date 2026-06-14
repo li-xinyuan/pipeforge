@@ -88,7 +88,28 @@ def infer_input(
 
 
 def infer_output(req: OutputInferRequest) -> OutputInferResponse:
-    cols = []
+    """Infer suggested output columns from input sources.
+
+    Merges columns from all inputs that have column metadata.
+    For database inputs with tables, includes table_name as prefix.
+    """
+    from configforge.models.wizard import ColumnMappingItem
+
+    cols: list[ColumnMappingItem] = []
+    seen: set[str] = set()
+
+    for inp in req.inputs:
+        cfg = inp.config
+        # Only database inputs may have column info via query/table
+        if inp.plugin == "database" and hasattr(cfg, "tables") and cfg.tables:
+            for tbl in cfg.tables:
+                if tbl and tbl not in seen:
+                    seen.add(tbl)
+                    cols.append(ColumnMappingItem(source=tbl, target=tbl))
+        elif inp.table and inp.table not in seen:
+            seen.add(inp.table)
+            cols.append(ColumnMappingItem(source=inp.table, target=inp.table))
+
     return OutputInferResponse(suggested_columns=cols)
 
 
@@ -98,13 +119,8 @@ def generate(state: WizardState) -> dict:
 
 
 def _get_processors(exec_state: WizardState) -> list[ProcessorConfig]:
-    """Backward-compatible: return list of processors from exec_state."""
-    if exec_state.processors:
-        return exec_state.processors
-    # Fallback: single processor (old format)
-    if exec_state.processor.sql.strip() or exec_state.processor.output_tables:
-        return [exec_state.processor]
-    return []
+    """Return list of processors from exec_state."""
+    return exec_state.processors
 
 
 def _has_ddl(sql: str) -> bool:

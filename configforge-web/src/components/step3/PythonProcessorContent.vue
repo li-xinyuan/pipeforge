@@ -37,25 +37,25 @@
       />
     </div>
 
-    <!-- Python script textarea -->
+    <!-- Python script editor -->
     <div>
       <label class="cf-label">
         <span class="cf-required">*</span> Python 脚本
       </label>
-      <textarea
-        :value="pyProc.script"
-        @input="$emit('update', { script: ($event.target as HTMLTextAreaElement).value })"
-        rows="8"
+      <CodeEditor
+        :model-value="pyProc.script"
+        @update:model-value="(v: string) => $emit('update', { script: v })"
+        language="python"
         placeholder="def process(ctx):
     conn = ctx.db.connection
     conn.execute('CREATE TABLE result AS SELECT * FROM source')"
-        class="cf-code-editor"
+        min-height="200px"
       />
     </div>
 
     <!-- Quick templates -->
     <div class="flex flex-wrap gap-1">
-      <span class="text-[10px] text-slate-400 mr-1 self-center">模板:</span>
+      <span class="text-[10px] text-slate-400 dark:text-slate-500 mr-1 self-center">模板:</span>
       <NTag size="tiny" class="cursor-pointer" @click="applyTemplate(templates.clean)">数据清洗</NTag>
       <NTag size="tiny" class="cursor-pointer" @click="applyTemplate(templates.filter)">数据过滤</NTag>
       <NTag size="tiny" class="cursor-pointer" @click="applyTemplate(templates.aggregate)">数据聚合</NTag>
@@ -72,13 +72,13 @@
 
     <div v-if="dryRunResult && dryRunVisible" class="space-y-2 mt-2">
       <div class="flex items-center gap-2">
-        <span class="text-xs text-slate-400">共 {{ dryRunResult.length }} 个表</span>
+        <span class="text-xs text-slate-400 dark:text-slate-500">共 {{ dryRunResult.length }} 个表</span>
         <span class="text-xs text-amber-500">⚠ 预览基于样本数据，结果可能与实际执行不同</span>
       </div>
       <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 dark:border-slate-700 rounded p-2">
         <div class="flex items-center gap-2 mb-2">
           <NTag size="tiny" :bordered="false" type="info">{{ table.table_name }}</NTag>
-          <span class="text-xs text-slate-400">{{ table.columns.length }} 列 / {{ table.total_rows }} 行</span>
+          <span class="text-xs text-slate-400 dark:text-slate-500">{{ table.columns.length }} 列 / {{ table.total_rows }} 行</span>
         </div>
         <ColumnPreview :columns="table.columns" :rows="table.rows" />
       </div>
@@ -90,6 +90,7 @@
 import { computed, ref } from 'vue'
 import { NButton, NTag, NInput, NSelect } from 'naive-ui'
 import ColumnPreview from '../step2/ColumnPreview.vue'
+import CodeEditor from '../common/CodeEditor.vue'
 import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
@@ -151,18 +152,3 @@ async function runPreview() {
 }
 </script>
 
-<style scoped>
-.code-editor-textarea {
-  width: 100%;
-  background: var(--color-code-bg, #1e293b);
-  color: var(--color-code-text, #e2e8f0);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  padding: 10px;
-  border: 1px solid var(--color-border, #334155);
-  border-radius: 8px;
-  resize: vertical;
-  outline: none;
-}
-</style>

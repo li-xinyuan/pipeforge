@@ -1,3 +1,4 @@
+import os
 import re
 
 _VALID_ID_RE = re.compile(r"^[a-zA-Z0-9_.\-]+$")
@@ -71,7 +72,6 @@ def validate_sqlite_path(path: str, param_name: str = "file_path") -> str:
 
     global _SQLITE_ALLOWED_DIRS
     if _SQLITE_ALLOWED_DIRS is None:
-        import os
         _SQLITE_ALLOWED_DIRS = [
             os.path.abspath("data"),
             os.path.abspath("tmp"),

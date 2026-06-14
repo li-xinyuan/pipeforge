@@ -1,7 +1,7 @@
 <template>
-  <div class="border border-slate-200 rounded-lg overflow-hidden">
+  <div class="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
     <div
-      class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 cursor-pointer"
+      class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 cursor-pointer"
       @click="expanded = !expanded"
     >
       <span class="text-xs font-medium flex-1">数据检查点</span>
@@ -17,7 +17,7 @@
       <div
         v-for="(rule, i) in rules"
         :key="i"
-        class="border border-slate-200 rounded-lg p-3 space-y-2"
+        class="border border-slate-200 dark:border-slate-700 rounded-lg p-3 space-y-2"
       >
         <!-- Type selector + on_failure + delete -->
         <div class="flex items-center gap-2">
@@ -41,7 +41,7 @@
 
         <!-- Table selector (all types except custom_sql) -->
         <div v-if="needsTable(rule)" class="flex items-center gap-2">
-          <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查表</label>
+          <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查表</label>
           <NSelect
             v-model:value="(rule as any).table"
             :options="tableOptions"
@@ -55,9 +55,9 @@
         <!-- row_count fields -->
         <template v-if="rule.type === 'row_count'">
           <div class="flex items-center gap-2">
-            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">最小行数</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">最小行数</label>
             <NInputNumber v-model:value="(rule as RowCountRule).min" size="small" :min="0" style="width: 120px" />
-            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">最大行数</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">最大行数</label>
             <NInputNumber v-model:value="(rule as RowCountRule).max" size="small" :min="0" style="width: 120px" />
           </div>
         </template>
@@ -65,7 +65,7 @@
         <!-- null_rate fields -->
         <template v-if="rule.type === 'null_rate'">
           <div class="flex items-center gap-2">
-            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查列</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查列</label>
             <NSelect
               v-model:value="(rule as NullRateRule).column"
               :options="columnOptions((rule as any).table)"
@@ -75,7 +75,7 @@
               filterable
               tag
             />
-            <label class="text-xs font-medium text-slate-500 w-20 flex-shrink-0">最大空值率</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-20 flex-shrink-0">最大空值率</label>
             <NInputNumber
               v-model:value="(rule as NullRateRule).max_null_rate"
               size="small"
@@ -90,7 +90,7 @@
         <!-- uniqueness fields -->
         <template v-if="rule.type === 'uniqueness'">
           <div class="flex items-center gap-2">
-            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查列</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查列</label>
             <NSelect
               v-model:value="(rule as UniquenessRule).column"
               :options="columnOptions((rule as any).table)"
@@ -106,7 +106,7 @@
         <!-- value_range fields -->
         <template v-if="rule.type === 'value_range'">
           <div class="flex items-center gap-2">
-            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查列</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查列</label>
             <NSelect
               v-model:value="(rule as ValueRangeRule).column"
               :options="columnOptions((rule as any).table)"
@@ -116,9 +116,9 @@
               filterable
               tag
             />
-            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">最小值</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">最小值</label>
             <NInputNumber v-model:value="(rule as ValueRangeRule).min_value" size="small" style="width: 100px" />
-            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">最大值</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">最大值</label>
             <NInputNumber v-model:value="(rule as ValueRangeRule).max_value" size="small" style="width: 100px" />
           </div>
         </template>
@@ -126,24 +126,24 @@
         <!-- custom_sql fields -->
         <template v-if="rule.type === 'custom_sql'">
           <div class="space-y-2">
-            <label class="text-xs font-medium text-slate-500 block">SQL 语句</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 block">SQL 语句</label>
             <textarea
               v-model="(rule as CustomSqlRule).sql"
               rows="3"
-              class="w-full font-mono text-xs p-2 border border-slate-200 rounded resize-y"
+              class="w-full font-mono text-xs p-2 border border-slate-200 dark:border-slate-700 rounded resize-y"
               placeholder="SELECT COUNT(*) AS result FROM ..."
             />
             <div class="flex items-center gap-2">
-              <label class="text-xs font-medium text-slate-500 w-16 flex-shrink-0">结果列名</label>
+              <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-16 flex-shrink-0">结果列名</label>
               <NInput v-model:value="(rule as CustomSqlRule).result_column" size="small" style="width: 100px" />
-              <label class="text-xs font-medium text-slate-500 w-16 flex-shrink-0">比较方式</label>
+              <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-16 flex-shrink-0">比较方式</label>
               <NSelect
                 v-model:value="(rule as CustomSqlRule).comparison"
                 :options="comparisonOptions"
                 size="small"
                 style="width: 80px"
               />
-              <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">期望值</label>
+              <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">期望值</label>
               <NInputNumber
                 v-model:value="(rule as CustomSqlRule).expected_value"
                 size="small"
@@ -156,7 +156,7 @@
         <!-- enum_check fields -->
         <template v-if="rule.type === 'enum_check'">
           <div class="flex items-center gap-2">
-            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">检查列</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查列</label>
             <NSelect
               v-model:value="(rule as EnumCheckRule).column"
               :options="columnOptions((rule as any).table)"
@@ -168,7 +168,7 @@
             />
           </div>
           <div class="flex items-center gap-2">
-            <label class="text-xs font-medium text-slate-500 w-14 flex-shrink-0">允许值</label>
+            <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">允许值</label>
             <NInput
               :value="enumValuesText(i)"
               size="small"
@@ -180,7 +180,7 @@
         </template>
       </div>
 
-      <p v-if="!rules.length" class="text-xs text-slate-400 text-center py-2">
+      <p v-if="!rules.length" class="text-xs text-slate-400 dark:text-slate-500 text-center py-2">
         暂未配置检查点规则
       </p>
 

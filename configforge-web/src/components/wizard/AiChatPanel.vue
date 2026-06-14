@@ -1,3 +1,4 @@
+<!-- @deprecated This component is not currently used. Kept for potential future AI features. -->
 <template>
   <aside v-if="visible" class="ai-panel" :class="`ai-panel--${mode || 'sidebar'}`" @click.self="onBackdropClick">
     <div class="ai-panel__inner">
@@ -70,7 +71,7 @@
 import { ref, watch, nextTick, computed, onUnmounted } from 'vue'
 import DOMPurify from 'dompurify'
 import OrchestrationResultCard from './OrchestrationResult.vue'
-import type { ChatMessage } from '../../types/wizard'
+import type { ChatMessage, OrchestrationResult } from '../../types/wizard'
 
 const props = defineProps<{
   visible: boolean
@@ -84,7 +85,7 @@ const emit = defineEmits<{
   send: [text: string]
   quickAction: [action: string]
   toggle: []
-  'orchestrate-confirm': [result: any]
+  'orchestrate-confirm': [result: OrchestrationResult]
   'orchestrate-regenerate': []
 }>()
 

@@ -3,31 +3,27 @@
     <!-- Initial state: only type selector (no processors yet) -->
     <template v-if="showAddSelector && defaultEmpty">
       <div class="text-center mb-4">
-        <p class="text-sm text-slate-500">选择处理方式开始配置数据加工步骤</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400">选择处理方式开始配置数据加工步骤</p>
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <span style="display:inline-block;border-radius:8px;">
-          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta ? 'pulse-cta' : '', 'border-blue-600 bg-blue-50']" @click="pickProcessor('sql')">
-            <span class="text-2xl block mb-2">🧪</span>
-            <span class="text-sm font-semibold">SQL</span>
-            <span class="text-xs text-slate-500 mt-1 block">SQLite 查询处理</span>
-          </div>
-        </span>
-        <span style="display:inline-block;border-radius:8px;">
-          <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30', pulseCta ? 'pulse-cta' : '', 'border-orange-500 bg-orange-50']" @click="pickProcessor('python')">
-            <span class="text-2xl block mb-2">🐍</span>
-            <span class="text-sm font-semibold">Python</span>
-            <span class="text-xs text-slate-500 mt-1 block">Python 脚本处理</span>
-          </div>
-        </span>
+        <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-blue-900/30', pulseCta ? 'pulse-cta' : '', 'border-blue-600 bg-blue-50']" @click="pickProcessor('sql')">
+          <span class="text-2xl block mb-2">🧪</span>
+          <span class="text-sm font-semibold">SQL</span>
+          <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">SQLite 查询处理</span>
+        </div>
+        <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-orange-900/30', pulseCta ? 'pulse-cta' : '', 'border-orange-500 bg-orange-50']" @click="pickProcessor('python')">
+          <span class="text-2xl block mb-2">🐍</span>
+          <span class="text-sm font-semibold">Python</span>
+          <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">Python 脚本处理</span>
+        </div>
       </div>
     </template>
 
     <!-- Normal state: cards + selector + button -->
     <template v-else>
       <!-- Table rename prompt -->
-      <div v-if="renamePrompt" class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
-        <span class="text-sm text-amber-700 leading-relaxed">
+      <div v-if="renamePrompt" class="mb-3 p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg flex items-center gap-3">
+        <span class="text-sm text-amber-700 dark:text-amber-300 leading-relaxed">
           表名已从 <strong>"{{ renamePrompt.oldName }}"</strong> 改为 <strong>"{{ renamePrompt.newName }}"</strong>，SQL 中引用了旧表名，是否替换？
         </span>
         <NButton size="tiny" type="warning" @click="onReplaceTableName">替换</NButton>
@@ -52,24 +48,20 @@
       <!-- Type selector for adding more steps -->
       <template v-if="showAddSelector">
         <div class="flex items-center justify-between mb-2 mt-3">
-          <span class="text-sm font-semibold text-slate-700">选择处理方式</span>
+          <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">选择处理方式</span>
           <NButton text type="error" size="small" @click="showAddSelector = false">取消</NButton>
         </div>
         <div class="grid grid-cols-2 gap-3">
-          <span style="display:inline-block;border-radius:8px;">
-            <div class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('sql')">
-              <span class="text-2xl block mb-2">🧪</span>
-              <span class="text-sm font-semibold">SQL</span>
-              <span class="text-xs text-slate-500 mt-1 block">SQLite 查询处理</span>
-            </div>
-          </span>
-          <span style="display:inline-block;border-radius:8px;">
-            <div class="cursor-pointer text-center border-2 border-orange-500 bg-orange-50 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('python')">
-              <span class="text-2xl block mb-2">🐍</span>
-              <span class="text-sm font-semibold">Python</span>
-              <span class="text-xs text-slate-500 mt-1 block">Python 脚本处理</span>
-            </div>
-          </span>
+          <div class="cursor-pointer text-center border-2 border-blue-600 bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('sql')">
+            <span class="text-2xl block mb-2">🧪</span>
+            <span class="text-sm font-semibold">SQL</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">SQLite 查询处理</span>
+          </div>
+          <div class="cursor-pointer text-center border-2 border-orange-500 bg-orange-50 dark:bg-orange-900/30 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30" @click="pickProcessor('python')">
+            <span class="text-2xl block mb-2">🐍</span>
+            <span class="text-sm font-semibold">Python</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">Python 脚本处理</span>
+          </div>
         </div>
       </template>
 
