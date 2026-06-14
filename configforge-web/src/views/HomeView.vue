@@ -194,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useWizardStore } from '../stores/wizard'
@@ -330,6 +330,10 @@ function onSearch() {
     loadConfigList()
   }, 300)
 }
+
+onUnmounted(() => {
+  if (searchTimer) clearTimeout(searchTimer)
+})
 
 function onPageChange(page: number) {
   currentPage.value = page

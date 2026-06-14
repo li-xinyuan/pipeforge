@@ -11,6 +11,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from pydantic import BaseModel, Field
 
+from configforge.utils.file_lock import read_json_locked, write_json_locked
+
 logger = logging.getLogger(__name__)
 
 DATA_DIR = os.environ.get("CONFIGFORGE_DATA_DIR", os.path.join(os.getcwd(), "data"))
@@ -36,14 +38,12 @@ _scheduler: BackgroundScheduler | None = None
 def _load_schedules() -> list[dict]:
     if not os.path.exists(SCHEDULES_PATH):
         return []
-    with open(SCHEDULES_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return read_json_locked(SCHEDULES_PATH)
 
 
 def _save_schedules(data: list[dict]) -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
-    with open(SCHEDULES_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    write_json_locked(SCHEDULES_PATH, data)
 
 
 def _validate_cron(expr: str) -> None:

@@ -1,9 +1,9 @@
 import json
 import os
-import fcntl
 import uuid
 from datetime import datetime, timezone
 from configforge.services.ai.settings import _get_cipher
+from configforge.utils.file_lock import read_json_locked, write_json_locked
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
 STORE_PATH = os.path.join(DATA_DIR, "db_connections.json")
@@ -17,22 +17,12 @@ def _load() -> dict:
     _ensure_data_dir()
     if not os.path.exists(STORE_PATH):
         return {"connections": {}}
-    with open(STORE_PATH, "r", encoding="utf-8") as f:
-        fcntl.flock(f, fcntl.LOCK_SH)
-        try:
-            return json.load(f)
-        finally:
-            fcntl.flock(f, fcntl.LOCK_UN)
+    return read_json_locked(STORE_PATH)
 
 
 def _save(data: dict):
     _ensure_data_dir()
-    with open(STORE_PATH, "w", encoding="utf-8") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
-        try:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        finally:
-            fcntl.flock(f, fcntl.LOCK_UN)
+    write_json_locked(STORE_PATH, data)
 
 
 def _now_iso() -> str:

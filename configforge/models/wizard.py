@@ -239,6 +239,9 @@ class SqlExecuteResponse(BaseModel):
 
     columns: list[str]
     rows: list[list[str]]
+    total_source_rows: int = 0
+    sample_rows_loaded: int = 0
+    is_sampled: bool = True
 
 
 class ErrorResponse(BaseModel):

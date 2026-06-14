@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 
 from configforge.models.wizard import ExecutionRecord, ErrorResponse
 from configforge.utils.security import validate_id
+from configforge.utils.file_lock import read_json_locked, write_json_locked
 
 router = APIRouter(prefix="/api/executions", tags=["executions"])
 
@@ -51,8 +52,7 @@ def _update_exec_index(record: ExecutionRecord):
     os.makedirs(EXEC_DIR, exist_ok=True)
     index = []
     if os.path.exists(EXEC_INDEX):
-        with open(EXEC_INDEX) as f:
-            index = json.load(f)
+        index = read_json_locked(EXEC_INDEX)
     index.insert(0, {
         "id": record.id,
         "config_id": record.config_id,
@@ -70,8 +70,7 @@ def _update_exec_index(record: ExecutionRecord):
         "output_file_name": record.output_file_name,
     })
     # Keep last 100 entries
-    with open(EXEC_INDEX, "w") as f:
-        json.dump(index[:100], f, ensure_ascii=False, indent=2)
+    write_json_locked(EXEC_INDEX, index[:100])
 
     # Clean up old output directories
     _cleanup_old_outputs()
@@ -131,8 +130,7 @@ async def list_executions(
     if not os.path.exists(EXEC_INDEX):
         return {"items": [], "total": 0, "page": page,
                 "page_size": page_size, "total_pages": 0}
-    with open(EXEC_INDEX) as f:
-        index = json.load(f)
+    index = read_json_locked(EXEC_INDEX)
     if config_id:
         index = [e for e in index if e.get("config_id") == config_id]
     if search:
@@ -198,9 +196,7 @@ async def delete_execution(exec_id: str):
         shutil.rmtree(exec_dir)
     # Update index
     if os.path.exists(EXEC_INDEX):
-        with open(EXEC_INDEX) as f:
-            index = json.load(f)
+        index = read_json_locked(EXEC_INDEX)
         index = [e for e in index if e.get("id") != exec_id]
-        with open(EXEC_INDEX, "w") as f:
-            json.dump(index, f, ensure_ascii=False, indent=2)
+        write_json_locked(EXEC_INDEX, index)
     return {"ok": True}

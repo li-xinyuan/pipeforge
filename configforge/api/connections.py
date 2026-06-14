@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from configforge.services.connection_store import ConnectionStore
 from configforge.models.wizard import ErrorResponse
-from configforge.utils.security import validate_id, sanitize_connection_string
+from configforge.utils.security import validate_id, sanitize_connection_string, validate_sqlite_path, safe_identifier
 
 router = APIRouter()
 
@@ -36,6 +36,13 @@ def create_connection(req: CreateConnectionRequest):
             raise HTTPException(400, detail=ErrorResponse(
                 error="file_path is required for SQLite",
                 code="VALIDATION_ERROR", recoverable=True,
+            ).model_dump())
+        # Validate SQLite file path is within allowed directories
+        try:
+            validate_sqlite_path(req.file_path, "file_path")
+        except ValueError as e:
+            raise HTTPException(400, detail=ErrorResponse(
+                error=str(e), code="VALIDATION_ERROR", recoverable=True,
             ).model_dump())
         # Validate file is a valid SQLite database
         import os as _os
@@ -172,6 +179,7 @@ def list_tables(conn_id: str):
 @router.get("/connections/{conn_id}/tables/{table}/columns")
 def get_table_columns(conn_id: str, table: str):
     validate_id(conn_id, "conn_id")
+    safe_identifier(table, "table")
     from sqlalchemy import create_engine, inspect
     from sqlalchemy.pool import NullPool
 

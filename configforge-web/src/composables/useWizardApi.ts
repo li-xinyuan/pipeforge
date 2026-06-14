@@ -37,7 +37,13 @@ export function useWizardApi() {
   }
 
   async function executeSql(sql: string, tableMapping: Record<string, string>) {
-    return post<{ columns: string[]; rows: string[][] }>('/api/preview/sql', { sql, table_mapping: tableMapping })
+    return post<{
+      columns: string[]
+      rows: string[][]
+      total_source_rows: number
+      sample_rows_loaded: number
+      is_sampled: boolean
+    }>('/api/preview/sql', { sql, table_mapping: tableMapping })
   }
 
   async function dryRun(state: any) {

@@ -1,4 +1,3 @@
-import fcntl
 import json
 import os
 import shutil
@@ -30,6 +29,8 @@ from configforge.api.executions import (
 )
 from configforge.services.yaml_builder import build_yaml
 from configforge.utils.security import validate_id, sanitize_connection_string
+from configforge.utils.file_lock import read_json_locked, write_json_locked
+from configforge.core.pipeline import PipelineTimeoutError
 from pipeforge.config.exceptions import CheckpointError
 
 router = APIRouter()
@@ -60,21 +61,11 @@ INDEX_PATH = os.path.join(CONFIGS_DIR, "index.json")
 def _load_index() -> list[dict]:
     if not os.path.exists(INDEX_PATH):
         return []
-    with open(INDEX_PATH, "r", encoding="utf-8") as f:
-        fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-        try:
-            return json.load(f)
-        finally:
-            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    return read_json_locked(INDEX_PATH)
 
 
 def _save_index(data: list[dict]) -> None:
-    with open(INDEX_PATH, "w", encoding="utf-8") as f:
-        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-        try:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        finally:
-            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    write_json_locked(INDEX_PATH, data)
 
 
 @router.get("")
@@ -151,8 +142,7 @@ async def save_config(req: SaveConfigRequest):
         f.write(yaml_str)
 
     # 写入 state 快照
-    with open(state_path, "w", encoding="utf-8") as f:
-        json.dump(state_dict, f, ensure_ascii=False, indent=2)
+    write_json_locked(state_path, state_dict)
 
     # 更新索引
     output_type = ""
@@ -229,8 +219,7 @@ async def load_config(config_id: str):
                 error="配置不存在", code="NOT_FOUND", recoverable=True
             ).model_dump(),
         )
-    with open(state_path, "r", encoding="utf-8") as f:
-        state_dict = json.load(f)
+    state_dict = read_json_locked(state_path)
     _migrate_state_dict(state_dict)
     return state_dict
 
@@ -266,8 +255,7 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
             ).model_dump(),
         )
 
-    with open(state_path, "r", encoding="utf-8") as f:
-        state_dict = json.load(f)
+    state_dict = read_json_locked(state_path)
 
     _migrate_state_dict(state_dict)
     # Remove internal fields that are not part of WizardState schema
@@ -303,7 +291,7 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
 
     try:
         output_path = execute_pipeline(state)
-    except (ValueError, SyntaxError, TimeoutError) as e:
+    except (ValueError, SyntaxError, TimeoutError, PipelineTimeoutError) as e:
         safe_msg = sanitize_connection_string(str(e))
         _save_failed_execution(
             exec_id=exec_id,
@@ -422,8 +410,7 @@ def _read_version_state(config_id: str, version: int) -> dict | None:
     versions_dir = os.path.join(CONFIGS_DIR, config_id)
     state_path = os.path.join(versions_dir, f"v{version}.state.json")
     if os.path.exists(state_path):
-        with open(state_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return read_json_locked(state_path)
 
     # Check if this is the current version
     index = _load_index()
@@ -431,8 +418,7 @@ def _read_version_state(config_id: str, version: int) -> dict | None:
     if entry and entry.get("current_version") == version:
         current_path = os.path.join(CONFIGS_DIR, f"{config_id}.state.json")
         if os.path.exists(current_path):
-            with open(current_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            return read_json_locked(current_path)
 
     return None
 
@@ -606,8 +592,7 @@ async def rollback_version(config_id: str, version: int):
     target_state["_saved_at"] = now_str
     target_state["change_summary"] = f"Rolled back from v{old_version} to v{version}"
 
-    with open(state_path, "w", encoding="utf-8") as f:
-        json.dump(target_state, f, ensure_ascii=False, indent=2)
+    write_json_locked(state_path, target_state)
 
     # Rebuild YAML from restored state
     _migrate_state_dict(target_state)

@@ -133,13 +133,13 @@ class DatabaseOutputPlugin(OutputPlugin[DatabaseOutputConfig]):
         engine = create_engine(conn_str, **engine_kwargs)
 
         try:
-            with engine.connect() as conn:
+            with engine.begin() as conn:
                 target = config.target_table
 
                 # --- Handle write modes ---
                 pk = config.primary_key_columns if config.primary_key_columns else columns[:1]
                 if config.write_mode == "replace":
-                    # DROP if exists, then CREATE
+                    # DROP + CREATE + INSERT in a single transaction
                     conn.execute(text(f"DROP TABLE IF EXISTS {_quote(target, dialect)}"))
                     conn.execute(text(_build_create_table_sql(target, columns, dialect, pk_columns=pk)))
                     self._batch_insert(conn, target, columns, rows, config.batch_size, dialect)
@@ -173,7 +173,6 @@ class DatabaseOutputPlugin(OutputPlugin[DatabaseOutputConfig]):
         inspector = inspect(conn)
         if table_name not in inspector.get_table_names():
             conn.execute(text(_build_create_table_sql(table_name, columns, dialect, pk_columns=pk_columns)))
-            conn.commit()
 
     @staticmethod
     def _batch_insert(conn, table_name: str, columns: list[str], rows: list[tuple], batch_size: int, dialect: str = "sqlite") -> None:
@@ -183,7 +182,6 @@ class DatabaseOutputPlugin(OutputPlugin[DatabaseOutputConfig]):
             batch = rows[i : i + batch_size]
             params = [dict(zip(columns, row)) for row in batch]
             conn.execute(insert_sql, params)
-            conn.commit()
 
     @staticmethod
     def _batch_upsert(
@@ -201,4 +199,3 @@ class DatabaseOutputPlugin(OutputPlugin[DatabaseOutputConfig]):
             batch = rows[i : i + batch_size]
             params = [dict(zip(columns, row)) for row in batch]
             conn.execute(upsert_sql, params)
-            conn.commit()

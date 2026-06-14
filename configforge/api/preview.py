@@ -103,6 +103,8 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
     with an added LIMIT to avoid returning huge result sets.
     """
     conn = sqlite3.connect(":memory:")
+    total_source_rows = 0
+    sample_rows_loaded = 0
     try:
         for table_name, file_id in req.table_mapping.items():
             try:
@@ -127,6 +129,9 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
                 info = read_csv_info(content)
             else:
                 info = read_excel_info(io.BytesIO(content))
+
+            total_source_rows += info.get("total_rows", 0)
+            sample_rows_loaded += len(info.get("sample_rows", []))
 
             if info["columns"]:
                 safe_table = safe_identifier(table_name, "table_name")
@@ -177,7 +182,13 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
         cur = conn.execute(sql)
         columns = [d[0] for d in cur.description] if cur.description else []
         rows = [[str(v) if v is not None else "" for v in row] for row in cur.fetchall()]
-        return SqlExecuteResponse(columns=columns, rows=rows)
+        return SqlExecuteResponse(
+            columns=columns,
+            rows=rows,
+            total_source_rows=total_source_rows,
+            sample_rows_loaded=sample_rows_loaded,
+            is_sampled=sample_rows_loaded < total_source_rows if total_source_rows > 0 else False,
+        )
     except sqlite3.Error as e:
         raise HTTPException(
             status_code=400,

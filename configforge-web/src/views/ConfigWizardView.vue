@@ -137,6 +137,7 @@
               <NButton size="small" :loading="dryRunLoading" @click="runDryRun">运行预览</NButton>
             </div>
             <div v-if="dryRunError" class="text-xs text-red-500 mb-2">{{ dryRunError }}</div>
+            <p v-if="previewColumns.length > 0" class="text-xs text-amber-500 mb-1">⚠ 预览基于样本数据，结果可能与实际执行不同</p>
             <DataPreviewTable
               v-if="previewColumns.length > 0"
               :columns="previewColumns"

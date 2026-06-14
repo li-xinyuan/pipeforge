@@ -50,3 +50,37 @@ def sanitize_connection_string(text: str) -> str:
     Replaces protocol://user:password@host with protocol://user:***@host.
     """
     return _CONN_STRING_PW_RE.sub(r'\1://\2:***@', text)
+
+
+# Allowed directories for SQLite database files
+_SQLITE_ALLOWED_DIRS: list[str] | None = None
+
+
+def validate_sqlite_path(path: str, param_name: str = "file_path") -> str:
+    """Validate that a SQLite file path is within allowed directories.
+
+    Prevents path traversal attacks by ensuring the resolved path
+    is under an allowed data directory.
+    """
+    if not path:
+        raise ValueError(f"{param_name} must not be empty")
+
+    # Block obvious path traversal
+    if ".." in path:
+        raise ValueError(f"{param_name} contains illegal path traversal sequence '..'")
+
+    global _SQLITE_ALLOWED_DIRS
+    if _SQLITE_ALLOWED_DIRS is None:
+        import os
+        _SQLITE_ALLOWED_DIRS = [
+            os.path.abspath("data"),
+            os.path.abspath("tmp"),
+        ]
+
+    abs_path = os.path.abspath(path)
+    if not any(abs_path.startswith(d) for d in _SQLITE_ALLOWED_DIRS):
+        raise ValueError(
+            f"{param_name} must be within allowed directories "
+            f"({', '.join(_SQLITE_ALLOWED_DIRS)})"
+        )
+    return path

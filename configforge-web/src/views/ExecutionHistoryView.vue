@@ -45,8 +45,20 @@
         </div>
       </div>
 
+      <!-- Pagination -->
+      <div v-if="total > pageSize" class="flex items-center justify-between mt-4">
+        <span class="text-xs text-slate-400">共 {{ total }} 条</span>
+        <NPagination
+          v-model:page="currentPage"
+          :page-count="Math.ceil(total / pageSize)"
+          :page-size="pageSize"
+          size="small"
+          @update:page="refresh"
+        />
+      </div>
+
       <!-- Detail modal -->
-      <NModal v-model:show="detailVisible" title="执行详情">
+      <NModal v-model:show="detailVisible" preset="card" title="执行详情" style="max-width: 560px">
         <div v-if="detailRecord" class="p-4 space-y-3 max-w-lg">
           <div class="grid grid-cols-2 gap-2 text-sm">
             <div class="text-slate-400">执行 ID</div>
@@ -79,7 +91,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { NButton, NTag, NModal, useDialog, useMessage } from 'naive-ui'
+import { NButton, NTag, NModal, NPagination, useDialog, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 
 const dialog = useDialog()
@@ -106,14 +118,18 @@ const executions = ref<ExecutionSummary[]>([])
 const loading = ref(false)
 const detailVisible = ref(false)
 const detailRecord = ref<ExecutionSummary | null>(null)
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 async function refresh() {
   loading.value = true
   try {
-    const resp = await fetch('/api/executions')
+    const resp = await fetch(`/api/executions?page=${currentPage.value}&page_size=${pageSize.value}`)
     if (resp.ok) {
       const data = await resp.json()
       executions.value = Array.isArray(data) ? data : (data.items || [])
+      total.value = data.total || executions.value.length
     }
   } finally {
     loading.value = false

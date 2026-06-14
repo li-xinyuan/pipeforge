@@ -16,6 +16,7 @@ from configforge.api.executions import router as exec_router
 from configforge.api.schedules import router as schedules_router
 from configforge.models.wizard import ErrorResponse
 from configforge.scheduler import start_scheduler, shutdown_scheduler
+from configforge.middleware.auth import AuthMiddleware
 
 
 @asynccontextmanager
@@ -52,6 +53,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# API Key authentication (disabled when CONFIGFORGE_API_KEY is not set)
+app.add_middleware(AuthMiddleware)
 
 
 @app.exception_handler(StarletteHTTPException)

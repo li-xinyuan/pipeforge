@@ -113,6 +113,7 @@
     <div v-if="dryRunResult && dryRunVisible" class="space-y-2 mt-2">
       <div class="flex items-center gap-2">
         <span class="text-xs text-slate-400">共 {{ dryRunResult.length }} 个表</span>
+        <span class="text-xs text-amber-500">⚠ 预览基于样本数据，结果可能与实际执行不同</span>
       </div>
       <div v-for="table in dryRunResult" :key="table.table_name" class="border border-slate-200 dark:border-slate-700 rounded p-2">
         <div class="flex items-center gap-2 mb-2">

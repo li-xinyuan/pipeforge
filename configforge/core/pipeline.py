@@ -20,6 +20,7 @@ import glob
 import os
 import re
 import shutil
+import signal
 import tempfile
 import uuid
 
@@ -28,6 +29,18 @@ from pipeforge.core.engine import PipelineEngine
 UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
 LOG_DIR = os.environ.get("CONFIGFORGE_LOG_DIR", "tmp/logs")
 OUTPUT_DIR = os.environ.get("CONFIGFORGE_OUTPUT_DIR", os.path.join(os.getcwd(), "data", "outputs"))
+PIPELINE_TIMEOUT_SECONDS = int(os.environ.get("CONFIGFORGE_PIPELINE_TIMEOUT", "300"))
+
+
+class PipelineTimeoutError(TimeoutError):
+    """Raised when pipeline execution exceeds the configured timeout."""
+    pass
+
+
+def _timeout_handler(signum, frame):
+    raise PipelineTimeoutError(
+        f"Pipeline execution timed out after {PIPELINE_TIMEOUT_SECONDS} seconds"
+    )
 
 
 def _cleanup_temp_dirs():
@@ -253,8 +266,15 @@ def execute_pipeline(state: WizardState) -> str | None:
     engine = PipelineEngine(yaml_path)
 
     try:
-        result = engine.execute(params, log_dir=LOG_DIR)
-    except Exception:
+        # Set timeout alarm (Unix/macOS only)
+        old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+        signal.alarm(PIPELINE_TIMEOUT_SECONDS)
+        try:
+            result = engine.execute(params, log_dir=LOG_DIR)
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+    except (PipelineTimeoutError, Exception):
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
 
