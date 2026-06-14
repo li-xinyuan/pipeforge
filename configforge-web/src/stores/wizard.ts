@@ -150,13 +150,12 @@ export const useWizardStore = defineStore('wizard', () => {
 
     inputs.value = (stateDict.inputs || []).map((inp: any) => {
       const cfg = inp.config || {}
-      if (cfg.type === 'csv' && cfg.has_header !== undefined) {
-        cfg.hasHeader = cfg.has_header
-        delete cfg.has_header
+      if (cfg.type === 'csv') {
+        if (cfg.has_header !== undefined) { cfg.hasHeader = cfg.hasHeader ?? cfg.has_header; delete cfg.has_header }
       } else if (cfg.type === 'database') {
-        cfg.connectionId = cfg.connection_id || ''
-        cfg.dbType = cfg.db_type || ''
-        cfg.queryType = cfg.query_type || 'table'
+        cfg.connectionId = cfg.connectionId || cfg.connection_id || ''
+        cfg.dbType = cfg.dbType || cfg.db_type || ''
+        cfg.queryType = cfg.queryType || cfg.query_type || 'table'
         cfg.tables = cfg.tables || []
         cfg.sql = cfg.sql || ''
         delete cfg.connection_id
@@ -192,8 +191,16 @@ export const useWizardStore = defineStore('wizard', () => {
 
     if (stateDict.output) {
       const cfg = { ...stateDict.output.config }
-      if (cfg.source_table) { cfg.sourceTable = cfg.source_table; delete cfg.source_table }
-      if (cfg.output_dir) { cfg.outputDir = cfg.output_dir; delete cfg.output_dir }
+      // Handle both camelCase (from by_alias=True storage) and snake_case
+      if (cfg.source_table) { cfg.sourceTable = cfg.sourceTable || cfg.source_table; delete cfg.source_table }
+      if (cfg.output_dir) { cfg.outputDir = cfg.outputDir || cfg.output_dir; delete cfg.output_dir }
+      if (cfg.target_table) { cfg.targetTable = cfg.targetTable || cfg.target_table; delete cfg.target_table }
+      if (cfg.write_mode) { cfg.writeMode = cfg.writeMode || cfg.write_mode; delete cfg.write_mode }
+      if (cfg.create_table_if_not_exists !== undefined) { cfg.createTableIfNotExists = cfg.createTableIfNotExists ?? cfg.create_table_if_not_exists; delete cfg.create_table_if_not_exists }
+      if (cfg.primary_key_columns) { cfg.primaryKeyColumns = cfg.primaryKeyColumns || cfg.primary_key_columns; delete cfg.primary_key_columns }
+      if (cfg.batch_size !== undefined) { cfg.batchSize = cfg.batchSize ?? cfg.batch_size; delete cfg.batch_size }
+      if (cfg.connection_id) { cfg.connectionId = cfg.connectionId || cfg.connection_id; delete cfg.connection_id }
+      if (cfg.has_header !== undefined) { cfg.hasHeader = cfg.hasHeader ?? cfg.has_header; delete cfg.has_header }
       output.value = {
         plugin: stateDict.output.plugin || 'excel',
         config: cfg,

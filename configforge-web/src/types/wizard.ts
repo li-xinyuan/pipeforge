@@ -147,7 +147,7 @@ export interface DatabaseOutputConfig {
   columns: ColumnMappingItem[]
   connectionId: string
   targetTable: string
-  writeMode: 'insert' | 'upsert' | 'replace'
+  writeMode: 'append' | 'upsert' | 'replace'
   createTableIfNotExists: boolean
   primaryKeyColumns: string[]
   batchSize: number

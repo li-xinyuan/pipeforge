@@ -19,6 +19,14 @@ function mapConfig(raw: any): SavedConfig {
   }
 }
 
+export interface ConfigListResult {
+  items: SavedConfig[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 export function useConfigApi() {
   const loading = ref(false)
   const error = ref<{ message: string; code: string } | null>(null)
@@ -40,21 +48,29 @@ export function useConfigApi() {
     } finally { loading.value = false }
   }
 
-  async function listConfigs(): Promise<SavedConfig[]> {
+  async function listConfigs(page = 1, pageSize = 10, search = ''): Promise<ConfigListResult> {
     loading.value = true; error.value = null
     try {
-      const resp = await fetch('/api/configs')
+      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+      if (search) params.set('search', search)
+      const resp = await fetch(`/api/configs?${params}`)
       if (!resp.ok) {
         const data = await resp.json().catch(() => null)
         error.value = { message: data?.error || data?.detail || '加载失败', code: data?.code || 'LOAD_ERROR' }
-        return []
+        return { items: [], total: 0, page, pageSize, totalPages: 0 }
       }
       const data = await resp.json()
       const items = Array.isArray(data) ? data : (data.items || [])
-      return items.map(mapConfig)
+      return {
+        items: items.map(mapConfig),
+        total: data.total ?? items.length,
+        page: data.page ?? page,
+        pageSize: data.page_size ?? pageSize,
+        totalPages: data.total_pages ?? 1,
+      }
     } catch {
       error.value = { message: 'Network error', code: 'NETWORK_ERROR' }
-      return []
+      return { items: [], total: 0, page, pageSize, totalPages: 0 }
     } finally { loading.value = false }
   }
 

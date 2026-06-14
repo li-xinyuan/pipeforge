@@ -11,7 +11,7 @@
       <router-link to="/" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'home' }" :aria-current="currentRoute === 'home' ? 'page' : undefined">我的配置</router-link>
       <router-link to="/history" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'history' }" :aria-current="currentRoute === 'history' ? 'page' : undefined">执行历史</router-link>
       <router-link to="/schedules" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'schedules' }" :aria-current="currentRoute === 'schedules' ? 'page' : undefined">定时任务</router-link>
-      <router-link to="/settings" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'settings' }" :aria-current="currentRoute === 'settings' ? 'page' : undefined">AI 设置</router-link>
+      <router-link to="/settings" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'settings' }" :aria-current="currentRoute === 'settings' ? 'page' : undefined">设置</router-link>
       <button class="app-nav-bar__theme-btn" @click="toggleTheme" :title="isDark ? '切换亮色模式' : '切换暗色模式'">
         {{ isDark ? '☀' : '☾' }}
       </button>

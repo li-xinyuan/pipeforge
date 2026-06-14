@@ -51,15 +51,9 @@
       <NButton text size="tiny" class="ml-auto" @click="descUpdated = ''">关闭</NButton>
     </div>
 
-    <ExportActions />
-
-    <div class="mt-4 flex items-center gap-3">
-      <NButton type="success" :loading="saving" @click="onSaveConfig">保存配置</NButton>
-      <span v-if="saveMsg" :class="['text-xs', saveError ? 'text-red-500' : 'text-green-600']">{{ saveMsg }}</span>
-    </div>
-
-    <div class="flex justify-between items-center pt-6 mt-6">
+    <div class="flex items-center gap-2 mt-4">
       <NButton text @click="store.prevStep(); router.push('/step/4')">上一步</NButton>
+      <ExportActions />
       <NButton type="primary" @click="router.push('/')">完成</NButton>
     </div>
   </div>
@@ -74,7 +68,6 @@ import YamlPreview from '../components/step4/YamlPreview.vue'
 import ExportActions from '../components/step4/ExportActions.vue'
 import DataPreviewTable from '../components/step4/DataPreviewTable.vue'
 import { useAiApi, useWizardApi } from '../composables/useWizardApi'
-import { useConfigApi } from '../composables/useConfigApi'
 import { stateToSnakeCase } from '../utils/serialization'
 
 const router = useRouter()
@@ -82,23 +75,17 @@ const store = useWizardStore()
 const yamlRef = ref<InstanceType<typeof YamlPreview>>()
 const { askSuggestion } = useAiApi()
 const { dryRun: dryRunApi, error: wizardApiError } = useWizardApi()
-const { saveConfig, error: apiError } = useConfigApi()
 const aiLoading = ref(false)
 const yamlLoading = ref(false)
 const dryRunLoading = ref(false)
 const dryRunError = ref('')
 const descUpdated = ref('')
-const saving = ref(false)
-const saveMsg = ref('')
-const saveError = ref(false)
 let descTimer: ReturnType<typeof setTimeout> | null = null
-let saveMsgTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(() => { store.currentStep = 5 })
 
 onUnmounted(() => {
   if (descTimer) clearTimeout(descTimer)
-  if (saveMsgTimer) clearTimeout(saveMsgTimer)
 })
 
 function onStepClick(step: number) {
@@ -166,20 +153,5 @@ async function runDryRun() {
   } finally {
     dryRunLoading.value = false
   }
-}
-
-async function onSaveConfig() {
-  saving.value = true; saveMsg.value = ''; saveError.value = false
-  const id = await saveConfig(store.$state)
-  if (id) {
-    store.setConfigId(id)
-    saveMsg.value = '配置已保存'
-    if (saveMsgTimer) clearTimeout(saveMsgTimer)
-    saveMsgTimer = setTimeout(() => { saveMsg.value = '' }, 3000)
-  } else {
-    saveError.value = true
-    saveMsg.value = '保存失败：' + (apiError.value?.message || '未知错误')
-  }
-  saving.value = false
 }
 </script>

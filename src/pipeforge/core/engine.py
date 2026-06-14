@@ -171,8 +171,10 @@ class PipelineEngine:
 
     def _execute_input(self, inp_spec, context):
         start = time.time()
-        file_path = context.params.get(inp_spec.param_key)
-        if not file_path:
+        # Database inputs use connection_string, not file_path
+        is_db_input = getattr(inp_spec.config, 'type', None) == 'database'
+        file_path = context.params.get(inp_spec.param_key, "")
+        if not file_path and not is_db_input:
             context.logger.error(f"Skipping input '{inp_spec.name}': param '{
                 inp_spec.param_key}' not found in runtime params")
             return InputStats(name=inp_spec.name, rows_loaded=0, elapsed_ms=0)
@@ -182,7 +184,8 @@ class PipelineEngine:
         plugin.label = inp_spec.name
         plugin.table_name = inp_spec.table
         config = copy.deepcopy(inp_spec.config)
-        config.file = file_path
+        if not is_db_input:
+            config.file = file_path
         plugin.execute(context, config)
         elapsed = (time.time() - start) * 1000
         rows = context.db.query(f'SELECT COUNT(*) FROM "{inp_spec.table}"')

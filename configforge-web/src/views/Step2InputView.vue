@@ -73,7 +73,7 @@ const hasAnyFile = computed(() => {
 })
 
 const aiTooltip = computed(() => {
-  if (!aiConfigured.value) return '请先在 AI 设置中配置 API Key'
+  if (!aiConfigured.value) return '请先在设置中配置 API Key'
   if (!hasAnyFile.value) return '请先上传文件'
   return 'AI 将分析列信息，建议表名和参数键'
 })

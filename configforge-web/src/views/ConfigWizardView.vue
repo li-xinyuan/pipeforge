@@ -41,7 +41,7 @@
             </div>
           </div>
           <template #footer>
-            <span :class="{ 'pulse-cta': currentStep === 1 && store.canProceed(1) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.canProceed(1)" @click="completeStep(1)">下一步 ↓</NButton></span>
+            <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 1 && store.canProceed(1) }" :disabled="!store.canProceed(1)" @click="completeStep(1)">下一步 ↓</NButton>
           </template>
         </WizardStepCard>
 
@@ -59,7 +59,7 @@
           <InputSourceList :pulse-cta="currentStep === 2" />
           <template #footer>
             <NButton size="small" @click="onGoBack(2)">← 上一步</NButton>
-            <span :class="{ 'pulse-cta': currentStep === 2 && store.canProceed(2) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.canProceed(2)" @click="completeStep(2)">下一步 ↓</NButton></span>
+            <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 2 && store.canProceed(2) }" :disabled="!store.canProceed(2)" @click="completeStep(2)">下一步 ↓</NButton>
             <p v-if="currentStep === 2 && store.stepValidation(2).length" class="wizard__validation-msg">{{ store.stepValidation(2).join('；') }}</p>
           </template>
         </WizardStepCard>
@@ -78,7 +78,7 @@
           <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && !store.canProceed(3)" />
           <template #footer>
             <NButton size="small" @click="onGoBack(3)">← 上一步</NButton>
-            <span :class="{ 'pulse-cta': currentStep === 3 && store.canProceed(3) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.canProceed(3)" @click="completeStep(3)">下一步 ↓</NButton></span>
+            <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 3 && store.canProceed(3) }" :disabled="!store.canProceed(3)" @click="completeStep(3)">下一步 ↓</NButton>
             <p v-if="currentStep === 3 && store.stepValidation(3).length" class="wizard__validation-msg">{{ store.stepValidation(3).join('；') }}</p>
           </template>
         </WizardStepCard>
@@ -97,7 +97,7 @@
           <OutputConfigTab :pulse-cta="currentStep === 4" />
           <template #footer>
             <NButton size="small" @click="onGoBack(4)">← 上一步</NButton>
-            <span :class="{ 'pulse-cta': currentStep === 4 && store.canProceed(4) }" style="display:inline-block;border-radius:8px;"><NButton class="btn-primary" :disabled="!store.canProceed(4)" @click="completeStep(4)">下一步 ↓</NButton></span>
+            <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 4 && store.canProceed(4) }" :disabled="!store.canProceed(4)" @click="completeStep(4)">下一步 ↓</NButton>
             <p v-if="currentStep === 4 && store.stepValidation(4).length" class="wizard__validation-msg">{{ store.stepValidation(4).join('；') }}</p>
           </template>
         </WizardStepCard>
@@ -114,24 +114,26 @@
           :step="5"
         >
           <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 120px; padding: 12px; background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); border-radius: var(--radius-md);">
-              <div style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: 4px;">输入源</div>
-              <div style="font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-primary);">{{ store.inputs.length }}</div>
+            <div class="cf-stat-card">
+              <div class="cf-stat-card__label">输入源</div>
+              <div class="cf-stat-card__value">{{ store.inputs.length }}</div>
+              <div class="cf-stat-card__sub">{{ inputTypeSummary }}</div>
             </div>
-            <div style="flex: 1; min-width: 120px; padding: 12px; background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); border-radius: var(--radius-md);">
-              <div style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: 4px;">处理步骤</div>
-              <div style="font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-primary);">{{ store.processors.length }}</div>
+            <div class="cf-stat-card">
+              <div class="cf-stat-card__label">处理步骤</div>
+              <div class="cf-stat-card__value">{{ store.processors.length }}</div>
+              <div class="cf-stat-card__sub">{{ processorTypeSummary }}</div>
             </div>
-            <div style="flex: 1; min-width: 120px; padding: 12px; background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); border-radius: var(--radius-md);">
-              <div style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: 4px;">输出格式</div>
-              <div style="font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-primary);">{{ store.output?.plugin === 'excel' ? 'Excel' : store.output?.plugin === 'csv' ? 'CSV' : store.output?.plugin === 'database' ? 'Database' : '未配置' }}</div>
+            <div class="cf-stat-card">
+              <div class="cf-stat-card__label">输出格式</div>
+              <div class="cf-stat-card__value">{{ outputTypeLabel }}</div>
             </div>
           </div>
 
           <!-- Data Preview -->
           <div style="margin-bottom: 16px;">
             <div class="flex items-center justify-between mb-2">
-              <label class="text-xs font-medium text-slate-500">数据预览</label>
+              <label class="cf-label" style="margin-bottom: 0;">数据预览</label>
               <NButton size="small" :loading="dryRunLoading" @click="runDryRun">运行预览</NButton>
             </div>
             <div v-if="dryRunError" class="text-xs text-red-500 mb-2">{{ dryRunError }}</div>
@@ -183,6 +185,28 @@ const store = useWizardStore()
 const route = useRoute()
 const { loadConfigState } = useConfigApi()
 const { dryRun } = useWizardApi()
+
+// Summary computed properties
+const inputTypeSummary = computed(() => {
+  const counts: Record<string, number> = {}
+  for (const inp of store.inputs) {
+    const label = inp.plugin === 'excel' ? 'Excel' : inp.plugin === 'csv' ? 'CSV' : inp.plugin === 'database' ? 'Database' : inp.plugin
+    counts[label] = (counts[label] || 0) + 1
+  }
+  return Object.entries(counts).map(([k, v]) => v > 1 ? `${k}×${v}` : k).join(', ') || '未配置'
+})
+const processorTypeSummary = computed(() => {
+  const counts: Record<string, number> = {}
+  for (const proc of store.processors as Array<{plugin: string}>) {
+    const label = proc.plugin === 'sql' ? 'SQL' : proc.plugin === 'python' ? 'Python' : proc.plugin
+    counts[label] = (counts[label] || 0) + 1
+  }
+  return Object.entries(counts).map(([k, v]) => v > 1 ? `${k}×${v}` : k).join(', ') || '未配置'
+})
+const outputTypeLabel = computed(() => {
+  const p = store.output?.plugin
+  return p === 'excel' ? 'Excel' : p === 'csv' ? 'CSV' : p === 'database' ? 'Database' : '未配置'
+})
 
 // Local state
 const currentStep = ref(1)

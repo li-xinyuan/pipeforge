@@ -5,7 +5,7 @@ import logging
 import shutil
 from datetime import datetime, UTC
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from configforge.models.wizard import (
     SceneInitRequest,
     InputInferRequest,
@@ -149,13 +149,36 @@ async def api_execute(req: GenerateRequest, background_tasks: BackgroundTasks):
         )
         raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {e}")
 
-    filename = os.path.basename(output_path)
     finished_at = datetime.now(UTC).isoformat()
-
-    # Compute duration
     start_dt = datetime.fromisoformat(started_at)
     end_dt = datetime.fromisoformat(finished_at)
     duration_ms = int((end_dt - start_dt).total_seconds() * 1000)
+
+    # Database output: no file generated, return success JSON
+    if output_path is None:
+        record = ExecutionRecord(
+            id=exec_id,
+            config_id="",
+            config_version=None,
+            scene_name=scene_name,
+            status="success",
+            started_at=started_at,
+            finished_at=finished_at,
+            duration_ms=duration_ms,
+            inputs_summary=inputs_summary,
+            processors_summary=processors_summary,
+            output_type=output_type,
+            checks_summary=[],
+            output_file_name=None,
+        )
+        result_path = os.path.join(EXEC_DIR, exec_id)
+        os.makedirs(result_path, exist_ok=True)
+        with open(os.path.join(result_path, "result.json"), "w") as f:
+            json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
+        _update_exec_index(record)
+        return JSONResponse({"status": "success", "message": "数据已写入目标数据库", "exec_id": exec_id})
+
+    filename = os.path.basename(output_path)
 
     # Move output to executions directory
     exec_output_dir = os.path.join(EXEC_DIR, exec_id)

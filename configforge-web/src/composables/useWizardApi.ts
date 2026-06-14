@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import type { DbConnectionSummary } from '../types/wizard'
+import { stateToSnakeCase } from '../utils/serialization'
 
 export function useWizardApi() {
   const loading = ref(false)
@@ -32,7 +33,7 @@ export function useWizardApi() {
   }
 
   async function generateYaml(state: any) {
-    return post<{ yaml: string }>('/api/wizard/generate', { state })
+    return post<{ yaml: string }>('/api/wizard/generate', { state: stateToSnakeCase(state) })
   }
 
   async function executeSql(sql: string, tableMapping: Record<string, string>) {
@@ -44,21 +45,25 @@ export function useWizardApi() {
       tables: { table_name: string; columns: string[]; rows: string[][]; total_rows: number }[]
       inputs: Record<string, any>
       processors: any[]
-    }>('/api/wizard/dry-run', { state })
+    }>('/api/wizard/dry-run', { state: stateToSnakeCase(state) })
   }
 
-  async function executePipeline(state: any): Promise<Blob | null> {
+  async function executePipeline(state: any): Promise<Blob | { status: string; message: string; exec_id: string } | null> {
     loading.value = true; error.value = null
     try {
       const resp = await fetch('/api/wizard/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state }),
+        body: JSON.stringify({ state: stateToSnakeCase(state) }),
       })
       if (!resp.ok) {
         const data = await resp.json().catch(() => null)
         error.value = { message: data?.error || data?.detail || '执行失败', code: data?.code || 'EXECUTE_ERROR' }
         return null
+      }
+      const contentType = resp.headers.get('content-type') || ''
+      if (contentType.includes('application/json')) {
+        return await resp.json()
       }
       return await resp.blob()
     } catch {

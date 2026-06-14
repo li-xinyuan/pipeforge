@@ -28,15 +28,37 @@
               v{{ v.version }}
             </NTag>
             <span class="text-xs text-slate-500">{{ v.scene_version }}</span>
+            <span v-if="v.change_summary" class="text-xs text-slate-400">{{ v.change_summary }}</span>
           </div>
           <div class="text-xs text-slate-400 mt-0.5">
-            {{ v.input_count }} 输入 · {{ v.processor_count }} 步骤 · {{ v.created_at?.slice(0, 16) || '' }}
+            {{ v.input_count }} 输入 · {{ v.processor_count }} 步骤 · {{ v.output_type || '-' }} · {{ v.created_at?.slice(0, 16) || '' }}
           </div>
         </div>
         <div class="flex items-center gap-1">
-          <NButton size="tiny" quaternary @click="selectedVersion = v.version">查看</NButton>
+          <NButton size="tiny" quaternary @click="viewVersion(v.version)">查看</NButton>
           <NButton size="tiny" quaternary type="warning" @click="confirmRollback(v.version)">回滚</NButton>
         </div>
+      </div>
+    </div>
+
+    <!-- Version detail preview -->
+    <div v-if="versionDetail" class="border-t pt-3">
+      <div class="flex items-center justify-between mb-2">
+        <h4 class="text-xs font-semibold">v{{ selectedVersion }} 配置详情</h4>
+        <NButton size="tiny" quaternary @click="versionDetail = null; selectedVersion = null">关闭</NButton>
+      </div>
+      <div class="bg-slate-50 rounded-lg p-3 max-h-48 overflow-y-auto text-xs space-y-1">
+        <div><span class="text-slate-400">场景:</span> {{ versionDetail.scene?.name || '-' }}</div>
+        <div><span class="text-slate-400">版本:</span> {{ versionDetail.scene?.version || '-' }}</div>
+        <div><span class="text-slate-400">输入源:</span> {{ versionDetail.inputs?.length || 0 }} 个</div>
+        <div v-for="(inp, i) in versionDetail.inputs" :key="i" class="ml-3 text-slate-500">
+          {{ i + 1 }}. {{ inp.name || inp.table || '-' }} ({{ inp.plugin }})
+        </div>
+        <div><span class="text-slate-400">处理步骤:</span> {{ versionDetail.processors?.length || 0 }} 个</div>
+        <div v-for="(proc, i) in versionDetail.processors" :key="i" class="ml-3 text-slate-500">
+          {{ i + 1 }}. {{ proc.name || proc.plugin || '-' }} ({{ proc.plugin }})
+        </div>
+        <div><span class="text-slate-400">输出:</span> {{ versionDetail.output?.plugin || '-' }}</div>
       </div>
     </div>
 
@@ -111,6 +133,7 @@ interface VersionMeta {
 const versions = ref<VersionMeta[]>([])
 const loading = ref(false)
 const selectedVersion = ref<number | null>(null)
+const versionDetail = ref<any>(null)
 const diffV1 = ref<number | null>(null)
 const diffV2 = ref<number | null>(null)
 const diffResult = ref<any>(null)
@@ -126,6 +149,17 @@ async function loadVersions() {
     if (resp.ok) versions.value = await resp.json()
   } finally {
     loading.value = false
+  }
+}
+
+async function viewVersion(version: number) {
+  selectedVersion.value = version
+  versionDetail.value = null
+  try {
+    const resp = await fetch(`/api/configs/${props.configId}/versions/${version}`)
+    if (resp.ok) versionDetail.value = await resp.json()
+  } catch {
+    message.error('加载版本详情失败')
   }
 }
 

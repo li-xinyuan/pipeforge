@@ -238,9 +238,17 @@ def _prepare_execution(state: WizardState, skip_output: bool = False):
     return exec_state, tmp_dir, yaml_path, params
 
 
-def execute_pipeline(state: WizardState) -> str:
-    """使用真实数据执行 pipeline，返回输出文件路径。"""
+def execute_pipeline(state: WizardState) -> str | None:
+    """使用真实数据执行 pipeline，返回输出文件路径。
+
+    对于 database output，返回 None（无文件输出）。
+    """
     exec_state, tmp_dir, yaml_path, params = _prepare_execution(state, skip_output=False)
+
+    is_db_output = (
+        exec_state.output is not None
+        and exec_state.output.plugin == "database"
+    )
 
     engine = PipelineEngine(yaml_path)
 
@@ -249,6 +257,11 @@ def execute_pipeline(state: WizardState) -> str:
     except Exception:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
+
+    if is_db_output:
+        # Database output writes to a database, not a file
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return None
 
     output_path = result.output.file_path if result.output else ""
     if not output_path or not os.path.exists(output_path):

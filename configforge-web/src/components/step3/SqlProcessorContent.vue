@@ -1,9 +1,9 @@
 <template>
   <div class="space-y-3">
     <!-- Step name + Input tables in one row -->
-    <div class="grid grid-cols-2 gap-3">
+    <div class="cf-form-grid">
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1">处理步骤名称</label>
+        <label class="cf-label">处理步骤名称</label>
         <NInput
           :value="proc.name"
           @update:value="(v: string) => emit('update', { name: v })"
@@ -13,7 +13,7 @@
         />
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1">输入源表</label>
+        <label class="cf-label">输入源表</label>
         <div class="flex flex-wrap gap-1">
           <NTag
             v-for="tbl in availableTables"
@@ -32,7 +32,7 @@
 
       <!-- Available columns -->
       <div v-if="displayTable">
-        <label class="block text-xs font-medium text-slate-500 mb-1">{{ displayTable }} 的字段</label>
+        <label class="cf-label">{{ displayTable }} 的字段</label>
         <div class="flex flex-wrap gap-1">
           <NTag
             v-for="col in currentTableColumns"
@@ -52,8 +52,8 @@
     <!-- SQL textarea -->
     <div>
       <div class="flex items-center justify-between mb-1">
-        <label class="block text-xs font-medium text-slate-500">
-          <span class="text-red-500">*</span> SQL
+        <label class="cf-label">
+          <span class="cf-required">*</span> SQL
         </label>
         <NDropdown :options="sqlTemplates" trigger="click" @select="onSqlTemplateSelect">
           <NButton size="tiny" quaternary>📋 SQL 模板</NButton>
@@ -65,9 +65,8 @@
         @input="emit('update', { sql: ($event.target as HTMLTextAreaElement).value })"
         rows="8"
         :placeholder="sqlPlaceholder"
-        :class="{ 'pulse-cta-input': pulseSql }"
+        :class="['cf-code-editor', { 'pulse-cta-input': pulseSql }]"
         :data-testid="`processor-sql-${index}`"
-        style="width:100%;background:#1e293b;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;padding:10px;border:1px solid #334155;border-radius:8px;resize:vertical;outline:none;"
       />
     </div>
 
@@ -89,8 +88,8 @@
 
     <!-- Output table -->
     <div>
-      <label class="block text-xs font-medium text-slate-500 mb-1">
-        <span class="text-red-500">*</span> 输出表名
+      <label class="cf-label">
+        <span class="cf-required">*</span> 输出表名
       </label>
       <NInput
         :value="proc.outputTables[0] || ''"

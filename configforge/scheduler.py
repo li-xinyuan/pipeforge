@@ -83,10 +83,40 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
             proc["output_tables"] = [proc.pop("outputTable")]
         state_dict["processors"] = [proc]
 
+    # Remove internal fields that are not part of WizardState schema
+    state_dict.pop("_saved_at", None)
+    state_dict.pop("change_summary", None)
+
     try:
         state = WizardState(**state_dict)
     except Exception as e:
         logger.error("Failed to parse config state for scheduled execution: %s", e)
+        _update_schedule_last_run(schedule_id, "failed")
+        return
+
+    # Check for file-based inputs without file_id (will fail at execution time)
+    file_inputs_without_file = [
+        inp for inp in state.inputs
+        if hasattr(inp.config, 'type') and inp.config.type != "database"
+        and not inp.file_id
+    ]
+    if file_inputs_without_file:
+        names = ", ".join(inp.name for inp in file_inputs_without_file)
+        error_msg = f"配置包含文件输入源但文件未上传（{names}），定时任务无法自动上传文件，请改用数据库输入源"
+        logger.error("Scheduled execution skipped: %s", error_msg)
+        exec_id = uuid.uuid4().hex[:8]
+        started_at = datetime.now(UTC).isoformat()
+        _save_failed_execution(
+            exec_id=exec_id,
+            started_at=started_at,
+            config_id=config_id,
+            config_version=None,
+            scene_name=state.scene.name or "",
+            inputs_summary=[{"name": inp.name, "plugin": inp.plugin, "param_key": inp.param_key} for inp in state.inputs],
+            processors_summary=[{"name": p.name, "plugin": p.plugin} for p in state.processors],
+            output_type=state.output.plugin if state.output else "",
+            error_message=error_msg,
+        )
         _update_schedule_last_run(schedule_id, "failed")
         return
 

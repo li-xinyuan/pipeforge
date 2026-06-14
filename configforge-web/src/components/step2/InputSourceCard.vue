@@ -12,7 +12,7 @@
     </div>
 
     <!-- Body: Configuration fields -->
-    <div class="p-3 grid grid-cols-2 gap-3 mb-0 relative">
+    <div class="p-3 cf-form-grid mb-0 relative">
       <!-- File upload -->
       <div v-if="input.plugin !== 'database'" class="col-span-2">
         <template v-if="input.fileId && store.uploadedFiles[input.fileId]">
@@ -31,10 +31,10 @@
           :accept="input.plugin === 'csv' ? '.csv' : '.xlsx,.xls'"
           class="w-full"
         >
-          <span :class="{ 'pulse-cta': pulseUpload }" class="block w-full">
-            <div class="border-2 border-dashed rounded-lg py-5 px-6 text-center cursor-pointer transition-colors"
-                 :class="uploading ? 'border-slate-300 bg-slate-50' : 'border-slate-300 hover:border-teal-400 hover:bg-teal-50/30'"
-            >
+          <div :class="['border-2 border-dashed rounded-lg py-5 px-6 text-center cursor-pointer transition-colors',
+               uploading ? 'border-slate-300 bg-slate-50' : 'border-slate-300 hover:border-teal-400 hover:bg-teal-50/30',
+               { 'pulse-cta': pulseUpload }]"
+          >
               <NSpin v-if="uploading" size="small" />
               <span v-else class="text-3xl block mb-1.5">📤</span>
               <span class="text-sm text-slate-500 block">
@@ -44,8 +44,7 @@
               <span class="text-xs text-slate-400 mt-1 block">
                 支持 {{ input.plugin === 'csv' ? '.csv / .tsv' : '.xlsx / .xls' }} 格式
               </span>
-            </div>
-          </span>
+          </div>
         </NUpload>
         <p v-if="uploadError" class="text-xs text-red-500 mt-1">{{ uploadError }}</p>
       </div>
@@ -63,7 +62,7 @@
 
       <!-- Sheet name (Excel) -->
       <div v-if="input.plugin === 'excel'">
-        <label class="block text-xs font-medium text-slate-500 mb-1">工作表</label>
+        <label class="cf-label">工作表</label>
         <NSelect
           v-if="sheetNames.length > 0"
           :value="(input.config as ExcelInputConfig).sheet"
@@ -87,7 +86,7 @@
       <template v-if="input.plugin === 'csv'">
         <!-- Delimiter -->
         <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">分隔符</label>
+          <label class="cf-label">分隔符</label>
           <NInput
             :value="(input.config as CsvInputConfig).delimiter"
             @update:value="$emit('update', { ...input, config: { ...input.config, delimiter: $event } as CsvInputConfig })"
@@ -98,7 +97,7 @@
         </div>
         <!-- Encoding -->
         <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">编码</label>
+          <label class="cf-label">编码</label>
           <NSelect
             :value="(input.config as CsvInputConfig).encoding"
             @update:value="$emit('update', { ...input, config: { ...input.config, encoding: $event } as CsvInputConfig })"
@@ -108,25 +107,25 @@
           />
         </div>
         <!-- Has header -->
-        <div class="flex items-center gap-2 pt-5">
+        <div class="flex items-center gap-2" style="padding-top: 22px;">
           <NCheckbox
             :checked="(input.config as CsvInputConfig).hasHeader"
             @update:checked="$emit('update', { ...input, config: { ...input.config, hasHeader: $event } as CsvInputConfig })"
             :disabled="analyzing"
           />
-          <span class="text-xs font-medium text-slate-500">包含表头</span>
+          <span class="cf-label" style="margin-bottom: 0;">包含表头</span>
         </div>
       </template>
 
       <!-- Database-specific fields -->
-      <div v-if="input.plugin === 'database'" class="pt-3 border-t border-dashed border-slate-200">
+      <div v-if="input.plugin === 'database'" class="cf-form-group--full pt-3 border-t border-dashed border-slate-200">
         <DatabaseForm :input="input" :index="index" @update="handleUpdate" />
       </div>
 
-      <!-- Column preview (moved before table name) -->
+      <!-- Column preview -->
       <div v-if="input.fileId" class="col-span-2">
         <div class="flex items-center gap-2 mb-2">
-          <span class="text-xs font-medium text-slate-500">列预览</span>
+          <span class="cf-label" style="margin-bottom: 0;">列预览</span>
           <NButton
             v-if="!previewData"
             text
@@ -147,7 +146,7 @@
 
       <!-- Table name -->
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1"><span style="color: var(--color-error);">*</span> 表名</label>
+        <label class="cf-label"><span class="cf-required">*</span> 表名</label>
         <NInput
           :id="`input-table-${index}`"
           :value="input.table"
@@ -162,7 +161,7 @@
 
       <!-- Param key -->
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1">参数键</label>
+        <label class="cf-label">参数键</label>
         <NInput
           :id="`input-key-${index}`"
           :value="input.paramKey"

@@ -4,42 +4,80 @@
 
     <AiStatusBanner />
 
-    <!-- Hero section -->
-    <section class="home__hero">
-      <div class="home__hero-inner">
-        <div class="home__hero-badge">⚡ AI 驱动的数据流水线配置工具</div>
-        <h1 class="home__hero-title">
-          用自然语言描述需求<br>
-          <span class="home__hero-gradient">AI 自动生成配置</span>
-        </h1>
-        <p class="home__hero-subtitle">
-          5 步向导帮你把数据处理需求变成可运行的配置文件。支持 AI 辅助 SQL 生成与列映射，所有数据本地处理，不上传至外部服务。
-        </p>
-        <div v-if="!loading && configs.length === 0" class="home__hero-anim">
-          <PipelineAnimation />
+    <!-- Hero: show when no configs OR user explicitly wants intro -->
+    <Transition name="home-fade">
+      <section v-if="!loading && (totalCount === 0 || showIntro)" class="home__hero">
+        <div class="home__hero-inner">
+          <div class="home__hero-badge">⚡ AI 驱动的数据流水线配置工具</div>
+          <h1 class="home__hero-title">
+            用自然语言描述需求<br>
+            <span class="home__hero-gradient">AI 自动生成配置</span>
+          </h1>
+          <p class="home__hero-subtitle">
+            5 步向导帮你把数据处理需求变成可运行的配置文件。支持 AI 辅助 SQL 生成与列映射，所有数据本地处理，不上传至外部服务。
+          </p>
+          <div class="home__hero-anim">
+            <PipelineAnimation />
+          </div>
+          <div class="home__hero-actions">
+            <NButton type="primary" size="large" class="btn-primary" @click="startNewConfig">
+              ✏ 开始新配置
+            </NButton>
+            <NButton size="large" class="btn-secondary" @click="router.push('/guide')">
+              📖 使用指南
+            </NButton>
+          </div>
+          <div class="home__prompt-chips">
+            <span class="home__prompt-label">试试这样说</span>
+            <button class="home__prompt-chip" @click="startWithPrompt('把用户表的 ID、名称和邮箱导出到 CSV')">把用户表的 ID、名称和邮箱导出到 CSV</button>
+            <button class="home__prompt-chip" @click="startWithPrompt('合并订单表和用户表，按城市统计订单金额')">合并订单表和用户表，按城市统计订单金额</button>
+            <button class="home__prompt-chip" @click="startWithPrompt('从 API 获取天气数据，清洗后写入数据库')">从 API 获取天气数据，清洗后写入数据库</button>
+          </div>
+          <button v-if="totalCount > 0" class="home__hero-back" @click="showIntro = false">← 返回配置列表</button>
         </div>
-        <div class="home__hero-actions">
-          <NButton type="primary" size="large" class="btn-primary" @click="startNewConfig">
-            ✏ 开始新配置
-          </NButton>
-          <NButton size="large" class="btn-secondary" @click="router.push('/guide')">
-            📖 使用指南
-          </NButton>
+      </section>
+    </Transition>
+
+    <!-- Compact toolbar when configs exist and not showing intro -->
+    <Transition name="home-fade">
+      <section v-if="!loading && totalCount > 0 && !showIntro" class="home__toolbar">
+        <div class="home__toolbar-inner">
+          <div class="home__toolbar-left">
+            <span class="home__toolbar-brand">⚡ ConfigForge</span>
+            <span class="home__toolbar-sep"></span>
+            <button class="home__toolbar-intro-link" @click="showIntro = true">查看介绍</button>
+          </div>
+          <div class="home__toolbar-actions">
+            <NButton type="primary" size="small" class="btn-primary" @click="startNewConfig">✏ 新建配置</NButton>
+            <NButton size="small" class="btn-secondary" @click="router.push('/guide')">📖 指南</NButton>
+          </div>
         </div>
-        <div class="home__prompt-chips">
-          <span class="home__prompt-label">试试这样说</span>
-          <button class="home__prompt-chip" @click="startWithPrompt('把用户表的 ID、名称和邮箱导出到 CSV')">把用户表的 ID、名称和邮箱导出到 CSV</button>
-          <button class="home__prompt-chip" @click="startWithPrompt('合并订单表和用户表，按城市统计订单金额')">合并订单表和用户表，按城市统计订单金额</button>
-          <button class="home__prompt-chip" @click="startWithPrompt('从 API 获取天气数据，清洗后写入数据库')">从 API 获取天气数据，清洗后写入数据库</button>
-        </div>
-      </div>
-    </section>
+      </section>
+    </Transition>
 
     <!-- Config list section -->
-    <section class="home__configs">
+    <section class="home__configs" :class="{ 'home__configs--full': totalCount > 0 }">
       <div class="home__configs-header">
-        <h2 class="home__configs-title">最近配置</h2>
-        <NTag v-if="configs.length" size="small" :bordered="false" class="home__configs-count">{{ configs.length }} 个配置</NTag>
+        <div class="home__configs-header-left">
+          <h2 class="home__configs-title">最近配置</h2>
+          <NTag v-if="totalCount > 0" size="small" :bordered="false" class="home__configs-count">{{ totalCount }} 个配置</NTag>
+        </div>
+        <div v-if="totalCount > 0 || searchQuery" class="home__configs-header-right">
+          <NInput
+            v-model:value="searchQuery"
+            placeholder="搜索配置名称..."
+            size="small"
+            clearable
+            class="home__search-input"
+            @update:value="onSearch"
+          >
+            <template #prefix>
+              <span style="color: var(--color-text-muted);">🔍</span>
+            </template>
+          </NInput>
+          <NButton v-if="!batchMode" size="small" @click="enterBatchMode">批量管理</NButton>
+          <NButton v-else size="small" @click="exitBatchMode">取消</NButton>
+        </div>
       </div>
 
       <div v-if="loading" class="home__skeleton">
@@ -49,11 +87,19 @@
       <NAlert v-else-if="error" type="error" :title="error" />
 
       <div v-else-if="configs.length > 0" class="home__config-list">
-        <div v-for="cfg in configs" :key="cfg.id" class="home__config-card card-lift">
+        <!-- Batch action bar -->
+        <div v-if="batchMode" class="home__batch-bar">
+          <NCheckbox :checked="isAllSelected" :indeterminate="isSomeSelected && !isAllSelected" @update:checked="toggleSelectAll">全选</NCheckbox>
+          <span class="home__batch-count">已选 {{ selectedIds.size }} 项</span>
+          <NButton size="small" type="error" :disabled="selectedIds.size === 0" :loading="batchDeleting" @click="onBatchDelete">删除选中</NButton>
+        </div>
+
+        <div v-for="cfg in configs" :key="cfg.id" class="home__config-card card-lift" :class="{ 'home__config-card--selected': batchMode && selectedIds.has(cfg.id) }">
+          <NCheckbox v-if="batchMode" :checked="selectedIds.has(cfg.id)" @update:checked="toggleSelect(cfg.id)" class="home__config-card-check" />
           <div class="home__config-card-left">
             <span class="home__config-card-icon">📋</span>
             <div class="home__config-card-info">
-              <router-link :to="'/config/new?load=' + cfg.id" class="config-name-link">{{ cfg.sceneName }}</router-link>
+              <router-link :to="batchMode ? '' : '/config/new?load=' + cfg.id" class="config-name-link" :class="{ 'config-name-link--disabled': batchMode }">{{ cfg.sceneName }}</router-link>
               <div class="home__config-card-meta">
                 <span class="home__meta-item">{{ cfg.version }}</span>
                 <span class="home__meta-sep">·</span>
@@ -65,19 +111,37 @@
               </div>
             </div>
           </div>
-          <div class="home__config-card-right">
+          <div v-if="!batchMode" class="home__config-card-right">
             <NButton v-if="cfg.inputCount > 0" size="small" secondary type="primary" @click.stop="openExecuteModal(cfg)">执行</NButton>
             <NDropdown trigger="click" :options="getMenuOptions(cfg)" @select="(key: string) => onMenuSelect(key, cfg)">
               <NButton text size="tiny" class="home__menu-btn" style="min-width: 44px; min-height: 44px;">···</NButton>
             </NDropdown>
           </div>
         </div>
+
+        <!-- Pagination -->
+        <div v-if="totalPages > 1" class="home__pagination">
+          <NButton size="small" :disabled="currentPage <= 1" @click="onPageChange(currentPage - 1)">← 上一页</NButton>
+          <span class="home__pagination-info">{{ currentPage }} / {{ totalPages }}</span>
+          <NButton size="small" :disabled="currentPage >= totalPages" @click="onPageChange(currentPage + 1)">下一页 →</NButton>
+          <span class="home__pagination-sep"></span>
+          <NSelect v-model:value="pageSize" :options="pageSizeOptions" size="small" class="home__page-size-select" @update:value="onPageSizeChange" />
+          <span class="home__pagination-sep"></span>
+          <span class="home__pagination-jump">
+            跳至
+            <NInput v-model:value="jumpPage" size="small" class="home__jump-input" @keyup.enter="onJumpPage" />
+            页
+          </span>
+        </div>
       </div>
 
       <div v-else style="text-align: center; padding: 40px 20px; color: var(--color-text-muted);">
         <p style="font-size: 48px; margin-bottom: 12px;">📋</p>
-        <p style="font-size: var(--font-size-base); font-weight: 500; margin-bottom: 8px;">还没有配置</p>
-        <p style="font-size: var(--font-size-sm);">点击上方按钮开始创建你的第一个数据管道配置</p>
+        <p v-if="searchQuery" style="font-size: var(--font-size-base); font-weight: 500; margin-bottom: 8px;">没有找到匹配的配置</p>
+        <template v-else>
+          <p style="font-size: var(--font-size-base); font-weight: 500; margin-bottom: 8px;">还没有配置</p>
+          <p style="font-size: var(--font-size-sm);">点击上方按钮开始创建你的第一个数据管道配置</p>
+        </template>
       </div>
     </section>
 
@@ -90,6 +154,19 @@
         <div class="flex gap-2 justify-end">
           <NButton @click="deleteModalVisible = false">取消</NButton>
           <NButton type="error" :loading="deleting" @click="onConfirmDelete">删除</NButton>
+        </div>
+      </template>
+    </NModal>
+
+    <!-- 批量删除确认弹窗 -->
+    <NModal v-model:show="batchDeleteModalVisible" preset="card" title="确认批量删除" style="max-width: 400px">
+      <p class="text-sm text-slate-600 mb-0">
+        确定要删除选中的 <strong>{{ selectedIds.size }}</strong> 个配置吗？此操作不可撤销。
+      </p>
+      <template #footer>
+        <div class="flex gap-2 justify-end">
+          <NButton @click="batchDeleteModalVisible = false">取消</NButton>
+          <NButton type="error" :loading="batchDeleting" @click="onConfirmBatchDelete">删除</NButton>
         </div>
       </template>
     </NModal>
@@ -117,12 +194,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useWizardStore } from '../stores/wizard'
 import type { SavedConfig } from '../types/wizard'
-import { NButton, NAlert, NModal, NTag, NDropdown, useMessage } from 'naive-ui'
+import { NButton, NAlert, NModal, NTag, NDropdown, NInput, NCheckbox, NSelect, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import ExecuteConfigModal from '../components/ExecuteConfigModal.vue'
 import ConfigVersionPanel from '../components/config/ConfigVersionPanel.vue'
@@ -137,6 +214,18 @@ const { listConfigs, deleteConfig, downloadConfigYaml } = useConfigApi()
 const loading = ref(true)
 const error = ref('')
 const configs = ref<SavedConfig[]>([])
+const totalCount = ref(0)
+const currentPage = ref(1)
+const totalPages = ref(1)
+const pageSize = ref(10)
+const pageSizeOptions = [
+  { label: '10 条/页', value: 10 },
+  { label: '20 条/页', value: 20 },
+  { label: '50 条/页', value: 50 },
+]
+const jumpPage = ref('')
+const searchQuery = ref('')
+const showIntro = ref(false)
 
 const deleteModalVisible = ref(false)
 const deletingConfig = ref<SavedConfig | null>(null)
@@ -148,6 +237,62 @@ const executingConfig = ref<SavedConfig | null>(null)
 const versionModalVisible = ref(false)
 const versionModalConfigId = ref<string | null>(null)
 
+// Batch mode
+const batchMode = ref(false)
+const selectedIds = ref<Set<string>>(new Set())
+const batchDeleteModalVisible = ref(false)
+const batchDeleting = ref(false)
+
+const isAllSelected = computed(() => configs.value.length > 0 && configs.value.every(c => selectedIds.value.has(c.id)))
+const isSomeSelected = computed(() => configs.value.some(c => selectedIds.value.has(c.id)))
+
+function enterBatchMode() {
+  batchMode.value = true
+  selectedIds.value = new Set()
+}
+
+function exitBatchMode() {
+  batchMode.value = false
+  selectedIds.value = new Set()
+}
+
+function toggleSelect(id: string) {
+  const s = new Set(selectedIds.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  selectedIds.value = s
+}
+
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    selectedIds.value = new Set()
+  } else {
+    selectedIds.value = new Set(configs.value.map(c => c.id))
+  }
+}
+
+function onBatchDelete() {
+  batchDeleteModalVisible.value = true
+}
+
+async function onConfirmBatchDelete() {
+  batchDeleting.value = true
+  let okCount = 0
+  for (const id of selectedIds.value) {
+    const ok = await deleteConfig(id)
+    if (ok) okCount++
+  }
+  batchDeleting.value = false
+  batchDeleteModalVisible.value = false
+  exitBatchMode()
+  if (okCount > 0) {
+    message.success(`已删除 ${okCount} 个配置`)
+    loadConfigList()
+  } else {
+    message.error('删除失败')
+  }
+}
+
 function startNewConfig() {
   store.resetAll()
   router.push('/config/new')
@@ -158,9 +303,56 @@ function startWithPrompt(prompt: string) {
   router.push('/config/new?prompt=' + encodeURIComponent(prompt))
 }
 
-onMounted(async () => {
-  configs.value = await listConfigs()
+async function loadConfigList() {
+  loading.value = true
+  const result = await listConfigs(currentPage.value, pageSize.value, searchQuery.value)
+  // If current page is empty but there are configs, go to last valid page
+  if (result.items.length === 0 && result.total > 0 && currentPage.value > 1) {
+    const newPage = Math.min(currentPage.value, result.totalPages)
+    currentPage.value = newPage
+    const retry = await listConfigs(newPage, pageSize.value, searchQuery.value)
+    configs.value = retry.items
+    totalCount.value = retry.total
+    totalPages.value = retry.totalPages
+  } else {
+    configs.value = result.items
+    totalCount.value = result.total
+    totalPages.value = result.totalPages
+  }
   loading.value = false
+}
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+function onSearch() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    currentPage.value = 1
+    loadConfigList()
+  }, 300)
+}
+
+function onPageChange(page: number) {
+  currentPage.value = page
+  loadConfigList()
+}
+
+function onPageSizeChange(val: number) {
+  pageSize.value = val
+  currentPage.value = 1
+  loadConfigList()
+}
+
+function onJumpPage() {
+  const page = parseInt(jumpPage.value, 10)
+  if (!isNaN(page) && page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+    jumpPage.value = ''
+    loadConfigList()
+  }
+}
+
+onMounted(() => {
+  loadConfigList()
 })
 
 async function onLoadConfig(id: string) {
@@ -182,9 +374,9 @@ async function onConfirmDelete() {
   const ok = await deleteConfig(deletingConfig.value.id)
   if (ok) {
     message.success('已删除')
-    configs.value = configs.value.filter(c => c.id !== deletingConfig.value!.id)
     deleteModalVisible.value = false
     deletingConfig.value = null
+    loadConfigList()
   } else {
     message.error('删除失败')
   }
@@ -218,8 +410,7 @@ function openVersionModal(configId: string) {
 }
 
 function onVersionRefreshed() {
-  // Reload config list after rollback to reflect updated version info
-  listConfigs().then(data => { configs.value = data })
+  loadConfigList()
 }
 
 function formatTime(iso: string): string {
@@ -242,7 +433,7 @@ function formatTime(iso: string): string {
   background: var(--color-bg);
 }
 
-/* ───── hero ───── */
+/* ───── hero (empty state) ───── */
 .home__hero {
   padding: 64px 24px 56px;
   background: linear-gradient(180deg, var(--color-primary-bg) 0%, var(--color-bg) 100%);
@@ -299,6 +490,88 @@ function formatTime(iso: string): string {
   margin-bottom: 32px;
 }
 
+/* ───── toolbar (has configs) ───── */
+.home__toolbar {
+  padding: 16px 24px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.home__toolbar-inner {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.home__toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.home__toolbar-brand {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.home__toolbar-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-light);
+}
+
+.home__toolbar-intro-link {
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.home__toolbar-intro-link:hover {
+  color: var(--color-primary);
+}
+
+.home__toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ───── hero back button ───── */
+.home__hero-back {
+  display: inline-block;
+  margin-top: 24px;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.2s;
+}
+
+.home__hero-back:hover {
+  color: var(--color-primary);
+}
+
+/* ───── transition ───── */
+.home-fade-enter-active,
+.home-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.home-fade-enter-from,
+.home-fade-leave-to {
+  opacity: 0;
+}
+
 /* ───── prompt chips ───── */
 .home__prompt-chips {
   display: flex;
@@ -338,11 +611,36 @@ function formatTime(iso: string): string {
   padding: 48px 24px 80px;
 }
 
+.home__configs--full {
+  max-width: 800px;
+  padding-top: 32px;
+}
+
 .home__configs-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+  gap: 12px;
+}
+
+.home__configs-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.home__configs-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.home__search-input {
+  max-width: 200px;
 }
 
 .home__configs-title {
@@ -356,10 +654,82 @@ function formatTime(iso: string): string {
   font-size: var(--font-size-xs);
 }
 
+.home__batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 4px;
+}
+
+.home__batch-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  flex: 1;
+}
+
+.home__config-card--selected {
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary-bg) !important;
+}
+
+.home__config-card-check {
+  flex-shrink: 0;
+}
+
+.config-name-link--disabled {
+  pointer-events: none;
+  color: var(--color-text);
+}
+
 .home__config-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.home__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-light);
+  flex-wrap: wrap;
+}
+
+.home__pagination-info {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  min-width: 60px;
+  text-align: center;
+}
+
+.home__pagination-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-light);
+}
+
+.home__page-size-select {
+  width: 110px;
+}
+
+.home__pagination-jump {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.home__jump-input {
+  width: 52px;
+  text-align: center;
 }
 
 /* ───── config card ───── */

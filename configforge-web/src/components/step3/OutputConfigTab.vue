@@ -55,10 +55,10 @@
       </div>
 
       <!-- Output form -->
-      <div class="p-3 space-y-3">
+      <div class="p-3 cf-form-grid">
       <!-- Source table (first field, required) -->
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1"><span class="text-red-500">*</span> 输入源表</label>
+        <label class="cf-label"><span class="cf-required">*</span> 输入源表</label>
         <NSelect
           v-model:value="outputConfig.sourceTable"
           :options="sourceTableOptions"
@@ -68,8 +68,8 @@
       </div>
 
       <!-- Template file upload (Excel only, drag-and-drop style) -->
-      <div v-if="store.output?.plugin === 'excel'">
-        <label class="block text-xs font-medium text-slate-500 mb-1">模板文件</label>
+      <div v-if="store.output?.plugin === 'excel'" class="cf-form-group--full">
+        <label class="cf-label">模板文件</label>
         <template v-if="excelConfig.template && store.uploadedFiles[excelConfig.template]">
           <div class="flex items-center gap-1">
             <NTag type="success" size="small" class="truncate">
@@ -97,7 +97,7 @@
 
       <!-- Sheet name (Excel only, disabled until template uploaded) -->
       <div v-if="store.output?.plugin === 'excel'">
-        <label class="block text-xs font-medium text-slate-500 mb-1">Sheet 名称</label>
+        <label class="cf-label">Sheet 名称</label>
         <NSelect
           v-if="templateSheets.length > 0"
           :value="excelConfig.sheet"
@@ -117,9 +117,9 @@
       </div>
 
       <!-- Filename template -->
-      <div v-if="store.output?.plugin !== 'database'">
+      <div v-if="store.output?.plugin !== 'database'" class="cf-form-group--full">
         <div class="flex items-center gap-1 mb-1">
-          <label class="block text-xs font-medium text-slate-500">输出文件名</label>
+          <label class="cf-label" style="margin-bottom: 0;">输出文件名</label>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
           <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
         </div>
@@ -142,7 +142,7 @@
 
       <!-- Delimiter (CSV only) -->
       <div v-if="store.output?.plugin === 'csv'">
-        <label class="block text-xs font-medium text-slate-500 mb-1">分隔符</label>
+        <label class="cf-label">分隔符</label>
         <NInput
           :value="csvConfig.delimiter"
           @update:value="updateCsvConfig({ delimiter: $event })"
@@ -152,7 +152,7 @@
 
       <!-- Encoding (CSV only) -->
       <div v-if="store.output?.plugin === 'csv'">
-        <label class="block text-xs font-medium text-slate-500 mb-1">编码</label>
+        <label class="cf-label">编码</label>
         <NSelect
           :value="csvConfig.encoding"
           @update:value="updateCsvConfig({ encoding: $event })"
@@ -165,7 +165,7 @@
       <template v-if="store.output?.plugin === 'database'">
         <!-- Connection selector -->
         <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1"><span class="text-red-500">*</span> 数据库连接</label>
+          <label class="cf-label"><span class="cf-required">*</span> 数据库连接</label>
           <NSelect
             v-model:value="dbConfig.connectionId"
             :options="connectionOptions"
@@ -176,17 +176,22 @@
         </div>
         <!-- Target table name -->
         <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1"><span class="text-red-500">*</span> 目标表名</label>
+          <label class="cf-label"><span class="cf-required">*</span> 目标表名</label>
           <NInput v-model:value="dbConfig.targetTable" placeholder="例如：report_data" size="small" />
         </div>
         <!-- Write mode -->
         <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">写入模式</label>
+          <label class="cf-label">写入模式</label>
           <NSelect
             v-model:value="dbConfig.writeMode"
             :options="writeModeOptions"
             size="small"
           />
+        </div>
+        <!-- Batch size -->
+        <div>
+          <label class="cf-label">批量大小</label>
+          <NInputNumber v-model:value="dbConfig.batchSize" :min="1" :max="10000" size="small" />
         </div>
         <!-- Create table if not exists -->
         <div>
@@ -194,7 +199,7 @@
         </div>
         <!-- Primary key columns -->
         <div v-if="dbConfig.writeMode === 'upsert'">
-          <label class="block text-xs font-medium text-slate-500 mb-1">主键列</label>
+          <label class="cf-label">主键列</label>
           <NSelect
             v-model:value="dbConfig.primaryKeyColumns"
             :options="primaryKeyOptions"
@@ -203,23 +208,18 @@
             size="small"
           />
         </div>
-        <!-- Batch size -->
-        <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">批量大小</label>
-          <NInputNumber v-model:value="dbConfig.batchSize" :min="1" :max="10000" size="small" />
-        </div>
       </template>
 
       <!-- Output directory -->
       <div v-if="store.output?.plugin !== 'database'">
-        <label class="block text-xs font-medium text-slate-500 mb-1">输出目录</label>
+        <label class="cf-label">输出目录</label>
         <NInput v-model:value="fileOutputConfig!.outputDir" size="small" />
       </div>
 
       <!-- Column mapping -->
-      <div>
+      <div class="cf-form-group--full">
         <div class="flex items-center justify-between mb-2">
-          <label class="text-xs font-medium text-slate-500"><span class="text-red-500">*</span> 列映射</label>
+          <label class="cf-label" style="margin-bottom: 0;"><span class="cf-required">*</span> 列映射</label>
           <div class="flex gap-2">
             <NButton
               v-if="store.output?.plugin === 'csv'"
@@ -326,7 +326,7 @@ const dbConfig = computed(() => store.output!.config as DatabaseOutputConfig)
 const connectionOptions = ref<Array<{label: string; value: string}>>([])
 
 const writeModeOptions = [
-  { label: '追加 (INSERT)', value: 'insert' },
+  { label: '追加 (INSERT)', value: 'append' },
   { label: '替换 (DROP+CREATE+INSERT)', value: 'replace' },
   { label: '更新插入 (UPSERT)', value: 'upsert' },
 ]
@@ -699,7 +699,7 @@ function switchOutputType(plugin: 'excel' | 'csv' | 'database') {
         columns: [] as ColumnMappingItem[],
         connectionId: '',
         targetTable: '',
-        writeMode: 'insert',
+        writeMode: 'append',
         createTableIfNotExists: true,
         primaryKeyColumns: [],
         batchSize: 1000,

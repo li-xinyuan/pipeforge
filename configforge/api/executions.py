@@ -59,12 +59,21 @@ def _update_exec_index(record: ExecutionRecord):
         "scene_name": record.scene_name,
         "status": record.status,
         "started_at": record.started_at,
+        "finished_at": record.finished_at,
         "duration_ms": record.duration_ms,
+        "inputs_summary": record.inputs_summary,
+        "processors_summary": record.processors_summary,
+        "output_type": record.output_type,
+        "checks_summary": record.checks_summary,
+        "error_message": record.error_message,
         "output_file_name": record.output_file_name,
     })
     # Keep last 100 entries
     with open(EXEC_INDEX, "w") as f:
         json.dump(index[:100], f, ensure_ascii=False, indent=2)
+
+    # Clean up old output directories
+    _cleanup_old_outputs()
 
 
 def _save_failed_execution(
@@ -132,6 +141,14 @@ async def list_executions(
     total_pages = max(1, (total + page_size - 1) // page_size)
     start = (page - 1) * page_size
     items = index[start:start + page_size]
+    # Backfill missing fields for old records
+    for item in items:
+        item.setdefault("finished_at", None)
+        item.setdefault("inputs_summary", [])
+        item.setdefault("processors_summary", [])
+        item.setdefault("output_type", "")
+        item.setdefault("checks_summary", [])
+        item.setdefault("error_message", None)
     return {
         "items": items,
         "total": total,

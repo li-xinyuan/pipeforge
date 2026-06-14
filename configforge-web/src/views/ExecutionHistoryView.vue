@@ -111,7 +111,10 @@ async function refresh() {
   loading.value = true
   try {
     const resp = await fetch('/api/executions')
-    if (resp.ok) executions.value = await resp.json()
+    if (resp.ok) {
+      const data = await resp.json()
+      executions.value = Array.isArray(data) ? data : (data.items || [])
+    }
   } finally {
     loading.value = false
   }

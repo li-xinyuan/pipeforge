@@ -26,6 +26,7 @@ from configforge.api.executions import (
     EXEC_DIR,
     _update_exec_index,
     _save_failed_execution,
+    _sanitize_summary,
 )
 from configforge.services.yaml_builder import build_yaml
 from configforge.utils.security import validate_id
@@ -83,6 +84,8 @@ async def list_configs(
     page_size: int = 10,
 ) -> dict:
     index = _load_index()
+    # Sort by updated_at descending (newest first)
+    index = sorted(index, key=lambda e: e.get("updated_at", ""), reverse=True)
     if search:
         q = search.lower()
         index = [e for e in index
@@ -267,6 +270,9 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
         state_dict = json.load(f)
 
     _migrate_state_dict(state_dict)
+    # Remove internal fields that are not part of WizardState schema
+    state_dict.pop("_saved_at", None)
+    state_dict.pop("change_summary", None)
 
     # Get config_version from index
     index = _load_index()
@@ -340,7 +346,6 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
         )
         raise HTTPException(status_code=500, detail=str(e))
 
-    filename = os.path.basename(output_path)
     finished_at = datetime.now(UTC).isoformat()
 
     # Compute duration
@@ -348,16 +353,21 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
     end_dt = datetime.fromisoformat(finished_at)
     duration_ms = int((end_dt - start_dt).total_seconds() * 1000)
 
-    # Move output to executions directory
-    exec_output_dir = os.path.join(EXEC_DIR, exec_id)
-    os.makedirs(exec_output_dir, exist_ok=True)
-    exec_output_path = os.path.join(exec_output_dir, filename)
-    shutil.move(output_path, exec_output_path)
+    # Database output has no file; file output needs to be moved
+    output_file_name = None
+    if output_path:
+        filename = os.path.basename(output_path)
+        exec_output_dir = os.path.join(EXEC_DIR, exec_id)
+        os.makedirs(exec_output_dir, exist_ok=True)
+        exec_output_path = os.path.join(exec_output_dir, filename)
+        shutil.move(output_path, exec_output_path)
 
-    # Clean up the intermediate output directory (data/outputs/{id}/)
-    output_intermediate_dir = os.path.dirname(output_path)
-    if os.path.isdir(output_intermediate_dir):
-        shutil.rmtree(output_intermediate_dir, ignore_errors=True)
+        # Clean up the intermediate output directory (data/outputs/{id}/)
+        output_intermediate_dir = os.path.dirname(output_path)
+        if os.path.isdir(output_intermediate_dir):
+            shutil.rmtree(output_intermediate_dir, ignore_errors=True)
+
+        output_file_name = filename
 
     # Save execution record
     record = ExecutionRecord(
@@ -369,30 +379,37 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
         started_at=started_at,
         finished_at=finished_at,
         duration_ms=duration_ms,
-        inputs_summary=inputs_summary,
+        inputs_summary=_sanitize_summary(inputs_summary),
         processors_summary=processors_summary,
         output_type=output_type,
         checks_summary=[],
-        output_file_name=filename,
+        output_file_name=output_file_name,
     )
 
-    result_path = os.path.join(exec_output_dir, "result.json")
+    # Save execution record to file
+    exec_record_dir = os.path.join(EXEC_DIR, exec_id)
+    os.makedirs(exec_record_dir, exist_ok=True)
+    result_path = os.path.join(exec_record_dir, "result.json")
     with open(result_path, "w") as f:
         json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
 
     _update_exec_index(record)
 
-    media_type = (
-        "text/csv"
-        if filename.endswith(".csv")
-        else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    return FileResponse(
-        exec_output_path,
-        media_type=media_type,
-        filename=filename,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    # Return file download for file-based outputs, or JSON for database outputs
+    if output_file_name and output_path:
+        media_type = (
+            "text/csv"
+            if output_file_name.endswith(".csv")
+            else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        return FileResponse(
+            exec_output_path,
+            media_type=media_type,
+            filename=output_file_name,
+            headers={"Content-Disposition": f'attachment; filename="{output_file_name}"'},
+        )
+    else:
+        return {"ok": True, "status": "success", "output_type": output_type}
 
 
 # === Version management helpers ===

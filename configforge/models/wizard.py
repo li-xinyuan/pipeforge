@@ -112,16 +112,16 @@ class CsvOutputConfig(BaseModel):
 
 
 class DatabaseOutputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     type: Literal["database"] = "database"
-    connection_id: str = ""
-    target_table: str = ""
-    write_mode: Literal["replace", "append", "upsert"] = "replace"
-    source_table: str = ""
+    connection_id: str = Field(default="", alias="connectionId")
+    target_table: str = Field(default="", alias="targetTable")
+    write_mode: Literal["replace", "append", "upsert"] = Field(default="replace", alias="writeMode")
+    source_table: str = Field(default="", alias="sourceTable")
     columns: list[ColumnMappingItem] = Field(default=[])
-    create_table_if_not_exists: bool = True
-    primary_key_columns: list[str] = Field(default=[])
+    create_table_if_not_exists: bool = Field(default=True, alias="createTableIfNotExists")
+    primary_key_columns: list[str] = Field(default=[], alias="primaryKeyColumns")
     batch_size: int = Field(default=1000, ge=1, le=100000)
     connection_string: str = ""
 

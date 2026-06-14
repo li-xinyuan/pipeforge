@@ -1,8 +1,8 @@
 <template>
-  <div class="space-y-3">
+  <div class="cf-form-grid">
     <!-- Connection selector -->
     <div>
-      <label class="block text-xs font-medium text-slate-500 mb-1">数据库连接 <span class="text-red-500">*</span></label>
+      <label class="cf-label">数据库连接 <span class="cf-required">*</span></label>
       <NSelect
         v-model:value="selectedConnectionId"
         :options="connectionOptions"
@@ -11,24 +11,22 @@
         @update:value="onConnectionSelected"
       />
       <p v-if="connections.length === 0" class="text-xs text-amber-600 mt-1">请先在设置页面添加数据库连接</p>
-      <p v-else class="text-xs text-slate-400 mt-1">
-        或前往
-        <RouterLink to="/settings" class="text-blue-600 underline">设置页</RouterLink>
-        管理连接
-      </p>
     </div>
 
     <!-- Test connection -->
-    <div v-if="selectedConnectionId" class="flex gap-2">
+    <div v-if="selectedConnectionId" class="flex items-end gap-2">
       <NButton size="small" :loading="testing" @click="onTestConnection">测试连通</NButton>
+      <p v-if="testResult" :class="testResult.ok ? 'text-green-600' : 'text-red-500'" class="text-xs">
+        {{ testResult.ok ? '连接成功' : testResult.error }}
+      </p>
+      <p v-else-if="connections.length > 0" class="text-xs" style="color: var(--color-text-muted);">
+        或前往 <RouterLink to="/settings" class="underline" style="color: var(--color-primary);">设置页</RouterLink> 管理连接
+      </p>
     </div>
-    <p v-if="testResult" :class="testResult.ok ? 'text-green-600' : 'text-red-500'" class="text-xs mt-1">
-      {{ testResult.ok ? '连接成功' : testResult.error }}
-    </p>
 
     <!-- Query type toggle -->
     <div v-if="selectedConnectionId">
-      <label class="block text-xs font-medium text-slate-500 mb-1">查询方式</label>
+      <label class="cf-label">查询方式</label>
       <NRadioGroup v-model:value="queryType">
         <NRadio value="table">选择表</NRadio>
         <NRadio value="sql">自定义 SQL</NRadio>
@@ -37,7 +35,7 @@
 
     <!-- Table selector -->
     <div v-if="selectedConnectionId && queryType === 'table'">
-      <label class="block text-xs font-medium text-slate-500 mb-1">选择表</label>
+      <label class="cf-label">选择表</label>
       <NSelect
         v-model:value="selectedTable"
         :options="tableOptions"
@@ -51,7 +49,7 @@
 
     <!-- Column info -->
     <div v-if="selectedTable && queryType === 'table'">
-      <label class="block text-xs font-medium text-slate-500 mb-1">
+      <label class="cf-label">
         列信息
         <NSpin v-if="loadingColumns" :size="12" class="ml-1" />
       </label>
@@ -61,12 +59,12 @@
           {{ col.name }} <span class="text-slate-400 ml-1">{{ col.type }}</span>
         </NTag>
       </div>
-      <p v-else-if="!loadingColumns" class="text-xs text-slate-400">暂无列信息</p>
+      <p v-else-if="!loadingColumns" class="text-xs" style="color: var(--color-text-muted);">暂无列信息</p>
     </div>
 
     <!-- SQL editor -->
-    <div v-if="selectedConnectionId && queryType === 'sql'">
-      <label class="block text-xs font-medium text-slate-500 mb-1">SQL 查询</label>
+    <div v-if="selectedConnectionId && queryType === 'sql'" class="cf-form-group--full">
+      <label class="cf-label">SQL 查询</label>
       <NInput
         v-model:value="sqlQuery"
         type="textarea"

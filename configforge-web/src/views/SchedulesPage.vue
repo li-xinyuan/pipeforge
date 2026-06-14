@@ -129,6 +129,7 @@ interface ScheduleItem {
 interface ConfigOption {
   label: string
   value: string
+  hasFileInput?: boolean
 }
 
 const schedules = ref<ScheduleItem[]>([])
@@ -156,6 +157,7 @@ async function refresh() {
       configOptions.value = (data.items || []).map((c: any) => ({
         label: c.scene_name || '未命名',
         value: c.id,
+        hasFileInput: (c.inputs || []).some((inp: any) => inp.plugin !== 'database'),
       }))
     }
   } finally {
@@ -178,6 +180,22 @@ async function onAddSchedule() {
     message.warning('请输入 Cron 表达式')
     return
   }
+  // Check if selected config has file-based inputs (Excel/CSV)
+  const selectedConfig = configOptions.value.find(c => c.value === addForm.value.config_id)
+  if (selectedConfig?.hasFileInput) {
+    dialog.warning({
+      title: '该配置包含文件输入源',
+      content: '此配置包含 Excel/CSV 文件输入源，定时任务执行时无法自动上传文件，会导致执行失败。仅建议为纯数据库输入源的配置创建定时任务。是否仍要继续？',
+      positiveText: '仍然创建',
+      negativeText: '取消',
+      onPositiveClick: () => doAddSchedule(),
+    })
+    return
+  }
+  await doAddSchedule()
+}
+
+async function doAddSchedule() {
   submitting.value = true
   try {
     const resp = await fetch('/api/schedules', {

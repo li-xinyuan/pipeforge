@@ -42,7 +42,7 @@ async def block_encoded_traversal(request: Request, call_next):
     return await call_next(request)
 
 
-_cors_origins_env = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
+_cors_origins_env = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174")
 _cors_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
 
 app.add_middleware(

@@ -99,9 +99,9 @@ async function onTestRun() {
       } : null,
       uploaded_files: {},
     }
-    const blob = await executePipeline(state)
-    if (blob) {
-      const url = URL.createObjectURL(blob)
+    const result = await executePipeline(state)
+    if (result && result instanceof Blob) {
+      const url = URL.createObjectURL(result)
       try {
         const a = document.createElement('a')
         a.href = url
