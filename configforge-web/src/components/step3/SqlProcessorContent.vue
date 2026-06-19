@@ -87,22 +87,7 @@
       <p v-if="aiError" class="text-xs text-red-500 mt-1">{{ aiError }}</p>
     </div>
 
-    <!-- Output table -->
-    <div>
-      <label class="cf-label">
-        <span class="cf-required">*</span> 输出表名
-      </label>
-      <NInput
-        :value="proc.outputTables[0] || ''"
-        @update:value="(v: string) => emit('update', { outputTables: [v] })"
-        placeholder="例如：monthly_report"
-        size="small"
-      />
-      <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
-      <p v-if="equivalenceSql" class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 font-mono">{{ equivalenceSql }}</p>
-    </div>
-
-    <!-- Preview execution -->
+    <!-- Preview execution + AI generate SQL button -->
     <div class="flex gap-2 items-center flex-wrap">
       <NButton v-if="!dryRunVisible || !dryRunResult" size="tiny" type="info" :loading="dryRunRunning" :disabled="!proc.sql.trim()" @click="runDryRun">▶ 预览结果</NButton>
       <NButton v-else size="tiny" type="info" @click="dryRunVisible = false">收起结果</NButton>
@@ -123,6 +108,21 @@
         </div>
         <ColumnPreview :columns="table.columns" :rows="table.rows" />
       </div>
+    </div>
+
+    <!-- Output table (moved below preview/AI buttons to avoid splitting the AI generation area) -->
+    <div>
+      <label class="cf-label">
+        <span class="cf-required">*</span> 输出表名
+      </label>
+      <NInput
+        :value="proc.outputTables[0] || ''"
+        @update:value="(v: string) => emit('update', { outputTables: [v] })"
+        placeholder="例如：月度报表"
+        size="small"
+      />
+      <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
+      <p v-if="equivalenceSql" class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 font-mono">{{ equivalenceSql }}</p>
     </div>
   </div>
 </template>
@@ -227,7 +227,9 @@ onMounted(async () => {
 
 const sqlPlaceholder = computed(() => {
   const tables = props.availableTables.map(o => o.value)
-  return tables.length > 0 ? `SELECT * FROM "${tables[0]}"` : '输入 SQL 查询语句...'
+  return tables.length > 0
+    ? `SELECT * FROM "${tables[0]}"\n-- 提示：也可以点击"AI 生成 SQL"，用自然语言描述需求`
+    : '输入 SQL 查询语句，或点击"AI 生成 SQL"用自然语言描述需求...'
 })
 
 const inputTableNames = computed(() =>

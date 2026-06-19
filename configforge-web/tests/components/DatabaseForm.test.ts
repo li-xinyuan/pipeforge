@@ -111,9 +111,9 @@ describe('DatabaseForm', () => {
     expect(wrapper.text()).toContain('数据库连接')
   })
 
-  it('shows link to settings page', () => {
+  it('shows manage button for connections', () => {
     const wrapper = mountForm()
-    expect(wrapper.text()).toContain('设置页')
+    expect(wrapper.text()).toContain('管理')
   })
 
   it('does not show test/load buttons when no connection selected', () => {

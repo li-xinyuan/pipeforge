@@ -20,6 +20,9 @@ demo/output/
 .DS_Store
 Thumbs.db
 
+# Environment
+.env
+
 # Demo screenshots
 demo/screenshots/
 

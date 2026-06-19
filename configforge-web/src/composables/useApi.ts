@@ -1,8 +1,4 @@
-/**
- * Shared API request utilities.
- * Provides a common base for all composables to make HTTP requests
- * with consistent error handling.
- */
+import { ref } from 'vue'
 
 export interface ApiError {
   message: string
@@ -10,63 +6,79 @@ export interface ApiError {
 }
 
 export function useApi() {
+  const loading = ref(false)
+  const error = ref<ApiError | null>(null)
+
+  function extractErrorMessage(data: Record<string, unknown> | null, fallback: string): string {
+    if (!data) return fallback
+    return (data.error || data.detail || fallback) as string
+  }
+
+  function extractErrorCode(data: Record<string, unknown> | null, fallback: string): string {
+    if (!data) return fallback
+    return (data.code || fallback) as string
+  }
+
   async function request<T>(
     method: string,
     url: string,
     body?: unknown,
-    options?: { headers?: Record<string, string> },
-  ): Promise<{ data: T | null; error: ApiError | null }> {
+    options?: { signal?: AbortSignal },
+  ): Promise<T | null> {
+    loading.value = true
+    error.value = null
     try {
       const opts: RequestInit = {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options?.headers,
-        },
+        headers: { 'Content-Type': 'application/json' },
+        signal: options?.signal,
       }
       if (body !== undefined) opts.body = JSON.stringify(body)
       const resp = await fetch(url, opts)
       const contentType = resp.headers.get('content-type') || ''
 
-      if (!resp.ok) {
-        const data = await resp.json().catch(() => null)
-        return {
-          data: null,
-          error: {
-            message: data?.error || data?.detail || `请求失败 (${resp.status})`,
-            code: data?.code || 'API_ERROR',
-          },
+      // Explicitly binary content-type — return as blob
+      if (contentType.includes('application/octet-stream') || contentType.includes('application/vnd.')) {
+        if (!resp.ok) {
+          error.value = { message: `请求失败 (${resp.status})`, code: 'API_ERROR' }
+          return null
         }
+        return await resp.blob() as unknown as T
       }
 
-      if (contentType.includes('application/json')) {
-        return { data: (await resp.json()) as T, error: null }
+      // Default: read body once as ArrayBuffer, then try JSON or fallback to Blob
+      const buffer = await resp.arrayBuffer()
+
+      let data: Record<string, unknown> | null = null
+      try { data = JSON.parse(new TextDecoder().decode(buffer)) } catch { /* not JSON */ }
+
+      if (!resp.ok) {
+        error.value = {
+          message: extractErrorMessage(data, `请求失败 (${resp.status})`),
+          code: extractErrorCode(data, 'API_ERROR'),
+        }
+        return null
       }
-      // For non-JSON responses (e.g., blobs)
-      return { data: (await resp.blob()) as T, error: null }
-    } catch {
-      return {
-        data: null,
-        error: { message: 'Network error', code: 'NETWORK_ERROR' },
+
+      // If JSON parsing succeeded, return parsed data
+      if (data !== null) return data as T
+
+      // JSON parsing failed but response is ok — return as blob
+      return new Blob([buffer]) as unknown as T
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        error.value = { message: '请求超时，请重试', code: 'TIMEOUT' }
+      } else if (e instanceof TypeError && e.message.includes('fetch')) {
+        error.value = { message: '网络连接失败，请检查后端服务是否运行', code: 'NETWORK_ERROR' }
+      } else {
+        const msg = e instanceof Error ? e.message : '网络请求失败'
+        error.value = { message: msg, code: 'NETWORK_ERROR' }
       }
+      return null
+    } finally {
+      loading.value = false
     }
   }
 
-  async function get<T>(url: string): Promise<{ data: T | null; error: ApiError | null }> {
-    return request<T>('GET', url)
-  }
-
-  async function post<T>(url: string, body?: unknown): Promise<{ data: T | null; error: ApiError | null }> {
-    return request<T>('POST', url, body)
-  }
-
-  async function put<T>(url: string, body?: unknown): Promise<{ data: T | null; error: ApiError | null }> {
-    return request<T>('PUT', url, body)
-  }
-
-  async function del<T>(url: string): Promise<{ data: T | null; error: ApiError | null }> {
-    return request<T>('DELETE', url)
-  }
-
-  return { request, get, post, put, del }
+  return { loading, error, request }
 }

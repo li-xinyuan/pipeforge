@@ -2,19 +2,17 @@
   <div class="input-source-card bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden relative">
     <!-- Header: name + plugin badge + delete -->
     <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
-      <span class="text-lg">{{ input.plugin === 'csv' ? '🗄' : input.plugin === 'database' ? '🔌' : '📊' }}</span>
+      <span class="text-lg">{{ pluginIcon }}</span>
       <span class="text-sm font-medium truncate flex-1">{{ input.table || '新输入源' }}</span>
-      <NTag :type="input.plugin === 'csv' ? 'info' : input.plugin === 'database' ? 'warning' : 'success'" size="small">
-        {{ input.plugin === 'csv' ? 'CSV' : input.plugin === 'database' ? 'DB' : 'Excel' }}
-      </NTag>
+      <NTag :type="pluginTagType" size="small">{{ pluginLabel }}</NTag>
       <NTag v-if="analyzing" type="warning" size="small">AI 分析中...</NTag>
       <NButton text type="error" size="tiny" class="ml-auto" @click="confirmRemove">删除</NButton>
     </div>
 
     <!-- Body: Configuration fields -->
     <div class="p-3 cf-form-grid mb-0 relative">
-      <!-- File upload -->
-      <div v-if="input.plugin !== 'database'" class="col-span-2">
+      <!-- File upload (shown for file-based types, not database or api) -->
+      <div v-if="isFileBasedPlugin" class="col-span-2">
         <template v-if="input.fileId && store.uploadedFiles[input.fileId]">
           <div class="flex items-center gap-1">
             <NTag type="success" size="small" class="truncate">
@@ -28,7 +26,7 @@
           v-else
           :custom-request="handleUpload"
           :show-file-list="false"
-          :accept="input.plugin === 'csv' ? '.csv' : '.xlsx,.xls'"
+          :accept="fileAcceptAttr"
           class="w-full"
         >
           <div :class="['border-2 border-dashed rounded-lg py-5 px-6 text-center cursor-pointer transition-colors',
@@ -42,12 +40,19 @@
                 <template v-else>将文件拖拽到此处，或点击选择文件</template>
               </span>
               <span class="text-xs text-slate-400 dark:text-slate-500 mt-1 block">
-                支持 {{ input.plugin === 'csv' ? '.csv / .tsv' : '.xlsx / .xls' }} 格式
+                支持 {{ fileAcceptHint }} 格式
               </span>
           </div>
         </NUpload>
         <p v-if="uploadError" class="text-xs text-red-500 mt-1">{{ uploadError }}</p>
       </div>
+
+      <!-- API input form (shown for api type only) -->
+      <template v-if="input.plugin === 'api'">
+        <div class="col-span-2 cf-form-group--full pt-0">
+          <ApiForm :input="input" :index="index" @update="handleUpdate" />
+        </div>
+      </template>
 
       <!-- AI Analysis inline prompt (full width) -->
       <div v-if="input.fileId && !input.confirmedAnalysis && !analyzing" class="col-span-2">
@@ -115,21 +120,51 @@
         </div>
       </template>
 
+      <!-- JSON config fields -->
+      <template v-if="input.plugin === 'json'">
+        <div>
+          <label class="cf-label">扁平化分隔符</label>
+          <NInput
+            :value="(input.config as JsonInputConfig).flattenSeparator"
+            @update:value="$emit('update', { ...input, config: { ...input.config, flattenSeparator: $event } as JsonInputConfig })"
+            placeholder="."
+            size="small"
+            :disabled="analyzing"
+          />
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">嵌套字段展开时使用的分隔符，默认 "."</p>
+        </div>
+      </template>
+
+      <!-- XML config fields -->
+      <template v-if="input.plugin === 'xml'">
+        <div>
+          <label class="cf-label">行元素路径</label>
+          <NInput
+            :value="(input.config as XmlInputConfig).rowElement"
+            @update:value="$emit('update', { ...input, config: { ...input.config, rowElement: $event } as XmlInputConfig })"
+            placeholder="items/item"
+            size="small"
+            :disabled="analyzing"
+          />
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">XPath 风格路径，指定 XML 中代表每行数据的元素</p>
+        </div>
+      </template>
+
       <!-- Database-specific fields -->
       <div v-if="input.plugin === 'database'" class="cf-form-group--full pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
         <DatabaseForm :input="input" :index="index" @update="handleUpdate" />
       </div>
 
       <!-- Column preview -->
-      <div v-if="input.fileId" class="col-span-2">
+      <div v-if="input.fileId || (input.plugin === 'api' && apiPreviewData)" class="col-span-2">
         <div class="flex items-center gap-2 mb-2">
           <span class="cf-label" style="margin-bottom: 0;">列预览</span>
           <NButton
-            v-if="!previewData"
+            v-if="!previewData && !apiPreviewData"
             text
             size="tiny"
             :loading="previewLoading"
-            @click="loadPreview"
+            @click="input.plugin === 'api' ? loadApiPreview() : loadPreview()"
           >{{ previewLoading ? '加载中...' : '加载' }}</NButton>
           <NButton
             v-else
@@ -139,7 +174,7 @@
           >{{ previewVisible ? '收起' : '展开' }}</NButton>
         </div>
         <p v-if="error && !previewLoading" class="text-xs text-red-500 mb-2">{{ error.message }}</p>
-        <ColumnPreview v-if="previewData && previewVisible" :columns="previewData.columns" :rows="previewData.rows" />
+        <ColumnPreview v-if="(previewData || apiPreviewData) && previewVisible" :columns="(previewData || apiPreviewData)!.columns" :rows="(previewData || apiPreviewData)!.rows" />
       </div>
 
       <!-- Table name -->
@@ -149,12 +184,13 @@
           :id="`input-table-${index}`"
           :value="input.table"
           @update:value="$emit('update', { ...input, table: $event })"
-          placeholder="table_name"
+          placeholder="例如：销售数据"
           size="small"
           :status="tableNameError ? 'error' : undefined"
           :disabled="analyzing"
         />
         <p v-if="tableNameError" class="text-xs text-red-500 mt-1">{{ tableNameError }}</p>
+        <p v-else class="text-xs text-slate-400 dark:text-slate-500 mt-1">给这个数据源起个名字，方便后续引用</p>
       </div>
 
       <!-- Param key -->
@@ -164,10 +200,11 @@
           :id="`input-key-${index}`"
           :value="input.paramKey"
           @update:value="$emit('update', { ...input, paramKey: $event })"
-          placeholder="param_key"
+          placeholder="例如：date"
           size="small"
           :disabled="analyzing"
         />
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">可选，用于定时执行时传入参数</p>
       </div>
     </div>
 
@@ -202,7 +239,7 @@
       <span class="text-sm text-teal-600 font-medium">AI 分析中...</span>
     </div>
 
-    <p v-if="!input.fileId" class="text-xs text-slate-400 dark:text-slate-500 mt-2">请先上传文件以加载列预览</p>
+    <p v-if="!input.fileId && input.plugin !== 'database' && input.plugin !== 'api'" class="text-xs text-slate-400 dark:text-slate-500 mt-2">请先上传文件以加载列预览</p>
 
     <!-- AI Column Confirm Modal -->
     <AiColumnConfirmModal
@@ -223,7 +260,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import type { InputSource, CsvInputConfig, ExcelInputConfig, ConfirmedAnalysis } from '../../types/wizard'
+import type { InputSource, CsvInputConfig, ExcelInputConfig, JsonInputConfig, XmlInputConfig, ApiInputConfig, ConfirmedAnalysis } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
 import { useFileUpload } from '../../composables/useFileUpload'
@@ -233,6 +270,7 @@ import ColumnPreview from './ColumnPreview.vue'
 import AiColumnConfirmModal from './AiColumnConfirmModal.vue'
 import AiTriggerButton from '../common/AiTriggerButton.vue'
 import DatabaseForm from './DatabaseForm.vue'
+import ApiForm from './ApiForm.vue'
 
 const props = defineProps<{
   input: InputSource
@@ -263,6 +301,7 @@ const { fetchPreview, error } = useWizardApi()
 const { uploading, error: uploadError, upload } = useFileUpload()
 const { suggesting: analyzing, aiError, askSuggestion } = useAiApi()
 const previewData = ref<{ columns: string[]; rows: string[][] } | null>(null)
+const apiPreviewData = ref<{ columns: string[]; rows: string[][] } | null>(null)
 const previewVisible = ref(false)
 const previewLoading = ref(false)
 const sheetNames = ref<string[]>([])
@@ -291,6 +330,65 @@ const tableNameError = computed(() => {
   if (otherTableNames.value.includes(name)) return `表名 "${name}" 已被其他输入源使用`
   return ''
 })
+
+// Plugin metadata helpers
+const pluginIconMap: Record<string, string> = {
+  csv: '🗄',
+  database: '🔌',
+  excel: '📊',
+  json: '📋',
+  xml: '📰',
+  parquet: '📦',
+  api: '🌐',
+}
+
+const pluginLabelMap: Record<string, string> = {
+  csv: 'CSV',
+  database: 'DB',
+  excel: 'Excel',
+  json: 'JSON',
+  xml: 'XML',
+  parquet: 'Parquet',
+  api: 'API',
+}
+
+const pluginTagTypeMap: Record<string, 'info' | 'warning' | 'success' | 'default'> = {
+  csv: 'info',
+  database: 'warning',
+  excel: 'success',
+  json: 'default',
+  xml: 'default',
+  parquet: 'default',
+  api: 'info',
+}
+
+const pluginIcon = computed(() => pluginIconMap[props.input.plugin] || '📄')
+const pluginLabel = computed(() => pluginLabelMap[props.input.plugin] || props.input.plugin)
+const pluginTagType = computed(() => pluginTagTypeMap[props.input.plugin] || 'default')
+
+// File-based plugins (show file upload)
+const isFileBasedPlugin = computed(() =>
+  ['excel', 'csv', 'json', 'xml', 'parquet'].includes(props.input.plugin)
+)
+
+const fileAcceptMap: Record<string, string> = {
+  csv: '.csv',
+  excel: '.xlsx,.xls',
+  json: '.json',
+  xml: '.xml',
+  parquet: '.parquet',
+}
+
+const fileAcceptHintMap: Record<string, string> = {
+  csv: '.csv / .tsv',
+  excel: '.xlsx / .xls',
+  json: '.json',
+  xml: '.xml',
+  parquet: '.parquet',
+}
+
+const fileAcceptAttr = computed(() => fileAcceptMap[props.input.plugin] || '')
+const fileAcceptHint = computed(() => fileAcceptHintMap[props.input.plugin] || '')
 
 function handleUpdate(updated: InputSource) {
   emit('update', updated)
@@ -507,5 +605,41 @@ async function loadPreview() {
     previewVisible.value = true
   }
   previewLoading.value = false
+}
+
+async function loadApiPreview() {
+  previewLoading.value = true
+  apiPreviewData.value = null
+  try {
+    const cfg = props.input.config as ApiInputConfig
+    const resp = await fetch('/api/wizard/infer-api-input/api_preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: cfg.url,
+        method: cfg.method,
+        headers: cfg.headers,
+        params: cfg.params,
+        data_path: cfg.dataPath,
+        pagination: cfg.pagination,
+        page_size: cfg.pageSize,
+        max_pages: cfg.maxPages,
+      }),
+    })
+    if (!resp.ok) {
+      const err = await resp.json()
+      error.value = { message: err.error || 'API 请求失败', code: 'API_ERROR' }
+      return
+    }
+    const result = await resp.json()
+    if (result.columns && result.rows) {
+      apiPreviewData.value = { columns: result.columns, rows: result.rows }
+      previewVisible.value = true
+    }
+  } catch (e) {
+    error.value = { message: e instanceof Error ? e.message : '网络错误', code: 'NETWORK_ERROR' }
+  } finally {
+    previewLoading.value = false
+  }
 }
 </script>

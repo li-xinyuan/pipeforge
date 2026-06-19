@@ -126,7 +126,7 @@ try {
     { tag: tags.number, color: '#c2410c' },
     { tag: tags.comment, color: '#6b7280', fontStyle: 'italic' },
     { tag: tags.function(tags.variableName), color: '#0369a1' },
-    { tag: tags.decorator, color: '#c2410c' },
+    { tag: (tags as any).decorator, color: '#c2410c' },
     { tag: tags.operator, color: '#be185d' },
     { tag: tags.variableName, color: '#1e293b' },
     { tag: tags.self, color: '#be185d', fontStyle: 'italic' },
@@ -139,7 +139,7 @@ try {
     { tag: tags.number, color: '#ffa726' },
     { tag: tags.comment, color: '#9e9e9e', fontStyle: 'italic' },
     { tag: tags.function(tags.variableName), color: '#67d4f8' },
-    { tag: tags.decorator, color: '#ffa726' },
+    { tag: (tags as any).decorator, color: '#ffa726' },
     { tag: tags.operator, color: '#f48fb1' },
     { tag: tags.variableName, color: '#e2e8f0' },
     { tag: tags.self, color: '#f48fb1', fontStyle: 'italic' },
@@ -173,7 +173,7 @@ try {
 
 function getLanguageExtension() {
   if (props.language === 'sql') {
-    return sql({ dialect: SQLDialect.standard })
+    return sql({ dialect: (SQLDialect as any).standard })
   }
   if (props.language === 'yaml') {
     return yaml()

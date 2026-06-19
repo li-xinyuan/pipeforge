@@ -9,6 +9,7 @@
     </div>
     <div class="app-nav-bar__right">
       <router-link to="/" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'home' }" :aria-current="currentRoute === 'home' ? 'page' : undefined">我的配置</router-link>
+      <router-link to="/templates" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'templates' }" :aria-current="currentRoute === 'templates' ? 'page' : undefined">模板市场</router-link>
       <router-link to="/history" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'history' }" :aria-current="currentRoute === 'history' ? 'page' : undefined">执行历史</router-link>
       <router-link to="/schedules" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'schedules' }" :aria-current="currentRoute === 'schedules' ? 'page' : undefined">定时任务</router-link>
       <router-link to="/settings" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'settings' }" :aria-current="currentRoute === 'settings' ? 'page' : undefined">设置</router-link>
@@ -24,7 +25,7 @@ import { RouterLink } from 'vue-router'
 import { useTheme } from '../../composables/useTheme'
 
 defineProps<{
-  currentRoute: 'home' | 'wizard' | 'settings' | 'history' | 'schedules' | 'guide'
+  currentRoute: 'home' | 'wizard' | 'settings' | 'history' | 'schedules' | 'guide' | 'templates'
   badge?: string
 }>()
 

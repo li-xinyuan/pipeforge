@@ -32,6 +32,8 @@ from configforge.utils.security import validate_id, sanitize_connection_string
 from configforge.utils.file_lock import read_json_locked, write_json_locked
 from configforge.core.pipeline import PipelineTimeoutError
 from pipeforge.config.exceptions import CheckpointError
+from configforge.services.notifier.dispatcher import dispatch_notifications_async
+from configforge.services.ai.auto_diagnose import auto_diagnose
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -272,7 +274,7 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
 
     # 用请求中的 file_id 填充各 input
     for inp in state_dict.get("inputs", []):
-        param_key = inp.get("param_key", "")
+        param_key = inp.get("param_key", "") or inp.get("paramKey", "")
         if param_key in req.files:
             inp["file_id"] = req.files[param_key]
 
@@ -296,6 +298,10 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
         output_path = execute_pipeline(state)
     except (ValueError, SyntaxError, TimeoutError, PipelineTimeoutError) as e:
         safe_msg = sanitize_connection_string(str(e))
+        diagnosis = await auto_diagnose(
+            yaml_text="", error_message=safe_msg, scene_name=scene_name,
+            inputs_summary=inputs_summary, processors_summary=processors_summary,
+        )
         _save_failed_execution(
             exec_id=exec_id,
             started_at=started_at,
@@ -306,10 +312,25 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
             processors_summary=processors_summary,
             output_type=output_type,
             error_message=safe_msg,
+            diagnosis=diagnosis,
         )
+        dispatch_notifications_async({
+            "execution_id": exec_id,
+            "config_id": config_id,
+            "config_name": scene_name,
+            "status": "failed",
+            "summary": "Pipeline 执行失败",
+            "error_message": safe_msg,
+            "started_at": started_at,
+            "finished_at": datetime.now(UTC).isoformat(),
+        })
         raise HTTPException(status_code=422, detail=safe_msg)
     except CheckpointError as e:
         checks = [r.model_dump() for r in e.results]
+        diagnosis = await auto_diagnose(
+            yaml_text="", error_message="数据检查点未通过", scene_name=scene_name,
+            inputs_summary=inputs_summary, processors_summary=processors_summary,
+        )
         _save_failed_execution(
             exec_id=exec_id,
             started_at=started_at,
@@ -321,11 +342,26 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
             output_type=output_type,
             error_message="数据检查点未通过",
             checks_summary=checks,
+            diagnosis=diagnosis,
         )
+        dispatch_notifications_async({
+            "execution_id": exec_id,
+            "config_id": config_id,
+            "config_name": scene_name,
+            "status": "failed",
+            "summary": "数据检查点未通过",
+            "error_message": "数据检查点未通过",
+            "started_at": started_at,
+            "finished_at": datetime.now(UTC).isoformat(),
+        })
         raise HTTPException(status_code=422, detail={"message": "数据检查点未通过", "checks": checks})
     except Exception as e:
         logger.exception("pipeline execution failed")
         safe_msg = sanitize_connection_string(str(e))
+        diagnosis = await auto_diagnose(
+            yaml_text="", error_message=safe_msg, scene_name=scene_name,
+            inputs_summary=inputs_summary, processors_summary=processors_summary,
+        )
         _save_failed_execution(
             exec_id=exec_id,
             started_at=started_at,
@@ -336,7 +372,18 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
             processors_summary=processors_summary,
             output_type=output_type,
             error_message=safe_msg,
+            diagnosis=diagnosis,
         )
+        dispatch_notifications_async({
+            "execution_id": exec_id,
+            "config_id": config_id,
+            "config_name": scene_name,
+            "status": "failed",
+            "summary": "Pipeline 执行异常",
+            "error_message": safe_msg,
+            "started_at": started_at,
+            "finished_at": datetime.now(UTC).isoformat(),
+        })
         raise HTTPException(status_code=500, detail=safe_msg)
 
     finished_at = datetime.now(UTC).isoformat()
@@ -387,6 +434,18 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
         json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
 
     _update_exec_index(record)
+
+    # Dispatch notifications
+    dispatch_notifications_async({
+        "execution_id": exec_id,
+        "config_id": config_id,
+        "config_name": scene_name,
+        "status": "success",
+        "summary": f"输出文件: {output_file_name}" if output_file_name else "数据已写入目标数据库",
+        "output_files": [output_file_name] if output_file_name else [],
+        "started_at": started_at,
+        "finished_at": finished_at,
+    })
 
     # Return file download for file-based outputs, or JSON for database outputs
     if output_file_name and output_path:

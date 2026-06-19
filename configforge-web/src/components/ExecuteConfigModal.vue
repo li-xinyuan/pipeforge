@@ -49,7 +49,23 @@
 
     <template #footer>
       <div class="exec-modal__footer">
-        <p v-if="execError" class="exec-modal__error">{{ execError }}</p>
+        <div v-if="execError" class="exec-modal__error-section">
+          <!-- Show AI diagnosis first (user-friendly) -->
+          <DiagnosisPanel
+            v-if="execDiagnosis"
+            :diagnosis="execDiagnosis"
+            :autofix-loading="autofixLoading"
+            :autofix-result="autofixResult"
+            :raw-error="execError"
+            :rewrite-loading="rewriteLoading"
+            @goto-step="onGotoStep"
+            @autofix="onAutofix"
+            @apply-fixes="onApplyFixes"
+            @ai-rewrite="onAiRewrite"
+          />
+          <!-- Fallback: show raw error only when no AI diagnosis -->
+          <p v-else class="exec-modal__error">{{ execError }}</p>
+        </div>
         <div class="exec-modal__footer-actions">
           <NButton @click="$emit('close')">取消</NButton>
           <NButton type="success" :loading="executing" :disabled="!allReady" @click="onExecute">执行并下载</NButton>
@@ -60,19 +76,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { SavedConfig } from '../types/wizard'
 import { useFileUpload } from '../composables/useFileUpload'
 import { useWizardApi } from '../composables/useWizardApi'
 import { useConfigApi } from '../composables/useConfigApi'
+import { useAiApi } from '../composables/useAiApi'
 import { NModal, NButton, NTag, NUpload } from 'naive-ui'
+import DiagnosisPanel from './common/DiagnosisPanel.vue'
 
 const props = defineProps<{ visible: boolean; config: SavedConfig | null }>()
-defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; gotoStep: [step: number, fixes?: { step: number; field: string; old: string; new: string; reason: string }[]] }>()
 
 const { upload: uploadFile } = useFileUpload()
 const { fetchPreview } = useWizardApi()
 const { executeConfig } = useConfigApi()
+const { askSuggestion } = useAiApi()
 
 interface FileState {
   fileId: string | null
@@ -86,6 +105,10 @@ interface FileState {
 const fileStates = ref<Record<string, FileState>>({})
 const executing = ref(false)
 const execError = ref('')
+const execDiagnosis = ref<{ cause: string; suggestions: string[]; severity: 'error' | 'warning'; step?: number } | null>(null)
+const autofixLoading = ref(false)
+const autofixResult = ref<{ fixable: boolean; fixes?: { step: number; field: string; old: string; new: string; reason: string }[]; suggestions?: string[] } | null>(null)
+const rewriteLoading = ref(false)
 
 function initState() {
   if (!props.config) return
@@ -145,29 +168,91 @@ async function loadPreview(paramKey: string) {
 
 async function onExecute() {
   if (!props.config || !allReady.value) return
-  executing.value = true; execError.value = ''
+  executing.value = true; execError.value = ''; execDiagnosis.value = null
   const files: Record<string, string> = {}
   for (const inp of props.config.inputs) {
     const st = fileStates.value[inp.paramKey]
     if (st?.fileId) files[inp.paramKey] = st.fileId
   }
-  const blob = await executeConfig(props.config.id, files)
-  if (blob) {
-    const url = URL.createObjectURL(blob)
-    try {
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `output_${props.config.id}`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-    } finally {
-      URL.revokeObjectURL(url)
+  try {
+    const blob = await executeConfig(props.config.id, files)
+    if (blob) {
+      const url = URL.createObjectURL(blob)
+      try {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `output_${props.config.id}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      } finally {
+        URL.revokeObjectURL(url)
+      }
     }
-  } else {
-    execError.value = '执行失败'
+  } catch (err: any) {
+    execError.value = err?.message || '执行失败'
+    execDiagnosis.value = err?.diagnosis || null
   }
   executing.value = false
+}
+
+function onGotoStep(step: number) {
+  emit('gotoStep', step)
+  emit('close')
+}
+
+async function onAutofix() {
+  if (!execDiagnosis.value) return
+  autofixLoading.value = true
+  autofixResult.value = null
+  try {
+    const result = await askSuggestion('autofix', {
+      diagnosis: JSON.stringify(execDiagnosis.value),
+      errorLog: execError.value,
+    })
+    if (result) {
+      try {
+        autofixResult.value = JSON.parse(result)
+      } catch {
+        autofixResult.value = { fixable: false, suggestions: ['AI 返回了无法解析的结果'] }
+      }
+    } else {
+      autofixResult.value = { fixable: false, suggestions: ['AI 未返回修复建议'] }
+    }
+  } catch {
+    autofixResult.value = { fixable: false, suggestions: ['AI 修复请求失败'] }
+  } finally {
+    autofixLoading.value = false
+  }
+}
+
+function onApplyFixes(fixes: { step: number; field: string; old: string; new: string; reason: string }[]) {
+  if (fixes.length > 0) {
+    emit('gotoStep', fixes[0].step, fixes)
+  }
+  emit('close')
+}
+
+async function onAiRewrite() {
+  if (!execDiagnosis.value || !props.config) return
+  rewriteLoading.value = true
+  try {
+    const result = await askSuggestion('orchestrate', {
+      currentStep: 3,
+      naturalLanguage: `修复执行错误：${execDiagnosis.value.cause}。错误信息：${execError.value}`,
+      inputs: props.config.inputs?.map(i => ({ name: i.name, plugin: i.plugin })),
+      processors: [{ plugin: 'sql', name: 'query' }],
+      outputColumns: [],
+    })
+    if (result) {
+      // Navigate to wizard with the rewrite result
+      emit('gotoStep', 3)
+    }
+  } catch {
+    // AI rewrite failed, user can still manually fix
+  } finally {
+    rewriteLoading.value = false
+  }
 }
 </script>
 
@@ -219,6 +304,11 @@ async function onExecute() {
   font-size: var(--font-size-xs);
   color: var(--color-error);
   margin-top: 4px;
+}
+
+.exec-modal__error-section {
+  flex: 1;
+  min-width: 0;
 }
 
 .exec-modal__preview {

@@ -12,6 +12,9 @@ from configforge.models.wizard import (
 )
 from configforge.services.excel_reader import read_excel_info
 from configforge.services.csv_reader import read_csv_info
+from configforge.services.json_reader import read_json_info
+from configforge.services.xml_reader import read_xml_info
+from configforge.services.parquet_reader import read_parquet_info
 from configforge.services.yaml_builder import build_yaml
 from configforge.utils.security import validate_id
 import atexit
@@ -69,17 +72,25 @@ def infer_input(
         content = f.read()
     if req.type == "csv":
         info = read_csv_info(content)
+    elif req.type == "json":
+        info = read_json_info(content)
+    elif req.type == "xml":
+        info = read_xml_info(content)
+    elif req.type == "parquet":
+        info = read_parquet_info(path)
     else:
         import io
         info = read_excel_info(io.BytesIO(content))
+    # Build per-column sample values from sample_rows
+    col_samples: dict[str, list[str]] = {c: [] for c in info["columns"]}
+    for row in info["sample_rows"]:
+        for idx, c in enumerate(info["columns"]):
+            if idx < len(row) and len(col_samples[c]) < 3:
+                col_samples[c].append(str(row[idx]))
+
     return InputInferResponse(
         columns=[
-            {
-                "name": c,
-                "sample_values": (
-                    info["sample_rows"][0][:3] if info["sample_rows"] else []
-                ),
-            }
+            {"name": c, "sample_values": col_samples[c]}
             for c in info["columns"]
         ],
         suggested_table=input_name,

@@ -3,14 +3,20 @@
     <!-- Connection selector -->
     <div>
       <label class="cf-label">数据库连接 <span class="cf-required">*</span></label>
-      <NSelect
-        v-model:value="selectedConnectionId"
-        :options="connectionOptions"
-        placeholder="选择已有连接..."
-        size="small"
-        @update:value="onConnectionSelected"
-      />
-      <p v-if="connections.length === 0" class="text-xs text-amber-600 dark:text-amber-400 mt-1">请先在设置页面添加数据库连接</p>
+      <div class="flex items-center gap-2">
+        <NSelect
+          v-model:value="selectedConnectionId"
+          :options="connectionOptions"
+          placeholder="选择已有连接..."
+          size="small"
+          class="flex-1"
+          @update:value="onConnectionSelected"
+        />
+        <NButton size="small" quaternary @click="showConnManager = true">⚙ 管理</NButton>
+      </div>
+      <p v-if="connections.length === 0" class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+        暂无连接，点击"管理"按钮新建数据库连接
+      </p>
     </div>
 
     <!-- Test connection -->
@@ -18,9 +24,6 @@
       <NButton size="small" :loading="testing" @click="onTestConnection">测试连通</NButton>
       <p v-if="testResult" :class="testResult.ok ? 'text-green-600' : 'text-red-500 dark:text-red-400'" class="text-xs">
         {{ testResult.ok ? '连接成功' : testResult.error }}
-      </p>
-      <p v-else-if="connections.length > 0" class="text-xs" style="color: var(--color-text-muted);">
-        或前往 <RouterLink to="/settings" class="underline" style="color: var(--color-primary);">设置页</RouterLink> 管理连接
       </p>
     </div>
 
@@ -75,13 +78,24 @@
       />
     </div>
   </div>
+
+  <!-- Inline connection manager modal -->
+  <div v-if="showConnManager" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="closeConnManager">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-semibold">管理数据库连接</h3>
+        <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" @click="closeConnManager">✕</button>
+      </div>
+      <ConnectionManager />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { NSelect, NButton, NRadioGroup, NRadio, NInput, NTag, NSpin } from 'naive-ui'
-import { RouterLink } from 'vue-router'
 import { useConnectionApi } from '../../composables/useWizardApi'
+import ConnectionManager from '../common/ConnectionManager.vue'
 import type { InputSource, DatabaseInputConfig, DbConnectionSummary } from '../../types/wizard'
 
 const props = defineProps<{ input: InputSource; index: number }>()
@@ -107,6 +121,13 @@ const testResult = ref<{ ok: boolean; error?: string } | null>(null)
 const connections = ref<DbConnectionSummary[]>([])
 const tableList = ref<string[]>([])
 const columnList = ref<{ name: string; type: string }[]>([])
+const showConnManager = ref(false)
+
+async function closeConnManager() {
+  showConnManager.value = false
+  // Refresh connection list after closing
+  connections.value = await api.fetchConnections()
+}
 
 const connectionOptions = computed(() =>
   connections.value.map(c => ({ label: c.name, value: c.id }))

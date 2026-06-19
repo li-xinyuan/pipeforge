@@ -1,0 +1,64 @@
+{
+  "id": "builtin_inventory_tracking",
+  "name": "库存跟踪管理",
+  "description": "从 CSV 库存数据中跟踪库存水平，通过 SQL 计算补货点和库存状态，输出 Excel 库存状态报表。",
+  "category": "ops",
+  "tags": ["库存", "跟踪", "运维", "补货"],
+  "author": "ConfigForge",
+  "config_state": {
+    "current_step": 5,
+    "scene": {
+      "name": "库存跟踪管理",
+      "description": "跟踪库存水平并识别需要补货的商品",
+      "version": "1.0"
+    },
+    "inputs": [
+      {
+        "name": "stock_data",
+        "plugin": "csv",
+        "table": "inventory",
+        "paramKey": "stock_data",
+        "fileId": "",
+        "config": {
+          "type": "csv",
+          "delimiter": ",",
+          "encoding": "utf-8",
+          "hasHeader": true
+        }
+      }
+    ],
+    "processors": [
+      {
+        "name": "计算库存状态",
+        "plugin": "sql",
+        "sql": "SELECT product_id, product_name, category, current_stock, reorder_point, unit_price, CASE WHEN current_stock <= 0 THEN '缺货' WHEN current_stock <= reorder_point THEN '库存不足' WHEN current_stock <= reorder_point * 2 THEN '库存充足' ELSE '库存过剩' END AS stock_status, current_stock * unit_price AS inventory_value FROM inventory ORDER BY CASE WHEN current_stock <= reorder_point THEN 0 ELSE 1 END, current_stock ASC",
+        "script": "",
+        "inputTables": ["inventory"],
+        "outputTables": ["stock_status"],
+        "checkpoints": []
+      }
+    ],
+    "output": {
+      "plugin": "excel",
+      "config": {
+        "type": "excel",
+        "template": "",
+        "sheet": "库存状态",
+        "outputDir": "./output/",
+        "sourceTable": "stock_status",
+        "filename": "inventory_tracking.xlsx",
+        "columns": [
+          {"source": "product_id", "target": "商品编号"},
+          {"source": "product_name", "target": "商品名称"},
+          {"source": "category", "target": "品类"},
+          {"source": "current_stock", "target": "当前库存"},
+          {"source": "reorder_point", "target": "补货点"},
+          {"source": "unit_price", "target": "单价"},
+          {"source": "stock_status", "target": "库存状态"},
+          {"source": "inventory_value", "target": "库存金额"}
+        ]
+      }
+    },
+    "uploaded_files": {}
+  }
+}

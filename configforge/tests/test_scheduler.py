@@ -15,6 +15,10 @@ from configforge.scheduler import (
     update_schedule,
     toggle_schedule,
     _update_schedule_last_run,
+    get_next_run_time,
+    start_scheduler,
+    shutdown_scheduler,
+    _run_scheduled_pipeline,
 )
 
 
@@ -213,3 +217,154 @@ class TestScheduleConfig:
         assert cfg.id  # Auto-generated
         assert cfg.last_run_at is None
         assert cfg.last_run_status is None
+
+
+class TestGetNextRunTime:
+    def test_returns_none_when_no_scheduler(self):
+        assert get_next_run_time("sched1") is None
+
+    def test_returns_none_when_job_not_found(self, monkeypatch):
+        mock_scheduler = MagicMock()
+        mock_scheduler.get_job.return_value = None
+        monkeypatch.setattr(scheduler, "_scheduler", mock_scheduler)
+        assert get_next_run_time("nonexistent") is None
+
+    def test_returns_iso_string_when_job_exists(self, monkeypatch):
+        from datetime import datetime, UTC
+        mock_scheduler = MagicMock()
+        mock_job = MagicMock()
+        mock_job.next_run_time = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        mock_scheduler.get_job.return_value = mock_job
+        monkeypatch.setattr(scheduler, "_scheduler", mock_scheduler)
+        result = get_next_run_time("sched1")
+        assert result is not None
+        assert "2026-06-20" in result
+
+    def test_returns_none_when_job_has_no_next_run(self, monkeypatch):
+        mock_scheduler = MagicMock()
+        mock_job = MagicMock()
+        mock_job.next_run_time = None
+        mock_scheduler.get_job.return_value = mock_job
+        monkeypatch.setattr(scheduler, "_scheduler", mock_scheduler)
+        assert get_next_run_time("sched1") is None
+
+
+class TestStartScheduler:
+    def test_starts_scheduler_and_registers_enabled(self, sample_schedules, monkeypatch):
+        mock_bg = MagicMock()
+        with patch("configforge.scheduler.BackgroundScheduler", return_value=mock_bg):
+            start_scheduler()
+        mock_bg.start.assert_called_once()
+        # Should register 1 enabled schedule (sched1)
+        assert mock_bg.add_job.call_count == 1
+
+    def test_does_not_restart_if_already_running(self, monkeypatch):
+        mock_scheduler = MagicMock()
+        monkeypatch.setattr(scheduler, "_scheduler", mock_scheduler)
+        start_scheduler()  # Should return early
+        # _scheduler is not None, so BackgroundScheduler should not be created
+        mock_scheduler.start.assert_not_called()
+
+    def test_skips_invalid_cron_on_start(self, tmp_path, monkeypatch):
+        # Write a schedule with invalid cron
+        bad_schedule = {
+            "id": "bad1",
+            "config_id": "cfg1",
+            "cron_expression": "INVALID",
+            "enabled": True,
+            "description": "",
+            "created_at": "2024-01-01T00:00:00+00:00",
+        }
+        path = tmp_path / "schedules.json"
+        path.write_text(json.dumps([bad_schedule]))
+        monkeypatch.setattr(scheduler, "_scheduler", None)
+
+        mock_bg = MagicMock()
+        with patch("configforge.scheduler.BackgroundScheduler", return_value=mock_bg):
+            start_scheduler()
+        # Invalid cron should be skipped, no jobs added
+        mock_bg.add_job.assert_not_called()
+
+
+class TestShutdownScheduler:
+    def test_shutdowns_running_scheduler(self, monkeypatch):
+        mock_scheduler = MagicMock()
+        monkeypatch.setattr(scheduler, "_scheduler", mock_scheduler)
+        shutdown_scheduler()
+        mock_scheduler.shutdown.assert_called_once_with(wait=False)
+
+    def test_sets_scheduler_to_none(self, monkeypatch):
+        mock_scheduler = MagicMock()
+        monkeypatch.setattr(scheduler, "_scheduler", mock_scheduler)
+        shutdown_scheduler()
+        assert scheduler._scheduler is None
+
+    def test_noop_when_not_running(self, monkeypatch):
+        monkeypatch.setattr(scheduler, "_scheduler", None)
+        shutdown_scheduler()  # Should not raise
+
+
+class TestRunScheduledPipeline:
+    def test_fails_when_state_not_found(self, monkeypatch, sample_schedules):
+        with patch("configforge.api.configs.CONFIGS_DIR", "/nonexistent"):
+            _run_scheduled_pipeline("sched1", "nonexistent_cfg")
+        # Should update last_run_status to "failed"
+        result = list_schedules()
+        assert result[0].last_run_status == "failed"
+
+    def test_fails_when_file_input_without_file(self, monkeypatch, tmp_path, sample_schedules):
+        # Create a state file with file input but no file_id
+        state = {
+            "scene": {"name": "test", "version": "1.0", "description": ""},
+            "inputs": [{"name": "inp1", "plugin": "excel", "table": "t1", "param_key": "", "file_id": "", "config": {"type": "excel", "sheet": ""}}],
+            "processors": [],
+            "output": None,
+        }
+        cfg_path = tmp_path / "test-cfg.state.json"
+        cfg_path.write_text(json.dumps(state))
+
+        with patch("configforge.api.configs.CONFIGS_DIR", str(tmp_path)):
+            with patch("configforge.api.executions._update_exec_index"):
+                with patch("configforge.api.executions._save_failed_execution"):
+                    _run_scheduled_pipeline("sched1", "test-cfg")
+
+        # Should mark as failed due to file input without file_id
+        result = list_schedules()
+        assert result[0].last_run_status == "failed"
+
+
+class TestUpdateScheduleReRegistersJob:
+    def test_update_cron_re_registers_job(self, sample_schedules, monkeypatch):
+        mock_scheduler = MagicMock()
+        monkeypatch.setattr(scheduler, "_scheduler", mock_scheduler)
+        # sched1 is enabled, updating cron should re-register
+        update_schedule("sched1", cron_expression="0 9 * * *")
+        # Should remove old job and add new one
+        mock_scheduler.remove_job.assert_called_once_with("sched1")
+        mock_scheduler.add_job.assert_called_once()
+
+    def test_update_cron_disabled_no_reregister(self, sample_schedules, monkeypatch):
+        mock_scheduler = MagicMock()
+        monkeypatch.setattr(scheduler, "_scheduler", mock_scheduler)
+        # sched2 is disabled, updating cron should NOT re-register
+        update_schedule("sched2", cron_expression="0 9 * * *")
+        mock_scheduler.remove_job.assert_not_called()
+        mock_scheduler.add_job.assert_not_called()
+
+
+class TestScheduleConfigSerialization:
+    def test_model_dump_roundtrip(self):
+        cfg = ScheduleConfig(config_id="c1", cron_expression="0 8 * * *", description="test")
+        data = cfg.model_dump()
+        cfg2 = ScheduleConfig(**data)
+        assert cfg2.config_id == cfg.config_id
+        assert cfg2.cron_expression == cfg.cron_expression
+        assert cfg2.description == cfg.description
+
+    def test_json_roundtrip(self, tmp_path):
+        cfg = ScheduleConfig(config_id="c1", cron_expression="0 8 * * *")
+        path = tmp_path / "test.json"
+        path.write_text(json.dumps([cfg.model_dump()]))
+        loaded = json.loads(path.read_text())
+        cfg2 = ScheduleConfig(**loaded[0])
+        assert cfg2.config_id == cfg.config_id

@@ -15,8 +15,7 @@
     <!-- Configured: subtle status pill -->
     <div v-else class="ai-banner__status" @click="router.push('/settings')">
       <span class="ai-banner__status-dot" />
-      <span class="ai-banner__status-label">AI 已启用</span>
-      <span v-if="aiProvider" class="ai-banner__status-info">· {{ aiProvider }}{{ aiModel ? '/' + aiModel : '' }}</span>
+      <span class="ai-banner__status-label">AI 助手已就绪</span>
       <NButton text size="tiny" class="ai-banner__status-link" @click.stop="router.push('/settings')">管理 →</NButton>
     </div>
   </div>

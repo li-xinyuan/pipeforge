@@ -149,7 +149,7 @@ describe('useWizardStore', () => {
     expect(store.processors[0].outputTables).toEqual(['t1'])
   })
 
-  it('loadFromConfigState upgrades old single processor format', () => {
+  it('loadFromConfigState ignores old single processor format (handled by backend migration)', () => {
     const store = useWizardStore()
     store.loadFromConfigState({
       scene: { name: 'test' },
@@ -157,21 +157,8 @@ describe('useWizardStore', () => {
       processor: { plugin: 'sql', sql: 'SELECT 1', outputTable: 'result' },
       output: null,
     })
-    expect(store.processors).toHaveLength(1)
-    expect(store.processors[0].sql).toBe('SELECT 1')
-  })
-
-  it('loadFromConfigState upgrades old single processor format with output_tables', () => {
-    const store = useWizardStore()
-    store.loadFromConfigState({
-      scene: { name: 'test' },
-      inputs: [],
-      processor: { plugin: 'sql', sql: 'SELECT 1', output_tables: ['result'] },
-      output: null,
-    })
-    expect(store.processors).toHaveLength(1)
-    expect(store.processors[0].sql).toBe('SELECT 1')
-    expect(store.processors[0].outputTables).toEqual(['result'])
+    // Backend _migrate_state_dict converts processor→processors before sending to frontend
+    expect(store.processors).toHaveLength(0)
   })
 
   it('loadFromConfigState loads processors array format', () => {

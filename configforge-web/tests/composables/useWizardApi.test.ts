@@ -99,7 +99,7 @@ describe('useWizardApi', () => {
       vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network down'))
       const result = await api.initScene([])
       expect(result).toBeNull()
-      expect(api.error.value).toEqual({ message: 'Network error', code: 'NETWORK_ERROR' })
+      expect(api.error.value).toEqual({ message: 'Network down', code: 'NETWORK_ERROR' })
     })
   })
 })

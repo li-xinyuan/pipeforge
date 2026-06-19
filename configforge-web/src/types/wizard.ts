@@ -14,7 +14,7 @@ export interface ConfirmedAnalysis {
 
 export interface AiSuggestion {
   content: string
-  category: 'scene' | 'columns' | 'sql' | 'python' | 'mapping' | 'diagnose' | 'precheck' | 'chat' | 'orchestrate'
+  category: 'scene' | 'columns' | 'sql' | 'python' | 'mapping' | 'diagnose' | 'precheck' | 'autofix' | 'anomaly' | 'chat' | 'orchestrate'
   status: 'pending' | 'accepted' | 'rejected' | 'auto'
   timestamp: number
 }
@@ -66,6 +66,33 @@ export interface DatabaseInputConfig {
   sql: string
 }
 
+export interface JsonInputConfig {
+  type: 'json'
+  flattenSeparator: string
+}
+
+export interface XmlInputConfig {
+  type: 'xml'
+  rowElement: string
+}
+
+export interface ParquetInputConfig {
+  type: 'parquet'
+}
+
+export interface ApiInputConfig {
+  type: 'api'
+  url: string
+  method: 'GET' | 'POST'
+  headers: Record<string, string>
+  params: Record<string, string>
+  body?: Record<string, unknown>
+  dataPath: string
+  pagination: 'none' | 'offset' | 'cursor'
+  pageSize: number
+  maxPages: number
+}
+
 export type DbConnection =
   | {
       id: string
@@ -104,11 +131,11 @@ export interface DbConnectionSummary {
 }
 
 export interface InputSource {
-  plugin: 'excel' | 'csv' | 'database'
+  plugin: 'excel' | 'csv' | 'database' | 'json' | 'xml' | 'parquet' | 'api'
   table: string
   paramKey: string
   fileId: string
-  config: ExcelInputConfig | CsvInputConfig | DatabaseInputConfig
+  config: ExcelInputConfig | CsvInputConfig | DatabaseInputConfig | JsonInputConfig | XmlInputConfig | ParquetInputConfig | ApiInputConfig
   confirmedAnalysis?: ConfirmedAnalysis
 }
 
@@ -242,4 +269,25 @@ export interface GuideResponse {
   message: string
   actions?: Array<{ label: string; value: string; style?: string }>
   prefill?: Record<string, unknown>
+}
+
+export interface TemplateRequirement {
+  type: 'database' | 'ai' | 'input_format'
+  description: string
+}
+
+export interface Template {
+  id: string
+  name: string
+  description: string
+  category: string
+  tags: string[]
+  author: string
+  version: string
+  configState: Record<string, unknown>
+  requirements: TemplateRequirement[]
+  usageCount: number
+  isOfficial: boolean
+  createdAt: string
+  updatedAt: string
 }

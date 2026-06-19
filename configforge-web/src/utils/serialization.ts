@@ -1,6 +1,6 @@
-import type { WizardState, SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig, CheckRule } from '../types/wizard'
+import type { WizardState, SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, JsonInputConfig, XmlInputConfig, ParquetInputConfig, ApiInputConfig, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig, CheckRule } from '../types/wizard'
 
-type InputConfig = ExcelInputConfig | CsvInputConfig | DatabaseInputConfig
+type InputConfig = ExcelInputConfig | CsvInputConfig | DatabaseInputConfig | JsonInputConfig | XmlInputConfig | ParquetInputConfig | ApiInputConfig
 type OutputConfig = ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig
 
 export interface SnakeState {
@@ -46,6 +46,36 @@ export function buildInputConfig(config: InputConfig) {
       query_type: getConfigField<string>(config, 'queryType'),
       tables: getConfigField<string[]>(config, 'tables'),
       sql: getConfigField<string>(config, 'sql'),
+    }
+  }
+  if (config.type === 'json') {
+    return {
+      type: 'json',
+      flatten_separator: getConfigField<string>(config, 'flattenSeparator'),
+    }
+  }
+  if (config.type === 'xml') {
+    return {
+      type: 'xml',
+      row_element: getConfigField<string>(config, 'rowElement'),
+    }
+  }
+  if (config.type === 'parquet') {
+    return {
+      type: 'parquet',
+    }
+  }
+  if (config.type === 'api') {
+    return {
+      type: 'api',
+      url: getConfigField<string>(config, 'url'),
+      method: getConfigField<string>(config, 'method'),
+      headers: getConfigField<Record<string, string>>(config, 'headers'),
+      params: getConfigField<Record<string, string>>(config, 'params'),
+      data_path: getConfigField<string>(config, 'dataPath'),
+      pagination: getConfigField<string>(config, 'pagination'),
+      page_size: getConfigField<number>(config, 'pageSize'),
+      max_pages: getConfigField<number>(config, 'maxPages'),
     }
   }
   return {

@@ -1,0 +1,59 @@
+{
+  "id": "builtin_financial_summary",
+  "name": "财务汇总报表",
+  "description": "从 Excel 数据中生成财务汇总报表，通过 SQL 计算各部门收入、支出和利润率，输出格式化的 Excel 报表。",
+  "category": "finance",
+  "tags": ["财务", "汇总", "利润", "报表"],
+  "author": "ConfigForge",
+  "config_state": {
+    "current_step": 5,
+    "scene": {
+      "name": "财务汇总报表",
+      "description": "生成包含收入、支出和利润计算的财务汇总报表",
+      "version": "1.0"
+    },
+    "inputs": [
+      {
+        "name": "financial_data",
+        "plugin": "excel",
+        "table": "transactions",
+        "paramKey": "financial_data",
+        "fileId": "",
+        "config": {
+          "type": "excel",
+          "sheet": "交易明细"
+        }
+      }
+    ],
+    "processors": [
+      {
+        "name": "计算财务汇总",
+        "plugin": "sql",
+        "sql": "SELECT department, SUM(CASE WHEN type = 'revenue' THEN amount ELSE 0 END) AS total_revenue, SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS total_expenses, SUM(CASE WHEN type = 'revenue' THEN amount ELSE -amount END) AS net_profit, ROUND(CAST(SUM(CASE WHEN type = 'revenue' THEN amount ELSE -amount END) AS FLOAT) / NULLIF(SUM(CASE WHEN type = 'revenue' THEN amount ELSE 0 END), 0) * 100, 2) AS profit_margin_pct FROM transactions GROUP BY department ORDER BY net_profit DESC",
+        "script": "",
+        "inputTables": ["transactions"],
+        "outputTables": ["financial_summary"],
+        "checkpoints": []
+      }
+    ],
+    "output": {
+      "plugin": "excel",
+      "config": {
+        "type": "excel",
+        "template": "",
+        "sheet": "财务汇总",
+        "outputDir": "./output/",
+        "sourceTable": "financial_summary",
+        "filename": "financial_summary.xlsx",
+        "columns": [
+          {"source": "department", "target": "部门"},
+          {"source": "total_revenue", "target": "总收入"},
+          {"source": "total_expenses", "target": "总支出"},
+          {"source": "net_profit", "target": "净利润"},
+          {"source": "profit_margin_pct", "target": "利润率(%)"}
+        ]
+      }
+    },
+    "uploaded_files": {}
+  }
+}

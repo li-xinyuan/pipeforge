@@ -46,7 +46,7 @@ const props = defineProps<{
 }>()
 
 const store = useWizardStore()
-const collapsed = ref(false)
+const collapsed = ref(window.innerWidth <= 767)
 
 const stepLabels: Record<number, string> = {
   1: '步骤 1 · 场景信息',
@@ -84,7 +84,7 @@ const currentTip = computed(() => {
     if (store.inputs.length > 0) {
       return '请点击上传区域选择文件，或拖拽文件到上传区域。\n\n上传后系统会自动解析列信息。'
     }
-    return '选择数据来源类型，然后上传对应文件。\n\n• Excel：支持 .xlsx 文件\n• CSV：支持 .csv 文件，可自定义分隔符\n• Database：从数据库连接读取数据\n\n上传后可使用 ✨ AI 分析此文件 功能'
+    return '选择数据来源类型，然后上传对应文件。\n\n• Excel：支持 .xlsx 文件\n• CSV：支持 .csv 文件，可自定义分隔符\n• Database：从数据库连接读取数据\n• JSON：支持 .json 文件，自动展平嵌套字段\n• XML：支持 .xml 文件，可指定行元素路径\n• Parquet：支持 .parquet 大数据文件\n• REST API：从 HTTP 接口拉取数据\n\n上传后可使用 ✨ AI 分析此文件 功能'
   }
 
   if (step === 3) {
@@ -113,7 +113,7 @@ const currentTip = computed(() => {
   }
 
   if (step === 5) {
-    return '配置完成！\n\n建议点击 ✨ AI 预检配置 检查完整性和潜在问题。\n\n确认无误后：\n• 下载 YAML 配置文件\n• 执行流水线查看结果\n• 保存配置以便复用'
+    return '配置完成！\n\n建议点击 ✨ AI 预检配置 检查完整性和潜在问题。\n\n确认无误后：\n• 下载 YAML 配置文件\n• 执行流水线查看结果\n• 保存配置以便复用\n• 保存为模板，方便下次快速创建'
   }
 
   return ''
@@ -251,10 +251,18 @@ const currentTip = computed(() => {
 /* Responsive */
 @media (max-width: 767px) {
   .guide-panel {
-    width: 220px;
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--color-border-light);
+    max-height: 200px;
   }
   .guide-panel--collapsed {
-    width: 32px;
+    width: 100%;
+    height: 36px;
+  }
+  .guide-panel__collapsed {
+    flex-direction: row;
+    padding: 8px 12px;
   }
 }
 </style>

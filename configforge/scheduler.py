@@ -1,5 +1,6 @@
 """Scheduled execution for ConfigForge pipelines using APScheduler."""
 
+import asyncio
 import json
 import logging
 import os
@@ -142,6 +143,24 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
         _update_schedule_last_run(schedule_id, "success")
     except Exception as e:
         logger.exception("Scheduled pipeline execution failed: %s", e)
+        # Auto-diagnose using AI (same as manual execution)
+        diagnosis = None
+        try:
+            from configforge.services.ai.auto_diagnose import auto_diagnose
+            loop = asyncio.new_event_loop()
+            try:
+                diagnosis = loop.run_until_complete(auto_diagnose(
+                    yaml_text="",
+                    error_message=str(e),
+                    scene_name=scene_name,
+                    inputs_summary=inputs_summary,
+                    processors_summary=processors_summary,
+                ))
+            finally:
+                loop.close()
+        except Exception as diag_exc:
+            logger.warning("Auto-diagnosis failed for scheduled pipeline: %s", diag_exc)
+
         _save_failed_execution(
             exec_id=exec_id,
             started_at=started_at,
@@ -152,8 +171,22 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
             processors_summary=processors_summary,
             output_type=output_type,
             error_message=str(e),
+            diagnosis=diagnosis,
         )
         _update_schedule_last_run(schedule_id, "failed")
+
+        # Dispatch notification
+        try:
+            from configforge.services.notifier.dispatcher import dispatch_notifications_async
+            dispatch_notifications_async(
+                config_id=config_id,
+                status="failed",
+                config_name=scene_name,
+                error_message=str(e),
+                duration_ms=0,
+            )
+        except Exception as notify_exc:
+            logger.warning("Notification dispatch failed: %s", notify_exc)
         return
 
     # Save successful execution record (same logic as configs.py execute_config)
@@ -161,7 +194,11 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
     from configforge.api.executions import EXEC_DIR
     from configforge.models.wizard import ExecutionRecord
 
-    filename = os.path.basename(output_path)
+    # Handle database output (output_path is None) vs file output
+    if output_path is None:
+        filename = None
+    else:
+        filename = os.path.basename(output_path)
     finished_at = datetime.now(UTC).isoformat()
     start_dt = datetime.fromisoformat(started_at)
     end_dt = datetime.fromisoformat(finished_at)
@@ -169,12 +206,13 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
 
     exec_output_dir = os.path.join(EXEC_DIR, exec_id)
     os.makedirs(exec_output_dir, exist_ok=True)
-    exec_output_path = os.path.join(exec_output_dir, filename)
-    shutil.move(output_path, exec_output_path)
 
-    output_intermediate_dir = os.path.dirname(output_path)
-    if os.path.isdir(output_intermediate_dir):
-        shutil.rmtree(output_intermediate_dir, ignore_errors=True)
+    if output_path is not None and filename:
+        exec_output_path = os.path.join(exec_output_dir, filename)
+        shutil.move(output_path, exec_output_path)
+        output_intermediate_dir = os.path.dirname(output_path)
+        if os.path.isdir(output_intermediate_dir):
+            shutil.rmtree(output_intermediate_dir, ignore_errors=True)
 
     record = ExecutionRecord(
         id=exec_id,
@@ -198,6 +236,18 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
 
     _update_exec_index(record)
     logger.info("Scheduled pipeline completed: exec_id=%s", exec_id)
+
+    # Dispatch notification on success
+    try:
+        from configforge.services.notifier.dispatcher import dispatch_notifications_async
+        dispatch_notifications_async(
+            config_id=config_id,
+            status="success",
+            config_name=scene_name,
+            duration_ms=duration_ms,
+        )
+    except Exception as notify_exc:
+        logger.warning("Notification dispatch failed: %s", notify_exc)
 
 
 def _update_schedule_last_run(schedule_id: str, status: str) -> None:

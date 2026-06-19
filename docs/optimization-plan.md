@@ -1,10 +1,37 @@
 # ConfigForge 优化与修复方案
 
-> 更新时间：2026-06-14
-> 状态：已审查，待执行
+> 更新时间：2026-06-18
+> 状态：**已归档** — 本文档已被 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) 取代
 > 审查参考：
 > - `docs/superpowers/reviews/2026-06-14-plan-review-and-code-scan.md`
 > - `docs/superpowers/reviews/2026-06-14-optimization-plan-review.md`
+
+---
+
+## 完成状态追踪
+
+以下项已在 Phase 1~4 安全/稳定性修复及 Phase 3A 技术债务清理中完成：
+
+| 项 | 描述 | 完成阶段 |
+|----|------|---------|
+| B-2/B-3/B-4 | 路径遍历修复（validate_id） | Phase 1 |
+| B-1 | SQL 处理器 SELECT-only 白名单 | Phase 1 |
+| B-7 | SQL 预览 DDL/DML 扩展 + query_only | Phase 1 |
+| B-8 | 文件上传流式写入 | Phase 1 |
+| B-1b | 数据库输出 source_table 注入修复 | Phase 1 |
+| B-6 | 密码泄露防护 | Phase 1 |
+| H-1 | scheduler + executions 文件锁 | Phase 2 |
+| H-7 | Pipeline 执行超时 | Phase 2 |
+| H-4/H-5 | MySQL 兼容性 + replace 事务一致性 | Phase 2 |
+| M-11 | SQLite 路径限制 | Phase 2 |
+| M-12 | 表名 safe_identifier 校验 | Phase 2 |
+| H-3 | 删除废弃 Step 视图文件 | Phase 3A |
+| M-5 | snakeToCamel 统一转换 | Phase 3A |
+| M-6 | useApi 统一 HTTP 请求封装 | Phase 3A (T-3A-10) |
+| M-4 | processor→processors 兼容逻辑清理 | Phase 3A (T-3A-16) |
+| L-6 | E2E 测试纳入标准体系 | Phase 3A (T-3A-17) |
+| M-20 | 后端测试修复 | Phase 3A |
+| M-21 | 前端测试修复 | Phase 3A |
 
 ---
 

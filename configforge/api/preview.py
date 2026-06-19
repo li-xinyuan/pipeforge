@@ -7,6 +7,9 @@ from fastapi import APIRouter, HTTPException
 from configforge.models.wizard import ErrorResponse, PreviewRequest, SqlExecuteRequest, SqlExecuteResponse
 from configforge.services.excel_reader import read_excel_info
 from configforge.services.csv_reader import read_csv_info
+from configforge.services.json_reader import read_json_info
+from configforge.services.xml_reader import read_xml_info
+from configforge.services.parquet_reader import read_parquet_info
 from configforge.utils.security import validate_id, safe_identifier
 
 router = APIRouter()
@@ -62,7 +65,16 @@ def _get_file_type(file_id: str) -> str:
         with open(meta_path, "r") as f:
             meta = json.load(f)
         return meta.get("type", "excel")
-    return "csv" if os.path.splitext(file_id)[1].lower() == ".csv" else "excel"
+    ext = os.path.splitext(file_id)[1].lower()
+    if ext == ".csv":
+        return "csv"
+    if ext == ".json":
+        return "json"
+    if ext == ".xml":
+        return "xml"
+    if ext == ".parquet":
+        return "parquet"
+    return "excel"
 
 
 @router.post("/file")
@@ -84,6 +96,12 @@ async def preview_file(req: PreviewRequest):
     file_type = _get_file_type(req.file_id)
     if file_type == "csv":
         info = read_csv_info(content)
+    elif file_type == "json":
+        info = read_json_info(content)
+    elif file_type == "xml":
+        info = read_xml_info(content)
+    elif file_type == "parquet":
+        info = read_parquet_info(path)
     else:
         info = read_excel_info(io.BytesIO(content), sheet_name=req.sheet)
     return {
@@ -127,6 +145,12 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
 
             if file_type == "csv":
                 info = read_csv_info(content)
+            elif file_type == "json":
+                info = read_json_info(content)
+            elif file_type == "xml":
+                info = read_xml_info(content)
+            elif file_type == "parquet":
+                info = read_parquet_info(path)
             else:
                 info = read_excel_info(io.BytesIO(content))
 

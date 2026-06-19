@@ -34,6 +34,26 @@
             <span class="text-sm font-semibold">Database</span>
             <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">SQLite / MySQL / PG</span>
           </div>
+        <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-amber-900/30', pulseCta && store.inputs.length === 0 ? 'pulse-cta' : '', 'border-amber-600 bg-amber-50']" @click="addInput('json')">
+            <span class="text-2xl block mb-2">📋</span>
+            <span class="text-sm font-semibold">JSON</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.json</span>
+          </div>
+        <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-orange-900/30', pulseCta && store.inputs.length === 0 ? 'pulse-cta' : '', 'border-orange-600 bg-orange-50']" @click="addInput('xml')">
+            <span class="text-2xl block mb-2">📰</span>
+            <span class="text-sm font-semibold">XML</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.xml</span>
+          </div>
+        <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-cyan-900/30', pulseCta && store.inputs.length === 0 ? 'pulse-cta' : '', 'border-cyan-600 bg-cyan-50']" @click="addInput('parquet')">
+            <span class="text-2xl block mb-2">📦</span>
+            <span class="text-sm font-semibold">Parquet</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.parquet</span>
+          </div>
+        <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-rose-900/30', pulseCta && store.inputs.length === 0 ? 'pulse-cta' : '', 'border-rose-600 bg-rose-50']" @click="addInput('api')">
+            <span class="text-2xl block mb-2">🌐</span>
+            <span class="text-sm font-semibold">REST API</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">HTTP 接口</span>
+          </div>
         <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
           <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.3</NTag>
           <span class="text-2xl block mb-2">📄</span>
@@ -43,11 +63,6 @@
           <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
           <span class="text-2xl block mb-2">🖥</span>
           <span class="text-sm font-semibold">PPT</span>
-        </div>
-        <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
-          <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.5</NTag>
-          <span class="text-2xl block mb-2">🌐</span>
-          <span class="text-sm font-semibold">API</span>
         </div>
       </div>
     </template>
@@ -67,6 +82,7 @@ import { ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { NButton, NTag } from 'naive-ui'
 import InputSourceCard from './InputSourceCard.vue'
+import type { InputSource } from '../../types/wizard'
 
 const store = useWizardStore()
 const showAddSelector = ref(store.inputs.length === 0)
@@ -78,7 +94,7 @@ watch(() => store.inputs.length, (len) => {
   if (len === 0) showAddSelector.value = true
 })
 
-function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
+function addInput(plugin: InputSource['plugin'] = 'excel') {
   store.addInput(plugin)
   showAddSelector.value = false
 }

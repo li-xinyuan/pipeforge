@@ -68,6 +68,7 @@ def _update_exec_index(record: ExecutionRecord):
         "checks_summary": record.checks_summary,
         "error_message": record.error_message,
         "output_file_name": record.output_file_name,
+        "diagnosis": record.diagnosis,
     })
     # Keep last 100 entries
     write_json_locked(EXEC_INDEX, index[:100])
@@ -87,6 +88,7 @@ def _save_failed_execution(
     output_type: str,
     error_message: str,
     checks_summary: list[dict] | None = None,
+    diagnosis: dict | None = None,
 ):
     """Persist a failed execution record."""
     finished_at = datetime.now(UTC).isoformat()
@@ -109,6 +111,7 @@ def _save_failed_execution(
         checks_summary=checks_summary or [],
         error_message=error_message,
         output_file_name=None,
+        diagnosis=diagnosis,
     )
 
     os.makedirs(os.path.join(EXEC_DIR, exec_id), exist_ok=True)
@@ -148,6 +151,7 @@ async def list_executions(
         item.setdefault("output_type", "")
         item.setdefault("checks_summary", [])
         item.setdefault("error_message", None)
+        item.setdefault("diagnosis", None)
     return {
         "items": items,
         "total": total,

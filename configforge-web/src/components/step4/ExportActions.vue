@@ -6,6 +6,23 @@
     <NButton type="primary" class="btn-primary" :loading="executing" @click="downloadResult">下载结果文件</NButton>
     <NButton :loading="saving" @click="saveConfigHandler">保存配置</NButton>
   </div>
+
+  <!-- AI Diagnosis on execution failure -->
+  <div v-if="execError || execDiagnosis" class="export-actions__diagnosis">
+    <DiagnosisPanel
+      v-if="execDiagnosis"
+      :diagnosis="execDiagnosis"
+      :autofix-loading="autofixLoading"
+      :autofix-result="autofixResult"
+      :raw-error="execError"
+      :rewrite-loading="rewriteLoading"
+      @goto-step="$emit('gotoStep', $event)"
+      @autofix="onAutofix"
+      @apply-fixes="onApplyFixes"
+      @ai-rewrite="onAiRewrite"
+    />
+    <p v-else class="text-xs text-red-500">{{ execError }}</p>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -15,7 +32,11 @@ import { NButton, useMessage, useDialog } from 'naive-ui'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
 import { useConfigApi } from '../../composables/useConfigApi'
+import { useAiApi } from '../../composables/useAiApi'
 import ConfettiBurst from '../ConfettiBurst.vue'
+import DiagnosisPanel from '../common/DiagnosisPanel.vue'
+
+defineEmits<{ gotoStep: [step: number] }>()
 
 const props = defineProps<{ yaml?: string }>()
 const message = useMessage()
@@ -24,9 +45,17 @@ const router = useRouter()
 const store = useWizardStore()
 const { executePipeline, error: apiError } = useWizardApi()
 const { saveConfig } = useConfigApi()
+const { askSuggestion } = useAiApi()
 const executing = ref(false)
 const saving = ref(false)
 const confettiRef = ref<InstanceType<typeof ConfettiBurst>>()
+
+// AI diagnosis state
+const execError = ref('')
+const execDiagnosis = ref<{ cause: string; impact?: string; suggestions: string[]; severity: 'error' | 'warning'; step?: number } | null>(null)
+const autofixLoading = ref(false)
+const autofixResult = ref<{ fixable: boolean; fixes?: { step: number; field: string; old: string; new: string; reason: string }[]; suggestions?: string[] } | null>(null)
+const rewriteLoading = ref(false)
 
 function buildExecutionFilename(storedFilename: string): string {
   const now = new Date()
@@ -57,6 +86,20 @@ function downloadYaml() {
 }
 
 async function downloadResult() {
+  // Validate config completeness before executing
+  if (!store.inputs.length) {
+    dialog.warning({ title: '配置不完整', content: '请先在步骤 2 添加输入源。', positiveText: '知道了' })
+    return
+  }
+  if (!store.processors.length) {
+    dialog.warning({ title: '配置不完整', content: '请先在步骤 3 添加处理步骤。', positiveText: '知道了' })
+    return
+  }
+  if (!store.output) {
+    dialog.warning({ title: '配置不完整', content: '请先在步骤 4 配置输出。', positiveText: '知道了' })
+    return
+  }
+
   // Check if any file-based input source is missing its uploaded file
   const missingFileInputs = store.inputs.filter(
     inp => inp.plugin !== 'database' && !inp.fileId
@@ -72,6 +115,8 @@ async function downloadResult() {
   }
 
   executing.value = true
+  execError.value = ''
+  execDiagnosis.value = null
   try {
     const state = store.getWizardState()
     const result = await executePipeline(state)
@@ -90,8 +135,16 @@ async function downloadResult() {
         message.success(result.message || '执行成功')
       }
     } else {
-      message.error(apiError.value?.message || '执行失败，请检查配置')
+      execError.value = apiError.value?.message || '执行失败，请检查配置'
+      // Try to extract diagnosis from API error
+      const errData = (apiError.value as any)?.data
+      if (errData?.diagnosis) {
+        execDiagnosis.value = errData.diagnosis
+      }
     }
+  } catch (e: any) {
+    execError.value = e?.message || '执行失败'
+    execDiagnosis.value = e?.diagnosis || null
   } finally {
     executing.value = false
   }
@@ -118,4 +171,62 @@ async function saveConfigHandler() {
     saving.value = false
   }
 }
+
+async function onAutofix() {
+  if (!execDiagnosis.value) return
+  autofixLoading.value = true
+  autofixResult.value = null
+  try {
+    const result = await askSuggestion('autofix', {
+      diagnosis: JSON.stringify(execDiagnosis.value),
+      errorLog: execError.value,
+    })
+    if (result) {
+      try {
+        autofixResult.value = JSON.parse(result)
+      } catch {
+        autofixResult.value = { fixable: false, suggestions: ['AI 返回了无法解析的结果'] }
+      }
+    } else {
+      autofixResult.value = { fixable: false, suggestions: ['AI 未返回修复建议'] }
+    }
+  } catch {
+    autofixResult.value = { fixable: false, suggestions: ['AI 修复请求失败'] }
+  } finally {
+    autofixLoading.value = false
+  }
+}
+
+function onApplyFixes(fixes: { step: number; field: string; old: string; new: string; reason: string }[]) {
+  if (fixes.length > 0) {
+    store.applyAutofixes(fixes)
+  }
+  execError.value = ''
+  execDiagnosis.value = null
+  autofixResult.value = null
+}
+
+async function onAiRewrite() {
+  if (!execDiagnosis.value) return
+  rewriteLoading.value = true
+  try {
+    await askSuggestion('orchestrate', {
+      currentStep: 3,
+      naturalLanguage: `修复执行错误：${execDiagnosis.value.cause}。错误信息：${execError.value}`,
+      inputs: store.inputs.map(i => ({ name: i.table, plugin: i.plugin })),
+      processors: [{ plugin: 'sql', name: 'query' }],
+      outputColumns: [],
+    })
+  } catch {
+    // AI rewrite failed
+  } finally {
+    rewriteLoading.value = false
+  }
+}
 </script>
+
+<style scoped>
+.export-actions__diagnosis {
+  margin-top: 12px;
+}
+</style>

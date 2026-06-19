@@ -29,9 +29,14 @@
           <h2>第二步：输入源</h2>
           <p>添加数据处理流水线的输入数据：</p>
           <ul>
-            <li>点击 <strong>+ Excel</strong>、<strong>+ CSV</strong> 或 <strong>+ 数据库</strong> 添加输入源。</li>
-            <li><strong>文件输入</strong>：上传数据文件（.xlsx / .xls / .csv 格式，最大 50MB）。</li>
+            <li>点击 <strong>Excel</strong>、<strong>CSV</strong>、<strong>Database</strong>、<strong>JSON</strong>、<strong>XML</strong>、<strong>Parquet</strong> 或 <strong>REST API</strong> 添加输入源。</li>
+            <li><strong>Excel 输入</strong>：上传 .xlsx / .xls 文件，可选择工作表。</li>
+            <li><strong>CSV 输入</strong>：上传 .csv / .tsv 文件，可自定义分隔符、编码，支持表头开关。</li>
             <li><strong>数据库输入</strong>：选择已配置的数据库连接，指定表名或编写 SQL 查询。需先在"数据库连接"管理器中创建连接。</li>
+            <li><strong>JSON 输入</strong>：上传 .json 文件，支持对象数组和嵌套对象自动展平，可配置展平分隔符（默认 "."）。</li>
+            <li><strong>XML 输入</strong>：上传 .xml 文件，自动检测行元素，也可手动指定 XPath 路径（如 items/item）。</li>
+            <li><strong>Parquet 输入</strong>：上传 .parquet 大数据文件，自动推断 schema 和列类型。</li>
+            <li><strong>REST API 输入</strong>：从 HTTP 接口拉取数据，支持 GET/POST 请求、自定义请求头和参数、数据路径（如 data.items）、三种分页模式（无分页/偏移/游标）。</li>
             <li>设置数据表名，后续 SQL 中将以此表名引用数据。</li>
             <li>参数键（param_key）用于在运行时指定文件路径，可留空使用默认值。</li>
           </ul>
@@ -150,6 +155,18 @@
             <li>启用/禁用定时任务，编辑 Cron 表达式和描述。</li>
             <li>定时任务仅支持使用数据库输入源的配置（文件输入无法自动上传）。</li>
             <li>执行结果会记录在执行历史中。</li>
+          </ul>
+        </section>
+
+        <section class="guide__section">
+          <h2>模板市场</h2>
+          <p>在 <router-link to="/templates">模板市场</router-link> 页面可浏览和使用预置模板：</p>
+          <ul>
+            <li><strong>浏览模板</strong>：按分类（销售/财务/人力/运维/通用）筛选，或搜索模板名称和描述。</li>
+            <li><strong>使用模板</strong>：点击模板卡片查看详情，点击"使用此模板"将模板配置加载到向导中，在此基础上修改即可。</li>
+            <li><strong>兼容性检查</strong>：在模板详情中点击"检查"按钮，验证模板所需的环境（数据库连接、AI 配置等）是否就绪。</li>
+            <li><strong>保存为模板</strong>：在向导第 5 步点击"保存为模板"，将当前配置保存为可复用的模板。</li>
+            <li><strong>官方模板</strong>：带"官方"标签的模板由 ConfigForge 团队提供，经过验证可直接使用。</li>
           </ul>
         </section>
       </article>

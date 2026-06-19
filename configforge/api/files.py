@@ -8,7 +8,7 @@ from configforge.models.wizard import FileUploadResponse, ErrorResponse
 
 router = APIRouter()
 
-ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
+ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv", ".json", ".xml", ".parquet"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
 UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
 MAX_FILE_AGE_SECONDS = 24 * 60 * 60
@@ -122,6 +122,30 @@ async def upload_file(file: UploadFile = File(...)):
                                     recoverable=True,
                                 ).model_dump(),
                             )
+                    if ext == ".json":
+                        try:
+                            chunk.decode("utf-8")
+                        except UnicodeDecodeError:
+                            raise HTTPException(
+                                status_code=422,
+                                detail=ErrorResponse(
+                                    error="JSON file is not valid UTF-8 text",
+                                    code="FILE_FORMAT_UNSUPPORTED",
+                                    recoverable=True,
+                                ).model_dump(),
+                            )
+                    if ext == ".xml":
+                        try:
+                            chunk.decode("utf-8")
+                        except UnicodeDecodeError:
+                            raise HTTPException(
+                                status_code=422,
+                                detail=ErrorResponse(
+                                    error="XML file is not valid UTF-8 text",
+                                    code="FILE_FORMAT_UNSUPPORTED",
+                                    recoverable=True,
+                                ).model_dump(),
+                            )
                 f.write(chunk)
     except HTTPException:
         # Clean up partial file on validation error
@@ -129,7 +153,7 @@ async def upload_file(file: UploadFile = File(...)):
             os.remove(path)
         raise
 
-    file_type = "csv" if ext == ".csv" else "excel"
+    file_type = "csv" if ext == ".csv" else "json" if ext == ".json" else "xml" if ext == ".xml" else "parquet" if ext == ".parquet" else "excel"
     import json
     meta_path = os.path.join(UPLOAD_DIR, file_id + ".meta.json")
     with open(meta_path, "w") as f:

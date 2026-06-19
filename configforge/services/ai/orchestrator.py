@@ -97,8 +97,81 @@ SYSTEM_PROMPTS = {
         "源列没有对应目标列的不要强行映射。"
     ),
     "diagnose": (
-        "你是一个数据管道调试专家。根据 YAML 配置和错误日志，分析失败原因并给出修复建议。"
-        "返回 JSON: {\"cause\": \"根因一句话\", \"suggestions\": [\"具体修复步骤\"], \"severity\": \"error|warning\"}。"
+        "你是一个数据管道调试专家。根据 YAML 配置和错误日志，分析失败原因并给出修复建议。\n\n"
+        "## 常见错误模式\n"
+        "### 输入源错误（Step 2）\n"
+        "- FileNotFoundError：文件路径错误或文件未上传\n"
+        "- UnicodeDecodeError：文件编码不匹配，尝试 utf-8/gbk/latin1\n"
+        "- SheetNotFoundError：Excel 工作表名不存在\n"
+        "- EmptyDataError：CSV 文件为空或分隔符配置错误\n\n"
+        "### SQL/处理器错误（Step 3）\n"
+        "- no such table：表名拼写错误或缺少引号包裹\n"
+        "- no such column：列名不在表中，检查大小写和拼写\n"
+        "- near \\\"xxx\\\": syntax error：SQL 语法错误，检查括号/逗号/引号\n"
+        "- OperationalError：SQL 执行错误，检查表名/列名是否用双引号包裹\n\n"
+        "### 输出错误（Step 4）\n"
+        "- PermissionError：输出目录无写入权限\n"
+        "- KeyError：列映射中引用了不存在的列名\n"
+        "- 连接失败：数据库连接字符串错误或网络不通\n\n"
+        "## 返回格式\n"
+        "返回 JSON: {\"cause\": \"根因一句话（用通俗语言描述）\", \"impact\": \"不修复会怎样（用业务语言描述后果）\", \"suggestions\": [\"具体修复步骤（用业务语言，避免纯技术术语）\"], \"severity\": \"error|warning\"}。\n"
+        "severity: error=必须修复才能执行, warning=建议修复但可尝试继续。\n"
+        "impact 示例：\n"
+        "- error 级别：\"不修复则无法导出任何数据，流程完全中断\"\n"
+        "- warning 级别：\"数据可能不完整，部分记录会丢失\"\n"
+        "- warning 级别：\"查询结果可能包含重复数据，影响统计准确性\"\n\n"
+        "建议写法参考：\n"
+        "- \"检查表名拼写\" → \"确认数据表的名称是否正确\"\n"
+        "- \"添加 JOIN ON\" → \"需要告诉系统两个表之间怎么关联\"\n"
+        "- \"修改 WHERE 子句\" → \"需要调整筛选条件\""
+    ),
+    "autofix": (
+        "你是一个数据管道自动修复专家。根据诊断结果和当前配置，尝试自动修复简单问题。\n\n"
+        "## 可修复的简单场景\n"
+        "- 列名拼写错误（如大小写不匹配）\n"
+        "- 表名缺少引号（SQLite 中含特殊字符的表名需双引号包裹）\n"
+        "- SQL 语法小错误（缺少逗号、括号不匹配、关键字拼写）\n"
+        "- 字段名与表结构不匹配（大小写修正）\n"
+        "- SELECT 末尾多余逗号\n"
+        "- GROUP BY 缺少非聚合列\n\n"
+        "## 不可自动修复的复杂场景\n"
+        "- SQL 逻辑变更（如 WHERE 条件修改、JOIN 关系变更）\n"
+        "- 数据类型转换需求\n"
+        "- 业务逻辑错误\n"
+        "- 需要新增输入源或处理步骤\n\n"
+        "## 面向非技术用户的建议写法\n"
+        "当 fixable=false 时，suggestions 必须用业务语言描述，避免技术术语。\n"
+        "术语映射参考（技术描述 → 用户友好描述）：\n"
+        "- \"添加 JOIN ON 条件\" → \"需要告诉系统两个表之间怎么关联，比如通过用户ID关联\"\n"
+        "- \"修改 WHERE 子句\" → \"需要调整筛选条件\"\n"
+        "- \"添加 GROUP BY\" → \"需要告诉系统按什么维度汇总数据\"\n"
+        "- \"修改 HAVING 条件\" → \"需要调整汇总后的筛选条件\"\n"
+        "- \"添加索引\" → \"需要优化查询速度\"\n"
+        "- \"修改 CAST 类型\" → \"需要调整数据格式\"\n"
+        "- \"修改 LEFT JOIN 为 INNER JOIN\" → \"需要调整两个表之间的关联方式\"\n\n"
+        "## 返回格式\n"
+        "如果是简单可修复场景，返回：\n"
+        "{\"fixable\": true, \"fixes\": [{\"step\": 3, \"field\": \"sql\", \"old\": \"原始值\", \"new\": \"修复值\", \"reason\": \"修复原因\"}]}\n\n"
+        "如果是复杂不可修复场景，返回：\n"
+        "{\"fixable\": false, \"suggestions\": [\"用业务语言描述的修复建议1\", \"用业务语言描述的修复建议2\"]}\n\n"
+        "step 取值：2=输入源, 3=处理步骤, 4=输出配置。\n"
+        "field 取值：sql, script, table, filename 等。\n"
+        "只返回 JSON，不要其他内容。"
+    ),
+    "anomaly": (
+        "你是一个数据质量分析专家。分析输出数据的统计特征，检测异常。\n\n"
+        "## 检测维度\n"
+        "- 空值率异常（某列空值率 > 50%）\n"
+        "- 数值范围异常（数值列出现负数或极端值，如年龄 < 0 或 > 150）\n"
+        "- 数据量异常（行数与预期差异过大，如从万级骤降到个位数）\n"
+        "- 重复率异常（主键列重复率 > 0）\n"
+        "- 格式异常（日期列包含非日期值，邮箱列格式不合法）\n"
+        "- 类型异常（数值列包含文本，布尔列包含非 true/false 值）\n\n"
+        "## 返回格式\n"
+        "{\"anomalies\": [{\"type\": \"null_rate_spike|value_range|row_count|duplicate|format|type_mismatch\", "
+        "\"column\": \"列名\", \"detail\": \"详细描述\", \"severity\": \"error|warning|info\"}], "
+        "\"summary\": \"一句话总结\"}\n\n"
+        "如果没有异常，返回空 anomalies 数组，summary 写「数据质量正常」。"
     ),
     "precheck": (
         "你是一个数据管道配置审查专家。用户即将执行一个数据管道，你需要检查配置的完整性和潜在问题。\n\n"
@@ -244,8 +317,27 @@ def build_prompt(category: str, context: dict) -> str:
         prompt += f"源列: {context.get('sourceColumns', [])}。"
         prompt += f"目标列: {context.get('targetColumns', [])}。"
     elif category == "diagnose":
+        scene = context.get("scene_name", "")
+        if scene:
+            prompt += f"场景: {scene}。"
+        inputs_info = context.get("inputs", "")
+        if inputs_info:
+            prompt += f"输入源: {inputs_info}。"
+        processors_info = context.get("processors", "")
+        if processors_info:
+            prompt += f"处理步骤: {processors_info}。"
         prompt += f"YAML: {context.get('yaml', '')}。"
         prompt += f"错误: {context.get('errorLog', '')}。"
+    elif category == "autofix":
+        prompt += f"诊断结果: {context.get('diagnosis', '')}。"
+        prompt += f"错误信息: {context.get('errorLog', '')}。"
+        config_summary = context.get('config', '')
+        if config_summary:
+            prompt += f"当前配置: {config_summary}。"
+    elif category == "anomaly":
+        prompt += f"数据样本(前100行): {context.get('sample_rows', '')}。"
+        prompt += f"统计摘要: {context.get('stats', '')}。"
+        prompt += f"列名: {context.get('columns', [])}。"
     elif category == "precheck":
         prompt += f"场景名称: {context.get('scene_name', '')}。"
         prompt += f"输入源: {json.dumps(context.get('inputs', []), ensure_ascii=False)[:1000]}。"
@@ -260,6 +352,13 @@ def build_prompt(category: str, context: dict) -> str:
         scene_name = context.get("scene_name", context.get("sceneName", ""))
         inputs = context.get("inputs_detail", context.get("inputs", []))
         sql = context.get("processorSql", "")
+        # Diagnosis context (for follow-up chat from DiagnosisPanel)
+        diag_cause = context.get("diagnosis_cause", "")
+        diag_suggestions = context.get("diagnosis_suggestions", [])
+        diag_severity = context.get("diagnosis_severity", "")
+        error_msg = context.get("error_message", "")
+        user_question = context.get("user_question", "")
+
         prompt += f"用户当前在第 {current_step} 步。"
         if scene_name:
             prompt += f"场景名称: {scene_name}。"
@@ -267,7 +366,15 @@ def build_prompt(category: str, context: dict) -> str:
             prompt += f"输入源: {json.dumps(inputs, ensure_ascii=False)[:500]}。"
         if sql:
             prompt += f"当前 SQL: {sql[:500]}。"
-        prompt += f"用户消息: {_sanitize_user_input(context.get('naturalLanguage', ''))}"
+        if diag_cause:
+            prompt += f"\n【诊断上下文】AI 已诊断出问题：{diag_cause}（严重程度：{diag_severity}）。"
+            if diag_suggestions:
+                prompt += f"修复建议：{'；'.join(diag_suggestions[:5])}。"
+            if error_msg:
+                prompt += f"原始错误：{error_msg[:300]}。"
+            prompt += f"用户追问：{_sanitize_user_input(user_question)}"
+        else:
+            prompt += f"用户消息: {_sanitize_user_input(context.get('naturalLanguage', ''))}"
     elif category == "orchestrate":
         inputs = context.get("inputs", [])
         output_columns = context.get("outputColumns", [])

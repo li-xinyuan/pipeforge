@@ -40,17 +40,53 @@ class DatabaseInputConfig(BaseModel):
     sql: str = ""
 
 
+class JsonInputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["json"] = "json"
+    flatten_separator: str = "."
+
+
+class XmlInputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["xml"] = "xml"
+    row_element: str = ""
+
+
+class ParquetInputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["parquet"] = "parquet"
+
+
+class ApiInputConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    type: Literal["api"] = "api"
+    url: str = ""
+    method: Literal["GET", "POST"] = "GET"
+    headers: dict[str, str] = {}
+    params: dict[str, str] = {}
+    body: dict | None = None
+    data_path: str = ""
+    pagination: Literal["none", "offset", "cursor"] = "none"
+    page_size: int = 100
+    max_pages: int = 10
+
+
 class InputSource(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     name: str = ""
-    plugin: Literal["excel", "csv", "database"] = "excel"
+    plugin: Literal["excel", "csv", "database", "json", "xml", "parquet", "api"] = "excel"
     table: str = ""
     param_key: str = Field(default="", alias="paramKey")
     file_id: str = Field(default="", alias="fileId")
-    config: Annotated[ExcelInputConfig | CsvInputConfig | DatabaseInputConfig, Field(discriminator="type")] = Field(
-        default_factory=ExcelInputConfig
-    )
+    config: Annotated[
+        ExcelInputConfig | CsvInputConfig | DatabaseInputConfig | JsonInputConfig | XmlInputConfig | ParquetInputConfig | ApiInputConfig,
+        Field(discriminator="type"),
+    ] = Field(default_factory=ExcelInputConfig)
 
 
 class ProcessorConfig(BaseModel):
@@ -322,3 +358,4 @@ class ExecutionRecord(BaseModel):
     checks_summary: list[dict] = []
     error_message: str | None = None
     output_file_name: str | None = None
+    diagnosis: dict | None = None

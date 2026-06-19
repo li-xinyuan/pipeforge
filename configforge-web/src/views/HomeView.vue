@@ -23,6 +23,9 @@
             <NButton type="primary" size="large" class="btn-primary" @click="startNewConfig">
               ✏ 开始新配置
             </NButton>
+            <NButton size="large" class="btn-secondary" @click="router.push('/templates')">
+              📦 浏览模板市场
+            </NButton>
             <NButton size="large" class="btn-secondary" @click="router.push('/guide')">
               📖 使用指南
             </NButton>
@@ -49,6 +52,7 @@
           </div>
           <div class="home__toolbar-actions">
             <NButton type="primary" size="small" class="btn-primary" @click="startNewConfig">✏ 新建配置</NButton>
+            <NButton size="small" class="btn-secondary" @click="router.push('/templates')">📦 模板市场</NButton>
             <NButton size="small" class="btn-secondary" @click="router.push('/guide')">📖 指南</NButton>
           </div>
         </div>
@@ -177,6 +181,7 @@
       :visible="executeModalVisible"
       :config="executingConfig"
       @close="executeModalVisible = false"
+      @goto-step="onGotoStep"
     />
 
     <!-- 版本历史弹窗 -->
@@ -407,6 +412,17 @@ function onMenuSelect(key: string, cfg: SavedConfig) {
 function openExecuteModal(cfg: SavedConfig) {
   executingConfig.value = cfg
   executeModalVisible.value = true
+}
+
+function onGotoStep(step: number, fixes?: { step: number; field: string; old: string; new: string; reason: string }[]) {
+  const cfgId = executingConfig.value?.id
+  if (cfgId) {
+    const query: Record<string, string> = { load: cfgId, step: String(step) }
+    if (fixes) {
+      query.autofix = btoa(encodeURIComponent(JSON.stringify(fixes)))
+    }
+    router.push({ path: '/config/new', query })
+  }
 }
 
 function openVersionModal(configId: string) {
@@ -898,6 +914,25 @@ function formatTime(iso: string): string {
   }
   .config-name-link {
     font-size: 14px;
+  }
+  .home__toolbar-inner {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .home__configs-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .home__search-input {
+    max-width: 140px;
+  }
+  .home__config-card-right {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .home__batch-bar {
+    flex-wrap: wrap;
+    gap: 6px;
   }
 }
 

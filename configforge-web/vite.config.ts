@@ -6,7 +6,12 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   server: {
-    proxy: { '/api': 'http://localhost:8000' }
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        timeout: 120000, // 2 minutes for long-running pipeline + AI diagnosis
+      }
+    }
   },
   test: {
     environment: 'happy-dom',

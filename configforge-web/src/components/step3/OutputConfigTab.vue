@@ -169,13 +169,20 @@
         <!-- Connection selector -->
         <div>
           <label class="cf-label"><span class="cf-required">*</span> 数据库连接</label>
-          <NSelect
-            v-model:value="dbConfig.connectionId"
-            :options="connectionOptions"
-            placeholder="-- 选择连接 --"
-            size="small"
-            @update:value="onConnectionSelected"
-          />
+          <div class="flex items-center gap-2">
+            <NSelect
+              v-model:value="dbConfig.connectionId"
+              :options="connectionOptions"
+              placeholder="-- 选择连接 --"
+              size="small"
+              class="flex-1"
+              @update:value="onConnectionSelected"
+            />
+            <NButton size="small" quaternary @click="showConnManager = true">⚙ 管理</NButton>
+          </div>
+          <p v-if="connectionOptions.length === 0" class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+            暂无连接，点击"管理"按钮新建数据库连接
+          </p>
         </div>
         <!-- Target table name -->
         <div>
@@ -246,6 +253,17 @@
       </div>
     </div>
   </div>
+
+  <!-- Inline connection manager modal -->
+  <div v-if="showConnManager" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showConnManager = false">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-semibold">管理数据库连接</h3>
+        <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" @click="closeConnManager">✕</button>
+      </div>
+      <ConnectionManager />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -259,6 +277,7 @@ import { NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NInputNumber, useMe
 import { inferSelectColumns } from '../../utils/sql'
 import ColumnMapping from './ColumnMapping.vue'
 import AiTriggerButton from '../common/AiTriggerButton.vue'
+import ConnectionManager from '../common/ConnectionManager.vue'
 
 const props = defineProps<{ pulseCta?: boolean }>()
 const store = useWizardStore()
@@ -275,6 +294,12 @@ const { uploading: templateUploading, error: templateUploadError, upload: upload
 const { suggesting: mappingLoading, askSuggestion } = useAiApi()
 // Show type selector when no output plugin is selected
 const showOutputTypeChoices = ref(true)
+const showConnManager = ref(false)
+
+async function closeConnManager() {
+  showConnManager.value = false
+  await loadConnections()
+}
 watch(() => store.output?.plugin, (plugin) => {
   if (plugin) showOutputTypeChoices.value = false
 }, { immediate: true })

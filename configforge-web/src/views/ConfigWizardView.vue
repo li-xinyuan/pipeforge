@@ -60,7 +60,7 @@
           <template #footer>
             <NButton @click="onGoBack(2)">← 上一步</NButton>
             <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 2 && store.canProceed(2) }" :disabled="!store.canProceed(2)" @click="completeStep(2)">下一步 ↓</NButton>
-            <p v-if="currentStep === 2 && store.stepValidation(2).length" class="wizard__validation-msg">{{ store.stepValidation(2).join('；') }}</p>
+            <p v-if="!store.canProceed(2)" class="wizard__validation-msg">{{ store.stepValidation(2).join('；') || '请先添加输入源并上传文件' }}</p>
           </template>
         </WizardStepCard>
 
@@ -79,7 +79,7 @@
           <template #footer>
             <NButton @click="onGoBack(3)">← 上一步</NButton>
             <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 3 && store.canProceed(3) }" :disabled="!store.canProceed(3)" @click="completeStep(3)">下一步 ↓</NButton>
-            <p v-if="currentStep === 3 && store.stepValidation(3).length" class="wizard__validation-msg">{{ store.stepValidation(3).join('；') }}</p>
+            <p v-if="!store.canProceed(3)" class="wizard__validation-msg">{{ store.stepValidation(3).join('；') || '请先添加处理步骤' }}</p>
           </template>
         </WizardStepCard>
 
@@ -98,7 +98,7 @@
           <template #footer>
             <NButton @click="onGoBack(4)">← 上一步</NButton>
             <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 4 && store.canProceed(4) }" :disabled="!store.canProceed(4)" @click="completeStep(4)">下一步 ↓</NButton>
-            <p v-if="currentStep === 4 && store.stepValidation(4).length" class="wizard__validation-msg">{{ store.stepValidation(4).join('；') }}</p>
+            <p v-if="!store.canProceed(4)" class="wizard__validation-msg">{{ store.stepValidation(4).join('；') || '请先完成输出配置' }}</p>
           </template>
         </WizardStepCard>
 
@@ -165,9 +165,15 @@
             </div>
             <p v-if="precheckError" class="text-xs text-red-500 mt-1">{{ precheckError }}</p>
           </div>
+
+          <!-- Notification Settings -->
+          <div style="margin-top: 16px; border-top: 1px solid var(--color-border-light); padding-top: 12px;">
+            <NotificationSettings />
+          </div>
           <template #footer>
             <NButton @click="onGoBack(5)">← 上一步</NButton>
-            <ExportActions :yaml="yamlPreviewRef?.yamlText || ''" />
+            <ExportActions :yaml="yamlPreviewRef?.yamlText || ''" @goto-step="scrollToStep" />
+            <NButton class="btn-secondary" @click="saveAsTemplateVisible = true">保存为模板</NButton>
           </template>
         </WizardStepCard>
 
@@ -177,6 +183,9 @@
       <!-- Guide Panel (right side tips) -->
       <GuidePanel :current-step="currentStep" />
     </div>
+
+    <!-- Save As Template Modal -->
+    <SaveAsTemplateModal v-model:show="saveAsTemplateVisible" />
   </div>
 </template>
 
@@ -199,6 +208,8 @@ import YamlPreview from '../components/step4/YamlPreview.vue'
 import ExportActions from '../components/step4/ExportActions.vue'
 import DataPreviewTable from '../components/step4/DataPreviewTable.vue'
 import AiTriggerButton from '../components/common/AiTriggerButton.vue'
+import NotificationSettings from '../components/step5/NotificationSettings.vue'
+import SaveAsTemplateModal from '../components/template/SaveAsTemplateModal.vue'
 
 const store = useWizardStore()
 const route = useRoute()
@@ -289,6 +300,7 @@ const outputTypeLabel = computed(() => {
 
 // Local state
 const currentStep = ref(1)
+const saveAsTemplateVisible = ref(false)
 
 // Dry-run preview state
 const dryRunLoading = ref(false)
@@ -404,6 +416,7 @@ function onPageScroll() {
 
 onMounted(async () => {
   const loadId = route.query.load as string | undefined
+  const fromTemplate = route.query.from_template as string | undefined
   if (loadId) {
     const state = await loadConfigState(loadId)
     if (state) {
@@ -414,6 +427,9 @@ onMounted(async () => {
     } else {
       store.resetAll()
     }
+  } else if (fromTemplate) {
+    // Template data already loaded by TemplatePreviewModal, don't reset
+    currentStep.value = store.currentStep
   } else {
     store.resetAll()
   }
@@ -421,6 +437,26 @@ onMounted(async () => {
   const prompt = route.query.prompt as string | undefined
   if (prompt) {
     store.scene.description = prompt
+  }
+
+  // Apply autofixes if present in query params
+  const autofixParam = route.query.autofix as string | undefined
+  const stepParam = route.query.step as string | undefined
+  if (autofixParam && loadId) {
+    try {
+      const fixes = JSON.parse(decodeURIComponent(atob(autofixParam)))
+      if (Array.isArray(fixes) && fixes.length > 0) {
+        store.applyAutofixes(fixes)
+        if (stepParam) {
+          const targetStep = parseInt(stepParam, 10)
+          if (targetStep >= 1 && targetStep <= 5) {
+            currentStep.value = targetStep
+          }
+        }
+      }
+    } catch {
+      // Invalid autofix param, ignore
+    }
   }
 
   lastScrollY = window.scrollY
@@ -663,6 +699,9 @@ onUnmounted(() => {
 
 /* ─── Responsive: Mobile ─── */
 @media (max-width: 767px) {
+  .wizard__main {
+    flex-direction: column;
+  }
   .wizard__steps {
     padding: 8px 10px 0;
   }

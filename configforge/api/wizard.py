@@ -27,6 +27,8 @@ from configforge.core.pipeline import (
     execute_pipeline,
     dry_run,
 )
+from configforge.services.notifier.dispatcher import dispatch_notifications_async
+from configforge.services.ai.auto_diagnose import auto_diagnose
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -56,6 +58,45 @@ async def api_infer_input(input_name: str, req: InputInferRequest):
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         logger.exception("infer-input failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/infer-api-input/{input_name}")
+async def api_infer_api_input(input_name: str, req: dict):
+    """Infer columns from a REST API endpoint."""
+    try:
+        from configforge.services.api_reader import read_api_info
+        info = read_api_info(
+            url=req.get("url", ""),
+            method=req.get("method", "GET"),
+            headers=req.get("headers", {}),
+            params=req.get("params", {}),
+            body=req.get("body"),
+            data_path=req.get("data_path", ""),
+            pagination=req.get("pagination", "none"),
+            page_size=req.get("page_size", 100),
+            max_pages=req.get("max_pages", 10),
+        )
+        from configforge.models.wizard import InputInferResponse
+        # Build per-column sample values from sample_rows
+        col_samples: dict[str, list[str]] = {c: [] for c in info["columns"]}
+        for row in info["sample_rows"]:
+            for idx, c in enumerate(info["columns"]):
+                if idx < len(row) and len(col_samples[c]) < 3:
+                    col_samples[c].append(str(row[idx]))
+
+        return InputInferResponse(
+            columns=[
+                {"name": c, "sample_values": col_samples[c]}
+                for c in info["columns"]
+            ],
+            suggested_table=input_name,
+            suggested_param_key=f"{input_name}_api",
+        )
+    except _USER_ERRORS as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.exception("infer-api-input failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -122,6 +163,11 @@ async def api_execute(req: GenerateRequest, background_tasks: BackgroundTasks):
     try:
         output_path = execute_pipeline(req.state)
     except _USER_ERRORS as e:
+        error_msg = str(e)
+        diagnosis = await auto_diagnose(
+            yaml_text="", error_message=error_msg, scene_name=scene_name,
+            inputs_summary=inputs_summary, processors_summary=processors_summary,
+        )
         _save_failed_execution(
             exec_id=exec_id,
             started_at=started_at,
@@ -131,11 +177,27 @@ async def api_execute(req: GenerateRequest, background_tasks: BackgroundTasks):
             inputs_summary=_sanitize_summary(inputs_summary),
             processors_summary=processors_summary,
             output_type=output_type,
-            error_message=str(e),
+            error_message=error_msg,
+            diagnosis=diagnosis,
         )
+        dispatch_notifications_async({
+            "execution_id": exec_id,
+            "config_id": "",
+            "config_name": scene_name,
+            "status": "failed",
+            "summary": "Pipeline 执行失败",
+            "error_message": error_msg,
+            "started_at": started_at,
+            "finished_at": datetime.now(UTC).isoformat(),
+        })
         raise HTTPException(status_code=422, detail=f"Pipeline execution failed: {e}")
     except Exception as e:
         logger.exception("pipeline execution failed")
+        error_msg = str(e)
+        diagnosis = await auto_diagnose(
+            yaml_text="", error_message=error_msg, scene_name=scene_name,
+            inputs_summary=inputs_summary, processors_summary=processors_summary,
+        )
         _save_failed_execution(
             exec_id=exec_id,
             started_at=started_at,
@@ -145,8 +207,19 @@ async def api_execute(req: GenerateRequest, background_tasks: BackgroundTasks):
             inputs_summary=_sanitize_summary(inputs_summary),
             processors_summary=processors_summary,
             output_type=output_type,
-            error_message=str(e),
+            error_message=error_msg,
+            diagnosis=diagnosis,
         )
+        dispatch_notifications_async({
+            "execution_id": exec_id,
+            "config_id": "",
+            "config_name": scene_name,
+            "status": "failed",
+            "summary": "Pipeline 执行异常",
+            "error_message": error_msg,
+            "started_at": started_at,
+            "finished_at": datetime.now(UTC).isoformat(),
+        })
         raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {e}")
 
     finished_at = datetime.now(UTC).isoformat()
@@ -176,6 +249,16 @@ async def api_execute(req: GenerateRequest, background_tasks: BackgroundTasks):
         with open(os.path.join(result_path, "result.json"), "w") as f:
             json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
         _update_exec_index(record)
+        # Dispatch notifications
+        dispatch_notifications_async({
+            "execution_id": exec_id,
+            "config_id": "",
+            "config_name": scene_name,
+            "status": "success",
+            "summary": f"数据已写入目标数据库",
+            "started_at": started_at,
+            "finished_at": finished_at,
+        })
         return JSONResponse({"status": "success", "message": "数据已写入目标数据库", "exec_id": exec_id})
 
     filename = os.path.basename(output_path)
@@ -208,6 +291,18 @@ async def api_execute(req: GenerateRequest, background_tasks: BackgroundTasks):
         json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
 
     _update_exec_index(record)
+
+    # Dispatch notifications
+    dispatch_notifications_async({
+        "execution_id": exec_id,
+        "config_id": "",
+        "config_name": scene_name,
+        "status": "success",
+        "summary": f"输出文件: {filename}",
+        "output_files": [filename],
+        "started_at": started_at,
+        "finished_at": finished_at,
+    })
 
     # Schedule cleanup of the temp output directory after response is sent
     output_dir = os.path.dirname(output_path)

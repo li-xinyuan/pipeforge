@@ -1,0 +1,59 @@
+{
+  "id": "builtin_monthly_sales",
+  "name": "月度销售报表",
+  "description": "从 Excel 文件中汇总月度销售数据，通过 SQL 聚合统计各品类销量与营收，输出格式化的 Excel 报表。",
+  "category": "sales",
+  "tags": ["销售", "聚合", "月报", "营收"],
+  "author": "ConfigForge",
+  "config_state": {
+    "current_step": 5,
+    "scene": {
+      "name": "月度销售报表",
+      "description": "汇总月度销售数据并生成统计报表",
+      "version": "1.0"
+    },
+    "inputs": [
+      {
+        "name": "sales_data",
+        "plugin": "excel",
+        "table": "sales",
+        "paramKey": "sales_data",
+        "fileId": "",
+        "config": {
+          "type": "excel",
+          "sheet": "销售数据"
+        }
+      }
+    ],
+    "processors": [
+      {
+        "name": "按月聚合销售数据",
+        "plugin": "sql",
+        "sql": "SELECT strftime('%Y-%m', date) AS month, product_category, SUM(quantity) AS total_quantity, SUM(revenue) AS total_revenue, COUNT(DISTINCT customer_id) AS unique_customers FROM sales GROUP BY month, product_category ORDER BY month, total_revenue DESC",
+        "script": "",
+        "inputTables": ["sales"],
+        "outputTables": ["monthly_summary"],
+        "checkpoints": []
+      }
+    ],
+    "output": {
+      "plugin": "excel",
+      "config": {
+        "type": "excel",
+        "template": "",
+        "sheet": "月度汇总",
+        "outputDir": "./output/",
+        "sourceTable": "monthly_summary",
+        "filename": "monthly_sales_report.xlsx",
+        "columns": [
+          {"source": "month", "target": "月份"},
+          {"source": "product_category", "target": "品类"},
+          {"source": "total_quantity", "target": "总销量"},
+          {"source": "total_revenue", "target": "总营收"},
+          {"source": "unique_customers", "target": "独立客户数"}
+        ]
+      }
+    },
+    "uploaded_files": {}
+  }
+}

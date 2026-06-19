@@ -1,0 +1,61 @@
+{
+  "id": "builtin_user_data_cleaning",
+  "name": "用户数据清洗",
+  "description": "从 CSV 文件中清洗和标准化用户数据，通过 SQL 去重、验证和规范化处理，输出干净的 CSV 文件。",
+  "category": "general",
+  "tags": ["数据清洗", "去重", "标准化", "CSV"],
+  "author": "ConfigForge",
+  "config_state": {
+    "current_step": 5,
+    "scene": {
+      "name": "用户数据清洗",
+      "description": "清洗和标准化用户数据，包括去重和格式验证",
+      "version": "1.0"
+    },
+    "inputs": [
+      {
+        "name": "raw_users",
+        "plugin": "csv",
+        "table": "users",
+        "paramKey": "raw_users",
+        "fileId": "",
+        "config": {
+          "type": "csv",
+          "delimiter": ",",
+          "encoding": "utf-8",
+          "hasHeader": true
+        }
+      }
+    ],
+    "processors": [
+      {
+        "name": "去重与清洗",
+        "plugin": "sql",
+        "sql": "SELECT LOWER(TRIM(email)) AS email, TRIM(full_name) AS full_name, TRIM(phone) AS phone, TRIM(address) AS address, created_at FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY LOWER(TRIM(email)) ORDER BY created_at DESC) AS rn FROM users) WHERE rn = 1 AND email LIKE '%@%' ORDER BY full_name",
+        "script": "",
+        "inputTables": ["users"],
+        "outputTables": ["clean_users"],
+        "checkpoints": []
+      }
+    ],
+    "output": {
+      "plugin": "csv",
+      "config": {
+        "type": "csv",
+        "sourceTable": "clean_users",
+        "outputDir": "./output/",
+        "filename": "cleaned_users.csv",
+        "delimiter": ",",
+        "encoding": "utf-8",
+        "columns": [
+          {"source": "email", "target": "邮箱"},
+          {"source": "full_name", "target": "姓名"},
+          {"source": "phone", "target": "电话"},
+          {"source": "address", "target": "地址"},
+          {"source": "created_at", "target": "创建时间"}
+        ]
+      }
+    },
+    "uploaded_files": {}
+  }
+}

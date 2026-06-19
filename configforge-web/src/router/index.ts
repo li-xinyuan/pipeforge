@@ -20,6 +20,11 @@ const router = createRouter({
       component: () => import('../views/SettingsPage.vue'),
     },
     {
+      path: '/templates',
+      name: 'templates',
+      component: () => import('../views/TemplateMarketView.vue'),
+    },
+    {
       path: '/history',
       name: 'history',
       component: () => import('../views/ExecutionHistoryView.vue'),

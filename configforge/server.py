@@ -15,9 +15,12 @@ from configforge.api.configs import router as configs_router
 from configforge.api.connections import router as connections_router
 from configforge.api.executions import router as exec_router, _cleanup_old_outputs
 from configforge.api.schedules import router as schedules_router
+from configforge.api.notifications import router as notifications_router
+from configforge.api.templates import router as templates_router
 from configforge.models.wizard import ErrorResponse
 from configforge.scheduler import start_scheduler, shutdown_scheduler
 from configforge.middleware.auth import AuthMiddleware
+from configforge.services.template_store import ensure_builtin_templates
 
 _CLEANUP_INTERVAL_SECONDS = 3600  # Run cleanup every hour
 
@@ -37,6 +40,7 @@ async def _periodic_cleanup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_scheduler()
+    ensure_builtin_templates()
     cleanup_task = asyncio.create_task(_periodic_cleanup())
     yield
     cleanup_task.cancel()
@@ -110,6 +114,8 @@ app.include_router(configs_router, prefix="/api/configs")
 app.include_router(connections_router, prefix="/api")
 app.include_router(exec_router)
 app.include_router(schedules_router)
+app.include_router(notifications_router)
+app.include_router(templates_router, prefix="/api/templates")
 
 
 @app.get("/api/health")

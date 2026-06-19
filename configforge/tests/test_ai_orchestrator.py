@@ -63,3 +63,103 @@ def test_build_prompt_orchestrate_sanitizes_injection():
     prompt = build_prompt("orchestrate", context)
     assert "Ignore" not in prompt
     assert "[FILTERED]" in prompt
+
+
+# ── autofix category ──────────────────────────────────────────
+
+
+def test_build_prompt_autofix_basic():
+    prompt = build_prompt("autofix", {
+        "diagnosis": '{"cause": "列名拼写错误", "suggestions": ["修正列名"]}',
+        "errorLog": "no such column: usr_name",
+    })
+    assert "列名拼写错误" in prompt
+    assert "no such column" in prompt
+    assert "自动修复" in prompt
+
+
+def test_build_prompt_autofix_with_config():
+    prompt = build_prompt("autofix", {
+        "diagnosis": '{"cause": "SQL语法错误"}',
+        "errorLog": "syntax error",
+        "config": '{"sql": "SELECT * FORM t"}',
+    })
+    assert "SQL语法错误" in prompt
+    assert "当前配置" in prompt
+    assert "SELECT" in prompt
+
+
+def test_build_prompt_autofix_without_config():
+    prompt = build_prompt("autofix", {
+        "diagnosis": '{"cause": "test"}',
+        "errorLog": "error",
+    })
+    # Without config context, the appended config line should not appear
+    assert "当前配置: " not in prompt
+
+
+# ── anomaly category ──────────────────────────────────────────
+
+
+def test_build_prompt_anomaly_basic():
+    prompt = build_prompt("anomaly", {
+        "sample_rows": '[{"name": "Alice", "age": null}]',
+        "stats": '{"null_rates": {"age": 0.8}}',
+        "columns": ["name", "age"],
+    })
+    assert "Alice" in prompt
+    assert "null_rates" in prompt
+    assert "数据质量" in prompt
+
+
+def test_build_prompt_anomaly_with_columns():
+    prompt = build_prompt("anomaly", {
+        "sample_rows": "",
+        "stats": "",
+        "columns": ["id", "name", "score"],
+    })
+    assert "id" in prompt
+    assert "score" in prompt
+
+
+# ── diagnose category ─────────────────────────────────────────
+
+
+def test_build_prompt_diagnose():
+    prompt = build_prompt("diagnose", {
+        "yaml": "inputs:\n  - name: test",
+        "errorLog": "no such table: users",
+        "scene_name": "用户统计",
+        "inputs": '[{"name": "users", "plugin": "csv"}]',
+        "processors": '[{"plugin": "sql", "name": "proc1"}]',
+    })
+    assert "inputs:" in prompt
+    assert "no such table" in prompt
+    assert "调试" in prompt
+    assert "用户统计" in prompt
+    assert "输入源" in prompt
+    assert "处理步骤" in prompt
+
+
+def test_build_prompt_diagnose_minimal():
+    prompt = build_prompt("diagnose", {
+        "yaml": "test yaml",
+        "errorLog": "test error",
+    })
+    assert "test yaml" in prompt
+    assert "test error" in prompt
+    assert "场景" not in prompt
+
+
+# ── precheck category ─────────────────────────────────────────
+
+
+def test_build_prompt_precheck():
+    prompt = build_prompt("precheck", {
+        "scene_name": "测试场景",
+        "inputs": [{"name": "input1", "plugin": "csv"}],
+        "processors": [{"plugin": "sql", "name": "proc1"}],
+        "output": {"type": "csv"},
+    })
+    assert "测试场景" in prompt
+    assert "审查" in prompt

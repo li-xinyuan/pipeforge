@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig } from '../types/wizard'
+import type { SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig } from '../types/wizard'
 import { snakeToCamel } from '../utils/transform'
 
 export const useWizardStore = defineStore('wizard', () => {
@@ -16,8 +16,56 @@ export const useWizardStore = defineStore('wizard', () => {
   // Dry-run 预览结果
   const dryRunResults = ref<{ table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null>(null)
 
+  // Pending autofixes to apply when navigating to wizard
+  const pendingAutofixes = ref<{ step: number; field: string; old: string; new: string; reason: string }[]>([])
+
   function setDryRunResults(results: { table_name: string; columns: string[]; rows: string[][]; total_rows: number }[] | null) {
     dryRunResults.value = results
+  }
+
+  /**
+   * Apply autofix results to the wizard store.
+   * Maps AI-returned field names to store paths using FIELD_STORE_MAP.
+   */
+  function applyAutofixes(fixes: { step: number; field: string; old: string; new: string; reason: string }[]) {
+    let applied = 0
+    for (const fix of fixes) {
+      const field = fix.field.toLowerCase()
+      if (field === 'sql' && fix.step === 3) {
+        // Apply to the first SQL processor
+        const proc = processors.value.find(p => p.plugin === 'sql')
+        if (proc && proc.sql.includes(fix.old)) {
+          proc.sql = proc.sql.replace(fix.old, fix.new)
+          applied++
+        } else if (proc) {
+          proc.sql = fix.new
+          applied++
+        }
+      } else if (field === 'script' && fix.step === 3) {
+        const proc = processors.value.find(p => p.plugin === 'python')
+        if (proc && proc.script.includes(fix.old)) {
+          proc.script = proc.script.replace(fix.old, fix.new)
+          applied++
+        } else if (proc) {
+          proc.script = fix.new
+          applied++
+        }
+      } else if (field === 'path' && fix.step === 2) {
+        const inp = inputs.value[0]
+        if (inp && (inp.config as any).path !== undefined) {
+          (inp.config as any).path = fix.new
+          applied++
+        }
+      } else if (field === 'table' && fix.step === 2) {
+        const inp = inputs.value[0]
+        if (inp) {
+          inp.table = fix.new
+          applied++
+        }
+      }
+      // Unsupported fields are skipped; user will be prompted to manually fix
+    }
+    return applied
   }
 
   function canProceed(n: number): boolean {
@@ -75,12 +123,20 @@ export const useWizardStore = defineStore('wizard', () => {
   function nextStep() { if (canProceed(currentStep.value) && currentStep.value < 5) currentStep.value++ }
   function prevStep() { if (currentStep.value > 1) currentStep.value-- }
   function goToStep(n: number) { if (n >= 1 && n <= currentStep.value && n <= 5) currentStep.value = n }
-  function addInput(plugin: 'excel' | 'csv' | 'database' = 'excel') {
-    let config: { type: 'excel'; sheet: string } | { type: 'csv'; delimiter: string; encoding: string; hasHeader: boolean } | { type: 'database'; connectionId: string; queryType: 'table'; tables: string[]; sql: string }
+  function addInput(plugin: InputSource['plugin'] = 'excel') {
+    let config: InputSource['config']
     if (plugin === 'csv') {
       config = { type: 'csv' as const, delimiter: ',', encoding: 'utf-8', hasHeader: true }
     } else if (plugin === 'database') {
       config = { type: 'database' as const, connectionId: '', queryType: 'table' as const, tables: [], sql: '' }
+    } else if (plugin === 'json') {
+      config = { type: 'json' as const, flattenSeparator: '.' }
+    } else if (plugin === 'xml') {
+      config = { type: 'xml' as const, rowElement: '' }
+    } else if (plugin === 'parquet') {
+      config = { type: 'parquet' as const }
+    } else if (plugin === 'api') {
+      config = { type: 'api' as const, url: '', method: 'GET', headers: {}, params: {}, dataPath: '', pagination: 'none', pageSize: 100, maxPages: 10 }
     } else {
       config = { type: 'excel' as const, sheet: '' }
     }
@@ -142,7 +198,7 @@ export const useWizardStore = defineStore('wizard', () => {
     dryRunResults.value = null
   }
 
-  function loadFromConfigState(stateDict: Record<string, unknown>) {
+  function loadFromConfigState(stateDict: Record<string, unknown>, startFromBeginning = false) {
     // Use snakeToCamel to normalize backend snake_case keys to frontend camelCase
     const normalized = snakeToCamel(stateDict) as Record<string, unknown>
 
@@ -163,17 +219,35 @@ export const useWizardStore = defineStore('wizard', () => {
         cfg.tables = cfg.tables ?? []
         cfg.sql = cfg.sql ?? ''
       }
+      // Set defaults for json config fields
+      if (inp.plugin === 'json' || cfg.type === 'json') {
+        cfg.flattenSeparator = cfg.flattenSeparator ?? '.'
+      }
+      // Set defaults for xml config fields
+      if (inp.plugin === 'xml' || cfg.type === 'xml') {
+        cfg.rowElement = cfg.rowElement ?? ''
+      }
+      // Set defaults for api config fields
+      if (inp.plugin === 'api' || cfg.type === 'api') {
+        cfg.url = cfg.url ?? ''
+        cfg.method = cfg.method ?? 'GET'
+        cfg.headers = cfg.headers ?? {}
+        cfg.params = cfg.params ?? {}
+        cfg.dataPath = cfg.dataPath ?? ''
+        cfg.pagination = cfg.pagination ?? 'none'
+        cfg.pageSize = cfg.pageSize ?? 100
+        cfg.maxPages = cfg.maxPages ?? 10
+      }
       return {
-        plugin: (inp.plugin || 'excel') as 'excel' | 'csv' | 'database',
+        plugin: (inp.plugin || 'excel') as InputSource['plugin'],
         table: (inp.table || inp.name || '') as string,
         paramKey: (inp.paramKey || '') as string,
         fileId: '',
-        config: cfg as unknown as ExcelInputConfig | CsvInputConfig | DatabaseInputConfig,
+        config: cfg as unknown as InputSource['config'],
       }
     })
 
-    // If stateDict has "processor" (singular, old format), wrap as [processor]
-    const rawProcessors = (normalized.processors || (normalized.processor ? [normalized.processor] : [])) as Record<string, unknown>[]
+    const rawProcessors = (normalized.processors || []) as Record<string, unknown>[]
     processors.value = rawProcessors.map((raw) => {
       const plugin = (raw.plugin || 'sql') as string
       const base = {
@@ -210,7 +284,7 @@ export const useWizardStore = defineStore('wizard', () => {
       output.value = null
     }
 
-    currentStep.value = 5
+    currentStep.value = startFromBeginning ? 1 : 5
   }
 
   function getWizardState(): WizardState {
@@ -237,7 +311,8 @@ export const useWizardStore = defineStore('wizard', () => {
     addFileRef, removeFileRef,
     setSuggestion, acceptSuggestion, rejectSuggestion,
     setConfigId, loadFromConfigState, resetAll, getWizardState,
-    dryRunResults, setDryRunResults
+    dryRunResults, setDryRunResults,
+    pendingAutofixes, applyAutofixes
   }
 }, {
   persist: { key: 'wizard_state_v2', storage: localStorage }
