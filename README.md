@@ -70,6 +70,10 @@ cd configforge-web && npm run dev
 | Excel (.xlsx/.xls) | 拖拽上传，自动解析列名和样本数据，预览列类型 |
 | CSV | 自定义分隔符和编码（UTF-8/GBK），含表头选项 |
 | Database | SQLite / MySQL / PostgreSQL，选择表或编写 SQL |
+| JSON (.json) | 自动展平嵌套字段，可配置展平分隔符 |
+| XML (.xml) | 自动检测行元素，可手动指定 XPath 路径 |
+| Parquet (.parquet) | 大数据文件，自动推断 schema 和列类型 |
+| REST API | 从 HTTP 接口拉取数据，支持 GET/POST、三种分页模式 |
 
 ### 处理步骤
 
@@ -97,7 +101,8 @@ Input → [Python 清洗] → [SQL 过滤] → [SQL 聚合] → Output
 | **AI 生成 SQL** | 描述查询需求，AI 生成 SQLite SQL |
 | **AI 分析列** | 分析文件列结构，推荐类型和表名 |
 | **AI 列映射** | 智能匹配输入/输出列 |
-| **AI 聊天** | 向导内嵌 AI 对话面板 |
+| **AI 自愈诊断** | Pipeline 执行失败时自动诊断，返回原因和修复建议，一键修复 |
+| **AI 预检配置** | 执行前 AI 检查配置完整性和潜在问题 |
 
 支持 OpenAI、Anthropic 及兼容接口。
 

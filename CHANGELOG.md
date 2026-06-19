@@ -2,6 +2,63 @@
 
 All notable changes to ConfigForge / PipeForge will be documented in this file.
 
+## [v0.7.0] - 2026-06-19
+
+### Phase 3E：配置市场
+
+- **模板市场页面**：分类浏览（销售/财务/人力/运维/通用）、搜索、预览弹窗
+- **4 个内置模板**：月度销售报表、财务汇总报表、库存跟踪管理、用户数据清洗（中文）
+- **使用模板**：一键加载模板配置到向导，从步骤 1 开始逐步检查
+- **保存为模板**：向导 Step 5 新增"保存为模板"按钮，将当前配置保存为可复用模板
+- **兼容性检查**：模板详情中检查数据库连接、AI 配置等环境依赖
+- **模板 API**：7 个端点（CRUD + 实例化 + 兼容性检查）
+- **导航集成**：首页"浏览模板市场"按钮、导航栏"模板市场"入口
+
+### Phase 3D：数据源扩展
+
+- **JSON 输入**：支持 .json 文件，自动展平嵌套字段，可配置展平分隔符
+- **XML 输入**：支持 .xml 文件，自动检测行元素，可手动指定 XPath 路径
+- **Parquet 输入**：支持 .parquet 大数据文件，自动推断 schema
+- **REST API 输入**：从 HTTP 接口拉取数据，支持 GET/POST、自定义请求头和参数、数据路径、三种分页模式
+- **文件上传白名单扩展**：支持 .json / .xml / .parquet 格式
+- **API 推断端点**：新增 `/api/wizard/infer-api-input/{input_name}` 专门处理 REST API 输入
+- **Preview 端点扩展**：文件预览和 SQL 预览支持新文件类型
+
+### Phase 3C：AI 自愈
+
+- **自动诊断**：Pipeline 执行失败时自动调用 AI 诊断，返回错误原因和修复建议
+- **一键修复**：诊断结果可直接应用到配置（SQL 修正、参数调整等）
+- **诊断趋势**：执行历史页面新增诊断趋势标签页，含 AnomalyChart 异常图表
+- **DiagnosisPanel 组件**：展示错误分析、影响评估、修复建议、AI 对话
+- **LRU 缓存**：诊断结果缓存（100 条，1 小时 TTL），避免重复调用 AI
+
+### Phase 3B：推送分发
+
+- **通知推送系统**：邮件（SMTP）和 Webhook 两种通知渠道
+- **通知配置管理**：创建/编辑/删除/测试通知规则
+- **Pipeline 执行通知**：执行成功/失败后自动推送通知
+- **SMTP 设置**：独立的 SMTP 服务器配置和测试
+- **通知历史**：查看已发送的通知记录
+- **NotificationSettings 组件**：向导 Step 5 集成通知设置
+
+### Phase 3A：技术债务清理
+
+- **删除根目录 package.json**：消除版本冲突
+- **pyproject.toml 补充依赖**：pymysql、psycopg2-binary 声明
+- **Dockerfile / docker-compose.yml / .env.example / Makefile**：生产部署基础设施
+- **CI/CD**：GitHub Actions（后端 pytest + 前端 vitest + vue-tsc）
+- **前端 API 拆分**：useConfigApi / useConnectionApi / useAiApi / useNotificationApi / useTemplateApi
+- **前端测试扩展**：24 个测试文件，201 个测试用例
+- **移动端适配**：@media 响应式布局
+
+### Bug 修复
+
+- 修复 XML 文件上传返回 "Unsupported format" 错误
+- 修复 `sample_values` 按列取值错误（所有列返回相同值）
+- 修复模板实例化后数据被 `onMounted` 的 `resetAll()` 清空
+- 修复分类筛选值不匹配（前端中文 vs 后端英文）
+- 修复 API 推断端点 URL 错误
+
 ## [v0.5.0] - 2026-06-14
 
 ### Security (BLOCKER)
