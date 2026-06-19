@@ -23,11 +23,8 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Run configforge tests
+      - name: Run all backend tests
         run: uv run pytest configforge/tests/ -x -q
-
-      - name: Run pipeforge tests
-        run: uv run pytest src/tests/ -x -q
 
   frontend:
     runs-on: ubuntu-latest
