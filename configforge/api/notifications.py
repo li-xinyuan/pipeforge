@@ -27,22 +27,24 @@ from configforge.services.notifier.smtp_settings import (
 )
 from configforge.services.notifier.webhook import WebhookNotifier
 from configforge.utils.security import validate_id
+from configforge.utils.paths import get_data_dir
+from configforge.utils.migration import load_with_migration
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
 # ─── Persistence helpers ───
 
-_DATA_DIR = os.environ.get("CONFIGFORGE_DATA_DIR", "data")
+_DATA_DIR = get_data_dir()
 _NOTIFICATIONS_PATH = Path(_DATA_DIR) / "notifications.json"
 _HISTORY_PATH = Path(_DATA_DIR) / "notification_history.json"
 
 
 def _load_notifications() -> list[NotificationConfig]:
-    if not _NOTIFICATIONS_PATH.exists():
-        return []
-    with open(_NOTIFICATIONS_PATH) as f:
-        data = json.load(f)
-    return [NotificationConfig(**item) for item in data]
+    _NOTIFICATIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    data = load_with_migration(str(_NOTIFICATIONS_PATH), default=[])
+    if isinstance(data, list):
+        return [NotificationConfig(**item) for item in data]
+    return [NotificationConfig(**item) for item in data.get("notifications", [])]
 
 
 def _save_notifications(configs: list[NotificationConfig]) -> None:
@@ -56,11 +58,11 @@ def _save_notifications(configs: list[NotificationConfig]) -> None:
 
 
 def _load_history() -> list[NotificationHistoryEntry]:
-    if not _HISTORY_PATH.exists():
-        return []
-    with open(_HISTORY_PATH) as f:
-        data = json.load(f)
-    return [NotificationHistoryEntry(**item) for item in data]
+    _HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    data = load_with_migration(str(_HISTORY_PATH), default=[])
+    if isinstance(data, list):
+        return [NotificationHistoryEntry(**item) for item in data]
+    return [NotificationHistoryEntry(**item) for item in data.get("history", [])]
 
 
 def _save_history(entries: list[NotificationHistoryEntry]) -> None:

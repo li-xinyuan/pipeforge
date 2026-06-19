@@ -4,6 +4,8 @@ from typing import Any
 
 import httpx
 
+from configforge.utils.security import validate_url
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 30
@@ -39,6 +41,7 @@ def read_api_info(
     """
     headers = headers or {}
     params = dict(params or {})
+    validate_url(url)
     all_items: list[dict] = []
 
     if pagination == "none":

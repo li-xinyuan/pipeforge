@@ -2,11 +2,15 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
-from configforge.services.ai.settings import _get_cipher
+from configforge.utils.cache import TTLCache
+from configforge.utils.crypto import get_cipher
 from configforge.utils.file_lock import read_json_locked, write_json_locked
+from configforge.utils.migration import load_with_migration
+from configforge.utils.paths import get_data_dir, get_configs_dir
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+DATA_DIR = get_data_dir()
 STORE_PATH = os.path.join(DATA_DIR, "db_connections.json")
+_cache = TTLCache(ttl=5.0)
 
 
 def _ensure_data_dir():
@@ -15,14 +19,18 @@ def _ensure_data_dir():
 
 def _load() -> dict:
     _ensure_data_dir()
-    if not os.path.exists(STORE_PATH):
-        return {"connections": {}}
-    return read_json_locked(STORE_PATH)
+    cached = _cache.get("connections")
+    if cached is not None:
+        return cached
+    data = load_with_migration(STORE_PATH, default={"connections": {}})
+    _cache.set("connections", data)
+    return data
 
 
 def _save(data: dict):
     _ensure_data_dir()
     write_json_locked(STORE_PATH, data)
+    _cache.invalidate("connections")
 
 
 def _now_iso() -> str:
@@ -34,7 +42,7 @@ class ConnectionStore:
 
     @staticmethod
     def create(data: dict) -> dict:
-        cipher = _get_cipher()
+        cipher = get_cipher()
         conn_id = uuid.uuid4().hex[:16]
         password = data.get("password", "")
         encrypted = cipher.encrypt(password.encode()).decode() if password else ""
@@ -83,7 +91,7 @@ class ConnectionStore:
         entry = store["connections"].get(conn_id)
         if not entry:
             return None
-        cipher = _get_cipher()
+        cipher = get_cipher()
         entry = dict(entry)
         if entry.get("password"):
             entry["password"] = cipher.decrypt(entry["password"].encode()).decode()
@@ -96,7 +104,7 @@ class ConnectionStore:
         entry = store["connections"].get(conn_id)
         if not entry:
             return None
-        cipher = _get_cipher()
+        cipher = get_cipher()
 
         for field in ("name", "host", "port", "database", "username", "file_path"):
             if field in data:
@@ -151,7 +159,7 @@ class ConnectionStore:
         # Search saved wizard configs for references to this connection
         import glob
         refs = []
-        for path in glob.glob(os.path.join(DATA_DIR, "..", "configs", "*.state.json")):
+        for path in glob.glob(os.path.join(get_configs_dir(), "*.state.json")):
             try:
                 with open(path, "r") as f:
                     data = json.load(f)

@@ -13,10 +13,12 @@ from apscheduler.triggers.cron import CronTrigger
 from pydantic import BaseModel, Field
 
 from configforge.utils.file_lock import read_json_locked, write_json_locked
+from configforge.utils.migration import load_with_migration, ensure_schema_version
+from configforge.utils.paths import get_data_dir
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = os.environ.get("CONFIGFORGE_DATA_DIR", os.path.join(os.getcwd(), "data"))
+DATA_DIR = get_data_dir()
 SCHEDULES_PATH = os.path.join(DATA_DIR, "schedules.json")
 
 
@@ -37,9 +39,11 @@ _scheduler: BackgroundScheduler | None = None
 
 
 def _load_schedules() -> list[dict]:
-    if not os.path.exists(SCHEDULES_PATH):
-        return []
-    return read_json_locked(SCHEDULES_PATH)
+    os.makedirs(DATA_DIR, exist_ok=True)
+    data = load_with_migration(SCHEDULES_PATH, default={"schedules": []})
+    if isinstance(data, list):
+        return data
+    return data.get("schedules", [])
 
 
 def _save_schedules(data: list[dict]) -> None:
@@ -78,12 +82,12 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
         state_dict = json.load(f)
 
     # Migrate old format
-    from configforge.api.configs import _migrate_state_dict
-    _migrate_state_dict(state_dict)
+    state_dict = ensure_schema_version(state_dict, state_path)
 
     # Remove internal fields that are not part of WizardState schema
     state_dict.pop("_saved_at", None)
     state_dict.pop("change_summary", None)
+    state_dict.pop("schema_version", None)
 
     try:
         state = WizardState(**state_dict)

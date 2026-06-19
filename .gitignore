@@ -44,6 +44,7 @@ tmp/
 
 # Saved configs
 configforge/configs/
+configs/
 
 # uv
 uv.lock

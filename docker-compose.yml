@@ -1,8 +1,8 @@
 services:
   configforge:
     build: .
-    ports:
-      - "8000:8000"
+    # ports:
+    #   - "8000:8000"  # Development only; nginx handles external traffic in production
     volumes:
       - ./data:/app/data
       - ./tmp:/app/tmp
@@ -18,3 +18,33 @@ services:
       interval: 30s
       timeout: 5s
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    security_opt:
+      - no-new-privileges:true
+
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      configforge:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    security_opt:
+      - no-new-privileges:true

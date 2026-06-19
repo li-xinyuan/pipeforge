@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import re
 from contextlib import asynccontextmanager
@@ -22,7 +23,30 @@ from configforge.scheduler import start_scheduler, shutdown_scheduler
 from configforge.middleware.auth import AuthMiddleware
 from configforge.services.template_store import ensure_builtin_templates
 
+
+def _get_version() -> str:
+    """Read version from pyproject.toml (works in dev mode)."""
+    try:
+        from importlib.metadata import version as pkg_version
+        return pkg_version("pipeforge")
+    except Exception:
+        pass
+    # Fallback: read pyproject.toml directly
+    try:
+        import tomllib
+        pyproject_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pyproject.toml")
+        if os.path.exists(pyproject_path):
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+            return data.get("project", {}).get("version", "0.0.0")
+    except Exception:
+        pass
+    return "0.0.0"
+
+
 _CLEANUP_INTERVAL_SECONDS = 3600  # Run cleanup every hour
+
+_logger = logging.getLogger("configforge")
 
 
 async def _periodic_cleanup():
@@ -41,13 +65,19 @@ async def _periodic_cleanup():
 async def lifespan(app: FastAPI):
     start_scheduler()
     ensure_builtin_templates()
+    if not os.environ.get("CONFIGFORGE_ENCRYPTION_KEY"):
+        _logger.warning(
+            "CONFIGFORGE_ENCRYPTION_KEY not set. Auto-generated encryption key "
+            "will be lost on container restart. Set this variable in production "
+            "to prevent data loss."
+        )
     cleanup_task = asyncio.create_task(_periodic_cleanup())
     yield
     cleanup_task.cancel()
     shutdown_scheduler()
 
 
-app = FastAPI(title="ConfigForge", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="ConfigForge", version=_get_version(), lifespan=lifespan)
 
 # URL-encoded path traversal patterns — checked against raw_path (URL-encoded) before Starlette normalizes
 _RAW_TRAVERSAL_RE = re.compile(r"(%[2eE][%2eE]|%[2fF]|%[5cC]|%00)", re.IGNORECASE)
@@ -64,15 +94,23 @@ async def block_encoded_traversal(request: Request, call_next):
     return await call_next(request)
 
 
-_cors_origins_env = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174")
+_cors_origins_env = os.environ.get("CORS_ORIGINS", "")
 _cors_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+
+# Development fallback: allow localhost if no origins configured
+if not _cors_origins:
+    _cors_origins = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "Authorization"],
 )
 
 # API Key authentication (disabled when CONFIGFORGE_API_KEY is not set)
@@ -120,7 +158,41 @@ app.include_router(templates_router, prefix="/api/templates")
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    from configforge.utils.paths import get_data_dir, get_configs_dir
+
+    checks = {
+        "status": "ok",
+        "version": _get_version(),
+    }
+
+    # Check data directory writable
+    data_dir = get_data_dir()
+    try:
+        os.makedirs(data_dir, exist_ok=True)
+        test_file = os.path.join(data_dir, ".health_check")
+        with open(test_file, "w") as f:
+            f.write("ok")
+        os.remove(test_file)
+        checks["data_dir_writable"] = True
+    except Exception:
+        checks["data_dir_writable"] = False
+        checks["status"] = "degraded"
+
+    # Check configs directory
+    configs_dir = get_configs_dir()
+    checks["configs_dir_exists"] = os.path.isdir(configs_dir)
+
+    # Check scheduler
+    try:
+        from configforge.scheduler import _scheduler
+        checks["scheduler_running"] = _scheduler.running if _scheduler else False
+    except Exception:
+        checks["scheduler_running"] = False
+
+    # Check encryption key
+    checks["encryption_key_set"] = bool(os.environ.get("CONFIGFORGE_ENCRYPTION_KEY"))
+
+    return checks
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse

@@ -217,4 +217,5 @@ cd configforge-web && npx vue-tsc --noEmit
 |------|------|------|
 | Phase 1 — 夯实基础 | ✅ 完成 | CSV 输入/输出、Jinja2 变量、AI 框架、安全加固、全面测试 |
 | Phase 2 — 能力扩展 | ✅ 完成 | 多步 Pipeline、数据库输入/输出、AI 编排、Python 处理器、安全加固、CodeMirror 编辑器 |
-| Phase 3 — 平台化 | 📋 计划中 | 配置市场、数据血缘、审计日志、Cron 调度增强、输出格式扩展（PDF/Word/API推送） |
+| Phase 3 — 平台化 | ✅ 完成 | 数据源扩展（JSON/XML/Parquet/API）、通知推送、AI 自愈、配置市场、技术债务清理 |
+| Phase 4 — 生产就绪 | 📋 计划中 | 统一配置、安全加固、Docker 优化、缓存层、代码质量提升、性能优化、用户认证 |

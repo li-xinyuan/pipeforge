@@ -11,10 +11,11 @@ from fastapi.responses import FileResponse
 from configforge.models.wizard import ExecutionRecord, ErrorResponse
 from configforge.utils.security import validate_id
 from configforge.utils.file_lock import read_json_locked, write_json_locked
+from configforge.utils.paths import get_data_dir
 
 router = APIRouter(prefix="/api/executions", tags=["executions"])
 
-DATA_DIR = os.environ.get("CONFIGFORGE_DATA_DIR", os.path.join(os.getcwd(), "data"))
+DATA_DIR = get_data_dir()
 EXEC_DIR = os.path.join(DATA_DIR, "executions")
 EXEC_INDEX = os.path.join(EXEC_DIR, "index.json")
 MAX_OUTPUT_FILES = 50  # Keep last 50 output files

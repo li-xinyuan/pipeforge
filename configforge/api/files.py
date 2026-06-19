@@ -5,12 +5,13 @@ import uuid
 from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from configforge.models.wizard import FileUploadResponse, ErrorResponse
+from configforge.utils.paths import get_upload_dir, get_log_dir
 
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv", ".json", ".xml", ".parquet"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
-UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
+UPLOAD_DIR = get_upload_dir()
 MAX_FILE_AGE_SECONDS = 24 * 60 * 60
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -32,7 +33,7 @@ def cleanup_old_files() -> int:
 cleanup_old_files()
 
 
-LOG_DIR = os.environ.get("CONFIGFORGE_LOG_DIR", "tmp/logs")
+LOG_DIR = get_log_dir()
 MAX_LOG_AGE_SECONDS = 7 * 24 * 60 * 60  # 7 days
 
 

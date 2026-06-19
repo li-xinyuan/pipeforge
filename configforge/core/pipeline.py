@@ -17,6 +17,7 @@ from configforge.services.xml_reader import read_xml_info
 from configforge.services.parquet_reader import read_parquet_info
 from configforge.services.yaml_builder import build_yaml
 from configforge.utils.security import validate_id
+from configforge.utils.paths import get_upload_dir, get_log_dir, get_output_dir, get_pipeline_timeout
 import atexit
 import copy
 import glob
@@ -29,10 +30,10 @@ import uuid
 
 from pipeforge.core.engine import PipelineEngine
 
-UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
-LOG_DIR = os.environ.get("CONFIGFORGE_LOG_DIR", "tmp/logs")
-OUTPUT_DIR = os.environ.get("CONFIGFORGE_OUTPUT_DIR", os.path.join(os.getcwd(), "data", "outputs"))
-PIPELINE_TIMEOUT_SECONDS = int(os.environ.get("CONFIGFORGE_PIPELINE_TIMEOUT", "300"))
+UPLOAD_DIR = get_upload_dir()
+LOG_DIR = get_log_dir()
+OUTPUT_DIR = get_output_dir()
+PIPELINE_TIMEOUT_SECONDS = get_pipeline_timeout()
 
 
 class PipelineTimeoutError(TimeoutError):

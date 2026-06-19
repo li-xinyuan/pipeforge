@@ -28,27 +28,18 @@ from configforge.api.executions import (
     _sanitize_summary,
 )
 from configforge.services.yaml_builder import build_yaml
+from configforge.utils.cache import TTLCache
 from configforge.utils.security import validate_id, sanitize_connection_string
 from configforge.utils.file_lock import read_json_locked, write_json_locked
+from configforge.utils.migration import load_with_migration, ensure_schema_version
 from configforge.core.pipeline import PipelineTimeoutError
+from configforge.utils.paths import get_configs_dir
 from pipeforge.config.exceptions import CheckpointError
 from configforge.services.notifier.dispatcher import dispatch_notifications_async
 from configforge.services.ai.auto_diagnose import auto_diagnose
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-def _migrate_state_dict(state_dict: dict) -> None:
-    """Upgrade old format (single processor) to new format (processors list)."""
-    if "processor" in state_dict:
-        if not state_dict.get("processors"):
-            proc = state_dict.pop("processor")
-            if "outputTable" in proc:
-                proc["output_tables"] = [proc.pop("outputTable")]
-            state_dict["processors"] = [proc]
-        else:
-            state_dict.pop("processor")
-
 
 def _validate_config_id(config_id: str) -> str:
     try:
@@ -57,20 +48,29 @@ def _validate_config_id(config_id: str) -> str:
         raise HTTPException(status_code=400, detail="Invalid config_id format")
 
 
-CONFIGS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "configs")
+CONFIGS_DIR = get_configs_dir()
 os.makedirs(CONFIGS_DIR, exist_ok=True)
 
 INDEX_PATH = os.path.join(CONFIGS_DIR, "index.json")
+_cache = TTLCache(ttl=5.0)
 
 
 def _load_index() -> list[dict]:
-    if not os.path.exists(INDEX_PATH):
-        return []
-    return read_json_locked(INDEX_PATH)
+    cached = _cache.get("index")
+    if cached is not None:
+        return cached
+    data = load_with_migration(INDEX_PATH, default=[])
+    if isinstance(data, list):
+        result = data
+    else:
+        result = data.get("configs", [])
+    _cache.set("index", result)
+    return result
 
 
 def _save_index(data: list[dict]) -> None:
     write_json_locked(INDEX_PATH, data)
+    _cache.invalidate("index")
 
 
 @router.get("")
@@ -225,7 +225,7 @@ async def load_config(config_id: str):
             ).model_dump(),
         )
     state_dict = read_json_locked(state_path)
-    _migrate_state_dict(state_dict)
+    state_dict = ensure_schema_version(state_dict, state_path)
     return state_dict
 
 
@@ -262,10 +262,11 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
 
     state_dict = read_json_locked(state_path)
 
-    _migrate_state_dict(state_dict)
+    state_dict = ensure_schema_version(state_dict, state_path)
     # Remove internal fields that are not part of WizardState schema
     state_dict.pop("_saved_at", None)
     state_dict.pop("change_summary", None)
+    state_dict.pop("schema_version", None)
 
     # Get config_version from index
     index = _load_index()
@@ -604,7 +605,8 @@ async def get_version(config_id: str, version: int):
     # Remove internal timestamp from response
     state.pop("_saved_at", None)
     state.pop("change_summary", None)
-    _migrate_state_dict(state)
+    state = ensure_schema_version(state, f"version:{config_id}:v{version}")
+    state.pop("schema_version", None)
     return state
 
 
@@ -657,10 +659,11 @@ async def rollback_version(config_id: str, version: int):
     write_json_locked(state_path, target_state)
 
     # Rebuild YAML from restored state
-    _migrate_state_dict(target_state)
+    target_state = ensure_schema_version(target_state, state_path)
     # Remove internal fields before constructing WizardState
     target_state.pop("_saved_at", None)
     target_state.pop("change_summary", None)
+    target_state.pop("schema_version", None)
     restored_wizard = WizardState(**target_state)
     yaml_str = build_yaml(restored_wizard)
     with open(yaml_path, "w", encoding="utf-8") as f:

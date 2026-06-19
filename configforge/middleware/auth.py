@@ -2,10 +2,11 @@
 
 When CONFIGFORGE_API_KEY environment variable is set, all API requests
 (except health check and static files) must include the key via
-X-API-Key header or api_key query parameter.
+X-API-Key header.
 
 If CONFIGFORGE_API_KEY is not set, authentication is disabled (dev mode).
 """
+import hmac
 import os
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -33,8 +34,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Check API Key
-        key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
-        if key != API_KEY:
+        key = request.headers.get("X-API-Key", "")
+        if not hmac.compare_digest(key, API_KEY):
             return JSONResponse(
                 status_code=401,
                 content={"error": "Unauthorized", "code": "AUTH_FAILED"},

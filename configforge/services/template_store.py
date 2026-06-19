@@ -6,13 +6,17 @@ import uuid
 from datetime import datetime, timezone
 
 from configforge.models.template import TemplateRequirement
+from configforge.utils.cache import TTLCache
 from configforge.utils.file_lock import read_json_locked, write_json_locked
+from configforge.utils.migration import load_with_migration
+from configforge.utils.paths import get_data_dir
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+DATA_DIR = get_data_dir()
 STORE_PATH = os.path.join(DATA_DIR, "templates.json")
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "..", "templates")
+_cache = TTLCache(ttl=5.0)
 
 
 def _ensure_data_dir():
@@ -21,14 +25,18 @@ def _ensure_data_dir():
 
 def _load() -> dict:
     _ensure_data_dir()
-    if not os.path.exists(STORE_PATH):
-        return {"templates": {}}
-    return read_json_locked(STORE_PATH)
+    cached = _cache.get("templates")
+    if cached is not None:
+        return cached
+    data = load_with_migration(STORE_PATH, default={"templates": {}})
+    _cache.set("templates", data)
+    return data
 
 
 def _save(data: dict):
     _ensure_data_dir()
     write_json_locked(STORE_PATH, data)
+    _cache.invalidate("templates")
 
 
 def _now_iso() -> str:

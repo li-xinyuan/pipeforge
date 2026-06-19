@@ -57,6 +57,53 @@ def sanitize_connection_string(text: str) -> str:
 _SQLITE_ALLOWED_DIRS: list[str] | None = None
 
 
+def validate_url(url: str) -> str:
+    """Validate a URL to prevent SSRF attacks.
+
+    Blocks:
+    - Non-HTTP(S) schemes
+    - Internal/private IP addresses (10.x, 172.16-31.x, 192.168.x, 127.x)
+    - Cloud metadata endpoints (169.254.169.254, metadata.google.internal, etc.)
+    - Link-local addresses
+    """
+    import ipaddress
+    from urllib.parse import urlparse
+
+    if not url:
+        raise ValueError("URL cannot be empty")
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsupported URL scheme: {parsed.scheme}. Only http and https are allowed.")
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL must have a valid hostname")
+
+    # Block known metadata endpoints
+    BLOCKED_HOSTS = {
+        "169.254.169.254",
+        "metadata.google.internal",
+        "metadata.azure.com",
+        "instance-data",
+    }
+    if hostname.lower() in BLOCKED_HOSTS:
+        raise ValueError(f"Access to metadata endpoint {hostname} is blocked")
+
+    # Block private/internal IP ranges
+    try:
+        ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        # hostname is a domain name, not an IP — allow DNS resolution
+        # (We could add DNS resolution check here in the future)
+        ip = None
+
+    if ip is not None and (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved):
+        raise ValueError(f"Access to internal IP address {ip} is blocked")
+
+    return url
+
+
 def validate_sqlite_path(path: str, param_name: str = "file_path") -> str:
     """Validate that a SQLite file path is within allowed directories.
 

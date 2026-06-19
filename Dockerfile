@@ -1,6 +1,8 @@
 # === Build Stage: Frontend ===
 FROM node:20-alpine AS build-frontend
 
+ENV NODE_ENV=production
+
 WORKDIR /app/configforge-web
 COPY configforge-web/package.json configforge-web/package-lock.json ./
 RUN npm ci
@@ -28,6 +30,12 @@ COPY --from=build-frontend /app/configforge-web/dist ./configforge/static/
 
 # Create data and temp directories
 RUN mkdir -p data tmp/uploads tmp/logs
+
+# Create non-root user and set ownership
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
 
 # Expose port
 EXPOSE 8000

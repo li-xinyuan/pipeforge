@@ -11,9 +11,10 @@ from configforge.services.json_reader import read_json_info
 from configforge.services.xml_reader import read_xml_info
 from configforge.services.parquet_reader import read_parquet_info
 from configforge.utils.security import validate_id, safe_identifier
+from configforge.utils.paths import get_upload_dir
 
 router = APIRouter()
-UPLOAD_DIR = os.environ.get("CONFIGFORGE_UPLOAD_DIR", "tmp/uploads")
+UPLOAD_DIR = get_upload_dir()
 
 
 def _infer_sql_type(col_name: str, col_index: int, sample_rows: list[list]) -> str:
