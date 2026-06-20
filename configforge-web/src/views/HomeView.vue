@@ -14,10 +14,27 @@
             <span class="home__hero-gradient">AI 自动生成配置</span>
           </h1>
           <p class="home__hero-subtitle">
-            5 步向导帮你把数据处理需求变成可运行的配置文件。支持 AI 辅助 SQL 生成与列映射，所有数据本地处理，不上传至外部服务。
+            ConfigForge 让你用自然语言描述需求，AI 自动生成完整的数据处理流程配置。无需编写代码，5 步向导即可完成从数据接入到结果输出的全流程。
           </p>
           <div class="home__hero-anim">
             <PipelineAnimation />
+          </div>
+          <div class="home__hero-capabilities">
+            <div class="home__capability">
+              <span class="home__capability-icon">📥</span>
+              <span class="home__capability-label">7 种输入</span>
+              <span class="home__capability-desc">Excel · CSV · 数据库 · JSON · XML · Parquet · REST API</span>
+            </div>
+            <div class="home__capability">
+              <span class="home__capability-icon">⚡</span>
+              <span class="home__capability-label">2 种处理</span>
+              <span class="home__capability-desc">SQL 查询 · Python 脚本</span>
+            </div>
+            <div class="home__capability">
+              <span class="home__capability-icon">📤</span>
+              <span class="home__capability-label">3 种输出</span>
+              <span class="home__capability-desc">Excel · CSV · 数据库</span>
+            </div>
           </div>
           <div class="home__hero-actions">
             <NButton type="primary" size="large" class="btn-primary" @click="startNewConfig">
@@ -464,6 +481,21 @@ function onVersionRefreshed() {
 .home__hero-anim {
   margin-bottom: 28px;
 }
+
+.home__hero-capabilities {
+  display: flex; gap: 24px; justify-content: center;
+  max-width: 640px; margin: 0 auto 28px;
+  flex-wrap: wrap;
+}
+.home__capability {
+  text-align: center; flex: 1; min-width: 160px;
+  padding: 16px; border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.4); backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border-light);
+}
+.home__capability-icon { font-size: 22px; display: block; margin-bottom: 6px; }
+.home__capability-label { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--color-text); display: block; margin-bottom: 4px; }
+.home__capability-desc { font-size: 11px; color: var(--color-text-secondary); line-height: 1.5; }
 
 .home__hero-actions {
   display: flex;
