@@ -10,7 +10,12 @@
       <div class="login__brand">
         <span class="login__logo">⚡</span>
         <span class="login__logo-text">ConfigForge</span>
+        <p class="login__tagline">AI 驱动的数据流水线配置工具</p>
       </div>
+
+      <p class="login__intro">
+        用自然语言描述需求，AI 自动生成完整的数据处理流程配置。无需编写代码，5 步向导即可从数据接入到结果输出。
+      </p>
 
       <!-- Demo -->
       <div class="login__demo">
@@ -113,20 +118,26 @@ async function onLogin() {
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: 20px;
-  padding: 28px 36px 24px;
+  padding: 24px 36px 20px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
 }
-.login__brand { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.login__logo { font-size: 24px; }
+.login__brand { text-align: center; margin-bottom: 8px; }
+.login__logo { font-size: 28px; display: block; margin-bottom: 4px; }
 .login__logo-text {
   font-family: var(--font-display);
-  font-size: 20px; font-weight: 800;
+  font-size: 22px; font-weight: 800;
   background: linear-gradient(135deg, #7c3aed, #0f766e);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+.login__tagline { font-size: 12px; color: var(--color-text-muted); margin: 2px 0 0; }
 
-.login__demo { max-width: 480px; margin: 0 auto 12px; }
+.login__intro {
+  text-align: center; font-size: 13px; color: var(--color-text-secondary);
+  line-height: 1.6; margin: 0 auto 12px; max-width: 440px;
+}
+
+.login__demo { max-width: 480px; margin: 0 auto 10px; }
 
 .login__caps {
   display: flex; gap: 8px; justify-content: center;
