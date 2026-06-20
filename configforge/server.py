@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import re
+import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,10 +19,12 @@ from configforge.api.executions import router as exec_router, _cleanup_old_outpu
 from configforge.api.schedules import router as schedules_router
 from configforge.api.notifications import router as notifications_router
 from configforge.api.templates import router as templates_router
+from configforge.api.auth import router as auth_router
 from configforge.models.wizard import ErrorResponse
 from configforge.scheduler import start_scheduler, shutdown_scheduler
 from configforge.middleware.auth import AuthMiddleware
 from configforge.services.template_store import ensure_builtin_templates
+from configforge.utils.logging import request_id_var, setup_logging
 
 
 def _get_version() -> str:
@@ -63,8 +66,13 @@ async def _periodic_cleanup():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging()
     start_scheduler()
     ensure_builtin_templates()
+    # Ensure default admin user when JWT auth is enabled
+    if os.environ.get("CONFIGFORGE_JWT_SECRET"):
+        from configforge.services.user_store import ensure_default_admin
+        ensure_default_admin()
     if not os.environ.get("CONFIGFORGE_ENCRYPTION_KEY"):
         _logger.warning(
             "CONFIGFORGE_ENCRYPTION_KEY not set. Auto-generated encryption key "
@@ -77,7 +85,26 @@ async def lifespan(app: FastAPI):
     shutdown_scheduler()
 
 
-app = FastAPI(title="ConfigForge", version=_get_version(), lifespan=lifespan)
+_OPENAPI_TAGS = [
+    {"name": "数据预览", "description": "文件和 SQL 数据预览"},
+    {"name": "文件管理", "description": "文件上传和管理"},
+    {"name": "AI 服务", "description": "AI 建议和编排"},
+    {"name": "向导", "description": "配置向导流程"},
+    {"name": "配置管理", "description": "管道配置的增删改查和执行"},
+    {"name": "连接管理", "description": "数据库连接管理"},
+    {"name": "执行历史", "description": "管道执行记录和结果"},
+    {"name": "调度管理", "description": "定时调度任务管理"},
+    {"name": "通知管理", "description": "通知渠道和消息管理"},
+    {"name": "模板管理", "description": "配置模板市场"},
+    {"name": "认证管理", "description": "JWT 用户认证和授权"},
+]
+
+app = FastAPI(
+    title="ConfigForge",
+    version=_get_version(),
+    lifespan=lifespan,
+    openapi_tags=_OPENAPI_TAGS,
+)
 
 # URL-encoded path traversal patterns — checked against raw_path (URL-encoded) before Starlette normalizes
 _RAW_TRAVERSAL_RE = re.compile(r"(%[2eE][%2eE]|%[2fF]|%[5cC]|%00)", re.IGNORECASE)
@@ -113,6 +140,14 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-API-Key", "Authorization"],
 )
 
+
+@app.middleware("http")
+async def request_id_middleware(request, call_next):
+    request_id_var.set(uuid.uuid4().hex[:12])
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id_var.get("")
+    return response
+
 # API Key authentication (disabled when CONFIGFORGE_API_KEY is not set)
 app.add_middleware(AuthMiddleware)
 
@@ -144,19 +179,26 @@ async def value_error_handler(request, exc):
     )
 
 
-app.include_router(preview_router, prefix="/api/preview")
-app.include_router(files_router, prefix="/api/files")
-app.include_router(ai_router, prefix="/api/ai")
-app.include_router(wizard_router, prefix="/api/wizard")
-app.include_router(configs_router, prefix="/api/configs")
-app.include_router(connections_router, prefix="/api")
+app.include_router(preview_router, prefix="/api/preview", tags=["数据预览"])
+app.include_router(files_router, prefix="/api/files", tags=["文件管理"])
+app.include_router(ai_router, prefix="/api/ai", tags=["AI 服务"])
+app.include_router(wizard_router, prefix="/api/wizard", tags=["向导"])
+app.include_router(configs_router, prefix="/api/configs", tags=["配置管理"])
+app.include_router(connections_router, prefix="/api", tags=["连接管理"])
 app.include_router(exec_router)
 app.include_router(schedules_router)
 app.include_router(notifications_router)
-app.include_router(templates_router, prefix="/api/templates")
+app.include_router(templates_router, prefix="/api/templates", tags=["模板管理"])
+app.include_router(auth_router)
 
 
-@app.get("/api/health")
+@app.get("/api/audit-log", summary="获取审计日志", description="获取系统审计日志记录。支持按目标类型和操作类型筛选，默认返回最近 100 条。")
+async def get_audit_log_api(target_type: str | None = None, action: str | None = None, limit: int = 100):
+    from configforge.services.audit_logger import get_audit_log
+    return {"entries": get_audit_log(target_type, action, limit)}
+
+
+@app.get("/api/health", summary="健康检查", description="检查系统健康状态，包括数据目录可写性、配置目录存在性、调度器运行状态和加密密钥配置情况。")
 async def health():
     from configforge.utils.paths import get_data_dir, get_configs_dir
 
