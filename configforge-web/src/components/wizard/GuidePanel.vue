@@ -127,21 +127,25 @@ const currentTip = computed(() => {
   background: linear-gradient(180deg, rgba(124,58,237,0.04), rgba(99,102,241,0.02), rgba(6,182,212,0.01));
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-left: 1px solid rgba(124,58,237,0.12);
+  border: 1px solid rgba(124,58,237,0.12);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transition: width 0.25s ease;
+  margin-left: 16px;
 }
 
-.guide-panel--collapsed { width: 36px; }
+.guide-panel--collapsed { width: 36px; border-radius: var(--radius-lg); }
 
 .guide-panel__collapsed {
   width: 36px; height: 100%;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   background: linear-gradient(180deg, rgba(124,58,237,0.04), rgba(99,102,241,0.02));
-  border-left: 1px solid rgba(124,58,237,0.12);
+  border: 1px solid rgba(124,58,237,0.12);
+  border-radius: var(--radius-lg);
   transition: background 0.2s;
 }
 .guide-panel__collapsed:hover { background: rgba(124,58,237,0.08); }
