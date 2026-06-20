@@ -4,57 +4,19 @@
 
     <AiStatusBanner />
 
-    <!-- Hero: show when no configs OR user explicitly wants intro -->
-    <Transition name="home-fade">
-      <section v-if="!loading && totalCount === 0" class="home__hero">
-        <div class="home__hero-inner">
-          <div class="home__hero-badge">⚡ AI 驱动的数据流水线配置工具</div>
-          <h1 class="home__hero-title">
-            用自然语言描述需求<br>
-            <span class="home__hero-gradient">AI 自动生成配置</span>
-          </h1>
-          <p class="home__hero-subtitle">
-            用自然语言描述需求，AI 自动生成完整的数据处理流程配置。无需编写代码，5 步向导即可从数据接入到结果输出。
-          </p>
-          <div class="home__hero-anim">
-            <PipelineAnimation />
-          </div>
-          <div class="home__hero-actions">
-            <NButton type="primary" size="large" class="btn-primary" @click="startNewConfig">
-              ✏ 开始新配置
-            </NButton>
-            <NButton size="large" class="btn-secondary" @click="router.push('/templates')">
-              📦 浏览模板市场
-            </NButton>
-            <NButton size="large" class="btn-secondary" @click="router.push('/guide')">
-              📖 使用指南
-            </NButton>
-          </div>
-          <div class="home__prompt-chips">
-            <span class="home__prompt-label">试试这样说</span>
-            <button class="home__prompt-chip" @click="startWithPrompt('把用户表的 ID、名称和邮箱导出到 CSV')">把用户表的 ID、名称和邮箱导出到 CSV</button>
-            <button class="home__prompt-chip" @click="startWithPrompt('合并订单表和用户表，按城市统计订单金额')">合并订单表和用户表，按城市统计订单金额</button>
-            <button class="home__prompt-chip" @click="startWithPrompt('从 API 获取天气数据，清洗后写入数据库')">从 API 获取天气数据，清洗后写入数据库</button>
-          </div>
+    <!-- Toolbar -->
+    <section class="home__toolbar">
+      <div class="home__toolbar-inner">
+        <div class="home__toolbar-actions">
+          <NButton type="primary" size="small" class="btn-primary" @click="startNewConfig">✏ 新建配置</NButton>
+          <NButton size="small" class="btn-secondary" @click="router.push('/templates')">📦 模板市场</NButton>
+          <NButton size="small" class="btn-secondary" @click="router.push('/guide')">📖 指南</NButton>
         </div>
-      </section>
-    </Transition>
-
-    <!-- Compact toolbar when configs exist and not showing intro -->
-    <Transition name="home-fade">
-      <section v-if="!loading && totalCount > 0" class="home__toolbar">
-        <div class="home__toolbar-inner">
-          <div class="home__toolbar-actions">
-            <NButton type="primary" size="small" class="btn-primary" @click="startNewConfig">✏ 新建配置</NButton>
-            <NButton size="small" class="btn-secondary" @click="router.push('/templates')">📦 模板市场</NButton>
-            <NButton size="small" class="btn-secondary" @click="router.push('/guide')">📖 指南</NButton>
-          </div>
-        </div>
-      </section>
-    </Transition>
+      </div>
+    </section>
 
     <!-- Config list section -->
-    <section class="home__configs" :class="{ 'home__configs--full': totalCount > 0 }">
+    <section class="home__configs">
       <div class="home__configs-header">
         <div class="home__configs-header-left">
           <h2 class="home__configs-title">最近配置</h2>
@@ -191,7 +153,6 @@ import ExecuteConfigModal from '../components/ExecuteConfigModal.vue'
 import ConfigVersionPanel from '../components/config/ConfigVersionPanel.vue'
 import ConfigListCard from '../components/config/ConfigListCard.vue'
 import AiStatusBanner from '../components/AiStatusBanner.vue'
-import PipelineAnimation from '../components/PipelineAnimation.vue'
 import ErrorBoundary from '../components/common/ErrorBoundary.vue'
 
 const router = useRouter()
@@ -284,11 +245,6 @@ async function onConfirmBatchDelete() {
 function startNewConfig() {
   store.resetAll()
   router.push('/config/new')
-}
-
-function startWithPrompt(prompt: string) {
-  store.resetAll()
-  router.push('/config/new?prompt=' + encodeURIComponent(prompt))
 }
 
 async function loadConfigList() {
