@@ -131,7 +131,7 @@ async function onLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(160deg, #0a2e1f 0%, #0d4a35 40%, #0d9488 100%);
+  background: linear-gradient(160deg, #1a0a2e 0%, #3b1f6e 30%, #4c1d95 60%, #0f766e 100%);
   position: relative;
   overflow: hidden;
   padding: 48px;
@@ -150,6 +150,7 @@ async function onLogin() {
 }
 
 .login__brand-title {
+  font-family: var(--font-display);
   font-size: 40px;
   font-weight: 800;
   color: #ffffff;
@@ -176,18 +177,20 @@ async function onLogin() {
   align-items: center;
   gap: 12px;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.85);
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-md);
-  backdrop-filter: blur(8px);
-  transition: background 0.2s, border-color 0.2s;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.3s;
 }
 
 .login__brand-feature:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateX(4px);
 }
 
 .login__brand-feature-icon {
@@ -211,29 +214,21 @@ async function onLogin() {
 }
 
 .login__orb--1 {
-  width: 300px;
-  height: 300px;
-  background: #14b8a6;
-  top: -80px;
-  right: -60px;
+  width: 320px; height: 320px;
+  background: #7c3aed;
+  top: -100px; right: -80px;
   animation-delay: 0s;
 }
-
 .login__orb--2 {
-  width: 200px;
-  height: 200px;
-  background: #5eead4;
-  bottom: -40px;
-  left: -40px;
+  width: 240px; height: 240px;
+  background: #14b8a6;
+  bottom: -60px; left: -60px;
   animation-delay: -4s;
 }
-
 .login__orb--3 {
-  width: 160px;
-  height: 160px;
-  background: #0d9488;
-  top: 50%;
-  left: 60%;
+  width: 180px; height: 180px;
+  background: #6366f1;
+  top: 45%; left: 55%;
   animation-delay: -8s;
 }
 
@@ -250,7 +245,9 @@ async function onLogin() {
   align-items: center;
   justify-content: center;
   padding: 48px 40px;
-  background: var(--color-surface);
+  background: linear-gradient(135deg, rgba(255,255,255,0.6), rgba(255,255,255,0.3));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .login__form-inner {
@@ -441,6 +438,21 @@ async function onLogin() {
   40% { transform: translateX(6px); }
   60% { transform: translateX(-4px); }
   80% { transform: translateX(4px); }
+}
+
+/* ───── Dark mode ───── */
+[data-theme="dark"] .login { background: var(--color-bg); }
+[data-theme="dark"] .login__form-panel {
+  background: linear-gradient(135deg, rgba(41,37,36,0.7), rgba(41,37,36,0.4));
+}
+[data-theme="dark"] .login__input-wrap {
+  background: rgba(41,37,36,0.5);
+}
+[data-theme="dark"] .login__input-wrap:focus-within {
+  background: rgba(41,37,36,0.7);
+}
+[data-theme="dark"] .login__brand {
+  background: linear-gradient(160deg, #0d0620 0%, #1a0a2e 30%, #2d1060 60%, #0f766e 100%);
 }
 
 /* ───── Responsive ───── */
