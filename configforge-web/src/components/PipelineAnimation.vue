@@ -126,17 +126,17 @@ onMounted(async () => {
     const tl = createTimeline({ loop: true })
 
     steps.forEach((el) => {
-      const y = -(el.offsetTop - 8)
+      const x = -(el.offsetLeft - 8)
       tl.add(container, {
-        translateY: y,
-        duration: 600,
+        translateX: x,
+        duration: 500,
         easing: 'easeInOutQuad',
       })
       tl.add({ duration: 2000 })
     })
 
     tl.add(container, {
-      translateY: 0,
+      translateX: 0,
       duration: 400,
       easing: 'easeInOutQuad',
     })
