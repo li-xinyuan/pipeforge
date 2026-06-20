@@ -265,4 +265,3 @@ onUnmounted(() => {
   .anim-step { min-width: 280px; padding: 8px 10px; }
 }
 </style>
-</style>
