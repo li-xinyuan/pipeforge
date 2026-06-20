@@ -197,7 +197,7 @@ onUnmounted(() => { anim?.pause() })
 .anim-group {
   display: flex; gap: 8px; padding: 8px;
   background: linear-gradient(180deg, var(--color-bg), var(--color-surface));
-  flex-shrink: 0; min-height: 170px;
+  flex-shrink: 0; height: 170px; overflow: hidden;
 }
 .anim-group__left { flex: 1; min-width: 0; }
 .anim-group__right { width: 140px; flex-shrink: 0; }
