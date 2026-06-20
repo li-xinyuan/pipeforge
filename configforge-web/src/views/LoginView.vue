@@ -1,56 +1,57 @@
 <template>
   <div class="login">
-    <!-- Left: Product Demo -->
-    <div class="login__demo">
-      <div class="login__demo-bg"></div>
-      <div class="login__demo-inner">
-        <div class="login__logo-row">
-          <span class="login__logo-icon">⚡</span>
-          <span class="login__logo-name">ConfigForge</span>
-        </div>
-        <p class="login__demo-tagline">5 步向导，AI 驱动，零代码创建数据管道</p>
-        <div class="login__anim-wrap">
-          <PipelineAnimation />
-        </div>
-      </div>
+    <!-- Background atmosphere -->
+    <div class="login__bg">
+      <div class="login__orb login__orb--1"></div>
+      <div class="login__orb login__orb--2"></div>
+      <div class="login__orb login__orb--3"></div>
     </div>
 
-    <!-- Right: Login Form -->
-    <div class="login__form">
-      <div class="login__form-card">
-        <h1 class="login__form-title">欢迎回来</h1>
-        <p class="login__form-subtitle">登录以继续</p>
-
-        <form class="login__form-fields" @submit.prevent="onLogin">
-          <label class="login__field">
-            <span class="login__field-label">用户名</span>
-            <div class="login__field-wrap" :class="{ 'is-error': loginError }">
-              <span class="login__field-ico">👤</span>
-              <input v-model="loginForm.username" type="text" class="login__field-inp" placeholder="admin" autocomplete="username" required />
-            </div>
-          </label>
-
-          <label class="login__field">
-            <span class="login__field-label">密码</span>
-            <div class="login__field-wrap" :class="{ 'is-error': loginError }">
-              <span class="login__field-ico">🔑</span>
-              <input v-model="loginForm.password" :type="showPassword ? 'text' : 'password'" class="login__field-inp" placeholder="······" autocomplete="current-password" required />
-              <button type="button" class="login__field-eye" @click="showPassword = !showPassword">{{ showPassword ? '🙈' : '👁' }}</button>
-            </div>
-          </label>
-
-          <Transition name="shake">
-            <p v-if="loginError" class="login__error">{{ loginError }}</p>
-          </Transition>
-
-          <button type="submit" class="login__submit" :disabled="loginLoading">
-            <span v-if="loginLoading" class="login__spinner"></span>
-            <span v-else>登 录</span>
-          </button>
-        </form>
-
-        <p class="login__hint">默认账户 admin / admin123</p>
+    <!-- Centered card -->
+    <div class="login__card">
+      <!-- Top: Logo + tagline -->
+      <div class="login__brand">
+        <span class="login__logo">⚡</span>
+        <h1 class="login__title">ConfigForge</h1>
+        <p class="login__tagline">AI 驱动的数据流水线配置工具</p>
       </div>
+
+      <!-- Demo preview (collapsed by default on mobile) -->
+      <div class="login__demo">
+        <PipelineAnimation />
+      </div>
+      <p class="login__demo-label">5 步向导，零代码创建数据处理流程</p>
+
+      <!-- Form -->
+      <form class="login__form" @submit.prevent="onLogin">
+        <label class="login__field">
+          <span class="login__label">用户名</span>
+          <div class="login__input" :class="{ 'is-error': loginError }">
+            <span class="login__input-icon">👤</span>
+            <input v-model="loginForm.username" type="text" placeholder="输入用户名" autocomplete="username" required />
+          </div>
+        </label>
+
+        <label class="login__field">
+          <span class="login__label">密码</span>
+          <div class="login__input" :class="{ 'is-error': loginError }">
+            <span class="login__input-icon">🔑</span>
+            <input v-model="loginForm.password" :type="showPassword ? 'text' : 'password'" placeholder="输入密码" autocomplete="current-password" required />
+            <button type="button" class="login__eye" @click="showPassword = !showPassword">{{ showPassword ? '🙈' : '👁' }}</button>
+          </div>
+        </label>
+
+        <Transition name="shake">
+          <p v-if="loginError" class="login__error">{{ loginError }}</p>
+        </Transition>
+
+        <button type="submit" class="login__btn" :disabled="loginLoading">
+          <span v-if="loginLoading" class="login__spinner"></span>
+          <span v-else>登录</span>
+        </button>
+      </form>
+
+      <p class="login__hint">默认账户 admin / admin123</p>
     </div>
   </div>
 </template>
@@ -86,135 +87,126 @@ async function onLogin() {
 </script>
 
 <style scoped>
-.login { display: flex; min-height: 100vh; }
-
-/* ============================================================
-   LEFT — PRODUCT DEMO (50%)
-   ============================================================ */
-.login__demo {
-  flex: 1;
-  position: relative;
+.login {
+  min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
-  background: #080012;
+  background: #0a0012;
+  position: relative; overflow: hidden;
+  padding: 32px 24px;
 }
-.login__demo-bg {
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse 70% 50% at 30% 80%, rgba(124,58,237,0.25) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 30% at 70% 20%, rgba(20,184,166,0.2) 0%, transparent 40%),
-    linear-gradient(160deg, #080012 0%, #12082e 40%, #0f766e 100%);
+
+/* ───── Background ───── */
+.login__bg { position: absolute; inset: 0; pointer-events: none; }
+.login__orb {
+  position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.35;
+  animation: orb-drift 16s ease-in-out infinite;
 }
-.login__demo-inner {
+.login__orb--1 { width: 400px; height: 400px; background: #7c3aed; top: -120px; right: -80px; animation-delay: 0s; }
+.login__orb--2 { width: 300px; height: 300px; background: #0f766e; bottom: -80px; left: -60px; animation-delay: -5s; }
+.login__orb--3 { width: 250px; height: 250px; background: #6366f1; top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -10s; }
+@keyframes orb-drift {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33% { transform: translate(30px,-20px) scale(1.08); }
+  66% { transform: translate(-20px,25px) scale(0.92); }
+}
+
+/* ───── Card ───── */
+.login__card {
   position: relative; z-index: 2;
-  display: flex; flex-direction: column; align-items: center;
-  padding: 40px 20px;
-}
-.login__logo-row {
-  display: flex; align-items: center; gap: 10px;
-}
-.login__logo-icon {
-  font-size: 32px;
-  filter: drop-shadow(0 2px 12px rgba(124,58,237,0.5));
-}
-.login__logo-name {
-  font-family: var(--font-display);
-  font-size: 24px; font-weight: 800;
-  background: linear-gradient(135deg, #fff, #c4b5fd);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.login__demo-tagline {
-  font-family: var(--font-display);
-  font-size: 13px; color: rgba(255,255,255,0.45);
-  margin: 6px 0 24px; letter-spacing: 0.05em;
-}
-.login__anim-wrap {
-  transform: scale(0.85);
-  filter: drop-shadow(0 8px 32px rgba(0,0,0,0.4));
+  width: 100%; max-width: 440px;
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px;
+  padding: 48px 40px 40px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 
-/* ============================================================
-   RIGHT — LOGIN FORM (50%)
-   ============================================================ */
-.login__form {
-  flex: 1;
-  display: flex; align-items: center; justify-content: center;
-  padding: 48px;
-  background: linear-gradient(135deg, rgba(250,250,249,0.85), rgba(250,250,249,0.5));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+/* ───── Brand ───── */
+.login__brand { text-align: center; margin-bottom: 24px; }
+.login__logo {
+  font-size: 44px;
+  filter: drop-shadow(0 4px 16px rgba(124,58,237,0.5));
+  display: block; margin-bottom: 8px;
 }
-.login__form-card { width: 100%; max-width: 360px; }
-.login__form-title {
+.login__title {
   font-family: var(--font-display);
-  font-size: 28px; font-weight: 800; color: var(--color-text);
-  margin: 0 0 4px; letter-spacing: -0.02em;
+  font-size: 28px; font-weight: 800; color: #fff;
+  margin: 0; letter-spacing: -0.02em;
 }
-.login__form-subtitle {
-  font-size: 14px; color: var(--color-text-secondary);
-  margin: 0 0 32px;
-}
-.login__form-fields { display: flex; flex-direction: column; gap: 18px; }
+.login__tagline { font-size: 13px; color: rgba(255,255,255,0.4); margin: 4px 0 0; }
 
-/* Fields */
-.login__field { display: flex; flex-direction: column; gap: 5px; }
-.login__field-label {
-  font-family: var(--font-display);
-  font-size: 12px; font-weight: 600; color: var(--color-text-secondary);
+/* ───── Demo ───── */
+.login__demo {
+  transform: scale(0.72);
+  transform-origin: top center;
+  margin: -12px 0 -8px;
+  opacity: 0.8;
 }
-.login__field-wrap {
+.login__demo-label {
+  text-align: center; font-size: 11px; color: rgba(255,255,255,0.3);
+  margin: -4px 0 24px; letter-spacing: 0.05em;
+}
+
+/* ───── Form ───── */
+.login__form { display: flex; flex-direction: column; gap: 16px; }
+.login__field { display: flex; flex-direction: column; gap: 4px; }
+.login__label {
+  font-family: var(--font-display);
+  font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.4);
+}
+.login__input {
   display: flex; align-items: center;
-  background: rgba(255,255,255,0.5);
-  border: 1.5px solid var(--color-border);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 10px; overflow: hidden;
   transition: all 0.2s;
 }
-.login__field-wrap:focus-within {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(15,118,110,0.08);
-  background: rgba(255,255,255,0.8);
+.login__input:focus-within {
+  border-color: rgba(124,58,237,0.5);
+  background: rgba(255,255,255,0.1);
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.08);
 }
-.login__field-wrap.is-error {
-  border-color: var(--color-error) !important;
-  box-shadow: 0 0 0 3px rgba(220,38,38,0.06) !important;
-}
-.login__field-ico { width: 40px; text-align: center; font-size: 15px; opacity: 0.4; flex-shrink: 0; }
-.login__field-inp {
+.login__input.is-error { border-color: rgba(239,68,68,0.5) !important; }
+.login__input-icon { width: 40px; text-align: center; font-size: 14px; opacity: 0.4; flex-shrink: 0; }
+.login__input input {
   flex: 1; padding: 11px 12px 11px 0;
-  font-family: var(--font-body); font-size: 14px; color: var(--color-text);
+  font-family: var(--font-body); font-size: 14px; color: #fff;
   background: transparent; border: none; outline: none;
 }
-.login__field-inp::placeholder { color: var(--color-text-muted); }
-.login__field-eye {
-  width: 36px; height: 36px; font-size: 15px;
+.login__input input::placeholder { color: rgba(255,255,255,0.2); }
+.login__eye {
+  width: 36px; height: 36px; font-size: 14px;
   background: none; border: none; cursor: pointer;
-  opacity: 0.4; flex-shrink: 0; margin-right: 4px;
+  opacity: 0.3; flex-shrink: 0; margin-right: 2px;
 }
-.login__field-eye:hover { opacity: 0.7; }
+.login__eye:hover { opacity: 0.6; }
 
-/* Submit */
-.login__submit {
-  width: 100%; padding: 13px 24px; margin-top: 6px;
+/* ───── Button ───── */
+.login__btn {
+  width: 100%; padding: 13px 24px; margin-top: 4px;
   font-family: var(--font-display); font-size: 15px; font-weight: 700;
   color: #fff;
-  background: linear-gradient(135deg, rgba(15,118,110,0.9), rgba(20,184,166,0.85));
-  border: 1px solid rgba(15,118,110,0.12); border-radius: 10px;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(15,118,110,0.12), 0 4px 12px rgba(15,118,110,0.08);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, #7c3aed, #6366f1);
+  border: none; border-radius: 10px; cursor: pointer;
+  box-shadow: 0 0 0 0 rgba(124,58,237,0.4);
+  animation: btn-pulse 2.5s ease-in-out infinite;
   transition: all 0.3s;
   letter-spacing: 0.06em;
 }
-.login__submit:hover:not(:disabled) {
+.login__btn:hover:not(:disabled) {
+  animation: none;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(15,118,110,0.18), 0 8px 24px rgba(15,118,110,0.12);
+  box-shadow: 0 4px 24px rgba(124,58,237,0.4);
 }
-.login__submit:active:not(:disabled) { transform: scale(0.97); }
-.login__submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.login__btn:active:not(:disabled) { transform: scale(0.97); }
+.login__btn:disabled { opacity: 0.5; cursor: not-allowed; animation: none; }
+@keyframes btn-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(124,58,237,0); }
+}
 
-/* Spinner */
 .login__spinner {
   display: inline-block; width: 18px; height: 18px;
   border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
@@ -222,37 +214,24 @@ async function onLogin() {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Error */
+/* ───── Error ───── */
 .login__error {
-  font-size: 13px; color: var(--color-error);
-  background: rgba(220,38,38,0.05); border: 1px solid rgba(220,38,38,0.12);
+  font-size: 13px; color: #fca5a5;
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15);
   border-radius: 8px; padding: 10px 14px; margin: 0;
 }
 .shake-enter-active { animation: shake 0.35s ease; }
-@keyframes shake {
-  0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)}
-}
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
 
-/* Hint */
+/* ───── Hint ───── */
 .login__hint {
-  text-align: center; font-size: 12px; color: var(--color-text-muted);
-  margin: 18px 0 0; opacity: 0.55;
+  text-align: center; font-size: 12px; color: rgba(255,255,255,0.2);
+  margin: 20px 0 0;
 }
 
-/* Dark mode */
-[data-theme="dark"] .login__form {
-  background: linear-gradient(135deg, rgba(28,25,23,0.85), rgba(28,25,23,0.5));
-}
-[data-theme="dark"] .login__field-wrap {
-  background: rgba(41,37,36,0.5);
-}
-[data-theme="dark"] .login__field-wrap:focus-within {
-  background: rgba(41,37,36,0.75);
-}
-
-/* Responsive */
-@media (max-width: 900px) {
+@media (max-width: 480px) {
+  .login__card { padding: 32px 24px 28px; }
   .login__demo { display: none; }
-  .login__form { flex: 1; padding: 32px 24px; }
+  .login__demo-label { display: none; }
 }
 </style>
