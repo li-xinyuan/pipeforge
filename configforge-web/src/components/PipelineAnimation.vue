@@ -151,11 +151,11 @@ onMounted(async () => {
   try {
     const groups = container.querySelectorAll<HTMLElement>('.anim-group')
     if (groups.length === 0) return
+    const stepH = 170 // matches viewport + group height
     const tl = createTimeline({ loop: true })
-    // Show first screen
     tl.add({ duration: 4000 })
-    for (let i = 1; i < groups.length; i++) {
-      tl.add(container, { translateY: -(groups[i].offsetTop - 8), duration: 800, easing: 'easeInOutQuad' })
+    for (let i = 1; i < 5; i++) {
+      tl.add(container, { translateY: -(stepH * i), duration: 800, easing: 'easeInOutQuad' })
       tl.add({ duration: 4000 })
     }
     tl.add({ duration: 1500 })
