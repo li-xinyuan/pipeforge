@@ -9,6 +9,7 @@
         <WizardProgress :steps="progressSteps" @step-click="scrollToStep" />
 
         <!-- Step 1: Scene Info -->
+        <ErrorBoundary>
         <WizardStepCard
           ref="step1El"
           title="场景信息"
@@ -44,8 +45,10 @@
             <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 1 && store.canProceed(1) }" :disabled="!store.canProceed(1)" @click="completeStep(1)">下一步 ↓</NButton>
           </template>
         </WizardStepCard>
+        </ErrorBoundary>
 
         <!-- Step 2: Input Sources -->
+        <ErrorBoundary>
         <WizardStepCard
           ref="step2El"
           title="输入源"
@@ -63,8 +66,10 @@
             <p v-if="!store.canProceed(2)" class="wizard__validation-msg">{{ store.stepValidation(2).join('；') || '请先添加输入源并上传文件' }}</p>
           </template>
         </WizardStepCard>
+        </ErrorBoundary>
 
         <!-- Step 3: SQL Processing -->
+        <ErrorBoundary>
         <WizardStepCard
           ref="step3El"
           title="处理步骤"
@@ -82,8 +87,10 @@
             <p v-if="!store.canProceed(3)" class="wizard__validation-msg">{{ store.stepValidation(3).join('；') || '请先添加处理步骤' }}</p>
           </template>
         </WizardStepCard>
+        </ErrorBoundary>
 
         <!-- Step 4: Output Config -->
+        <ErrorBoundary>
         <WizardStepCard
           ref="step4El"
           title="输出配置"
@@ -101,8 +108,10 @@
             <p v-if="!store.canProceed(4)" class="wizard__validation-msg">{{ store.stepValidation(4).join('；') || '请先完成输出配置' }}</p>
           </template>
         </WizardStepCard>
+        </ErrorBoundary>
 
         <!-- Step 5: Preview & Export -->
+        <ErrorBoundary>
         <WizardStepCard
           ref="step5El"
           title="预览与导出"
@@ -172,10 +181,11 @@
           </div>
           <template #footer>
             <NButton @click="onGoBack(5)">← 上一步</NButton>
-            <ExportActions :yaml="yamlPreviewRef?.yamlText || ''" @goto-step="scrollToStep" />
+            <ExportActions ref="exportActionsRef" :yaml="yamlPreviewRef?.yamlText || ''" @goto-step="scrollToStep" />
             <NButton class="btn-secondary" @click="saveAsTemplateVisible = true">保存为模板</NButton>
           </template>
         </WizardStepCard>
+        </ErrorBoundary>
 
         <div class="wizard__bottom-spacer" />
       </div>
@@ -191,10 +201,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useWizardStore } from '../stores/wizard'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useWizardApi, useAiApi } from '../composables/useWizardApi'
+import { useKeyboard } from '../composables/useKeyboard'
 import { NButton, NInput } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import WizardProgress from '../components/wizard/WizardProgress.vue'
@@ -210,6 +221,7 @@ import DataPreviewTable from '../components/step4/DataPreviewTable.vue'
 import AiTriggerButton from '../components/common/AiTriggerButton.vue'
 import NotificationSettings from '../components/step5/NotificationSettings.vue'
 import SaveAsTemplateModal from '../components/template/SaveAsTemplateModal.vue'
+import ErrorBoundary from '../components/common/ErrorBoundary.vue'
 
 const store = useWizardStore()
 const route = useRoute()
@@ -251,7 +263,7 @@ async function runPrecheck() {
         name: p.name,
         plugin: p.plugin,
         outputTables: p.outputTables,
-        hasCode: p.plugin === 'sql' ? !!p.sql.trim() : !!(p as any).script?.trim(),
+        hasCode: p.plugin === 'sql' ? !!p.sql.trim() : !!p.script?.trim(),
       })),
       output: store.output ? {
         plugin: store.output.plugin,
@@ -302,6 +314,26 @@ const outputTypeLabel = computed(() => {
 const currentStep = ref(1)
 const saveAsTemplateVisible = ref(false)
 
+// Keyboard shortcuts
+useKeyboard({
+  'Ctrl+s': () => {
+    exportActionsRef.value?.saveConfigHandler()
+  },
+  'Ctrl+Enter': () => {
+    exportActionsRef.value?.downloadResult()
+  },
+  'Ctrl+1': () => scrollToStep(1),
+  'Ctrl+2': () => scrollToStep(2),
+  'Ctrl+3': () => scrollToStep(3),
+  'Ctrl+4': () => scrollToStep(4),
+  'Ctrl+5': () => scrollToStep(5),
+  'Escape': () => {
+    if (saveAsTemplateVisible.value) {
+      saveAsTemplateVisible.value = false
+    }
+  },
+})
+
 // Dry-run preview state
 const dryRunLoading = ref(false)
 const dryRunError = ref('')
@@ -341,6 +373,7 @@ const step4El = ref<InstanceType<typeof WizardStepCard>>()
 const step5El = ref<InstanceType<typeof WizardStepCard>>()
 const sqlEditorRef = ref<InstanceType<typeof SqlEditorTab>>()
 const yamlPreviewRef = ref<InstanceType<typeof YamlPreview>>()
+const exportActionsRef = ref<InstanceType<typeof ExportActions>>()
 
 const stepRefs = [step1El, step2El, step3El, step4El, step5El]
 
@@ -414,6 +447,34 @@ function onPageScroll() {
   lastScrollY = window.scrollY
 }
 
+// ── Navigation guard: warn on unsaved changes ──
+function hasUnsavedChanges(): boolean {
+  // If loading from config or template, no unsaved changes warning
+  if (route.query.load || route.query.from_template) return false
+  // If configId is set (editing existing config), no unsaved changes warning
+  if (store.configId) return false
+  // If store has meaningful data, consider it unsaved
+  return store.scene.name.trim().length > 0
+    || store.inputs.length > 0
+    || store.processors.length > 0
+    || store.output !== null
+}
+
+onBeforeRouteLeave((to) => {
+  // Skip confirmation when navigating to login (logout action)
+  if (to.path === '/login') return true
+  if (hasUnsavedChanges()) {
+    const confirmed = window.confirm('您有未保存的修改，确定要离开吗？')
+    if (!confirmed) return false
+  }
+})
+
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (hasUnsavedChanges()) {
+    e.preventDefault()
+  }
+}
+
 onMounted(async () => {
   const loadId = route.query.load as string | undefined
   const fromTemplate = route.query.from_template as string | undefined
@@ -424,6 +485,7 @@ onMounted(async () => {
       store.loadFromConfigState(state)
       currentStep.value = 5
       await nextTick()
+      yamlPreviewRef.value?.loadYaml()
     } else {
       store.resetAll()
     }
@@ -461,6 +523,7 @@ onMounted(async () => {
 
   lastScrollY = window.scrollY
   window.addEventListener('scroll', onPageScroll, { passive: true })
+  window.addEventListener('beforeunload', onBeforeUnload)
 
   observer = new IntersectionObserver(
     (entries) => {
@@ -497,6 +560,7 @@ onMounted(async () => {
 onUnmounted(() => {
   observer?.disconnect()
   window.removeEventListener('scroll', onPageScroll)
+  window.removeEventListener('beforeunload', onBeforeUnload)
 })
 </script>
 

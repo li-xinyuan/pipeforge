@@ -48,11 +48,12 @@
       <NAlert v-else-if="error" type="error" :title="error.message" />
 
       <div v-else-if="templates.length > 0" class="market__grid">
+        <ErrorBoundary>
         <div
           v-for="tpl in templates"
           :key="tpl.id"
           class="market__card card-lift"
-          @click="openPreview(tpl)"
+          @click="onCardClick($event, tpl)"
         >
           <div class="market__card-header">
             <span class="market__card-icon">{{ categoryIcon(tpl.category) }}</span>
@@ -65,12 +66,25 @@
             <NTag v-if="tpl.tags.length > 3" size="small" :bordered="false" class="market__card-tag">+{{ tpl.tags.length - 3 }}</NTag>
           </div>
           <div class="market__card-footer">
-            <span class="market__card-meta">{{ tpl.author }}</span>
-            <span class="market__card-sep">·</span>
-            <span class="market__card-meta">使用 {{ tpl.usageCount }} 次</span>
-            <NButton size="small" type="primary" class="btn-primary market__card-btn" @click.stop="openPreview(tpl)">使用此模板</NButton>
+            <div class="market__card-meta-row">
+              <span class="market__card-meta">{{ tpl.author }}</span>
+              <span class="market__card-sep">·</span>
+              <span class="market__card-meta">使用 {{ tpl.usageCount }} 次</span>
+            </div>
+            <div class="market__card-actions" @click.stop>
+              <template v-if="pendingDeleteId === tpl.id">
+                <span class="market__card-confirm-text">确认删除？</span>
+                <NButton size="small" type="error" @click="confirmDelete(tpl)">确定</NButton>
+                <NButton size="small" quaternary @click="cancelDelete">取消</NButton>
+              </template>
+              <template v-else>
+                <NButton v-if="auth.isAdmin" size="small" type="error" quaternary class="market__card-delete" @click="requestDelete(tpl.id)">删除</NButton>
+                <NButton size="small" type="primary" class="btn-primary market__card-btn" @click="openPreview(tpl)">使用此模板</NButton>
+              </template>
+            </div>
           </div>
         </div>
+        </ErrorBoundary>
       </div>
 
       <div v-else class="market__empty">
@@ -96,8 +110,11 @@ import AppNavBar from '../components/common/AppNavBar.vue'
 import TemplatePreviewModal from '../components/template/TemplatePreviewModal.vue'
 import type { Template } from '../types/wizard'
 import { useTemplateApi } from '../composables/useTemplateApi'
+import { useAuthStore } from '../stores/auth'
+import ErrorBoundary from '../components/common/ErrorBoundary.vue'
 
-const { listTemplates, loading, error } = useTemplateApi()
+const auth = useAuthStore()
+const { listTemplates, deleteTemplate, loading, error } = useTemplateApi()
 
 const templates = ref<Template[]>([])
 const searchQuery = ref('')
@@ -114,6 +131,7 @@ const categories = [
 
 const previewVisible = ref(false)
 const previewTemplate = ref<Template | null>(null)
+const pendingDeleteId = ref<string | null>(null)
 
 function categoryIcon(category: string): string {
   const icons: Record<string, string> = {
@@ -144,6 +162,12 @@ function onCategoryChange(category: string) {
   loadTemplates()
 }
 
+function onCardClick(event: MouseEvent, tpl: Template) {
+  // 忽略来自按钮区域的点击
+  if ((event.target as HTMLElement).closest('.market__card-actions')) return
+  openPreview(tpl)
+}
+
 function openPreview(tpl: Template) {
   previewTemplate.value = tpl
   previewVisible.value = true
@@ -151,6 +175,22 @@ function openPreview(tpl: Template) {
 
 function onPreviewClose() {
   previewTemplate.value = null
+}
+
+function requestDelete(id: string) {
+  pendingDeleteId.value = id
+}
+
+function cancelDelete() {
+  pendingDeleteId.value = null
+}
+
+async function confirmDelete(tpl: Template) {
+  const ok = await deleteTemplate(tpl.id)
+  pendingDeleteId.value = null
+  if (ok) {
+    templates.value = templates.value.filter(t => t.id !== tpl.id)
+  }
 }
 
 onMounted(() => {
@@ -328,23 +368,55 @@ onUnmounted(() => {
 .market__card-footer {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
   padding-top: 12px;
   border-top: 1px solid var(--color-border-light);
+}
+
+.market__card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
 }
 
 .market__card-meta {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .market__card-sep {
   font-size: var(--font-size-xs);
   color: var(--color-border);
+  flex-shrink: 0;
+}
+
+.market__card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .market__card-btn {
-  margin-left: auto;
+  /* no margin-left needed now */
+}
+
+.market__card-delete {
+  font-size: 12px;
+}
+
+.market__card-confirm-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-error, #d03050);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* ───── Empty state ───── */
@@ -409,6 +481,9 @@ onUnmounted(() => {
   }
   .market__title {
     font-size: 26px;
+  }
+  .market__card-footer {
+    flex-wrap: wrap;
   }
 }
 

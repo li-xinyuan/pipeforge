@@ -99,30 +99,16 @@
           <NButton size="small" type="error" :disabled="selectedIds.size === 0" :loading="batchDeleting" @click="onBatchDelete">删除选中</NButton>
         </div>
 
-        <div v-for="cfg in configs" :key="cfg.id" class="home__config-card card-lift" :class="{ 'home__config-card--selected': batchMode && selectedIds.has(cfg.id) }">
-          <NCheckbox v-if="batchMode" :checked="selectedIds.has(cfg.id)" @update:checked="toggleSelect(cfg.id)" class="home__config-card-check" />
-          <div class="home__config-card-left">
-            <span class="home__config-card-icon">📋</span>
-            <div class="home__config-card-info">
-              <router-link :to="batchMode ? '' : '/config/new?load=' + cfg.id" class="config-name-link" :class="{ 'config-name-link--disabled': batchMode }">{{ cfg.sceneName }}</router-link>
-              <div class="home__config-card-meta">
-                <span class="home__meta-item">{{ cfg.version }}</span>
-                <span class="home__meta-sep">·</span>
-                <span class="home__meta-item">{{ cfg.inputCount }} 个数据源</span>
-                <span class="home__meta-sep">·</span>
-                <span class="home__meta-item">{{ cfg.outputType }}</span>
-                <span class="home__meta-sep">·</span>
-                <span class="home__meta-item">{{ formatTime(cfg.updatedAt) }}</span>
-              </div>
-            </div>
-          </div>
-          <div v-if="!batchMode" class="home__config-card-right">
-            <NButton v-if="cfg.inputCount > 0" size="small" secondary type="primary" @click.stop="openExecuteModal(cfg)">执行</NButton>
-            <NDropdown trigger="click" :options="getMenuOptions(cfg)" @select="(key: string) => onMenuSelect(key, cfg)">
-              <NButton text size="tiny" class="home__menu-btn" style="min-width: 44px; min-height: 44px;" aria-label="更多操作">···</NButton>
-            </NDropdown>
-          </div>
-        </div>
+        <ErrorBoundary>
+        <ConfigListCard
+          :configs="configs"
+          :batch-mode="batchMode"
+          :selected-ids="selectedIds"
+          @toggle-select="toggleSelect"
+          @execute="openExecuteModal"
+          @menu-select="onMenuSelect"
+        />
+        </ErrorBoundary>
 
         <!-- Pagination -->
         <div v-if="totalPages > 1" class="home__pagination">
@@ -205,12 +191,14 @@ import { useRouter } from 'vue-router'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useWizardStore } from '../stores/wizard'
 import type { SavedConfig } from '../types/wizard'
-import { NButton, NAlert, NModal, NTag, NDropdown, NInput, NCheckbox, NSelect, useMessage } from 'naive-ui'
+import { NButton, NAlert, NModal, NTag, NInput, NCheckbox, NSelect, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import ExecuteConfigModal from '../components/ExecuteConfigModal.vue'
 import ConfigVersionPanel from '../components/config/ConfigVersionPanel.vue'
+import ConfigListCard from '../components/config/ConfigListCard.vue'
 import AiStatusBanner from '../components/AiStatusBanner.vue'
 import PipelineAnimation from '../components/PipelineAnimation.vue'
+import ErrorBoundary from '../components/common/ErrorBoundary.vue'
 
 const router = useRouter()
 const store = useWizardStore()
@@ -393,15 +381,6 @@ async function onConfirmDelete() {
   deleting.value = false
 }
 
-function getMenuOptions(cfg: SavedConfig) {
-  return [
-    { label: '编辑', key: 'edit' },
-    { label: '版本历史', key: 'versions' },
-    { label: '下载 YAML', key: 'download' },
-    { label: '删除', key: 'delete' },
-  ]
-}
-
 function onMenuSelect(key: string, cfg: SavedConfig) {
   if (key === 'edit') onLoadConfig(cfg.id)
   else if (key === 'versions') openVersionModal(cfg.id)
@@ -434,18 +413,6 @@ function onVersionRefreshed() {
   loadConfigList()
 }
 
-function formatTime(iso: string): string {
-  if (!iso) return ''
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return '刚刚'
-  if (mins < 60) return `${mins} 分钟前`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours} 小时前`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days} 天前`
-  return iso.slice(0, 10)
-}
 </script>
 
 <style scoped>
@@ -692,20 +659,6 @@ function formatTime(iso: string): string {
   flex: 1;
 }
 
-.home__config-card--selected {
-  border-color: var(--color-primary) !important;
-  background: var(--color-primary-bg) !important;
-}
-
-.home__config-card-check {
-  flex-shrink: 0;
-}
-
-.config-name-link--disabled {
-  pointer-events: none;
-  color: var(--color-text);
-}
-
 .home__config-list {
   display: flex;
   flex-direction: column;
@@ -753,75 +706,6 @@ function formatTime(iso: string): string {
   text-align: center;
 }
 
-/* ───── config card ───── */
-.home__config-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.home__config-card:hover {
-  border-color: var(--color-primary-border);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-}
-
-.home__config-card-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-  flex: 1;
-}
-
-.home__config-card-icon {
-  font-size: 24px;
-  flex-shrink: 0;
-}
-
-.home__config-card-info {
-  min-width: 0;
-}
-
-.home__config-card-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 2px;
-  flex-wrap: wrap;
-}
-
-.home__meta-item {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
-.home__meta-sep {
-  font-size: var(--font-size-xs);
-  color: var(--color-border);
-}
-
-.home__config-card-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.home__menu-btn {
-  font-size: 18px !important;
-  color: var(--color-text-muted) !important;
-  padding: 0 4px !important;
-}
-
-.home__menu-btn:hover {
-  color: var(--color-text) !important;
-}
-
 /* ───── button overrides ───── */
 :deep(.btn-secondary) {
   border: 1px solid var(--color-border-light) !important;
@@ -832,18 +716,6 @@ function formatTime(iso: string): string {
 
 :deep(.btn-secondary:hover) {
   background: var(--color-surface-hover) !important;
-}
-
-/* ───── misc ───── */
-.config-name-link {
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-.config-name-link:hover {
-  text-decoration: underline;
 }
 
 /* ───── Responsive: Tablet ───── */
@@ -899,22 +771,6 @@ function formatTime(iso: string): string {
     padding: 32px 16px 64px;
     max-width: 100%;
   }
-  .home__config-card {
-    padding: 12px 14px;
-    border-radius: var(--radius-md);
-  }
-  .home__config-card-icon {
-    font-size: 20px;
-  }
-  .home__config-card-meta {
-    gap: 4px;
-  }
-  .home__meta-item {
-    font-size: 10px;
-  }
-  .config-name-link {
-    font-size: 14px;
-  }
   .home__toolbar-inner {
     flex-wrap: wrap;
     gap: 8px;
@@ -925,10 +781,6 @@ function formatTime(iso: string): string {
   }
   .home__search-input {
     max-width: 140px;
-  }
-  .home__config-card-right {
-    flex-wrap: wrap;
-    gap: 4px;
   }
   .home__batch-bar {
     flex-wrap: wrap;

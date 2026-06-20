@@ -9,6 +9,16 @@ vi.mock('../../src/composables/useTheme', () => ({
   useTheme: () => ({ isDark: { value: false }, toggleTheme: mockToggleTheme }),
 }))
 
+// Mock useAuthStore
+vi.mock('../../src/stores/auth', () => ({
+  useAuthStore: () => ({
+    isAuthenticated: false,
+    user: null,
+    token: '',
+    logout: vi.fn(),
+  }),
+}))
+
 async function makeWrapper(props = {}) {
   const router = createRouter({
     history: createMemoryHistory(),

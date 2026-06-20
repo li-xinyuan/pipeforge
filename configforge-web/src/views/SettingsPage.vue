@@ -186,6 +186,13 @@ const defaultModel = computed(() => {
   return 'gpt-4o'
 })
 
+interface AiTestResponse {
+  provider?: string
+  model?: string
+  latency_ms?: number
+  detail?: string
+}
+
 async function testConnection() {
   testing.value = true
   testResult.value = null
@@ -193,11 +200,13 @@ async function testConnection() {
     await saveSettings()
     const { ok, data } = await testAiConnection()
     if (ok && data) {
-      const msg = `连接成功！${(data as any).provider}/${(data as any).model}，延迟 ${(data as any).latency_ms}ms`
+      const resp = data as AiTestResponse
+      const msg = `连接成功！${resp.provider}/${resp.model}，延迟 ${resp.latency_ms}ms`
       testResult.value = { ok: true, msg }
       message.success(msg)
     } else {
-      const msg = (data as any)?.detail || '连接失败'
+      const resp = data as AiTestResponse | null
+      const msg = resp?.detail || '连接失败'
       testResult.value = { ok: false, msg }
       message.error(msg)
     }
@@ -214,9 +223,9 @@ async function saveSettings() {
   saving.value = true
   saveMsg.value = ''
   try {
-    const body: Record<string, any> = { ...form }
+    const body: Record<string, unknown> = { ...form }
     if (!body.api_key) body.api_key = null
-    const ok = await updateAiSettings(body as any)
+    const ok = await updateAiSettings(body)
     if (ok) {
       saveMsg.value = '设置已保存'
       const data = await getAiSettings()

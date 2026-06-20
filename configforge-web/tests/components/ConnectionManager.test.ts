@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import ConnectionManager from '../../src/components/common/ConnectionManager.vue'
 
@@ -7,6 +8,8 @@ const mockCreateConnection = vi.fn()
 const mockTestConnection = vi.fn()
 const mockDeleteConnection = vi.fn()
 const mockMessage = { success: vi.fn(), error: vi.fn(), warning: vi.fn() }
+
+const mockConnections = ref<any[]>([])
 
 vi.mock('../../src/composables/useWizardApi', () => ({
   useConnectionApi: () => ({
@@ -19,6 +22,19 @@ vi.mock('../../src/composables/useWizardApi', () => ({
     fetchColumns: vi.fn(),
     connecting: { value: false },
     connectionError: { value: null },
+  }),
+}))
+
+vi.mock('../../src/composables/useConnections', () => ({
+  useConnections: () => ({
+    connections: mockConnections,
+    connectionOptions: { value: [] },
+    loading: { value: false },
+    loadConnections: async () => {
+      const data = await mockFetchConnections()
+      mockConnections.value = data
+    },
+    loadConnectionOptions: vi.fn(),
   }),
 }))
 
@@ -57,6 +73,7 @@ const NInputNumberStub = {
 describe('ConnectionManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockConnections.value = []
     mockFetchConnections.mockResolvedValue([])
   })
 

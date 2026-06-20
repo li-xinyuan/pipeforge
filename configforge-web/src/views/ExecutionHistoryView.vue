@@ -170,37 +170,16 @@ import { ref, computed, onMounted } from 'vue'
 import { NButton, NTag, NModal, NPagination, NTabs, NTab, useDialog, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import DiagnosisPanel from '../components/common/DiagnosisPanel.vue'
+import { useApi, type ExecutionItem } from '../composables/useApi'
 
 const dialog = useDialog()
 const message = useMessage()
+const { getExecutions, deleteExecution } = useApi()
 
-interface ExecutionSummary {
-  id: string
-  config_id: string
-  config_version: number | null
-  scene_name: string
-  status: 'success' | 'failed'
-  started_at: string
-  finished_at: string
-  duration_ms: number
-  inputs_summary: Array<{ name: string; plugin: string }>
-  processors_summary: Array<{ plugin: string; name: string }>
-  output_type: string
-  checks_summary: Array<{ type: string; passed: boolean; message: string }>
-  error_message: string | null
-  output_file_name: string | null
-  diagnosis?: {
-    cause: string
-    suggestions: string[]
-    severity: 'error' | 'warning'
-    step?: number
-  } | null
-}
-
-const executions = ref<ExecutionSummary[]>([])
+const executions = ref<ExecutionItem[]>([])
 const loading = ref(false)
 const detailVisible = ref(false)
-const detailRecord = ref<ExecutionSummary | null>(null)
+const detailRecord = ref<ExecutionItem | null>(null)
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -255,9 +234,8 @@ const recentFailures = computed(() =>
 async function refresh() {
   loading.value = true
   try {
-    const resp = await fetch(`/api/executions?page=${currentPage.value}&page_size=${pageSize.value}`)
-    if (resp.ok) {
-      const data = await resp.json()
+    const data = await getExecutions(currentPage.value, pageSize.value)
+    if (data) {
       executions.value = Array.isArray(data) ? data : (data.items || [])
       total.value = data.total || executions.value.length
     }
@@ -266,7 +244,7 @@ async function refresh() {
   }
 }
 
-function showDetail(exec: ExecutionSummary) {
+function showDetail(exec: ExecutionItem) {
   detailRecord.value = exec
   detailVisible.value = true
 }
@@ -275,15 +253,15 @@ function downloadOutput(execId: string) {
   window.open(`/api/executions/${execId}/download`, '_blank')
 }
 
-function confirmDelete(exec: ExecutionSummary) {
+function confirmDelete(exec: ExecutionItem) {
   dialog.warning({
     title: '确认删除',
     content: `确定要删除此执行记录吗？输出文件也将被删除。`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      const resp = await fetch(`/api/executions/${exec.id}`, { method: 'DELETE' })
-      if (resp.ok) {
+      const result = await deleteExecution(exec.id)
+      if (result) {
         message.success('已删除')
         await refresh()
       } else {

@@ -109,22 +109,12 @@
 import { ref, onMounted } from 'vue'
 import { NButton, NTag, NModal, NSelect, NInput, useDialog, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
+import { formatDateTime as formatTime } from '../utils/format'
+import { useApi, type ScheduleItem } from '../composables/useApi'
 
 const dialog = useDialog()
 const message = useMessage()
-
-interface ScheduleItem {
-  id: string
-  config_id: string
-  config_name: string
-  cron_expression: string
-  enabled: boolean
-  description: string
-  created_at: string
-  last_run_at: string | null
-  last_run_status: string | null
-  next_run_time: string | null
-}
+const { getSchedules, getConfigs, createSchedule, updateSchedule, toggleSchedule, deleteSchedule } = useApi()
 
 interface ConfigOption {
   label: string
@@ -147,14 +137,13 @@ const editForm = ref({ cron_expression: '', description: '' })
 async function refresh() {
   loading.value = true
   try {
-    const [schedResp, configResp] = await Promise.all([
-      fetch('/api/schedules'),
-      fetch('/api/configs?page_size=100'),
+    const [schedData, configData] = await Promise.all([
+      getSchedules(),
+      getConfigs('page_size=100'),
     ])
-    if (schedResp.ok) schedules.value = await schedResp.json()
-    if (configResp.ok) {
-      const data = await configResp.json()
-      configOptions.value = (data.items || []).map((c: Record<string, unknown>) => ({
+    if (schedData) schedules.value = schedData
+    if (configData) {
+      configOptions.value = (configData.items || []).map((c: Record<string, unknown>) => ({
         label: (c.scene_name || '未命名') as string,
         value: c.id as string,
         hasFileInput: ((c.inputs || []) as Record<string, unknown>[]).some((inp) => inp.plugin !== 'database'),
@@ -198,19 +187,14 @@ async function onAddSchedule() {
 async function doAddSchedule() {
   submitting.value = true
   try {
-    const resp = await fetch('/api/schedules', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(addForm.value),
-    })
-    if (resp.ok) {
+    const result = await createSchedule(addForm.value)
+    if (result) {
       message.success('定时任务已创建')
       showAddModal.value = false
       addForm.value = { config_id: '', cron_expression: '', description: '' }
       await refresh()
     } else {
-      const err = await resp.json()
-      message.error(err.detail || '创建失败')
+      message.error('创建失败')
     }
   } finally {
     submitting.value = false
@@ -221,18 +205,13 @@ async function onUpdateSchedule() {
   if (!editingSchedule.value) return
   submitting.value = true
   try {
-    const resp = await fetch(`/api/schedules/${editingSchedule.value.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm.value),
-    })
-    if (resp.ok) {
+    const result = await updateSchedule(editingSchedule.value.id, editForm.value)
+    if (result) {
       message.success('已更新')
       showEditModal.value = false
       await refresh()
     } else {
-      const err = await resp.json()
-      message.error(err.detail || '更新失败')
+      message.error('更新失败')
     }
   } finally {
     submitting.value = false
@@ -240,8 +219,8 @@ async function onUpdateSchedule() {
 }
 
 async function onToggle(s: ScheduleItem) {
-  const resp = await fetch(`/api/schedules/${s.id}/toggle`, { method: 'POST' })
-  if (resp.ok) {
+  const result = await toggleSchedule(s.id)
+  if (result) {
     message.success(s.enabled ? '已禁用' : '已启用')
     await refresh()
   } else {
@@ -256,8 +235,8 @@ function confirmDelete(s: ScheduleItem) {
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      const resp = await fetch(`/api/schedules/${s.id}`, { method: 'DELETE' })
-      if (resp.ok) {
+      const result = await deleteSchedule(s.id)
+      if (result) {
         message.success('已删除')
         await refresh()
       } else {
@@ -265,21 +244,6 @@ function confirmDelete(s: ScheduleItem) {
       }
     },
   })
-}
-
-function formatTime(iso: string): string {
-  if (!iso) return ''
-  try {
-    const d = new Date(iso)
-    return d.toLocaleString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return iso
-  }
 }
 
 onMounted(refresh)

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import type { InputSource } from '../../src/types/wizard'
 import DatabaseForm from '../../src/components/step2/DatabaseForm.vue'
@@ -7,6 +8,8 @@ const mockFetchConnections = vi.fn()
 const mockTestConnection = vi.fn()
 const mockFetchTables = vi.fn()
 const mockFetchColumns = vi.fn()
+
+const mockConnections = ref<any[]>([])
 
 vi.mock('../../src/composables/useWizardApi', () => ({
   useConnectionApi: () => ({
@@ -19,6 +22,19 @@ vi.mock('../../src/composables/useWizardApi', () => ({
     updateConnection: vi.fn(),
     deleteConnection: vi.fn(),
     fetchColumns: mockFetchColumns,
+  }),
+}))
+
+vi.mock('../../src/composables/useConnections', () => ({
+  useConnections: () => ({
+    connections: mockConnections,
+    connectionOptions: { value: [] },
+    loading: { value: false },
+    loadConnections: async () => {
+      const data = await mockFetchConnections()
+      mockConnections.value = data
+    },
+    loadConnectionOptions: vi.fn(),
   }),
 }))
 
@@ -78,6 +94,7 @@ const NSpinStub = {
 describe('DatabaseForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockConnections.value = []
     mockFetchConnections.mockResolvedValue([])
     mockFetchTables.mockResolvedValue([])
     mockFetchColumns.mockResolvedValue([])
