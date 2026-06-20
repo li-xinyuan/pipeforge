@@ -136,7 +136,7 @@ onUnmounted(() => { anim?.pause() })
 .anim-frame__dots i:nth-child(2) { background: #fbbf24; }
 .anim-frame__dots i:last-child { background: #34d399; }
 .anim-frame__title { font-size: 10px; color: var(--color-text-muted); }
-.anim-frame__viewport { overflow: hidden; height: 140px; }
+.anim-frame__viewport { overflow: hidden; height: 155px; }
 .anim-frame__scroll { display: flex; flex-direction: column; gap: 24px; padding: 8px 12px 160px; }
 .anim-frame__hint {
   text-align: center; font-size: 10px; color: var(--color-text-muted);
