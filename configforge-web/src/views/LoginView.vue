@@ -148,7 +148,7 @@ async function onLogin() {
 .login__brand-body {
   position: relative; z-index: 2;
   display: flex; flex-direction: column; justify-content: space-between;
-  height: 100%; padding: 64px 64px 64px 80px; max-width: 480px;
+  height: 100%; padding: 64px 64px 64px 120px; max-width: 440px;
 }
 
 /* Logo */
