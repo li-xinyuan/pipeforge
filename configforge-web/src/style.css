@@ -288,18 +288,18 @@ button:active:not([disabled]) {
 }
 
 .btn-secondary {
-  background: rgba(255,255,255,0.6) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.55) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
   border: 1px solid var(--color-border) !important;
   color: var(--color-text) !important;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm) !important;
   transition: all var(--transition-normal);
 }
 .btn-secondary:hover {
   background: rgba(255,255,255,0.85) !important;
   border-color: var(--color-primary-border) !important;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-md) !important;
 }
 [data-theme="dark"] .btn-secondary {
   background: rgba(41,37,36,0.5) !important;
