@@ -17,6 +17,13 @@
         <PipelineAnimation />
       </div>
 
+      <!-- Capabilities -->
+      <div class="login__caps">
+        <div class="login__cap"><span>📥</span> 7 种输入：Excel · CSV · 数据库 · JSON · XML · Parquet · API</div>
+        <div class="login__cap"><span>⚡</span> 2 种处理：SQL 查询 · Python 脚本</div>
+        <div class="login__cap"><span>📤</span> 3 种输出：Excel · CSV · 数据库</div>
+      </div>
+
       <!-- Form -->
       <form class="login__form" @submit.prevent="onLogin">
         <div class="login__field">
@@ -106,11 +113,11 @@ async function onLogin() {
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: 20px;
-  padding: 36px 40px;
+  padding: 28px 36px 24px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
 }
-.login__brand { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.login__logo { font-size: 28px; }
+.login__brand { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.login__logo { font-size: 24px; }
 .login__logo-text {
   font-family: var(--font-display);
   font-size: 20px; font-weight: 800;
@@ -119,7 +126,20 @@ async function onLogin() {
   background-clip: text;
 }
 
-.login__demo { max-width: 480px; margin: 0 auto 20px; }
+.login__demo { max-width: 480px; margin: 0 auto 12px; }
+
+.login__caps {
+  display: flex; gap: 8px; justify-content: center;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.login__cap {
+  font-size: 10px; color: var(--color-text-secondary);
+  background: rgba(255,255,255,0.4); backdrop-filter: blur(4px);
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px; padding: 6px 10px;
+  white-space: nowrap;
+}
+.login__cap span { margin-right: 2px; }
 
 .login__form { display: flex; flex-direction: column; gap: 14px; }
 .login__field { display: flex; flex-direction: column; gap: 4px; }
