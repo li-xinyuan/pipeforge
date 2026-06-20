@@ -1,8 +1,12 @@
 import { ref } from 'vue'
+import { useAuthStore } from '../stores/auth'
+import router from '../router'
 
 export interface ApiError {
   message: string
   code: string
+  detail?: unknown
+  data?: unknown
 }
 
 export function useApi() {
@@ -19,6 +23,24 @@ export function useApi() {
     return (data.code || fallback) as string
   }
 
+  /** Build request headers with optional Authorization */
+  function buildHeaders(isFormData: boolean): Record<string, string> {
+    const headers: Record<string, string> = {}
+    if (!isFormData) headers['Content-Type'] = 'application/json'
+    const auth = useAuthStore()
+    if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`
+    return headers
+  }
+
+  /** Handle 401 responses — clear auth and redirect to login */
+  function handleUnauthorized() {
+    const auth = useAuthStore()
+    if (auth.isAuthenticated) {
+      auth.clearAuth()
+      router.push('/login')
+    }
+  }
+
   async function request<T>(
     method: string,
     url: string,
@@ -28,13 +50,22 @@ export function useApi() {
     loading.value = true
     error.value = null
     try {
+      const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
       const opts: RequestInit = {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildHeaders(isFormData),
         signal: options?.signal,
       }
-      if (body !== undefined) opts.body = JSON.stringify(body)
+      if (body !== undefined) opts.body = isFormData ? body : JSON.stringify(body)
       const resp = await fetch(url, opts)
+
+      // Handle 401 — redirect to login
+      if (resp.status === 401) {
+        handleUnauthorized()
+        error.value = { message: '登录已过期，请重新登录', code: 'AUTH_FAILED' }
+        return null
+      }
+
       const contentType = resp.headers.get('content-type') || ''
 
       // Explicitly binary content-type — return as blob
@@ -80,5 +111,161 @@ export function useApi() {
     }
   }
 
-  return { loading, error, request }
+  // ── Schedules API ──
+  async function getSchedules() {
+    return request<ScheduleItem[]>('GET', '/api/schedules')
+  }
+
+  async function getConfigs(params?: string) {
+    const url = params ? `/api/configs?${params}` : '/api/configs'
+    return request<{ items: ConfigItem[] }>('GET', url)
+  }
+
+  async function createSchedule(body: { config_id: string; cron_expression: string; description: string }) {
+    return request<ScheduleItem>('POST', '/api/schedules', body)
+  }
+
+  async function updateSchedule(id: string, body: { cron_expression: string; description: string }) {
+    return request<ScheduleItem>('PUT', `/api/schedules/${id}`, body)
+  }
+
+  async function toggleSchedule(id: string) {
+    return request<unknown>('POST', `/api/schedules/${id}/toggle`)
+  }
+
+  async function deleteSchedule(id: string) {
+    return request<unknown>('DELETE', `/api/schedules/${id}`)
+  }
+
+  // ── Executions API ──
+  async function getExecutions(page: number, pageSize: number) {
+    return request<{ items: ExecutionItem[]; total: number }>('GET', `/api/executions?page=${page}&page_size=${pageSize}`)
+  }
+
+  async function deleteExecution(id: string) {
+    return request<unknown>('DELETE', `/api/executions/${id}`)
+  }
+
+  // ── Config Versions API ──
+  async function getConfigVersions(configId: string) {
+    return request<VersionMeta[]>('GET', `/api/configs/${configId}/versions`)
+  }
+
+  async function getConfigVersionDetail(configId: string, version: number) {
+    return request<Record<string, unknown>>('GET', `/api/configs/${configId}/versions/${version}`)
+  }
+
+  async function getConfigDiff(configId: string, v1: number, v2: number) {
+    return request<DiffResult>('GET', `/api/configs/${configId}/diff?v1=${v1}&v2=${v2}`)
+  }
+
+  async function rollbackConfig(configId: string, version: number) {
+    return request<unknown>('POST', `/api/configs/${configId}/versions/${version}/rollback`)
+  }
+
+  // ── AI Settings API ──
+  async function getAiSettings() {
+    return request<AiSettings>('GET', '/api/ai/settings')
+  }
+
+  // ── File Upload API ──
+  async function uploadFile(formData: FormData) {
+    return request<{ file_id: string; original_name: string }>('POST', '/api/files/upload', formData)
+  }
+
+  // ── Wizard API Preview ──
+  async function apiPreview(body: Record<string, unknown>) {
+    return request<{ columns: string[]; rows: string[][] }>('POST', '/api/wizard/infer-api-input/api_preview', body)
+  }
+
+  async function apiTest(body: Record<string, unknown>) {
+    return request<unknown>('POST', '/api/wizard/infer-api-input/api_test', body)
+  }
+
+  return {
+    loading,
+    error,
+    request,
+    getSchedules,
+    getConfigs,
+    createSchedule,
+    updateSchedule,
+    toggleSchedule,
+    deleteSchedule,
+    getExecutions,
+    deleteExecution,
+    getConfigVersions,
+    getConfigVersionDetail,
+    getConfigDiff,
+    rollbackConfig,
+    getAiSettings,
+    uploadFile,
+    apiPreview,
+    apiTest,
+  }
+}
+
+// ── Shared type definitions ──
+export interface ScheduleItem {
+  id: string
+  config_id: string
+  config_name: string
+  cron_expression: string
+  enabled: boolean
+  description: string
+  created_at: string
+  last_run_at: string | null
+  last_run_status: string | null
+  next_run_time: string | null
+}
+
+export interface ConfigItem {
+  id: string
+  scene_name: string
+  inputs?: Record<string, unknown>[]
+  [key: string]: unknown
+}
+
+export interface ExecutionItem {
+  id: string
+  config_id: string
+  config_version: number | null
+  scene_name: string
+  status: 'success' | 'failed'
+  started_at: string
+  finished_at: string
+  duration_ms: number
+  inputs_summary: Array<{ name: string; plugin: string }>
+  processors_summary: Array<{ plugin: string; name: string }>
+  output_type: string
+  checks_summary: Array<{ type: string; passed: boolean; message: string }>
+  error_message: string | null
+  output_file_name: string | null
+  diagnosis?: {
+    cause: string
+    suggestions: string[]
+    severity: 'error' | 'warning'
+    step?: number
+  } | null
+}
+
+export interface VersionMeta {
+  version: number
+  scene_version: string
+  change_summary: string
+  created_at: string
+  input_count: number
+  processor_count: number
+  output_type: string
+}
+
+export interface DiffResult {
+  changes?: Array<{ type: 'added' | 'removed' | 'modified'; path: string }>
+}
+
+export interface AiSettings {
+  enabled: boolean
+  api_key?: string
+  provider?: string
+  model?: string
 }
