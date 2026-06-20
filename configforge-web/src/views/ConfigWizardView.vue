@@ -577,14 +577,15 @@ onUnmounted(() => {
   display: flex;
   flex: 1;
   overflow: hidden;
+  gap: 0;
+  padding-right: 12px;
 }
 
 /* === Scrollable Steps === */
 .wizard__steps {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 20px 0;
-  background: linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg-secondary) 100%);
+  padding: 24px 0 0 0;
 }
 
 /* === Step 1 Form === */

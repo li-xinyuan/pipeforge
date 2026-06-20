@@ -54,25 +54,28 @@ defineProps<{
 .wizard-step-card {
   position: relative;
   z-index: 0;
-  background: var(--color-surface);
-  border-radius: var(--radius-xl);
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
   padding: var(--space-card-padding);
   margin-bottom: var(--space-section-gap);
-  border: 2px solid transparent;
-  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-sm);
   scroll-margin-top: 72px;
-  transition: opacity var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  transition: all var(--transition-normal);
 }
+.wizard-step-card:hover { box-shadow: var(--shadow-md); border-color: var(--color-border); }
 .wizard-step-card--active {
-  border: 2px solid var(--color-primary-lighter);
+  border-color: var(--color-primary-border);
   box-shadow: var(--shadow-active);
 }
 .wizard-step-card--completed {
-  border: 2px solid var(--color-success-border);
   opacity: 0.85;
 }
 .wizard-step-card--locked {
-  opacity: 0.35;
+  opacity: 0.4;
+  filter: grayscale(0.3);
 }
 .wizard-step-card--locked .wizard-step-card__body,
 .wizard-step-card--locked .wizard-step-card__footer {
