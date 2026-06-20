@@ -35,11 +35,11 @@
                 <div class="a-types">
                   <span class="a-type a-type--active">📊 Excel</span>
                   <span class="a-type">🗄 CSV</span>
-                  <span class="a-type">🔌 DB</span>
+                  <span class="a-type">🔌 数据库</span>
                   <span class="a-type">📋 JSON</span>
                   <span class="a-type">📄 XML</span>
                   <span class="a-type">📦 Parquet</span>
-                  <span class="a-type">🌐 API</span>
+                  <span class="a-type">🌐 REST API</span>
                 </div>
               </div>
             </div>
@@ -66,7 +66,11 @@
                   <span class="a-code__kw">FROM</span> <span class="a-code__str">"sales"</span>
                   <span class="a-code__kw">GROUP BY</span> city
                 </div>
-                <span class="a-btn a-btn--ai">✨ AI 生成 SQL</span>
+                <div class="a-types" style="margin-top:2px">
+                  <span class="a-type a-type--active">🧪 SQL</span>
+                  <span class="a-type">🐍 Python</span>
+                </div>
+                <span class="a-btn a-btn--ai">✨ AI 生成代码</span>
               </div>
             </div>
           </div>
@@ -88,7 +92,7 @@
                 <div class="a-types">
                   <span class="a-type a-type--active">📊 Excel</span>
                   <span class="a-type">🗄 CSV</span>
-                  <span class="a-type">🔌 DB</span>
+                  <span class="a-type">🔌 数据库</span>
                 </div>
                 <div class="a-mapping">
                   <span>city → 城市</span>
@@ -118,9 +122,6 @@
                   <span class="a-btn a-btn--accent">▶ 执行流水线</span>
                 </div>
               </div>
-            </div>
-            <div class="anim-confetti">
-              <span v-for="i in 8" :key="i" :style="{ animationDelay: (i * 0.15) + 's' }">🎉</span>
             </div>
           </div>
           <div class="anim-group__right">
@@ -272,15 +273,6 @@ onUnmounted(() => { anim?.pause() })
 .a-panel__dots { display: flex; gap: 4px; margin-top: 8px; }
 .a-panel__dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--color-border); }
 .a-panel__dots i.on { background: #7c3aed; }
-
-/* Confetti */
-.anim-confetti {
-  display: flex; gap: 3px; justify-content: center; margin-top: 6px;
-}
-.anim-confetti span {
-  font-size: 14px; animation: bounce 2s ease-in-out infinite;
-}
-@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
 
 @media (max-width: 480px) {
   .anim-group__right { width: 100px; }
