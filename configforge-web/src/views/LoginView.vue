@@ -1,10 +1,13 @@
 <template>
   <div class="login">
-    <!-- Atmosphere -->
     <div class="login__bg">
       <div class="login__orb login__orb--1"></div>
       <div class="login__orb login__orb--2"></div>
     </div>
+
+    <button class="login__theme" @click="toggleTheme" :title="isDark ? '切换亮色' : '切换暗色'">
+      {{ isDark ? '☀' : '☾' }}
+    </button>
 
     <div class="login__card">
       <div class="login__brand">
@@ -57,17 +60,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useTheme } from '../composables/useTheme'
 import PipelineAnimation from '../components/PipelineAnimation.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const { isDark, toggleTheme } = useTheme()
 const showPassword = ref(false)
 const loginLoading = ref(false)
 const loginError = ref('')
 const loginForm = reactive({ username: '', password: '' })
+
+onMounted(() => {})
 
 async function onLogin() {
   loginError.value = ''
@@ -95,6 +102,18 @@ async function onLogin() {
   padding: 40px 24px;
 }
 .login__bg { position: absolute; inset: 0; pointer-events: none; }
+.login__theme {
+  position: fixed; top: 16px; right: 16px; z-index: 10;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.4); backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border-light);
+  font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition-fast);
+}
+.login__theme:hover { background: rgba(255,255,255,0.7); }
+[data-theme="dark"] .login__theme { background: rgba(41,37,36,0.5); }
+[data-theme="dark"] .login__theme:hover { background: rgba(41,37,36,0.7); }
 .login__orb {
   position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.25;
   animation: drift 20s ease-in-out infinite;
