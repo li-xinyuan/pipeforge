@@ -126,9 +126,9 @@ onMounted(async () => {
     const tl = createTimeline({ loop: true })
 
     steps.forEach((el) => {
-      const x = -(el.offsetLeft - 8)
+      const y = -(el.offsetTop - 8)
       tl.add(container, {
-        translateX: x,
+        translateY: y,
         duration: 500,
         easing: 'easeInOutQuad',
       })
@@ -136,7 +136,7 @@ onMounted(async () => {
     })
 
     tl.add(container, {
-      translateX: 0,
+      translateY: 0,
       duration: 400,
       easing: 'easeInOutQuad',
     })
@@ -172,8 +172,8 @@ onUnmounted(() => {
 .anim-frame__dots i:nth-child(2) { background: #fbbf24; }
 .anim-frame__dots i:last-child { background: #34d399; }
 .anim-frame__title { font-size: 10px; color: var(--color-text-muted); }
-.anim-frame__viewport { overflow: hidden; height: 130px; }
-.anim-frame__scroll { display: flex; flex-direction: row; gap: 8px; padding: 8px; }
+.anim-frame__viewport { overflow: hidden; height: 200px; }
+.anim-frame__scroll { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
 .anim-frame__hint {
   text-align: center; font-size: 10px; color: var(--color-text-muted);
   padding: 6px; background: var(--color-surface-hover);
@@ -186,7 +186,6 @@ onUnmounted(() => {
   border-radius: 10px;
   padding: 10px 14px;
   flex-shrink: 0;
-  min-width: 380px;
 }
 .anim-step__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .anim-step__icon { font-size: 15px; }
