@@ -135,11 +135,14 @@
 import { ref, computed } from 'vue'
 import { NInput, NSelect, NButton, NInputNumber } from 'naive-ui'
 import type { InputSource, ApiInputConfig } from '../../types/wizard'
+import { useApi } from '../../composables/useApi'
 
 const props = defineProps<{ input: InputSource; index: number }>()
 const emit = defineEmits<{ update: [input: InputSource] }>()
 
 const config = computed(() => props.input.config as ApiInputConfig)
+
+const { apiTest } = useApi()
 
 const testing = ref(false)
 const testResult = ref<{ ok: boolean; error?: string } | null>(null)
@@ -207,25 +210,20 @@ async function testApi() {
   testResult.value = null
   try {
     const cfg = config.value
-    const resp = await fetch('/api/wizard/infer-api-input/api_test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: cfg.url,
-        method: cfg.method,
-        headers: cfg.headers,
-        params: cfg.params,
-        data_path: cfg.dataPath,
-        pagination: cfg.pagination,
-        page_size: cfg.pageSize,
-        max_pages: cfg.maxPages,
-      }),
+    const result = await apiTest({
+      url: cfg.url,
+      method: cfg.method,
+      headers: cfg.headers,
+      params: cfg.params,
+      data_path: cfg.dataPath,
+      pagination: cfg.pagination,
+      page_size: cfg.pageSize,
+      max_pages: cfg.maxPages,
     })
-    if (!resp.ok) {
-      const err = await resp.json()
-      testResult.value = { ok: false, error: err.error || '请求失败' }
-    } else {
+    if (result) {
       testResult.value = { ok: true }
+    } else {
+      testResult.value = { ok: false, error: '请求失败' }
     }
   } catch (e) {
     testResult.value = { ok: false, error: e instanceof Error ? e.message : '网络错误' }

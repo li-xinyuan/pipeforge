@@ -63,92 +63,8 @@
         <AiTriggerButton label="重试" @click="triggerAiAnalysis" />
       </div>
 
-      <!-- Sheet name (Excel) -->
-      <div v-if="input.plugin === 'excel'">
-        <label class="cf-label">工作表</label>
-        <NSelect
-          v-if="sheetNames.length > 0"
-          :value="(input.config as ExcelInputConfig).sheet"
-          @update:value="$emit('update', { ...input, config: { ...input.config, sheet: $event } as ExcelInputConfig })"
-          :options="sheetOptions"
-          size="small"
-          :disabled="analyzing"
-        />
-        <NInput
-          v-else
-          :id="`input-sheet-${index}`"
-          :value="(input.config as ExcelInputConfig).sheet"
-          @update:value="$emit('update', { ...input, config: { ...input.config, sheet: $event } as ExcelInputConfig })"
-          placeholder="Sheet1"
-          size="small"
-          :disabled="analyzing"
-        />
-      </div>
-
-      <!-- CSV config fields -->
-      <template v-if="input.plugin === 'csv'">
-        <!-- Delimiter -->
-        <div>
-          <label class="cf-label">分隔符</label>
-          <NInput
-            :value="(input.config as CsvInputConfig).delimiter"
-            @update:value="$emit('update', { ...input, config: { ...input.config, delimiter: $event } as CsvInputConfig })"
-            placeholder=","
-            size="small"
-            :disabled="analyzing"
-          />
-        </div>
-        <!-- Encoding -->
-        <div>
-          <label class="cf-label">编码</label>
-          <NSelect
-            :value="(input.config as CsvInputConfig).encoding"
-            @update:value="$emit('update', { ...input, config: { ...input.config, encoding: $event } as CsvInputConfig })"
-            :options="encodingOptions"
-            size="small"
-            :disabled="analyzing"
-          />
-        </div>
-        <!-- Has header -->
-        <div class="flex items-center gap-2" style="padding-top: 22px;">
-          <NCheckbox
-            :checked="(input.config as CsvInputConfig).hasHeader"
-            @update:checked="$emit('update', { ...input, config: { ...input.config, hasHeader: $event } as CsvInputConfig })"
-            :disabled="analyzing"
-          />
-          <span class="cf-label" style="margin-bottom: 0;">包含表头</span>
-        </div>
-      </template>
-
-      <!-- JSON config fields -->
-      <template v-if="input.plugin === 'json'">
-        <div>
-          <label class="cf-label">扁平化分隔符</label>
-          <NInput
-            :value="(input.config as JsonInputConfig).flattenSeparator"
-            @update:value="$emit('update', { ...input, config: { ...input.config, flattenSeparator: $event } as JsonInputConfig })"
-            placeholder="."
-            size="small"
-            :disabled="analyzing"
-          />
-          <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">嵌套字段展开时使用的分隔符，默认 "."</p>
-        </div>
-      </template>
-
-      <!-- XML config fields -->
-      <template v-if="input.plugin === 'xml'">
-        <div>
-          <label class="cf-label">行元素路径</label>
-          <NInput
-            :value="(input.config as XmlInputConfig).rowElement"
-            @update:value="$emit('update', { ...input, config: { ...input.config, rowElement: $event } as XmlInputConfig })"
-            placeholder="items/item"
-            size="small"
-            :disabled="analyzing"
-          />
-          <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">XPath 风格路径，指定 XML 中代表每行数据的元素</p>
-        </div>
-      </template>
+      <!-- File input config (Excel/CSV/JSON/XML) -->
+      <FileInputForm :input="input" :index="index" :sheet-names="sheetNames" :analyzing="analyzing" @update="handleUpdate" />
 
       <!-- Database-specific fields -->
       <div v-if="input.plugin === 'database'" class="cf-form-group--full pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
@@ -260,17 +176,19 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import type { InputSource, CsvInputConfig, ExcelInputConfig, JsonInputConfig, XmlInputConfig, ApiInputConfig, ConfirmedAnalysis } from '../../types/wizard'
+import type { InputSource, ExcelInputConfig, ApiInputConfig, ConfirmedAnalysis } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
 import { useFileUpload } from '../../composables/useFileUpload'
-import { NInput, NButton, NTag, NUpload, NSelect, NCheckbox, NSpin, useDialog } from 'naive-ui'
+import { useApi } from '../../composables/useApi'
+import { NInput, NButton, NTag, NUpload, NSpin, useDialog } from 'naive-ui'
 import type { UploadCustomRequestOptions } from 'naive-ui'
 import ColumnPreview from './ColumnPreview.vue'
 import AiColumnConfirmModal from './AiColumnConfirmModal.vue'
 import AiTriggerButton from '../common/AiTriggerButton.vue'
 import DatabaseForm from './DatabaseForm.vue'
 import ApiForm from './ApiForm.vue'
+import FileInputForm from './FileInputForm.vue'
 
 const props = defineProps<{
   input: InputSource
@@ -300,6 +218,7 @@ const store = useWizardStore()
 const { fetchPreview, error } = useWizardApi()
 const { uploading, error: uploadError, upload } = useFileUpload()
 const { suggesting: analyzing, aiError, askSuggestion } = useAiApi()
+const { apiPreview } = useApi()
 const previewData = ref<{ columns: string[]; rows: string[][] } | null>(null)
 const apiPreviewData = ref<{ columns: string[]; rows: string[][] } | null>(null)
 const previewVisible = ref(false)
@@ -309,13 +228,6 @@ const modalVisible = ref(false)
 const modalParsed = ref<{ columnTypes: Record<string, string>; tableName: string; paramKeys: string[] } | null>(null)
 const modalRawText = ref<string | null>(null)
 const modalColumns = ref<string[]>([])
-
-const encodingOptions = [
-  { label: 'UTF-8', value: 'utf-8' },
-  { label: 'GBK', value: 'gbk' },
-]
-
-const sheetOptions = computed(() => sheetNames.value.map(s => ({ label: s, value: s })))
 
 const otherTableNames = computed(() =>
   store.inputs
@@ -612,26 +524,20 @@ async function loadApiPreview() {
   apiPreviewData.value = null
   try {
     const cfg = props.input.config as ApiInputConfig
-    const resp = await fetch('/api/wizard/infer-api-input/api_preview', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: cfg.url,
-        method: cfg.method,
-        headers: cfg.headers,
-        params: cfg.params,
-        data_path: cfg.dataPath,
-        pagination: cfg.pagination,
-        page_size: cfg.pageSize,
-        max_pages: cfg.maxPages,
-      }),
+    const result = await apiPreview({
+      url: cfg.url,
+      method: cfg.method,
+      headers: cfg.headers,
+      params: cfg.params,
+      data_path: cfg.dataPath,
+      pagination: cfg.pagination,
+      page_size: cfg.pageSize,
+      max_pages: cfg.maxPages,
     })
-    if (!resp.ok) {
-      const err = await resp.json()
-      error.value = { message: err.error || 'API 请求失败', code: 'API_ERROR' }
+    if (!result) {
+      error.value = { message: 'API 请求失败', code: 'API_ERROR' }
       return
     }
-    const result = await resp.json()
     if (result.columns && result.rows) {
       apiPreviewData.value = { columns: result.columns, rows: result.rows }
       previewVisible.value = true

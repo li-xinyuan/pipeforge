@@ -82,11 +82,20 @@ import { useFileUpload } from '../composables/useFileUpload'
 import { useWizardApi } from '../composables/useWizardApi'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useAiApi } from '../composables/useAiApi'
+import { useKeyboard } from '../composables/useKeyboard'
 import { NModal, NButton, NTag, NUpload } from 'naive-ui'
 import DiagnosisPanel from './common/DiagnosisPanel.vue'
 
 const props = defineProps<{ visible: boolean; config: SavedConfig | null }>()
 const emit = defineEmits<{ close: []; gotoStep: [step: number, fixes?: { step: number; field: string; old: string; new: string; reason: string }[]] }>()
+
+useKeyboard({
+  'Escape': () => {
+    if (props.visible) {
+      emit('close')
+    }
+  },
+})
 
 const { upload: uploadFile } = useFileUpload()
 const { fetchPreview } = useWizardApi()

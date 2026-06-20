@@ -95,6 +95,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { NSelect, NButton, NRadioGroup, NRadio, NInput, NTag, NSpin } from 'naive-ui'
 import { useConnectionApi } from '../../composables/useWizardApi'
+import { useConnections } from '../../composables/useConnections'
 import ConnectionManager from '../common/ConnectionManager.vue'
 import type { InputSource, DatabaseInputConfig, DbConnectionSummary } from '../../types/wizard'
 
@@ -102,6 +103,7 @@ const props = defineProps<{ input: InputSource; index: number }>()
 const emit = defineEmits<{ update: [input: InputSource] }>()
 
 const api = useConnectionApi()
+const { connections, loadConnections } = useConnections()
 
 function getDbConfig(): DatabaseInputConfig | null {
   const cfg = props.input.config
@@ -118,7 +120,6 @@ const loadingColumns = ref(false)
 const loadTablesError = ref<string | null>(null)
 const loadColumnsError = ref<string | null>(null)
 const testResult = ref<{ ok: boolean; error?: string } | null>(null)
-const connections = ref<DbConnectionSummary[]>([])
 const tableList = ref<string[]>([])
 const columnList = ref<{ name: string; type: string }[]>([])
 const showConnManager = ref(false)
@@ -126,7 +127,7 @@ const showConnManager = ref(false)
 async function closeConnManager() {
   showConnManager.value = false
   // Refresh connection list after closing
-  connections.value = await api.fetchConnections()
+  await loadConnections()
 }
 
 const connectionOptions = computed(() =>
@@ -149,7 +150,7 @@ function emitUpdate() {
 }
 
 onMounted(async () => {
-  connections.value = await api.fetchConnections()
+  await loadConnections()
   // If a connection was already selected (e.g. editing), auto-load tables
   if (selectedConnectionId.value) {
     await autoLoadTables()

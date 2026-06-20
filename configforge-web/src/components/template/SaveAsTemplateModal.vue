@@ -61,8 +61,17 @@ import { NModal, NButton, NInput, NSelect, useMessage } from 'naive-ui'
 import { useTemplateApi } from '../../composables/useTemplateApi'
 import { useWizardStore } from '../../stores/wizard'
 import { stateToSnakeCase } from '../../utils/serialization'
+import { useKeyboard } from '../../composables/useKeyboard'
 
 const visible = defineModel<boolean>('show', { required: true })
+
+useKeyboard({
+  'Escape': () => {
+    if (visible.value) {
+      visible.value = false
+    }
+  },
+})
 
 const emit = defineEmits<{ saved: [] }>()
 

@@ -88,6 +88,7 @@ import type { Template } from '../../types/wizard'
 import { useTemplateApi } from '../../composables/useTemplateApi'
 import { useWizardStore } from '../../stores/wizard'
 import { snakeToCamel } from '../../utils/transform'
+import { useKeyboard } from '../../composables/useKeyboard'
 
 const props = defineProps<{
   template: Template | null
@@ -96,6 +97,15 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const visible = defineModel<boolean>('show', { required: true })
+
+useKeyboard({
+  'Escape': () => {
+    if (visible.value) {
+      close()
+    }
+  },
+})
+
 const router = useRouter()
 const store = useWizardStore()
 const message = useMessage()

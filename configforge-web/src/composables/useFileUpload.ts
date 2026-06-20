@@ -1,9 +1,11 @@
 import { ref } from 'vue'
 import type { UploadedFileMeta } from '../types/wizard'
+import { useApi } from './useApi'
 
 export function useFileUpload() {
   const uploading = ref(false)
   const error = ref<string | null>(null)
+  const api = useApi()
 
   async function upload(file: File): Promise<UploadedFileMeta | null> {
     uploading.value = true
@@ -11,15 +13,13 @@ export function useFileUpload() {
     try {
       const form = new FormData()
       form.append('file', file)
-      const resp = await fetch('/api/files/upload', { method: 'POST', body: form })
-      if (!resp.ok) {
-        const data = await resp.json()
-        error.value = data.error || 'Upload failed'
+      const data = await api.uploadFile(form)
+      if (!data) {
+        error.value = api.error.value?.code === 'NETWORK_ERROR' ? 'Network error' : (api.error.value?.message || 'Upload failed')
         return null
       }
-      const data = await resp.json()
       return { fileId: data.file_id, originalName: data.original_name }
-    } catch (e) {
+    } catch {
       error.value = 'Network error'
       return null
     } finally {

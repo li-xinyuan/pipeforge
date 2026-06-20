@@ -43,7 +43,8 @@
         <div v-if="needsTable(rule)" class="flex items-center gap-2">
           <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查表</label>
           <NSelect
-            v-model:value="(rule as any).table"
+            :value="getRuleTable(rule)"
+            @update:value="(v: string) => setRuleTable(rule, v)"
             :options="tableOptions"
             size="small"
             class="flex-1"
@@ -68,7 +69,7 @@
             <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查列</label>
             <NSelect
               v-model:value="(rule as NullRateRule).column"
-              :options="columnOptions((rule as any).table)"
+              :options="columnOptions(getRuleTable(rule))"
               size="small"
               class="flex-1"
               placeholder="选择列或手动输入"
@@ -93,7 +94,7 @@
             <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查列</label>
             <NSelect
               v-model:value="(rule as UniquenessRule).column"
-              :options="columnOptions((rule as any).table)"
+              :options="columnOptions(getRuleTable(rule))"
               size="small"
               class="flex-1"
               placeholder="选择列或手动输入"
@@ -109,7 +110,7 @@
             <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查列</label>
             <NSelect
               v-model:value="(rule as ValueRangeRule).column"
-              :options="columnOptions((rule as any).table)"
+              :options="columnOptions(getRuleTable(rule))"
               size="small"
               class="flex-1"
               placeholder="选择列或手动输入"
@@ -159,7 +160,7 @@
             <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查列</label>
             <NSelect
               v-model:value="(rule as EnumCheckRule).column"
-              :options="columnOptions((rule as any).table)"
+              :options="columnOptions(getRuleTable(rule))"
               size="small"
               class="flex-1"
               placeholder="选择列或手动输入"
@@ -267,6 +268,17 @@ function needsTable(rule: CheckRule): boolean {
   return rule.type !== 'custom_sql'
 }
 
+function getRuleTable(rule: CheckRule): string {
+  if (rule.type === 'custom_sql') return ''
+  return rule.table
+}
+
+function setRuleTable(rule: CheckRule, value: string): void {
+  if (rule.type !== 'custom_sql') {
+    rule.table = value
+  }
+}
+
 function addRule() {
   const newRule: RowCountRule = {
     type: 'row_count',
@@ -287,7 +299,7 @@ function removeRule(index: number) {
 
 function onRuleTypeChange(index: number, newType: string) {
   const oldRule = rules.value[index]
-  const base = { on_failure: oldRule.on_failure, table: (oldRule as any).table || '' }
+  const base = { on_failure: oldRule.on_failure, table: getRuleTable(oldRule) }
 
   let newRule: CheckRule
   switch (newType) {

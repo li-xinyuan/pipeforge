@@ -30,7 +30,7 @@ export interface OrchestrationResult {
   parse_error?: boolean
 }
 
-/** ChatMessage — single source of truth (used by AiChatPanel, ConfigWizardView, etc.) */
+/** ChatMessage — single source of truth (used by ConfigWizardView, etc.) */
 export interface ChatMessage {
   role: 'user' | 'ai'
   content: string
@@ -47,6 +47,7 @@ export interface SceneInfo {
 export interface ExcelInputConfig {
   type: 'excel'
   sheet: string
+  path?: string
 }
 
 export interface CsvInputConfig {

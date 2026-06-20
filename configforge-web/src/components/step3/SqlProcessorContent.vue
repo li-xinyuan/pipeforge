@@ -362,7 +362,7 @@ async function runDryRun() {
     return
   }
   dryRunRunning.value = true
-  const result = await runDryRunApi(store.$state)
+  const result = await runDryRunApi(store.getWizardState())
   if (result?.tables?.length) {
     // Only show this step's output table(s)
     const myOutputs = new Set(props.proc.outputTables.filter(Boolean))

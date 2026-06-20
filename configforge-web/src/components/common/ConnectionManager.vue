@@ -86,12 +86,12 @@
 import { onMounted, reactive, ref } from 'vue'
 import { NButton, NInput, NSelect, NInputNumber, useMessage } from 'naive-ui'
 import { useConnectionApi } from '../../composables/useWizardApi'
+import { useConnections } from '../../composables/useConnections'
 import type { DbConnectionSummary } from '../../types/wizard'
 
 const message = useMessage()
 const api = useConnectionApi()
-
-const connections = ref<DbConnectionSummary[]>([])
+const { connections, loadConnections } = useConnections()
 const showForm = ref(false)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
@@ -117,7 +117,7 @@ const emptyForm = () => ({
 const form = reactive(emptyForm())
 
 async function refresh() {
-  connections.value = await api.fetchConnections()
+  await loadConnections()
 }
 
 onMounted(refresh)

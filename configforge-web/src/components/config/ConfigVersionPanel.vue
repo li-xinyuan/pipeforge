@@ -107,6 +107,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { NButton, NTag, NSelect, useDialog, useMessage } from 'naive-ui'
+import { useApi, type VersionMeta, type DiffResult } from '../../composables/useApi'
 
 const props = defineProps<{
   configId: string
@@ -119,16 +120,7 @@ const emit = defineEmits<{
 
 const dialog = useDialog()
 const message = useMessage()
-
-interface VersionMeta {
-  version: number
-  scene_version: string
-  change_summary: string
-  created_at: string
-  input_count: number
-  processor_count: number
-  output_type: string
-}
+const { getConfigVersions, getConfigVersionDetail, getConfigDiff, rollbackConfig } = useApi()
 
 const versions = ref<VersionMeta[]>([])
 const loading = ref(false)
@@ -145,8 +137,8 @@ const versionOptions = computed(() =>
 async function loadVersions() {
   loading.value = true
   try {
-    const resp = await fetch(`/api/configs/${props.configId}/versions`)
-    if (resp.ok) versions.value = await resp.json()
+    const data = await getConfigVersions(props.configId)
+    if (data) versions.value = data
   } finally {
     loading.value = false
   }
@@ -156,8 +148,8 @@ async function viewVersion(version: number) {
   selectedVersion.value = version
   versionDetail.value = null
   try {
-    const resp = await fetch(`/api/configs/${props.configId}/versions/${version}`)
-    if (resp.ok) versionDetail.value = await resp.json()
+    const data = await getConfigVersionDetail(props.configId, version)
+    if (data) versionDetail.value = data
   } catch {
     message.error('加载版本详情失败')
   }
@@ -166,8 +158,8 @@ async function viewVersion(version: number) {
 async function doDiff() {
   if (!diffV1.value || !diffV2.value) return
   try {
-    const resp = await fetch(`/api/configs/${props.configId}/diff?v1=${diffV1.value}&v2=${diffV2.value}`)
-    if (resp.ok) diffResult.value = await resp.json()
+    const data = await getConfigDiff(props.configId, diffV1.value, diffV2.value)
+    if (data) diffResult.value = data
   } catch {
     message.error('版本对比失败')
   }
@@ -185,8 +177,8 @@ function confirmRollback(version: number) {
 
 async function doRollback(version: number) {
   try {
-    const resp = await fetch(`/api/configs/${props.configId}/versions/${version}/rollback`, { method: 'POST' })
-    if (resp.ok) {
+    const result = await rollbackConfig(props.configId, version)
+    if (result) {
       message.success(`已回滚到 v${version}`)
       await loadVersions()
       emit('refreshed')

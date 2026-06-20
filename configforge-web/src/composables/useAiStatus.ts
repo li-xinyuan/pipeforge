@@ -1,15 +1,17 @@
 import { ref } from 'vue'
+import { useApi, type AiSettings } from './useApi'
 
 const aiConfigured = ref(false)
 const aiProvider = ref('')
 const aiModel = ref('')
 
 export function useAiStatus() {
+  const { getAiSettings } = useApi()
+
   async function checkStatus() {
     try {
-      const resp = await fetch('/api/ai/settings')
-      if (resp.ok) {
-        const data = await resp.json()
+      const data = await getAiSettings()
+      if (data) {
         aiConfigured.value = !!(data.enabled && data.api_key && data.api_key.length > 0)
         if (aiConfigured.value) {
           aiProvider.value = data.provider || ''

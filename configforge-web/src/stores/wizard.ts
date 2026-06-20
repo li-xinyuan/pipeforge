@@ -1,16 +1,28 @@
-import { defineStore } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
-import type { SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, WizardState, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig } from '../types/wizard'
+import type { AiSuggestion, WizardState } from '../types/wizard'
 import { snakeToCamel } from '../utils/transform'
+import { useWizardSceneStore } from './wizardScene'
+import { useWizardInputsStore } from './wizardInputs'
+import { useWizardProcessorsStore } from './wizardProcessors'
+import { useWizardOutputStore } from './wizardOutput'
 
 export const useWizardStore = defineStore('wizard', () => {
+  // Sub-stores
+  const sceneStore = useWizardSceneStore()
+  const inputsStore = useWizardInputsStore()
+  const processorsStore = useWizardProcessorsStore()
+  const outputStore = useWizardOutputStore()
+
+  // Re-expose sub-store state as refs for unified API
+  const { scene } = storeToRefs(sceneStore)
+  const { inputs, uploadedFiles } = storeToRefs(inputsStore)
+  const { processors } = storeToRefs(processorsStore)
+  const { output } = storeToRefs(outputStore)
+
+  // Main store's own state
   const currentStep = ref(1)
-  const scene = ref<SceneInfo>({ name: '', description: '', version: '1.0' })
-  const inputs = ref<InputSource[]>([])
-  const processors = ref<ProcessorStep[]>([])
-  const output = ref<OutputTarget | null>(null)
   const configId = ref<string | null>(null)
-  const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
   const aiSuggestions = ref<Record<string, AiSuggestion>>({})
 
   // Dry-run 预览结果
@@ -52,8 +64,8 @@ export const useWizardStore = defineStore('wizard', () => {
         }
       } else if (field === 'path' && fix.step === 2) {
         const inp = inputs.value[0]
-        if (inp && (inp.config as any).path !== undefined) {
-          (inp.config as any).path = fix.new
+        if (inp && inp.config.type === 'excel' && inp.config.path !== undefined) {
+          inp.config.path = fix.new
           applied++
         }
       } else if (field === 'table' && fix.step === 2) {
@@ -114,73 +126,28 @@ export const useWizardStore = defineStore('wizard', () => {
   function goBackToStep(fromStep: number) {
     const targetStep = fromStep - 1
     if (targetStep < 1 || targetStep > 5) return
-    if (fromStep === 2) { inputs.value = []; uploadedFiles.value = {} }
-    else if (fromStep === 3) { processors.value = []; output.value = null }
-    else if (fromStep === 4) { output.value = null }
+    if (fromStep === 2) { inputsStore.reset() }
+    else if (fromStep === 3) { processorsStore.reset(); outputStore.reset() }
+    else if (fromStep === 4) { outputStore.reset() }
     currentStep.value = targetStep
   }
 
   function nextStep() { if (canProceed(currentStep.value) && currentStep.value < 5) currentStep.value++ }
   function prevStep() { if (currentStep.value > 1) currentStep.value-- }
   function goToStep(n: number) { if (n >= 1 && n <= currentStep.value && n <= 5) currentStep.value = n }
-  function addInput(plugin: InputSource['plugin'] = 'excel') {
-    let config: InputSource['config']
-    if (plugin === 'csv') {
-      config = { type: 'csv' as const, delimiter: ',', encoding: 'utf-8', hasHeader: true }
-    } else if (plugin === 'database') {
-      config = { type: 'database' as const, connectionId: '', queryType: 'table' as const, tables: [], sql: '' }
-    } else if (plugin === 'json') {
-      config = { type: 'json' as const, flattenSeparator: '.' }
-    } else if (plugin === 'xml') {
-      config = { type: 'xml' as const, rowElement: '' }
-    } else if (plugin === 'parquet') {
-      config = { type: 'parquet' as const }
-    } else if (plugin === 'api') {
-      config = { type: 'api' as const, url: '', method: 'GET', headers: {}, params: {}, dataPath: '', pagination: 'none', pageSize: 100, maxPages: 10 }
-    } else {
-      config = { type: 'excel' as const, sheet: '' }
-    }
 
-    inputs.value.push({
-      plugin,
-      table: '',
-      paramKey: '',
-      fileId: '',
-      config,
-    } as InputSource)
-  }
-  function removeInput(index: number) { inputs.value.splice(index, 1) }
-  function updateInput(index: number, input: InputSource) { inputs.value[index] = input }
-  function addProcessor(plugin: 'sql' | 'python' = 'sql') {
-    if (plugin === 'python') {
-      processors.value.push({ name: '', plugin: 'python', script: '', inputTables: [], outputTables: [], checkpoints: [] })
-    } else {
-      processors.value.push({ name: '', plugin: 'sql', sql: '', inputTables: [], outputTables: [], checkpoints: [] })
-    }
-  }
-  function removeProcessor(index: number) {
-    processors.value.splice(index, 1)
-  }
-  function updateProcessor(index: number, proc: ProcessorStep) {
-    processors.value[index] = proc
-  }
-  function setProcessors(newProcessors: ProcessorStep[]) {
-    const valid = newProcessors.filter(p => p.plugin === 'sql' ? p.sql.trim() : p.script.trim())
-    if (valid.length === 0) return
-    for (let i = 0; i < valid.length; i++) {
-      if (valid[i].outputTables.length === 0) {
-        valid[i].outputTables = [`step_${i + 1}_output`]
-      }
-      if (!valid[i].name) {
-        valid[i].name = `步骤 ${i + 1}`
-      }
-    }
-    processors.value = valid
-  }
+  // Delegate to sub-stores
+  function addInput(plugin: Parameters<typeof inputsStore.addInput>[0] = 'excel') { inputsStore.addInput(plugin) }
+  function removeInput(index: number) { inputsStore.removeInput(index) }
+  function updateInput(index: number, input: Parameters<typeof inputsStore.updateInput>[1]) { inputsStore.updateInput(index, input) }
+  function addProcessor(plugin: 'sql' | 'python' = 'sql') { processorsStore.addProcessor(plugin) }
+  function removeProcessor(index: number) { processorsStore.removeProcessor(index) }
+  function updateProcessor(index: number, proc: Parameters<typeof processorsStore.updateProcessor>[1]) { processorsStore.updateProcessor(index, proc) }
+  function setProcessors(newProcessors: Parameters<typeof processorsStore.setProcessors>[0]) { processorsStore.setProcessors(newProcessors) }
+  function setOutput(o: Parameters<typeof outputStore.setOutput>[0]) { outputStore.setOutput(o) }
+  function addFileRef(fileId: string, meta: Parameters<typeof inputsStore.addFileRef>[1]) { inputsStore.addFileRef(fileId, meta) }
+  function removeFileRef(fileId: string) { inputsStore.removeFileRef(fileId) }
 
-  function setOutput(o: OutputTarget) { output.value = o }
-  function addFileRef(fileId: string, meta: UploadedFileMeta) { uploadedFiles.value[fileId] = meta }
-  function removeFileRef(fileId: string) { delete uploadedFiles.value[fileId] }
   function setSuggestion(category: string, s: AiSuggestion) { aiSuggestions.value[category] = s }
   function acceptSuggestion(category: string) { if (aiSuggestions.value[category]) aiSuggestions.value[category].status = 'accepted' }
   function rejectSuggestion(category: string) { if (aiSuggestions.value[category]) aiSuggestions.value[category].status = 'rejected' }
@@ -188,12 +155,11 @@ export const useWizardStore = defineStore('wizard', () => {
 
   function resetAll() {
     currentStep.value = 1
-    scene.value = { name: '', description: '', version: '1.0' }
-    inputs.value = []
-    processors.value = []
-    output.value = null
+    sceneStore.reset()
+    inputsStore.reset()
+    processorsStore.reset()
+    outputStore.reset()
     configId.value = null
-    uploadedFiles.value = {}
     aiSuggestions.value = {}
     dryRunResults.value = null
   }
@@ -202,87 +168,19 @@ export const useWizardStore = defineStore('wizard', () => {
     // Use snakeToCamel to normalize backend snake_case keys to frontend camelCase
     const normalized = snakeToCamel(stateDict) as Record<string, unknown>
 
+    // Distribute data to sub-stores
     const sceneData = (normalized.scene || {}) as Record<string, unknown>
-    scene.value = {
-      name: (sceneData.name || '') as string,
-      description: (sceneData.description || '') as string,
-      version: (sceneData.version || '1.0') as string,
-    }
-
-    inputs.value = ((normalized.inputs || []) as Record<string, unknown>[]).map((inp) => {
-      const cfg = (inp.config || {}) as Record<string, unknown>
-      // Set defaults for database config fields
-      if (inp.plugin === 'database' || cfg.type === 'database') {
-        cfg.connectionId = cfg.connectionId ?? ''
-        cfg.dbType = cfg.dbType ?? ''
-        cfg.queryType = cfg.queryType ?? 'table'
-        cfg.tables = cfg.tables ?? []
-        cfg.sql = cfg.sql ?? ''
-      }
-      // Set defaults for json config fields
-      if (inp.plugin === 'json' || cfg.type === 'json') {
-        cfg.flattenSeparator = cfg.flattenSeparator ?? '.'
-      }
-      // Set defaults for xml config fields
-      if (inp.plugin === 'xml' || cfg.type === 'xml') {
-        cfg.rowElement = cfg.rowElement ?? ''
-      }
-      // Set defaults for api config fields
-      if (inp.plugin === 'api' || cfg.type === 'api') {
-        cfg.url = cfg.url ?? ''
-        cfg.method = cfg.method ?? 'GET'
-        cfg.headers = cfg.headers ?? {}
-        cfg.params = cfg.params ?? {}
-        cfg.dataPath = cfg.dataPath ?? ''
-        cfg.pagination = cfg.pagination ?? 'none'
-        cfg.pageSize = cfg.pageSize ?? 100
-        cfg.maxPages = cfg.maxPages ?? 10
-      }
-      return {
-        plugin: (inp.plugin || 'excel') as InputSource['plugin'],
-        table: (inp.table || inp.name || '') as string,
-        paramKey: (inp.paramKey || '') as string,
-        fileId: '',
-        config: cfg as unknown as InputSource['config'],
-      }
+    sceneStore.loadScene({
+      name: sceneData.name as string | undefined,
+      description: sceneData.description as string | undefined,
+      version: sceneData.version as string | undefined,
     })
 
-    const rawProcessors = (normalized.processors || []) as Record<string, unknown>[]
-    processors.value = rawProcessors.map((raw) => {
-      const plugin = (raw.plugin || 'sql') as string
-      const base = {
-        name: (raw.name || '') as string,
-        plugin,
-        inputTables: (raw.inputTables || []) as string[],
-        outputTables: (raw.outputTables || (raw.outputTable ? [raw.outputTable] : [])) as string[],
-        // CheckRule fields use snake_case matching backend, no camelCase conversion needed
-        checkpoints: ((raw.checkpoints || []) as Record<string, unknown>[]).map((c) => ({ ...c, on_failure: c.on_failure || 'block' })),
-      }
-      if (plugin === 'python') {
-        return { ...base, script: ((raw.config as Record<string, unknown>)?.script || raw.script || '') as string } as ProcessorStep
-      }
-      return { ...base, sql: ((raw.config as Record<string, unknown>)?.sql || raw.sql || '') as string } as ProcessorStep
-    })
+    inputsStore.loadInputs((normalized.inputs || []) as Record<string, unknown>[])
 
-    if (normalized.output) {
-      const outputData = normalized.output as Record<string, unknown>
-      const cfg = (outputData.config || {}) as Record<string, unknown>
-      // Set defaults for output config fields
-      cfg.sourceTable = cfg.sourceTable ?? ''
-      cfg.targetTable = cfg.targetTable ?? ''
-      cfg.writeMode = cfg.writeMode ?? 'append'
-      cfg.createTableIfNotExists = cfg.createTableIfNotExists ?? true
-      cfg.primaryKeyColumns = cfg.primaryKeyColumns ?? []
-      cfg.batchSize = cfg.batchSize ?? 1000
-      cfg.connectionId = cfg.connectionId ?? ''
-      cfg.hasHeader = cfg.hasHeader ?? true
-      output.value = {
-        plugin: (outputData.plugin || 'excel') as 'excel' | 'csv' | 'database',
-        config: cfg as unknown as ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig,
-      }
-    } else {
-      output.value = null
-    }
+    processorsStore.loadProcessors((normalized.processors || []) as Record<string, unknown>[])
+
+    outputStore.loadOutput(normalized.output as Record<string, unknown> | null | undefined)
 
     currentStep.value = startFromBeginning ? 1 : 5
   }
@@ -303,17 +201,22 @@ export const useWizardStore = defineStore('wizard', () => {
   }
 
   return {
-    currentStep, scene, inputs, processors, output, uploadedFiles, aiSuggestions, configId,
+    // Sub-store state (re-exposed for unified API)
+    scene, inputs, processors, output, uploadedFiles,
+    // Main store state
+    currentStep, configId, aiSuggestions, dryRunResults, pendingAutofixes,
+    // Validation & navigation
     canProceed, stepValidation,
     nextStep, prevStep, goToStep, goBackToStep,
+    // Sub-store method delegates
     addInput, removeInput, updateInput,
     addProcessor, removeProcessor, updateProcessor, setProcessors, setOutput,
     addFileRef, removeFileRef,
+    // Main store methods
     setSuggestion, acceptSuggestion, rejectSuggestion,
     setConfigId, loadFromConfigState, resetAll, getWizardState,
-    dryRunResults, setDryRunResults,
-    pendingAutofixes, applyAutofixes
+    setDryRunResults, applyAutofixes
   }
 }, {
-  persist: { key: 'wizard_state_v2', storage: localStorage }
+  persist: { key: 'wizard_core_v1', storage: localStorage, paths: ['currentStep', 'configId', 'aiSuggestions', 'dryRunResults', 'pendingAutofixes'] }
 })

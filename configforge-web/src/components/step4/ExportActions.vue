@@ -29,6 +29,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, useMessage, useDialog } from 'naive-ui'
+import type { ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
 import { useConfigApi } from '../../composables/useConfigApi'
@@ -124,7 +125,7 @@ async function downloadResult() {
       if (result instanceof Blob) {
         const url = URL.createObjectURL(result)
         const a = document.createElement('a')
-        const storedFilename = (store.output?.config as any)?.filename || 'output.xlsx'
+        const storedFilename = (store.output?.plugin !== 'database' ? (store.output?.config as ExcelOutputConfig | CsvOutputConfig)?.filename : '') || 'output.xlsx'
         a.href = url; a.download = buildExecutionFilename(storedFilename); a.click()
         URL.revokeObjectURL(url)
         confettiRef.value?.burst()
@@ -137,14 +138,15 @@ async function downloadResult() {
     } else {
       execError.value = apiError.value?.message || '执行失败，请检查配置'
       // Try to extract diagnosis from API error
-      const errData = (apiError.value as any)?.data
-      if (errData?.diagnosis) {
-        execDiagnosis.value = errData.diagnosis
+      const errData = apiError.value?.data as Record<string, unknown> | undefined
+      if (errData && typeof errData.diagnosis === 'object' && errData.diagnosis) {
+        const diag = errData.diagnosis as { cause: string; impact?: string; suggestions: string[]; severity: 'error' | 'warning'; step?: number }
+        execDiagnosis.value = diag
       }
     }
-  } catch (e: any) {
-    execError.value = e?.message || '执行失败'
-    execDiagnosis.value = e?.diagnosis || null
+  } catch (e: unknown) {
+    execError.value = e instanceof Error ? e.message : '执行失败'
+    execDiagnosis.value = null
   } finally {
     executing.value = false
   }
@@ -223,6 +225,11 @@ async function onAiRewrite() {
     rewriteLoading.value = false
   }
 }
+
+defineExpose({
+  saveConfigHandler,
+  downloadResult,
+})
 </script>
 
 <style scoped>

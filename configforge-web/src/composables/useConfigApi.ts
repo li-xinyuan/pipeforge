@@ -95,15 +95,15 @@ export function useConfigApi() {
     if (result === null) {
       const execError: ExecuteError = { message: error.value?.message || '执行失败' }
       // Try to extract diagnosis from the error detail
-      const errDetail = (error.value as any)?.detail
-      if (errDetail && typeof errDetail === 'object' && errDetail.diagnosis) {
-        const d = errDetail.diagnosis
+      const errDetail = error.value?.detail as Record<string, unknown> | undefined
+      if (errDetail && typeof errDetail === 'object' && 'diagnosis' in errDetail) {
+        const d = errDetail.diagnosis as Record<string, unknown>
         if (d.cause && d.severity) {
           execError.diagnosis = {
-            cause: d.cause,
-            suggestions: d.suggestions || [],
-            severity: d.severity,
-            step: d.step,
+            cause: d.cause as string,
+            suggestions: (d.suggestions as string[]) || [],
+            severity: d.severity as 'error' | 'warning',
+            step: d.step as number | undefined,
           }
         }
       }

@@ -138,7 +138,7 @@ async function runPreview() {
     return
   }
   dryRunRunning.value = true
-  const result = await runDryRunApi(store.$state)
+  const result = await runDryRunApi(store.getWizardState())
   if (result?.tables?.length) {
     const inputTables = new Set(store.inputs.map(inp => inp.table).filter(Boolean))
     const outputTables = result.tables.filter(t => !inputTables.has(t.table_name))
