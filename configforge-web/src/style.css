@@ -1,44 +1,57 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
   color-scheme: light dark;
 
-  /* === Breakpoints (reference tokens) === */
+  /* === Breakpoints === */
   --breakpoint-mobile: 768px;
   --breakpoint-tablet: 1024px;
 
   /* === Teal Primary Palette === */
-  --color-primary: #0d9488;
+  --color-primary: #0f766e;
   --color-primary-light: #14b8a6;
   --color-primary-lighter: #5eead4;
   --color-primary-bg: #f0fdfa;
   --color-primary-border: #99f6e4;
   --color-primary-bg-light: #ccfbf1;
 
+  /* === AI Purple Palette === */
+  --color-ai: #7c3aed;
+  --color-ai-light: #8b5cf6;
+  --color-ai-bg: rgba(124,58,237,0.04);
+  --color-ai-bg-hover: rgba(124,58,237,0.08);
+  --color-ai-border: rgba(124,58,237,0.2);
+  --color-ai-glow: rgba(139,92,246,0.35);
+
+  /* === Accent === */
+  --color-accent: #f59e0b;
+  --color-accent-bg: #fffbeb;
+
   /* === Surfaces === */
-  --color-bg: #fafdfb;
+  --color-bg: #fafaf9;
   --color-bg-secondary: #f0fdfa;
   --color-surface: #ffffff;
-  --color-surface-hover: #f8fafc;
-  --color-surface-glass: rgba(255, 255, 255, 0.82);
+  --color-surface-hover: #f7f7f6;
+  --color-surface-glass: rgba(255, 255, 255, 0.55);
   --color-code-bg: #1e293b;
   --color-code-text: #e2e8f0;
 
   /* === Text === */
-  --color-text: #134e4a;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
+  --color-text: #292524;
+  --color-text-secondary: #78716c;
+  --color-text-muted: #a8a29e;
 
   /* === Borders === */
-  --color-border: #d1d5db;
-  --color-border-light: #e2e8f0;
+  --color-border: #e7e5e4;
+  --color-border-light: #f0efed;
 
   /* === Semantic === */
-  --color-success: #166534;
-  --color-success-bg: #f0fdf4;
-  --color-success-border: #bbf7d0;
+  --color-success: #059669;
+  --color-success-bg: #ecfdf5;
+  --color-success-border: #a7f3d0;
   --color-warning: #d97706;
   --color-warning-bg: #fffbeb;
   --color-warning-border: #fde68a;
@@ -51,18 +64,22 @@
 
   /* === Radius === */
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   /* === Shadows === */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.04);
-  --shadow-active: 0 3px 16px rgba(13, 148, 136, 0.06);
-  --shadow-button: 0 2px 8px rgba(13, 148, 136, 0.25);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-lg: 0 2px 6px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-active: 0 3px 16px rgba(15,118,110,0.06);
+  --shadow-button: 0 1px 2px rgba(15,118,110,0.2), 0 2px 8px rgba(15,118,110,0.15);
 
   /* === Typography === */
-  --font-family: "Inter", "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+  --font-family: var(--font-body);
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -76,7 +93,7 @@
   --font-weight-extrabold: 800;
 
   /* === Text on gradient === */
-  --text-shadow-on-gradient: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --text-shadow-on-gradient: 0 1px 3px rgba(0,0,0,0.25);
 
   /* === Spacing === */
   --space-card-padding: 1.5rem;
@@ -84,8 +101,8 @@
 
   /* === Transitions === */
   --transition-fast: 0.15s ease;
-  --transition-normal: 0.3s ease;
-  --transition-slow: 0.4s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.4s cubic-bezier(0.16,1,0.3,1);
 
   /* === AI Panel === */
   --ai-panel-width: 340px;
@@ -98,44 +115,49 @@
   --color-primary: #14b8a6;
   --color-primary-light: #34d399;
   --color-primary-lighter: #6ee7b7;
-  --color-primary-bg: rgba(13, 148, 136, 0.08);
-  --color-primary-bg-light: rgba(13, 148, 136, 0.12);
-  --color-primary-border: rgba(13, 148, 136, 0.2);
+  --color-primary-bg: rgba(20,184,166,0.08);
+  --color-primary-bg-light: rgba(20,184,166,0.12);
+  --color-primary-border: rgba(20,184,166,0.2);
 
-  --color-bg: #0a1c14;
-  --color-bg-secondary: #0d241a;
-  --color-surface: rgba(255, 255, 255, 0.04);
-  --color-surface-hover: rgba(255, 255, 255, 0.06);
-  --color-surface-glass: rgba(10, 28, 20, 0.85);
-  --color-code-bg: #0f1f17;
+  --color-ai-bg: rgba(124,58,237,0.06);
+  --color-ai-bg-hover: rgba(124,58,237,0.1);
+  --color-ai-border: rgba(124,58,237,0.2);
+  --color-ai-glow: rgba(139,92,246,0.5);
+
+  --color-bg: #1c1917;
+  --color-bg-secondary: #292524;
+  --color-surface: #292524;
+  --color-surface-hover: #33302d;
+  --color-surface-glass: rgba(41,37,36,0.85);
+  --color-code-bg: #1c1917;
   --color-code-text: #a7f3d0;
 
-  --color-text: #d1fae5;
-  --color-text-secondary: #999999;
-  --color-text-muted: #64748b;
+  --color-text: #f5f5f4;
+  --color-text-secondary: #a8a29e;
+  --color-text-muted: #78716c;
 
-  --color-border: #1a3d2c;
-  --color-border-light: #164e35;
+  --color-border: #44403c;
+  --color-border-light: #3a3633;
 
-  --color-success-bg: rgba(5, 150, 105, 0.1);
-  --color-success-border: rgba(5, 150, 105, 0.2);
-  --color-warning-bg: rgba(180, 83, 9, 0.1);
-  --color-warning-border: rgba(180, 83, 9, 0.2);
-  --color-error-bg: rgba(220, 38, 38, 0.1);
-  --color-error-border: rgba(220, 38, 38, 0.2);
+  --color-success-bg: rgba(5,150,105,0.1);
+  --color-success-border: rgba(5,150,105,0.2);
+  --color-warning-bg: rgba(180,83,9,0.1);
+  --color-warning-border: rgba(180,83,9,0.2);
+  --color-error-bg: rgba(220,38,38,0.1);
+  --color-error-border: rgba(220,38,38,0.2);
 
   --color-success: #4ade80;
   --color-warning: #fbbf24;
   --color-error: #f87171;
   --color-info: #38bdf8;
-  --color-info-bg: rgba(2, 132, 199, 0.1);
-  --color-info-border: rgba(2, 132, 199, 0.2);
+  --color-info-bg: rgba(2,132,199,0.1);
+  --color-info-border: rgba(2,132,199,0.2);
 
-  --shadow-button: 0 2px 8px rgba(20, 184, 166, 0.35);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.3);
-  --shadow-active: 0 3px 16px rgba(13, 148, 136, 0.1);
+  --shadow-button: 0 1px 2px rgba(20,184,166,0.2), 0 2px 8px rgba(20,184,166,0.15);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 1px 3px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.2);
+  --shadow-lg: 0 2px 6px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.3);
+  --shadow-active: 0 3px 16px rgba(20,184,166,0.1);
 }
 
 /* === Keyframe Animations === */
@@ -375,3 +397,198 @@ button:active:not([disabled]) {
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================
+   AI NEON PULSE — 霓虹脉冲按钮
+   ============================================================ */
+.ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--color-ai), var(--color-ai-light));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-family: var(--font-display, var(--font-family));
+  transition: all var(--transition-normal);
+  box-shadow: 0 0 0 0 var(--color-ai-glow);
+  animation: ai-neon-pulse 2.2s ease-in-out infinite;
+}
+.ai-btn:hover {
+  animation: none;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 24px rgba(139,92,246,0.3);
+}
+.ai-btn:active {
+  transform: scale(0.96);
+}
+.ai-btn-sm {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+.ai-btn-lg {
+  padding: 12px 22px;
+  font-size: 14px;
+}
+@keyframes ai-neon-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--color-ai-glow); }
+  50% { box-shadow: 0 0 0 5px rgba(139,92,246,0); }
+}
+
+/* AI Badge */
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-ai-bg);
+  border: 1px solid var(--color-ai-border);
+  color: var(--color-ai);
+  font-family: var(--font-display, var(--font-family));
+}
+[data-theme="dark"] .ai-badge {
+  background: rgba(124,58,237,0.12);
+  border-color: rgba(124,58,237,0.25);
+  color: #c4b5fd;
+}
+
+/* AI Panel */
+.ai-panel {
+  background: linear-gradient(180deg, var(--color-ai-bg), rgba(99,102,241,0.015));
+  border: 1px solid var(--color-ai-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-card-padding, 1rem);
+}
+.ai-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-family: var(--font-display, var(--font-family));
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ai);
+}
+[data-theme="dark"] .ai-panel {
+  background: linear-gradient(180deg, rgba(124,58,237,0.08), rgba(99,102,241,0.03));
+}
+[data-theme="dark"] .ai-panel__header {
+  color: #c4b5fd;
+}
+
+/* ============================================================
+   GLASS SURFACE — 毛玻璃卡片工具类
+   ============================================================ */
+.glass {
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.glass-strong {
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+[data-theme="dark"] .glass,
+[data-theme="dark"] .glass-strong {
+  background: rgba(41,37,36,0.5);
+}
+
+/* ============================================================
+   CUSTOM BUTTON — 替代 Naive UI NButton
+   ============================================================ */
+.cf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display, var(--font-family));
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border: none;
+  outline: none;
+  white-space: nowrap;
+}
+.cf-btn:active { transform: scale(0.97); }
+
+.cf-btn--primary {
+  background: linear-gradient(135deg, rgba(15,118,110,0.88), rgba(20,184,166,0.85));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(15,118,110,0.15);
+  color: #fff;
+  box-shadow: var(--shadow-button);
+}
+.cf-btn--primary:hover {
+  background: linear-gradient(135deg, rgba(15,118,110,0.95), rgba(20,184,166,0.92));
+  box-shadow: 0 2px 4px rgba(15,118,110,0.18), 0 4px 20px rgba(15,118,110,0.12);
+  transform: translateY(-1px);
+}
+
+.cf-btn--secondary {
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+.cf-btn--secondary:hover {
+  background: rgba(255,255,255,0.85);
+  border-color: var(--color-primary-border);
+  box-shadow: var(--shadow-md);
+}
+
+.cf-btn--ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.cf-btn--ghost:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.cf-btn--danger {
+  background: var(--color-error);
+  color: #fff;
+}
+.cf-btn--danger:hover { background: #b91c1c; }
+
+.cf-btn--sm { padding: 6px 14px; font-size: 13px; }
+.cf-btn--lg { padding: 14px 28px; font-size: 15px; border-radius: var(--radius-md); }
+
+/* ============================================================
+   CUSTOM INPUT — 替代 Naive UI NInput
+   ============================================================ */
+.cf-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border);
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  font-family: var(--font-body, var(--font-family));
+  font-size: 14px;
+  color: var(--color-text);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+.cf-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(15,118,110,0.08);
+  background: rgba(255,255,255,0.8);
+}
+.cf-input::placeholder { color: var(--color-text-muted); }
+[data-theme="dark"] .cf-input { background: rgba(41,37,36,0.4); }
+[data-theme="dark"] .cf-input:focus { background: rgba(41,37,36,0.6); }
