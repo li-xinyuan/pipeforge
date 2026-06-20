@@ -101,4 +101,6 @@ function onStepClick(step: number, status: StepState['status']) {
   .wizard-progress__badge { display: none; }
   .wizard-progress__connector { width: 8px; }
 }
+
+[data-theme="dark"] .wizard-progress { background: rgba(41,37,36,0.5); }
 </style>

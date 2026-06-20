@@ -77,6 +77,14 @@ defineProps<{
   opacity: 0.4;
   filter: grayscale(0.3);
 }
+
+/* Dark mode */
+[data-theme="dark"] .wizard-step-card {
+  background: rgba(41,37,36,0.5);
+}
+[data-theme="dark"] .wizard-step-card:hover {
+  background: rgba(41,37,36,0.65);
+}
 .wizard-step-card--locked .wizard-step-card__body,
 .wizard-step-card--locked .wizard-step-card__footer {
   pointer-events: none;
