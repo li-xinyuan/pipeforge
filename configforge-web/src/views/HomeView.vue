@@ -6,7 +6,7 @@
 
     <!-- Hero: show when no configs OR user explicitly wants intro -->
     <Transition name="home-fade">
-      <section v-if="!loading && (totalCount === 0 || showIntro)" class="home__hero">
+      <section v-if="!loading && totalCount === 0" class="home__hero">
         <div class="home__hero-inner">
           <div class="home__hero-badge">⚡ AI 驱动的数据流水线配置工具</div>
           <h1 class="home__hero-title">
@@ -36,20 +36,14 @@
             <button class="home__prompt-chip" @click="startWithPrompt('合并订单表和用户表，按城市统计订单金额')">合并订单表和用户表，按城市统计订单金额</button>
             <button class="home__prompt-chip" @click="startWithPrompt('从 API 获取天气数据，清洗后写入数据库')">从 API 获取天气数据，清洗后写入数据库</button>
           </div>
-          <button v-if="totalCount > 0" class="home__hero-back" @click="showIntro = false">← 返回配置列表</button>
         </div>
       </section>
     </Transition>
 
     <!-- Compact toolbar when configs exist and not showing intro -->
     <Transition name="home-fade">
-      <section v-if="!loading && totalCount > 0 && !showIntro" class="home__toolbar">
+      <section v-if="!loading && totalCount > 0" class="home__toolbar">
         <div class="home__toolbar-inner">
-          <div class="home__toolbar-left">
-            <span class="home__toolbar-brand">⚡ ConfigForge</span>
-            <span class="home__toolbar-sep"></span>
-            <button class="home__toolbar-intro-link" @click="showIntro = true">查看介绍</button>
-          </div>
           <div class="home__toolbar-actions">
             <NButton type="primary" size="small" class="btn-primary" @click="startNewConfig">✏ 新建配置</NButton>
             <NButton size="small" class="btn-secondary" @click="router.push('/templates')">📦 模板市场</NButton>
