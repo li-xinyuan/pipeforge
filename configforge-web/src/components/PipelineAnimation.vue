@@ -125,22 +125,30 @@ onMounted(async () => {
 
     const tl = createTimeline({ loop: true })
 
-    steps.forEach((el) => {
+    // Start with step 1 visible for a moment
+    tl.add({ duration: 2000 })
+
+    steps.forEach((el, i) => {
+      // Scroll to next step
       const y = -(el.offsetTop - 8)
       tl.add(container, {
         translateY: y,
         duration: 800,
         easing: 'easeInOutQuad',
       })
-      tl.add({ duration: 3000 })
+      // Pause at each step (shorter for last step since reset follows)
+      tl.add({ duration: i === steps.length - 1 ? 2000 : 2500 })
     })
 
+    // Pause at the end before resetting
+    tl.add({ duration: 1500 })
+    // Quick reset back to top
     tl.add(container, {
       translateY: 0,
-      duration: 400,
+      duration: 600,
       easing: 'easeInOutQuad',
     })
-    tl.add({ duration: 1000 })
+    tl.add({ duration: 1500 })
 
     anim = tl
   } catch { /* silently ignore animation errors */ }
