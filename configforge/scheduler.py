@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 DATA_DIR = get_data_dir()
 SCHEDULES_PATH = os.path.join(DATA_DIR, "schedules.json")
 
+_running_configs: set[str] = set()
+
 
 class ScheduleConfig(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
@@ -31,6 +33,8 @@ class ScheduleConfig(BaseModel):
     created_at: str = ""
     last_run_at: str | None = None
     last_run_status: str | None = None  # "success" | "failed"
+    retry_count: int = 0        # 最大重试次数（0=不重试）
+    retry_interval: int = 300   # 重试间隔（秒）
 
 
 # ── Global scheduler instance ──
@@ -62,20 +66,58 @@ def _validate_cron(expr: str) -> None:
     CronTrigger.from_crontab(expr)
 
 
-def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
-    """Job callback: load config state and execute pipeline."""
-    logger.info("Scheduled job fired: schedule=%s config=%s", schedule_id, config_id)
+def _get_schedule_retry_config(schedule_id: str) -> tuple[int, int]:
+    """Get retry_count and retry_interval for a schedule."""
+    schedules = _load_schedules()
+    for s in schedules:
+        if s.get("id") == schedule_id:
+            return s.get("retry_count", 0), s.get("retry_interval", 300)
+    return 0, 300
+
+
+def _handle_retry(schedule_id: str, config_id: str, remaining_retries: int) -> None:
+    """Handle retry logic after a scheduled execution failure.
+
+    If remaining_retries > 0, schedule a retry. Otherwise, check if the
+    schedule has retry_count configured and this was the initial execution
+    (remaining_retries == 0 from the cron job), then schedule the first retry.
+    """
+    if remaining_retries > 0:
+        # This is a retry that failed, schedule next retry
+        _, retry_interval = _get_schedule_retry_config(schedule_id)
+        _schedule_retry(schedule_id, config_id, remaining_retries - 1, retry_interval)
+    else:
+        # This was the initial execution (from cron job), check if retry is configured
+        retry_count, retry_interval = _get_schedule_retry_config(schedule_id)
+        if retry_count > 0:
+            _schedule_retry(schedule_id, config_id, retry_count - 1, retry_interval)
+
+
+def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries: int = 0) -> None:
+    """Job callback: load config state and execute pipeline.
+
+    Args:
+        schedule_id: The schedule ID.
+        config_id: The config ID to execute.
+        remaining_retries: Remaining retry count (0 = no more retries).
+    """
+    if config_id in _running_configs:
+        logger.info("Config %s already running, skipping scheduled execution", config_id)
+        return
+    _running_configs.add(config_id)
+
+    logger.info("Scheduled job fired: schedule=%s config=%s remaining_retries=%d", schedule_id, config_id, remaining_retries)
 
     # Import here to avoid circular imports at module level
     from configforge.api.configs import CONFIGS_DIR
-    from configforge.core.pipeline import execute_pipeline
     from configforge.models.wizard import WizardState
-    from configforge.api.executions import _update_exec_index, _save_failed_execution
+    from configforge.services.execution_service import execute as execute_service, ExecutionContext
 
     state_path = os.path.join(CONFIGS_DIR, f"{config_id}.state.json")
     if not os.path.exists(state_path):
         logger.error("Config state not found for scheduled execution: %s", config_id)
         _update_schedule_last_run(schedule_id, "failed")
+        _handle_retry(schedule_id, config_id, remaining_retries)
         return
 
     with open(state_path, "r", encoding="utf-8") as f:
@@ -94,6 +136,7 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
     except Exception as e:
         logger.error("Failed to parse config state for scheduled execution: %s", e)
         _update_schedule_last_run(schedule_id, "failed")
+        _handle_retry(schedule_id, config_id, remaining_retries)
         return
 
     # Check for file-based inputs without file_id (will fail at execution time)
@@ -106,6 +149,7 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
         names = ", ".join(inp.name for inp in file_inputs_without_file)
         error_msg = f"配置包含文件输入源但文件未上传（{names}），定时任务无法自动上传文件，请改用数据库输入源"
         logger.error("Scheduled execution skipped: %s", error_msg)
+        from configforge.api.executions import _save_failed_execution
         exec_id = uuid.uuid4().hex[:8]
         started_at = datetime.now(UTC).isoformat()
         _save_failed_execution(
@@ -120,6 +164,7 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
             error_message=error_msg,
         )
         _update_schedule_last_run(schedule_id, "failed")
+        _handle_retry(schedule_id, config_id, remaining_retries)
         return
 
     # Get config metadata for execution record
@@ -127,131 +172,32 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str) -> None:
     index = _load_index()
     entry = next((e for e in index if e.get("id") == config_id), None)
     config_version = entry.get("current_version") if entry else None
-    scene_name = state.scene.name or ""
 
-    exec_id = uuid.uuid4().hex[:8]
-    started_at = datetime.now(UTC).isoformat()
-
-    inputs_summary = [
-        {"name": inp.name, "plugin": inp.plugin, "param_key": inp.param_key}
-        for inp in state.inputs
-    ]
-    processors_summary = [
-        {"name": p.name, "plugin": p.plugin}
-        for p in state.processors
-    ]
-    output_type = state.output.plugin if state.output else ""
-
-    try:
-        output_path = execute_pipeline(state)
-        _update_schedule_last_run(schedule_id, "success")
-    except Exception as e:
-        logger.exception("Scheduled pipeline execution failed: %s", e)
-        # Auto-diagnose using AI (same as manual execution)
-        diagnosis = None
-        try:
-            from configforge.services.ai.auto_diagnose import auto_diagnose
-            loop = asyncio.new_event_loop()
-            try:
-                diagnosis = loop.run_until_complete(auto_diagnose(
-                    yaml_text="",
-                    error_message=str(e),
-                    scene_name=scene_name,
-                    inputs_summary=inputs_summary,
-                    processors_summary=processors_summary,
-                ))
-            finally:
-                loop.close()
-        except Exception as diag_exc:
-            logger.warning("Auto-diagnosis failed for scheduled pipeline: %s", diag_exc)
-
-        _save_failed_execution(
-            exec_id=exec_id,
-            started_at=started_at,
-            config_id=config_id,
-            config_version=config_version,
-            scene_name=scene_name,
-            inputs_summary=inputs_summary,
-            processors_summary=processors_summary,
-            output_type=output_type,
-            error_message=str(e),
-            diagnosis=diagnosis,
-        )
-        _update_schedule_last_run(schedule_id, "failed")
-
-        # Dispatch notification
-        try:
-            from configforge.services.notifier.dispatcher import dispatch_notifications_async
-            dispatch_notifications_async(
-                config_id=config_id,
-                status="failed",
-                config_name=scene_name,
-                error_message=str(e),
-                duration_ms=0,
-            )
-        except Exception as notify_exc:
-            logger.warning("Notification dispatch failed: %s", notify_exc)
-        return
-
-    # Save successful execution record (same logic as configs.py execute_config)
-    import shutil
-    from configforge.api.executions import EXEC_DIR
-    from configforge.models.wizard import ExecutionRecord
-
-    # Handle database output (output_path is None) vs file output
-    if output_path is None:
-        filename = None
-    else:
-        filename = os.path.basename(output_path)
-    finished_at = datetime.now(UTC).isoformat()
-    start_dt = datetime.fromisoformat(started_at)
-    end_dt = datetime.fromisoformat(finished_at)
-    duration_ms = int((end_dt - start_dt).total_seconds() * 1000)
-
-    exec_output_dir = os.path.join(EXEC_DIR, exec_id)
-    os.makedirs(exec_output_dir, exist_ok=True)
-
-    if output_path is not None and filename:
-        exec_output_path = os.path.join(exec_output_dir, filename)
-        shutil.move(output_path, exec_output_path)
-        output_intermediate_dir = os.path.dirname(output_path)
-        if os.path.isdir(output_intermediate_dir):
-            shutil.rmtree(output_intermediate_dir, ignore_errors=True)
-
-    record = ExecutionRecord(
-        id=exec_id,
+    context = ExecutionContext(
         config_id=config_id,
         config_version=config_version,
-        scene_name=scene_name,
-        status="success",
-        started_at=started_at,
-        finished_at=finished_at,
-        duration_ms=duration_ms,
-        inputs_summary=inputs_summary,
-        processors_summary=processors_summary,
-        output_type=output_type,
-        checks_summary=[],
-        output_file_name=filename,
     )
 
-    result_path = os.path.join(exec_output_dir, "result.json")
-    with open(result_path, "w") as f:
-        json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
-
-    _update_exec_index(record)
-    logger.info("Scheduled pipeline completed: exec_id=%s", exec_id)
-
-    # Dispatch notification on success
+    # Run async execute_service in sync context
+    loop = asyncio.new_event_loop()
     try:
-        from configforge.services.notifier.dispatcher import dispatch_notifications_async
-        dispatch_notifications_async(
-            config_id=config_id,
-            status="success",
-            config_name=scene_name,
-            duration_ms=duration_ms,
+        result = loop.run_until_complete(
+            execute_service(
+                state, context,
+                sanitize_errors=False,
+                on_success=lambda: _update_schedule_last_run(schedule_id, "success"),
+                on_failed=lambda: _update_schedule_last_run(schedule_id, "failed"),
+            )
         )
-    except Exception as notify_exc:
-        logger.warning("Notification dispatch failed: %s", notify_exc)
+    finally:
+        _running_configs.discard(config_id)
+        loop.close()
+
+    if result.status == "failed":
+        logger.error("Scheduled pipeline execution failed: %s", result.error_message)
+        _handle_retry(schedule_id, config_id, remaining_retries)
+    else:
+        logger.info("Scheduled pipeline completed: exec_id=%s", result.exec_id)
 
 
 def _update_schedule_last_run(schedule_id: str, status: str) -> None:
@@ -265,9 +211,30 @@ def _update_schedule_last_run(schedule_id: str, status: str) -> None:
     _save_schedules(schedules)
 
 
+def _schedule_retry(schedule_id: str, config_id: str, remaining_retries: int, retry_interval: int) -> None:
+    """Schedule a one-time retry job after retry_interval seconds."""
+    if not _scheduler:
+        logger.warning("Scheduler not running, cannot schedule retry for schedule %s", schedule_id)
+        return
+
+    retry_job_id = f"{schedule_id}_retry_{uuid.uuid4().hex[:8]}"
+    _scheduler.add_job(
+        _run_scheduled_pipeline,
+        trigger="date",
+        run_date=datetime.now(UTC).timestamp() + retry_interval,
+        id=retry_job_id,
+        args=[schedule_id, config_id, remaining_retries],
+        replace_existing=False,
+    )
+    logger.info(
+        "Scheduled retry for schedule=%s config=%s remaining_retries=%d interval=%ds job_id=%s",
+        schedule_id, config_id, remaining_retries, retry_interval, retry_job_id,
+    )
+
+
 # ── Public API ──
 
-def add_schedule(config_id: str, cron_expression: str, description: str = "") -> ScheduleConfig:
+def add_schedule(config_id: str, cron_expression: str, description: str = "", retry_count: int = 0, retry_interval: int = 300) -> ScheduleConfig:
     """Add a new schedule and register it with the running scheduler."""
     _validate_cron(cron_expression)
 
@@ -276,6 +243,8 @@ def add_schedule(config_id: str, cron_expression: str, description: str = "") ->
         cron_expression=cron_expression,
         description=description,
         created_at=datetime.now(UTC).isoformat(),
+        retry_count=retry_count,
+        retry_interval=retry_interval,
     )
 
     schedules = _load_schedules()
@@ -318,8 +287,8 @@ def list_schedules() -> list[ScheduleConfig]:
     return [ScheduleConfig(**s) for s in schedules]
 
 
-def update_schedule(schedule_id: str, cron_expression: str | None = None, description: str | None = None) -> Optional[ScheduleConfig]:
-    """Update a schedule's cron expression and/or description."""
+def update_schedule(schedule_id: str, cron_expression: str | None = None, description: str | None = None, retry_count: int | None = None, retry_interval: int | None = None) -> Optional[ScheduleConfig]:
+    """Update a schedule's cron expression, description, and/or retry settings."""
     schedules = _load_schedules()
     target = None
     for s in schedules:
@@ -335,6 +304,10 @@ def update_schedule(schedule_id: str, cron_expression: str | None = None, descri
         target["cron_expression"] = cron_expression
     if description is not None:
         target["description"] = description
+    if retry_count is not None:
+        target["retry_count"] = retry_count
+    if retry_interval is not None:
+        target["retry_interval"] = retry_interval
 
     _save_schedules(schedules)
 

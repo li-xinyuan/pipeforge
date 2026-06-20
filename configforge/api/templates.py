@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from configforge.middleware.jwt import is_jwt_enabled, decode_token
 from configforge.models.template import Template, TemplateRequirement
 from configforge.models.wizard import ErrorResponse
 from configforge.services.template_store import TemplateStore
 from configforge.utils.security import validate_id
+from configforge.services.audit_logger import log_audit
 
 router = APIRouter()
 
@@ -35,13 +37,13 @@ def _validate_template_id(template_id: str) -> str:
         raise HTTPException(status_code=400, detail="Invalid template_id format")
 
 
-@router.get("")
+@router.get("", summary="获取模板列表", description="获取所有可用的 Pipeline 模板列表。支持按分类筛选和按名称搜索。返回模板的基本信息和配置状态。")
 def list_templates(category: str | None = None, search: str | None = None):
     templates = TemplateStore.list_templates(category=category, search=search)
     return {"items": templates, "total": len(templates)}
 
 
-@router.get("/{template_id}")
+@router.get("/{template_id}", summary="获取模板详情", description="根据模板 ID 获取完整的模板信息，包括名称、描述、分类、标签和配置状态。")
 def get_template(template_id: str):
     _validate_template_id(template_id)
     template = TemplateStore.get_template(template_id)
@@ -55,7 +57,7 @@ def get_template(template_id: str):
     return template
 
 
-@router.post("")
+@router.post("", summary="创建模板", description="创建一个新的 Pipeline 模板。模板包含名称、描述、分类、标签和配置状态，可被其他用户复用。")
 def create_template(req: CreateTemplateRequest):
     template = TemplateStore.create_template(
         name=req.name,
@@ -68,7 +70,7 @@ def create_template(req: CreateTemplateRequest):
     return template
 
 
-@router.put("/{template_id}")
+@router.put("/{template_id}", summary="更新模板", description="更新指定模板的信息。支持部分更新，只需提供需要修改的字段（名称、描述、分类、标签、作者、版本、配置状态）。")
 def update_template(template_id: str, req: UpdateTemplateRequest):
     _validate_template_id(template_id)
     updates = {k: v for k, v in req.model_dump().items() if v is not None}
@@ -90,9 +92,29 @@ def update_template(template_id: str, req: UpdateTemplateRequest):
     return template
 
 
-@router.delete("/{template_id}")
-def delete_template(template_id: str):
+@router.delete("/{template_id}", summary="删除模板", description="删除指定的 Pipeline 模板。仅管理员可执行此操作。操作不可撤销。")
+def delete_template(template_id: str, request: Request):
     _validate_template_id(template_id)
+
+    # Require admin when JWT is enabled
+    if is_jwt_enabled():
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=401,
+                detail=ErrorResponse(
+                    error="Authentication required", code="AUTH_REQUIRED", recoverable=True
+                ).model_dump(),
+            )
+        payload = decode_token(auth_header[7:])
+        if not payload or payload.get("role") != "admin":
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(
+                    error="Only admin can delete templates", code="FORBIDDEN", recoverable=True
+                ).model_dump(),
+            )
+
     deleted = TemplateStore.delete_template(template_id)
     if not deleted:
         raise HTTPException(
@@ -101,10 +123,11 @@ def delete_template(template_id: str):
                 error="Template not found", code="NOT_FOUND", recoverable=True
             ).model_dump(),
         )
+    log_audit("delete", "template", template_id)
     return {"ok": True}
 
 
-@router.post("/{template_id}/instantiate")
+@router.post("/{template_id}/instantiate", summary="实例化模板", description="从指定模板创建一个新的 Pipeline 配置实例。返回模板的配置状态数据，可直接用于创建新配置。同时会增加模板的使用计数。")
 def instantiate_template(template_id: str):
     _validate_template_id(template_id)
     template = TemplateStore.get_template(template_id)
@@ -119,7 +142,7 @@ def instantiate_template(template_id: str):
     return {"config_state": template["config_state"], "template_id": template_id}
 
 
-@router.post("/{template_id}/check-compatibility")
+@router.post("/{template_id}/check-compatibility", summary="检查模板兼容性", description="检查指定模板的前置依赖是否满足。验证数据库连接、AI 服务配置等需求是否已就绪，返回每个依赖项的状态和建议。")
 def check_compatibility(template_id: str):
     _validate_template_id(template_id)
     template = TemplateStore.get_template(template_id)

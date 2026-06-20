@@ -5,14 +5,14 @@ import io
 MAX_CSV_ROWS = 50000
 
 
-def read_csv_info(file_content: bytes, delimiter: str = ",", encoding: str = "utf-8") -> dict:
+def read_csv_info(file_content: bytes, delimiter: str = ",", encoding: str = "utf-8", max_rows: int = MAX_CSV_ROWS) -> dict:
     """Read CSV file content, return columns and sample_rows (same interface as read_excel_info)."""
     text = file_content.decode(encoding)
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
 
     rows = []
     for i, row in enumerate(reader):
-        if i >= MAX_CSV_ROWS:
+        if i >= max_rows:
             break
         rows.append(row)
     if not rows:

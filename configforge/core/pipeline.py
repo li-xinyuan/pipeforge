@@ -10,11 +10,7 @@ from configforge.models.wizard import (
     ColumnMappingItem,
     ProcessorConfig,
 )
-from configforge.services.excel_reader import read_excel_info
-from configforge.services.csv_reader import read_csv_info
-from configforge.services.json_reader import read_json_info
-from configforge.services.xml_reader import read_xml_info
-from configforge.services.parquet_reader import read_parquet_info
+from configforge.services.reader_dispatch import read_file_info
 from configforge.services.yaml_builder import build_yaml
 from configforge.utils.security import validate_id
 from configforge.utils.paths import get_upload_dir, get_log_dir, get_output_dir, get_pipeline_timeout
@@ -69,19 +65,7 @@ def infer_input(
 ) -> InputInferResponse:
     validate_id(req.file_id, "file_id")
     path = os.path.join(UPLOAD_DIR, req.file_id)
-    with open(path, "rb") as f:
-        content = f.read()
-    if req.type == "csv":
-        info = read_csv_info(content)
-    elif req.type == "json":
-        info = read_json_info(content)
-    elif req.type == "xml":
-        info = read_xml_info(content)
-    elif req.type == "parquet":
-        info = read_parquet_info(path)
-    else:
-        import io
-        info = read_excel_info(io.BytesIO(content))
+    info = read_file_info(path, file_type=req.type)
     # Build per-column sample values from sample_rows
     col_samples: dict[str, list[str]] = {c: [] for c in info["columns"]}
     for row in info["sample_rows"]:
@@ -192,13 +176,7 @@ def _prepare_execution(state: WizardState, skip_output: bool = False):
                 validate_id(inp.file_id, "file_id")
                 path = os.path.join(UPLOAD_DIR, inp.file_id)
                 if os.path.exists(path):
-                    with open(path, "rb") as f:
-                        content = f.read()
-                    if inp.plugin == "csv":
-                        info = read_csv_info(content)
-                    else:
-                        import io
-                        info = read_excel_info(io.BytesIO(content))
+                    info = read_file_info(path, file_type=inp.plugin)
                     inferred = [ColumnMappingItem(source=c, target=c) for c in info.get("columns", [])]
                     if inferred:
                         break

@@ -1,3 +1,4 @@
+import io
 import xml.etree.ElementTree as ET
 
 
@@ -8,6 +9,7 @@ def read_xml_info(
     file_content: bytes,
     row_element: str = "",
     max_sample_rows: int = 10,
+    max_rows: int = MAX_XML_ROWS,
 ) -> dict:
     """Read XML file content, return columns and sample_rows (same interface as read_excel_info).
 
@@ -16,26 +18,42 @@ def read_xml_info(
         row_element: XPath-like path to the repeating element (e.g. "items/item").
                      If empty, auto-detect by finding the most frequent child element.
         max_sample_rows: Max number of sample rows to return
+        max_rows: Max number of row elements to process (streaming stops after this)
     """
-    root = ET.fromstring(file_content.decode("utf-8"))
-
-    # Find row elements
-    row_elems = _find_row_elements(root, row_element)
-    if not row_elems:
-        return {"sheets": [], "columns": [], "sample_rows": []}
-
-    # Extract data from row elements
+    # Use iterparse for incremental parsing — only process up to max_rows elements
     all_keys: list[str] = []
     rows_data: list[dict] = []
 
-    for i, elem in enumerate(row_elems):
-        if i >= MAX_XML_ROWS:
-            break
-        row_dict = _element_to_dict(elem)
-        rows_data.append(row_dict)
-        for key in row_dict:
-            if key not in all_keys:
-                all_keys.append(key)
+    if row_element:
+        # Path-based: use iterparse to find matching elements incrementally
+        target_tag = row_element.strip("/").split("/")[-1]
+        context = ET.iterparse(io.BytesIO(file_content), events=("end",))
+        for _event, elem in context:
+            if elem.tag == target_tag:
+                if len(rows_data) >= max_rows:
+                    elem.clear()
+                    continue
+                row_dict = _element_to_dict(elem)
+                rows_data.append(row_dict)
+                for key in row_dict:
+                    if key not in all_keys:
+                        all_keys.append(key)
+                elem.clear()
+    else:
+        # Auto-detect: need to parse root first to find the most frequent tag
+        root = ET.fromstring(file_content.decode("utf-8"))
+        row_elems = _find_row_elements(root, row_element)
+        if not row_elems:
+            return {"sheets": [], "columns": [], "sample_rows": []}
+
+        for i, elem in enumerate(row_elems):
+            if i >= max_rows:
+                break
+            row_dict = _element_to_dict(elem)
+            rows_data.append(row_dict)
+            for key in row_dict:
+                if key not in all_keys:
+                    all_keys.append(key)
 
     if not rows_data:
         return {"sheets": [], "columns": [], "sample_rows": []}

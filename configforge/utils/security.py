@@ -119,8 +119,9 @@ def validate_sqlite_path(path: str, param_name: str = "file_path") -> str:
 
     global _SQLITE_ALLOWED_DIRS
     if _SQLITE_ALLOWED_DIRS is None:
+        from configforge.utils.paths import get_data_dir
         _SQLITE_ALLOWED_DIRS = [
-            os.path.abspath("data"),
+            os.path.abspath(get_data_dir()),
             os.path.abspath("tmp"),
         ]
 

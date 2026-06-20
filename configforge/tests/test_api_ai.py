@@ -15,10 +15,24 @@ def _isolate_ai_settings():
     os.close(fd)
     os.unlink(tmp)  # 删除空文件，让 load_settings 返回默认值
     mod.SETTINGS_FILE = tmp
+
+    # Also isolate rate limiter storage
+    import configforge.api.ai as ai_mod
+    orig_limiter = ai_mod._rate_limiter
+    from configforge.utils.rate_limit import RateLimiter
+    fd2, tmp2 = tempfile.mkstemp(suffix=".json")
+    os.close(fd2)
+    os.unlink(tmp2)
+    ai_mod._rate_limiter = RateLimiter(max_requests=10, window_seconds=60, storage_path=tmp2)
+
     yield
+
     mod.SETTINGS_FILE = orig
+    ai_mod._rate_limiter = orig_limiter
     if os.path.exists(tmp):
         os.unlink(tmp)
+    if os.path.exists(tmp2):
+        os.unlink(tmp2)
 
 
 @pytest.mark.anyio

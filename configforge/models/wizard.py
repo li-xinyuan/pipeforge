@@ -251,6 +251,7 @@ class PreviewRequest(BaseModel):
 
     file_id: str
     sheet: Optional[str] = None
+    max_rows: Optional[int] = None
 
 
 class FileUploadResponse(BaseModel):

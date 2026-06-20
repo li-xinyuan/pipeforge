@@ -14,18 +14,22 @@ from configforge.scheduler import (
 from configforge.api.configs import _load_index
 from configforge.utils.security import validate_id
 
-router = APIRouter(prefix="/api/schedules", tags=["schedules"])
+router = APIRouter(prefix="/api/schedules", tags=["调度管理"])
 
 
 class CreateScheduleRequest(BaseModel):
     config_id: str
     cron_expression: str
     description: str = ""
+    retry_count: int = 0
+    retry_interval: int = 300
 
 
 class UpdateScheduleRequest(BaseModel):
     cron_expression: str | None = None
     description: str | None = None
+    retry_count: int | None = None
+    retry_interval: int | None = None
 
 
 @router.get("")
@@ -60,6 +64,8 @@ async def api_add_schedule(req: CreateScheduleRequest):
             config_id=req.config_id,
             cron_expression=req.cron_expression,
             description=req.description,
+            retry_count=req.retry_count,
+            retry_interval=req.retry_interval,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -76,6 +82,8 @@ async def api_update_schedule(schedule_id: str, req: UpdateScheduleRequest):
             schedule_id=schedule_id,
             cron_expression=req.cron_expression,
             description=req.description,
+            retry_count=req.retry_count,
+            retry_interval=req.retry_interval,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

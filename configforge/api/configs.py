@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import urllib.parse
 import uuid
 from datetime import datetime, UTC
 
@@ -28,15 +29,17 @@ from configforge.api.executions import (
     _sanitize_summary,
 )
 from configforge.services.yaml_builder import build_yaml
+from configforge.services.execution_service import (
+    execute as execute_service,
+    ExecutionContext,
+    ExecutionResult,
+)
 from configforge.utils.cache import TTLCache
 from configforge.utils.security import validate_id, sanitize_connection_string
 from configforge.utils.file_lock import read_json_locked, write_json_locked
 from configforge.utils.migration import load_with_migration, ensure_schema_version
-from configforge.core.pipeline import PipelineTimeoutError
 from configforge.utils.paths import get_configs_dir
-from pipeforge.config.exceptions import CheckpointError
-from configforge.services.notifier.dispatcher import dispatch_notifications_async
-from configforge.services.ai.auto_diagnose import auto_diagnose
+from configforge.services.audit_logger import log_audit
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -73,7 +76,7 @@ def _save_index(data: list[dict]) -> None:
     _cache.invalidate("index")
 
 
-@router.get("")
+@router.get("", summary="获取配置列表", description="分页获取所有已保存的 Pipeline 配置列表。支持按场景名称和描述进行搜索。返回按更新时间倒序排列的配置元数据。")
 async def list_configs(
     search: str = None,
     page: int = 1,
@@ -100,7 +103,7 @@ async def list_configs(
     }
 
 
-@router.post("", response_model=SaveConfigResponse)
+@router.post("", response_model=SaveConfigResponse, summary="保存配置", description="创建或更新一个 Pipeline 配置。如果是更新已有配置，旧版本会自动归档到版本历史中。同时生成对应的 YAML 配置文件。")
 async def save_config(req: SaveConfigRequest):
     config_id = req.config_id or uuid.uuid4().hex
     now_str = datetime.now(UTC).isoformat()
@@ -184,7 +187,7 @@ async def save_config(req: SaveConfigRequest):
     return SaveConfigResponse(id=config_id)
 
 
-@router.delete("/{config_id}")
+@router.delete("/{config_id}", summary="删除配置", description="删除指定的 Pipeline 配置，包括其状态文件、YAML 文件和所有版本历史。操作不可撤销。")
 async def delete_config(config_id: str):
     _validate_config_id(config_id)
     index = _load_index()
@@ -210,10 +213,12 @@ async def delete_config(config_id: str):
     if os.path.isdir(versions_dir):
         shutil.rmtree(versions_dir)
 
+    log_audit("delete", "config", config_id)
+
     return {"ok": True}
 
 
-@router.get("/{config_id}")
+@router.get("/{config_id}", summary="获取配置详情", description="根据配置 ID 获取完整的 Pipeline 状态数据，包括场景信息、输入源、处理器和输出配置。")
 async def load_config(config_id: str):
     _validate_config_id(config_id)
     state_path = os.path.join(CONFIGS_DIR, f"{config_id}.state.json")
@@ -229,7 +234,7 @@ async def load_config(config_id: str):
     return state_dict
 
 
-@router.get("/{config_id}/yaml")
+@router.get("/{config_id}/yaml", summary="下载配置 YAML", description="下载指定配置的 Pipeline YAML 文件。YAML 文件包含完整的 Pipeline 定义，可用于版本控制和迁移。")
 async def download_config_yaml(config_id: str):
     _validate_config_id(config_id)
     yaml_path = os.path.join(CONFIGS_DIR, f"{config_id}.yaml")
@@ -248,7 +253,7 @@ async def download_config_yaml(config_id: str):
     )
 
 
-@router.post("/{config_id}/execute")
+@router.post("/{config_id}/execute", summary="执行已保存的配置", description="执行指定 ID 的已保存 Pipeline 配置。可通过 files 参数为各输入源指定上传文件。支持文件输出和数据库输出。")
 async def execute_config(config_id: str, req: ExecuteConfigRequest):
     _validate_config_id(config_id)
     state_path = os.path.join(CONFIGS_DIR, f"{config_id}.state.json")
@@ -281,188 +286,36 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest):
 
     state = WizardState(**state_dict)
 
-    exec_id = uuid.uuid4().hex[:8]
-    started_at = datetime.now(UTC).isoformat()
-
-    inputs_summary = [
-        {"name": inp.name, "plugin": inp.plugin, "param_key": inp.param_key}
-        for inp in state.inputs
-    ]
-    processors_summary = [
-        {"name": p.name, "plugin": p.plugin}
-        for p in state.processors
-    ]
-    output_type = state.output.plugin if state.output else ""
-    scene_name = state.scene.name or ""
-
-    try:
-        output_path = execute_pipeline(state)
-    except (ValueError, SyntaxError, TimeoutError, PipelineTimeoutError) as e:
-        safe_msg = sanitize_connection_string(str(e))
-        diagnosis = await auto_diagnose(
-            yaml_text="", error_message=safe_msg, scene_name=scene_name,
-            inputs_summary=inputs_summary, processors_summary=processors_summary,
-        )
-        _save_failed_execution(
-            exec_id=exec_id,
-            started_at=started_at,
-            config_id=config_id,
-            config_version=config_version,
-            scene_name=scene_name,
-            inputs_summary=inputs_summary,
-            processors_summary=processors_summary,
-            output_type=output_type,
-            error_message=safe_msg,
-            diagnosis=diagnosis,
-        )
-        dispatch_notifications_async({
-            "execution_id": exec_id,
-            "config_id": config_id,
-            "config_name": scene_name,
-            "status": "failed",
-            "summary": "Pipeline 执行失败",
-            "error_message": safe_msg,
-            "started_at": started_at,
-            "finished_at": datetime.now(UTC).isoformat(),
-        })
-        raise HTTPException(status_code=422, detail=safe_msg)
-    except CheckpointError as e:
-        checks = [r.model_dump() for r in e.results]
-        diagnosis = await auto_diagnose(
-            yaml_text="", error_message="数据检查点未通过", scene_name=scene_name,
-            inputs_summary=inputs_summary, processors_summary=processors_summary,
-        )
-        _save_failed_execution(
-            exec_id=exec_id,
-            started_at=started_at,
-            config_id=config_id,
-            config_version=config_version,
-            scene_name=scene_name,
-            inputs_summary=inputs_summary,
-            processors_summary=processors_summary,
-            output_type=output_type,
-            error_message="数据检查点未通过",
-            checks_summary=checks,
-            diagnosis=diagnosis,
-        )
-        dispatch_notifications_async({
-            "execution_id": exec_id,
-            "config_id": config_id,
-            "config_name": scene_name,
-            "status": "failed",
-            "summary": "数据检查点未通过",
-            "error_message": "数据检查点未通过",
-            "started_at": started_at,
-            "finished_at": datetime.now(UTC).isoformat(),
-        })
-        raise HTTPException(status_code=422, detail={"message": "数据检查点未通过", "checks": checks})
-    except Exception as e:
-        logger.exception("pipeline execution failed")
-        safe_msg = sanitize_connection_string(str(e))
-        diagnosis = await auto_diagnose(
-            yaml_text="", error_message=safe_msg, scene_name=scene_name,
-            inputs_summary=inputs_summary, processors_summary=processors_summary,
-        )
-        _save_failed_execution(
-            exec_id=exec_id,
-            started_at=started_at,
-            config_id=config_id,
-            config_version=config_version,
-            scene_name=scene_name,
-            inputs_summary=inputs_summary,
-            processors_summary=processors_summary,
-            output_type=output_type,
-            error_message=safe_msg,
-            diagnosis=diagnosis,
-        )
-        dispatch_notifications_async({
-            "execution_id": exec_id,
-            "config_id": config_id,
-            "config_name": scene_name,
-            "status": "failed",
-            "summary": "Pipeline 执行异常",
-            "error_message": safe_msg,
-            "started_at": started_at,
-            "finished_at": datetime.now(UTC).isoformat(),
-        })
-        raise HTTPException(status_code=500, detail=safe_msg)
-
-    finished_at = datetime.now(UTC).isoformat()
-
-    # Compute duration
-    start_dt = datetime.fromisoformat(started_at)
-    end_dt = datetime.fromisoformat(finished_at)
-    duration_ms = int((end_dt - start_dt).total_seconds() * 1000)
-
-    # Database output has no file; file output needs to be moved
-    output_file_name = None
-    if output_path:
-        filename = os.path.basename(output_path)
-        exec_output_dir = os.path.join(EXEC_DIR, exec_id)
-        os.makedirs(exec_output_dir, exist_ok=True)
-        exec_output_path = os.path.join(exec_output_dir, filename)
-        shutil.move(output_path, exec_output_path)
-
-        # Clean up the intermediate output directory (data/outputs/{id}/)
-        output_intermediate_dir = os.path.dirname(output_path)
-        if os.path.isdir(output_intermediate_dir):
-            shutil.rmtree(output_intermediate_dir, ignore_errors=True)
-
-        output_file_name = filename
-
-    # Save execution record
-    record = ExecutionRecord(
-        id=exec_id,
+    context = ExecutionContext(
         config_id=config_id,
         config_version=config_version,
-        scene_name=scene_name,
-        status="success",
-        started_at=started_at,
-        finished_at=finished_at,
-        duration_ms=duration_ms,
-        inputs_summary=_sanitize_summary(inputs_summary),
-        processors_summary=processors_summary,
-        output_type=output_type,
-        checks_summary=[],
-        output_file_name=output_file_name,
     )
 
-    # Save execution record to file
-    exec_record_dir = os.path.join(EXEC_DIR, exec_id)
-    os.makedirs(exec_record_dir, exist_ok=True)
-    result_path = os.path.join(exec_record_dir, "result.json")
-    with open(result_path, "w") as f:
-        json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
+    result = await execute_service(state, context, sanitize_errors=True)
 
-    _update_exec_index(record)
+    log_audit("execute", "config", config_id)
 
-    # Dispatch notifications
-    dispatch_notifications_async({
-        "execution_id": exec_id,
-        "config_id": config_id,
-        "config_name": scene_name,
-        "status": "success",
-        "summary": f"输出文件: {output_file_name}" if output_file_name else "数据已写入目标数据库",
-        "output_files": [output_file_name] if output_file_name else [],
-        "started_at": started_at,
-        "finished_at": finished_at,
-    })
+    if result.status == "failed":
+        if result.checks:
+            raise HTTPException(status_code=422, detail={"message": "数据检查点未通过", "checks": result.checks})
+        raise HTTPException(status_code=422, detail=result.error_message)
 
     # Return file download for file-based outputs, or JSON for database outputs
-    if output_file_name and output_path:
+    if result.output_file_name and result.output_path:
         media_type = (
             "text/csv"
-            if output_file_name.endswith(".csv")
+            if result.output_file_name.endswith(".csv")
             else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+        encoded_name = urllib.parse.quote(result.output_file_name)
         return FileResponse(
-            exec_output_path,
+            result.output_path,
             media_type=media_type,
-            filename=output_file_name,
-            headers={"Content-Disposition": f'attachment; filename="{output_file_name}"'},
+            filename=result.output_file_name,
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
         )
     else:
-        return {"ok": True, "status": "success", "output_type": output_type}
+        return {"ok": True, "status": "success", "output_type": context.output_type}
 
 
 # === Version management helpers ===
@@ -568,7 +421,7 @@ def _diff_states(state1: dict, state2: dict) -> dict:
 
 # === Version endpoints ===
 
-@router.get("/{config_id}/versions")
+@router.get("/{config_id}/versions", summary="获取配置版本列表", description="获取指定配置的所有历史版本列表。每个版本包含版本号、场景版本、变更摘要、创建时间等信息。")
 async def list_versions(config_id: str) -> list[ConfigVersionMeta]:
     _validate_config_id(config_id)
     versions = _list_version_files(config_id)
@@ -591,7 +444,7 @@ async def list_versions(config_id: str) -> list[ConfigVersionMeta]:
     return result
 
 
-@router.get("/{config_id}/versions/{version}")
+@router.get("/{config_id}/versions/{version}", summary="获取指定版本详情", description="获取指定配置的特定版本状态数据。可用于查看历史配置或进行版本对比。")
 async def get_version(config_id: str, version: int):
     _validate_config_id(config_id)
     state = _read_version_state(config_id, version)
@@ -610,7 +463,7 @@ async def get_version(config_id: str, version: int):
     return state
 
 
-@router.post("/{config_id}/versions/{version}/rollback")
+@router.post("/{config_id}/versions/{version}/rollback", summary="回滚到指定版本", description="将配置回滚到指定的历史版本。当前版本会自动归档，回滚后的内容将作为新版本保存。")
 async def rollback_version(config_id: str, version: int):
     _validate_config_id(config_id)
 
@@ -683,7 +536,7 @@ async def rollback_version(config_id: str, version: int):
     return {"new_version": new_version, "rolled_back_from": old_version, "rolled_back_to": version}
 
 
-@router.get("/{config_id}/diff")
+@router.get("/{config_id}/diff", summary="对比两个版本差异", description="对比指定配置的两个版本之间的差异。使用 deepdiff 进行深度对比，返回新增、修改、删除等变更详情。")
 async def diff_versions(config_id: str, v1: int, v2: int):
     _validate_config_id(config_id)
 

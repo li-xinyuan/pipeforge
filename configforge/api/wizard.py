@@ -1,5 +1,6 @@
 import os
 import json
+import urllib.parse
 import uuid
 import logging
 import shutil
@@ -27,6 +28,10 @@ from configforge.core.pipeline import (
     execute_pipeline,
     dry_run,
 )
+from configforge.services.execution_service import (
+    execute as execute_service,
+    ExecutionContext,
+)
 from configforge.services.notifier.dispatcher import dispatch_notifications_async
 from configforge.services.ai.auto_diagnose import auto_diagnose
 
@@ -39,7 +44,7 @@ from pipeforge.config.exceptions import CheckpointError
 _USER_ERRORS = (ValueError, SyntaxError, TimeoutError, CheckpointError)
 
 
-@router.post("/init-scene")
+@router.post("/init-scene", summary="初始化场景", description="根据用户提供的场景信息初始化 Pipeline 配置。返回包含默认输入、输出和处理器的初始状态。")
 async def api_init_scene(req: SceneInitRequest):
     try:
         return init_scene(req)
@@ -50,7 +55,7 @@ async def api_init_scene(req: SceneInitRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/infer-input/{input_name}")
+@router.post("/infer-input/{input_name}", summary="推断输入列", description="根据指定的输入名称和请求参数，自动推断数据源的列信息和样本值。支持 Excel、CSV、JSON 等文件格式。")
 async def api_infer_input(input_name: str, req: InputInferRequest):
     try:
         return infer_input(input_name, req)
@@ -61,7 +66,7 @@ async def api_infer_input(input_name: str, req: InputInferRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/infer-api-input/{input_name}")
+@router.post("/infer-api-input/{input_name}", summary="推断 API 输入列", description="从 REST API 端点推断数据列信息。支持 GET/POST 请求、分页、自定义请求头和请求体。返回列名、样本值和建议的参数键。")
 async def api_infer_api_input(input_name: str, req: dict):
     """Infer columns from a REST API endpoint."""
     try:
@@ -100,7 +105,7 @@ async def api_infer_api_input(input_name: str, req: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/infer-output")
+@router.post("/infer-output", summary="推断输出配置", description="根据当前 Pipeline 状态自动推断输出配置，包括输出类型、文件格式和目标路径等。")
 async def api_infer_output(req: OutputInferRequest):
     try:
         return infer_output(req)
@@ -111,7 +116,7 @@ async def api_infer_output(req: OutputInferRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/generate")
+@router.post("/generate", summary="生成 Pipeline 配置", description="根据向导状态生成完整的 Pipeline YAML 配置。包含输入源定义、数据加工步骤（SQL/Python）和输出目标。")
 async def api_generate(req: GenerateRequest):
     try:
         return generate(req.state)
@@ -122,7 +127,7 @@ async def api_generate(req: GenerateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/dry-run")
+@router.post("/dry-run", summary="预览执行结果", description="预览 SQL 处理结果 — 只执行输入和加工阶段，返回中间表数据。不写入输出文件，用于验证 Pipeline 逻辑是否正确。")
 async def api_dry_run(req: GenerateRequest):
     """预览 SQL 处理结果 — 只执行输入和加工阶段，返回中间表数据。"""
     try:
@@ -143,175 +148,29 @@ async def api_dry_run(req: GenerateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/execute")
+@router.post("/execute", summary="执行 Pipeline", description="执行指定的 Pipeline 配置，返回生成的输出文件。支持 Excel 和 CSV 输出格式。若输出目标为数据库，则返回成功 JSON。")
 async def api_execute(req: GenerateRequest, background_tasks: BackgroundTasks):
     """执行 pipeline 并返回生成的输出文件。"""
-    exec_id = uuid.uuid4().hex[:8]
-    started_at = datetime.now(UTC).isoformat()
+    context = ExecutionContext(config_id="", config_version=None)
+    result = await execute_service(req.state, context, sanitize_errors=False)
 
-    inputs_summary = [
-        {"name": inp.name, "plugin": inp.plugin, "param_key": inp.param_key}
-        for inp in req.state.inputs
-    ]
-    processors_summary = [
-        {"name": p.name, "plugin": p.plugin}
-        for p in req.state.processors
-    ]
-    output_type = req.state.output.plugin if req.state.output else ""
-    scene_name = req.state.scene.name or ""
-
-    try:
-        output_path = execute_pipeline(req.state)
-    except _USER_ERRORS as e:
-        error_msg = str(e)
-        diagnosis = await auto_diagnose(
-            yaml_text="", error_message=error_msg, scene_name=scene_name,
-            inputs_summary=inputs_summary, processors_summary=processors_summary,
-        )
-        _save_failed_execution(
-            exec_id=exec_id,
-            started_at=started_at,
-            config_id="",
-            config_version=None,
-            scene_name=scene_name,
-            inputs_summary=_sanitize_summary(inputs_summary),
-            processors_summary=processors_summary,
-            output_type=output_type,
-            error_message=error_msg,
-            diagnosis=diagnosis,
-        )
-        dispatch_notifications_async({
-            "execution_id": exec_id,
-            "config_id": "",
-            "config_name": scene_name,
-            "status": "failed",
-            "summary": "Pipeline 执行失败",
-            "error_message": error_msg,
-            "started_at": started_at,
-            "finished_at": datetime.now(UTC).isoformat(),
-        })
-        raise HTTPException(status_code=422, detail=f"Pipeline execution failed: {e}")
-    except Exception as e:
-        logger.exception("pipeline execution failed")
-        error_msg = str(e)
-        diagnosis = await auto_diagnose(
-            yaml_text="", error_message=error_msg, scene_name=scene_name,
-            inputs_summary=inputs_summary, processors_summary=processors_summary,
-        )
-        _save_failed_execution(
-            exec_id=exec_id,
-            started_at=started_at,
-            config_id="",
-            config_version=None,
-            scene_name=scene_name,
-            inputs_summary=_sanitize_summary(inputs_summary),
-            processors_summary=processors_summary,
-            output_type=output_type,
-            error_message=error_msg,
-            diagnosis=diagnosis,
-        )
-        dispatch_notifications_async({
-            "execution_id": exec_id,
-            "config_id": "",
-            "config_name": scene_name,
-            "status": "failed",
-            "summary": "Pipeline 执行异常",
-            "error_message": error_msg,
-            "started_at": started_at,
-            "finished_at": datetime.now(UTC).isoformat(),
-        })
-        raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {e}")
-
-    finished_at = datetime.now(UTC).isoformat()
-    start_dt = datetime.fromisoformat(started_at)
-    end_dt = datetime.fromisoformat(finished_at)
-    duration_ms = int((end_dt - start_dt).total_seconds() * 1000)
+    if result.status == "failed":
+        if result.checks:
+            raise HTTPException(status_code=422, detail={"message": "数据检查点未通过", "checks": result.checks})
+        raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {result.error_message}")
 
     # Database output: no file generated, return success JSON
-    if output_path is None:
-        record = ExecutionRecord(
-            id=exec_id,
-            config_id="",
-            config_version=None,
-            scene_name=scene_name,
-            status="success",
-            started_at=started_at,
-            finished_at=finished_at,
-            duration_ms=duration_ms,
-            inputs_summary=inputs_summary,
-            processors_summary=processors_summary,
-            output_type=output_type,
-            checks_summary=[],
-            output_file_name=None,
-        )
-        result_path = os.path.join(EXEC_DIR, exec_id)
-        os.makedirs(result_path, exist_ok=True)
-        with open(os.path.join(result_path, "result.json"), "w") as f:
-            json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
-        _update_exec_index(record)
-        # Dispatch notifications
-        dispatch_notifications_async({
-            "execution_id": exec_id,
-            "config_id": "",
-            "config_name": scene_name,
-            "status": "success",
-            "summary": f"数据已写入目标数据库",
-            "started_at": started_at,
-            "finished_at": finished_at,
-        })
-        return JSONResponse({"status": "success", "message": "数据已写入目标数据库", "exec_id": exec_id})
-
-    filename = os.path.basename(output_path)
-
-    # Move output to executions directory
-    exec_output_dir = os.path.join(EXEC_DIR, exec_id)
-    os.makedirs(exec_output_dir, exist_ok=True)
-    exec_output_path = os.path.join(exec_output_dir, filename)
-    shutil.move(output_path, exec_output_path)
-
-    # Save execution record
-    record = ExecutionRecord(
-        id=exec_id,
-        config_id="",
-        config_version=None,
-        scene_name=scene_name,
-        status="success",
-        started_at=started_at,
-        finished_at=finished_at,
-        duration_ms=duration_ms,
-        inputs_summary=inputs_summary,
-        processors_summary=processors_summary,
-        output_type=output_type,
-        checks_summary=[],
-        output_file_name=filename,
-    )
-
-    result_path = os.path.join(exec_output_dir, "result.json")
-    with open(result_path, "w") as f:
-        json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
-
-    _update_exec_index(record)
-
-    # Dispatch notifications
-    dispatch_notifications_async({
-        "execution_id": exec_id,
-        "config_id": "",
-        "config_name": scene_name,
-        "status": "success",
-        "summary": f"输出文件: {filename}",
-        "output_files": [filename],
-        "started_at": started_at,
-        "finished_at": finished_at,
-    })
+    if result.output_file_name is None:
+        return JSONResponse({"status": "success", "message": "数据已写入目标数据库", "exec_id": result.exec_id})
 
     # Schedule cleanup of the temp output directory after response is sent
-    output_dir = os.path.dirname(output_path)
-    background_tasks.add_task(lambda: shutil.rmtree(output_dir, ignore_errors=True))
+    # (output has already been moved by execution_service, no cleanup needed)
 
-    media_type = "text/csv" if filename.endswith(".csv") else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    media_type = "text/csv" if result.output_file_name.endswith(".csv") else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    encoded_name = urllib.parse.quote(result.output_file_name)
     return FileResponse(
-        exec_output_path,
+        result.output_path,
         media_type=media_type,
-        filename=filename,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        filename=result.output_file_name,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
     )

@@ -5,11 +5,7 @@ import re
 import sqlite3
 from fastapi import APIRouter, HTTPException
 from configforge.models.wizard import ErrorResponse, PreviewRequest, SqlExecuteRequest, SqlExecuteResponse
-from configforge.services.excel_reader import read_excel_info
-from configforge.services.csv_reader import read_csv_info
-from configforge.services.json_reader import read_json_info
-from configforge.services.xml_reader import read_xml_info
-from configforge.services.parquet_reader import read_parquet_info
+from configforge.services.reader_dispatch import read_file_info, infer_file_type
 from configforge.utils.security import validate_id, safe_identifier
 from configforge.utils.paths import get_upload_dir
 
@@ -59,26 +55,7 @@ _DDL_DML_RE = re.compile(
 )
 
 
-def _get_file_type(file_id: str) -> str:
-    """Determine file type from upload metadata, fall back to extension."""
-    meta_path = os.path.join(UPLOAD_DIR, file_id + ".meta.json")
-    if os.path.exists(meta_path):
-        with open(meta_path, "r") as f:
-            meta = json.load(f)
-        return meta.get("type", "excel")
-    ext = os.path.splitext(file_id)[1].lower()
-    if ext == ".csv":
-        return "csv"
-    if ext == ".json":
-        return "json"
-    if ext == ".xml":
-        return "xml"
-    if ext == ".parquet":
-        return "parquet"
-    return "excel"
-
-
-@router.post("/file")
+@router.post("/file", summary="预览上传文件", description="预览已上传文件的内容。返回工作表列表、列名和样本行数据。支持 Excel 多工作表选择和行数限制。")
 async def preview_file(req: PreviewRequest):
     try:
         validate_id(req.file_id, "file_id")
@@ -94,17 +71,7 @@ async def preview_file(req: PreviewRequest):
         )
     with open(path, "rb") as f:
         content = f.read()
-    file_type = _get_file_type(req.file_id)
-    if file_type == "csv":
-        info = read_csv_info(content)
-    elif file_type == "json":
-        info = read_json_info(content)
-    elif file_type == "xml":
-        info = read_xml_info(content)
-    elif file_type == "parquet":
-        info = read_parquet_info(path)
-    else:
-        info = read_excel_info(io.BytesIO(content), sheet_name=req.sheet)
+    info = read_file_info(path, content=content, sheet_name=req.sheet, max_rows=req.max_rows)
     return {
         "sheets": info["sheets"],
         "columns": info["columns"],
@@ -114,7 +81,7 @@ async def preview_file(req: PreviewRequest):
     }
 
 
-@router.post("/sql")
+@router.post("/sql", summary="执行预览 SQL", description="在内存 SQLite 数据库中执行 SQL 查询进行数据预览。将上传的文件加载为临时表，仅允许 SELECT 查询，自动添加 LIMIT 限制结果行数。禁止 DDL/DML 语句。")
 async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
     """Execute a SQL query against uploaded files loaded into an in-memory SQLite database.
 
@@ -140,20 +107,11 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
                         recoverable=True,
                     ).model_dump(),
                 )
-            file_type = _get_file_type(file_id)
+            file_type = infer_file_type(file_id)
             with open(path, "rb") as f:
                 content = f.read()
 
-            if file_type == "csv":
-                info = read_csv_info(content)
-            elif file_type == "json":
-                info = read_json_info(content)
-            elif file_type == "xml":
-                info = read_xml_info(content)
-            elif file_type == "parquet":
-                info = read_parquet_info(path)
-            else:
-                info = read_excel_info(io.BytesIO(content))
+            info = read_file_info(path, file_type=file_type, content=content)
 
             total_source_rows += info.get("total_rows", 0)
             sample_rows_loaded += len(info.get("sample_rows", []))

@@ -75,11 +75,12 @@ def load_with_migration(file_path: str, default: dict | list | None = None) -> d
         return data
 
     raw = read_json_locked(file_path)
+    original_version = raw.get("schema_version", 0) if isinstance(raw, dict) else 0
     data = ensure_schema_version(raw, file_path)
 
     # Save back if migration happened
-    if isinstance(data, dict) and isinstance(raw, dict):
-        if data.get("schema_version") != raw.get("schema_version", 0):
+    if isinstance(data, dict):
+        if data.get("schema_version", 0) != original_version:
             write_json_locked(file_path, data)
 
     return data

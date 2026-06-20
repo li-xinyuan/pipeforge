@@ -55,7 +55,7 @@ def cleanup_old_logs() -> int:
 cleanup_old_logs()
 
 
-@router.post("/upload", response_model=FileUploadResponse)
+@router.post("/upload", response_model=FileUploadResponse, summary="上传文件", description="上传数据文件用于 Pipeline 输入。支持 xlsx、xls、csv、json、xml、parquet 格式，文件大小限制为 50MB。上传后会自动验证文件格式与内容是否匹配。")
 async def upload_file(file: UploadFile = File(...)):
     if not file:
         raise HTTPException(

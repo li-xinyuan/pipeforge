@@ -1,10 +1,8 @@
-import io
 from configforge.models.wizard import (
     WizardState, SceneInfo, InputSource, ProcessorConfig, OutputTarget,
     ExcelOutputConfig, ExcelInputConfig, CsvInputConfig, CsvOutputConfig, ColumnMappingItem, DatabaseInputConfig
 )
 from configforge.services.yaml_builder import build_yaml
-from configforge.services.template_builder import build_template
 
 
 def test_build_yaml_has_all_sections():
@@ -25,11 +23,6 @@ def test_build_yaml_has_all_sections():
     assert "output:" in y
     assert "snake_case" not in y
     assert "source_table" in y
-
-
-def test_build_template_returns_bytes():
-    buf = build_template(["姓名", "部门"])
-    assert isinstance(buf, io.BytesIO)
 
 
 def test_build_yaml_with_csv_input():

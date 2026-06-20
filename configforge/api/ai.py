@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import time
+from configforge.utils.rate_limit import RateLimiter
 from fastapi import APIRouter, HTTPException, Request
 from configforge.models.ai import AiOrchestrateRequest, AiSuggestionRequest, AiSuggestionResponse, AiSettings, AiSettingsUpdate
 from configforge.services.ai.settings import load_settings, save_settings, mask_key
@@ -11,27 +12,14 @@ from configforge.services.ai.orchestrator import build_prompt, parse_response
 router = APIRouter()
 logger = logging.getLogger("configforge.ai")
 
-# Simple in-memory rate limiter: 10 requests per 60s window per IP
-# NOTE: This rate limiter uses in-memory storage and only works correctly
-# with a single worker. In multi-worker deployments (e.g., uvicorn --workers N),
-# each worker maintains its own rate limit state, effectively multiplying the
-# limit by the number of workers. For production multi-worker setups, consider
-# using a shared store (e.g., Redis) or an API gateway with rate limiting.
-_rate_window_sec = 60
-_rate_max_requests = 10
-_rate_store: dict[str, list[float]] = {}
+# Persistent rate limiter: 10 requests per 60s window per IP
+# Uses file-backed storage so the limit is shared across workers.
+_rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
 
 def _check_rate_limit(client_ip: str) -> None:
-    now = time.monotonic()
-    if client_ip not in _rate_store:
-        _rate_store[client_ip] = []
-    # Purge expired entries
-    window_start = now - _rate_window_sec
-    _rate_store[client_ip] = [t for t in _rate_store[client_ip] if t > window_start]
-    if len(_rate_store[client_ip]) >= _rate_max_requests:
+    if not _rate_limiter.is_allowed(client_ip):
         raise HTTPException(status_code=429, detail="请求过于频繁，请稍后重试")
-    _rate_store[client_ip].append(now)
 
 
 def _sanitize_error(msg: str) -> str:
@@ -47,7 +35,7 @@ def _sanitize_error(msg: str) -> str:
     return msg
 
 
-@router.post("/suggest", response_model=AiSuggestionResponse)
+@router.post("/suggest", response_model=AiSuggestionResponse, summary="AI 智能建议", description="根据类别和上下文获取 AI 生成的建议内容。支持 SQL 编写、数据处理、配置优化等场景。每个 IP 限流 10 次/分钟。")
 async def suggest(req: AiSuggestionRequest, request: Request):
     _check_rate_limit(request.client.host if request.client else "unknown")
     settings = load_settings()
@@ -80,7 +68,7 @@ async def suggest(req: AiSuggestionRequest, request: Request):
             await backend.close()
 
 
-@router.post("/orchestrate")
+@router.post("/orchestrate", summary="AI 编排多步 Pipeline", description="使用 AI 从自然语言描述规划多步骤 SQL Pipeline。返回包含步骤列表、解释说明和原始响应的编排结果。每个 IP 限流 10 次/分钟。")
 async def orchestrate(req: AiOrchestrateRequest, request: Request):
     """AI plans multi-step SQL pipeline from natural language."""
     _check_rate_limit(request.client.host if request.client else "unknown")
@@ -123,7 +111,7 @@ async def orchestrate(req: AiOrchestrateRequest, request: Request):
             await backend.close()
 
 
-@router.post("/translate-checkpoint")
+@router.post("/translate-checkpoint", summary="AI 翻译检查规则", description="将自然语言描述的数据检查需求翻译为具体的 CheckRule JSON。支持行数检查、空值率检查、唯一性检查、范围检查、枚举检查和自定义 SQL 检查等规则类型。")
 async def translate_checkpoint(req: AiSuggestionRequest, request: Request):
     """将自然语言检查需求翻译为具体的 CheckRule JSON。"""
     _check_rate_limit(request.client.host if request.client else "unknown")
@@ -182,7 +170,7 @@ async def translate_checkpoint(req: AiSuggestionRequest, request: Request):
             await backend.close()
 
 
-@router.get("/settings")
+@router.get("/settings", summary="获取 AI 设置", description="获取当前 AI 服务的配置信息，包括启用的提供商、模型名称等。API Key 会被脱敏显示。")
 async def get_settings():
     settings = load_settings()
     data = settings.model_dump()
@@ -190,7 +178,7 @@ async def get_settings():
     return data
 
 
-@router.put("/settings")
+@router.put("/settings", summary="更新 AI 设置", description="更新 AI 服务配置，包括提供商、API Key、模型名称等。支持部分更新，未提供的字段保持不变。")
 async def update_settings(body: AiSettingsUpdate):
     existing = load_settings()
     api_key = existing.api_key if body.api_key is None else body.api_key
@@ -200,7 +188,7 @@ async def update_settings(body: AiSettingsUpdate):
     return {"ok": True}
 
 
-@router.post("/test")
+@router.post("/test", summary="测试 AI 连接", description="测试 AI 服务的连接是否正常。发送简单请求验证 API Key 有效性和网络连通性，返回提供商、模型和延迟信息。")
 async def test_connection():
     settings = load_settings()
     if not settings.api_key:

@@ -1,6 +1,7 @@
 """Execution history API."""
 import os
 import json
+import urllib.parse
 import shutil
 import uuid
 from datetime import datetime, UTC
@@ -13,7 +14,7 @@ from configforge.utils.security import validate_id
 from configforge.utils.file_lock import read_json_locked, write_json_locked
 from configforge.utils.paths import get_data_dir
 
-router = APIRouter(prefix="/api/executions", tags=["executions"])
+router = APIRouter(prefix="/api/executions", tags=["执行历史"])
 
 DATA_DIR = get_data_dir()
 EXEC_DIR = os.path.join(DATA_DIR, "executions")
@@ -123,7 +124,7 @@ def _save_failed_execution(
     _update_exec_index(record)
 
 
-@router.get("")
+@router.get("", summary="获取执行历史列表", description="分页获取 Pipeline 执行历史记录。支持按场景名称搜索和按配置 ID 筛选。返回执行状态、耗时、输入输出摘要等信息。")
 async def list_executions(
     search: str = None,
     config_id: str = None,
@@ -162,7 +163,7 @@ async def list_executions(
     }
 
 
-@router.get("/{exec_id}")
+@router.get("/{exec_id}", summary="获取执行详情", description="根据执行 ID 获取单次 Pipeline 执行的详细信息，包括状态、耗时、输入输出摘要、检查点结果和错误信息。")
 async def get_execution(exec_id: str):
     """Get execution detail."""
     validate_id(exec_id, "exec_id")
@@ -173,7 +174,7 @@ async def get_execution(exec_id: str):
         return json.load(f)
 
 
-@router.get("/{exec_id}/download")
+@router.get("/{exec_id}/download", summary="下载执行输出文件", description="下载指定执行记录的输出文件。支持 Excel (.xlsx) 和 CSV 格式。仅当执行成功且生成了输出文件时可用。")
 async def download_execution_output(exec_id: str):
     """Download execution output file."""
     validate_id(exec_id, "exec_id")
@@ -189,10 +190,11 @@ async def download_execution_output(exec_id: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Output file not found")
     media_type = "text/csv" if filename.endswith(".csv") else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    return FileResponse(file_path, media_type=media_type, filename=filename)
+    encoded_name = urllib.parse.quote(filename)
+    return FileResponse(file_path, media_type=media_type, filename=filename, headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"})
 
 
-@router.delete("/{exec_id}")
+@router.delete("/{exec_id}", summary="删除执行记录", description="删除指定的执行记录及其关联的输出文件。同时从执行索引中移除该记录。")
 async def delete_execution(exec_id: str):
     """Delete an execution record and its files."""
     validate_id(exec_id, "exec_id")
