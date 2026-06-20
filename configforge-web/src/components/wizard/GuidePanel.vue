@@ -2,13 +2,13 @@
   <div class="guide-panel" :class="{ 'guide-panel--collapsed': collapsed }">
     <!-- Collapsed strip -->
     <div v-if="collapsed" class="guide-panel__collapsed" @click="collapsed = false">
-      <span class="guide-panel__collapsed-icon">📋</span>
+      <span class="guide-panel__collapsed-icon">🤖</span>
     </div>
 
     <!-- Expanded panel -->
     <template v-else>
       <div class="guide-panel__header">
-        <span class="guide-panel__header-title">配置向导</span>
+        <span class="guide-panel__header-title">🤖 Forge · AI 助手</span>
         <button class="guide-panel__collapse-btn" @click.stop="collapsed = true" title="收起面板" aria-label="收起面板">◀</button>
       </div>
 
@@ -124,145 +124,78 @@ const currentTip = computed(() => {
 .guide-panel {
   width: 280px;
   flex-shrink: 0;
-  background: var(--color-surface);
-  border-left: 1px solid var(--color-border-light);
+  background: linear-gradient(180deg, rgba(124,58,237,0.04), rgba(99,102,241,0.02), rgba(6,182,212,0.01));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-left: 1px solid rgba(124,58,237,0.12);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transition: width 0.25s ease;
 }
 
-.guide-panel--collapsed {
-  width: 36px;
-}
+.guide-panel--collapsed { width: 36px; }
 
-/* Collapsed strip */
 .guide-panel__collapsed {
-  width: 36px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 36px; height: 100%;
+  display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  background: var(--color-surface);
-  border-left: 1px solid var(--color-border-light);
+  background: linear-gradient(180deg, rgba(124,58,237,0.04), rgba(99,102,241,0.02));
+  border-left: 1px solid rgba(124,58,237,0.12);
   transition: background 0.2s;
 }
+.guide-panel__collapsed:hover { background: rgba(124,58,237,0.08); }
+.guide-panel__collapsed-icon { font-size: 16px; writing-mode: vertical-lr; letter-spacing: 2px; }
 
-.guide-panel__collapsed:hover {
-  background: var(--color-surface-hover);
-}
-
-.guide-panel__collapsed-icon {
-  font-size: 16px;
-  writing-mode: vertical-lr;
-  letter-spacing: 2px;
-}
-
-/* Header */
 .guide-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--color-border-light);
+  border-bottom: 1px solid rgba(124,58,237,0.08);
+  background: linear-gradient(135deg, rgba(124,58,237,0.06), rgba(99,102,241,0.03));
 }
-
-.guide-panel__header-title {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--color-text);
-}
-
+.guide-panel__header-title { font-size: 14px; font-weight: 600; color: var(--color-ai); }
 .guide-panel__collapse-btn {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 12px;
-  padding: 4px;
-  border-radius: var(--radius-sm);
+  background: none; border: none; color: var(--color-text-muted);
+  cursor: pointer; font-size: 12px; padding: 4px; border-radius: var(--radius-sm);
   transition: color 0.2s, background 0.2s;
 }
+.guide-panel__collapse-btn:hover { color: var(--color-text); background: var(--color-surface-hover); }
 
-.guide-panel__collapse-btn:hover {
-  color: var(--color-text);
-  background: var(--color-surface-hover);
-}
+.guide-panel__dots { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 14px 6px; }
+.guide-panel__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-border); transition: background 0.2s, transform 0.2s; }
+.guide-panel__dot--active { background: var(--color-ai); transform: scale(1.3); }
+.guide-panel__dot--done { background: var(--color-ai-light); }
 
-/* Step dots */
-.guide-panel__dots {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px 14px 6px;
-}
+.guide-panel__step-label { text-align: center; font-size: var(--font-size-sm); font-weight: 500; color: var(--color-text-secondary); padding: 0 14px 14px; }
 
-.guide-panel__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-border);
-  transition: background 0.2s, transform 0.2s;
-}
-
-.guide-panel__dot--active {
-  background: var(--color-primary);
-  transform: scale(1.3);
-}
-
-.guide-panel__dot--done {
-  background: var(--color-primary-light);
-}
-
-/* Step label */
-.guide-panel__step-label {
-  text-align: center;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  padding: 0 14px 14px;
-}
-
-/* Tip content */
 .guide-panel__tip {
-  display: flex;
-  gap: 8px;
-  padding: 14px;
-  margin: 0 10px 14px;
-  background: linear-gradient(135deg, var(--color-primary-bg), var(--color-primary-bg-light));
-  border: 1px solid var(--color-primary-border);
+  display: flex; gap: 8px; padding: 14px; margin: 0 10px 14px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.05), rgba(99,102,241,0.03));
+  border: 1px solid rgba(124,58,237,0.15);
   border-radius: var(--radius-md);
 }
+.guide-panel__tip-icon { font-size: 16px; flex-shrink: 0; line-height: 1.5; }
+.guide-panel__tip-text { font-size: var(--font-size-sm); color: var(--color-ai); line-height: 1.6; }
 
-.guide-panel__tip-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-  line-height: 1.5;
-}
-
-.guide-panel__tip-text {
-  font-size: var(--font-size-sm);
-  color: var(--color-primary);
-  line-height: 1.6;
-}
-
-/* Responsive */
 @media (max-width: 767px) {
-  .guide-panel {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid var(--color-border-light);
-    max-height: 200px;
-  }
-  .guide-panel--collapsed {
-    width: 100%;
-    height: 36px;
-  }
-  .guide-panel__collapsed {
-    flex-direction: row;
-    padding: 8px 12px;
-  }
+  .guide-panel { width: 100%; border-left: none; border-top: 1px solid rgba(124,58,237,0.12); max-height: 200px; }
+  .guide-panel--collapsed { width: 100%; height: 36px; }
+  .guide-panel__collapsed { flex-direction: row; padding: 8px 12px; }
 }
+
+/* Dark mode */
+[data-theme="dark"] .guide-panel {
+  background: linear-gradient(180deg, rgba(124,58,237,0.08), rgba(99,102,241,0.04));
+  border-color: rgba(124,58,237,0.2);
+}
+[data-theme="dark"] .guide-panel__header {
+  background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(99,102,241,0.06));
+  border-color: rgba(124,58,237,0.15);
+}
+[data-theme="dark"] .guide-panel__header-title { color: #c4b5fd; }
+[data-theme="dark"] .guide-panel__tip {
+  background: rgba(124,58,237,0.1);
+  border-color: rgba(124,58,237,0.2);
+}
+[data-theme="dark"] .guide-panel__tip-text { color: #ddd6fe; }
 </style>
