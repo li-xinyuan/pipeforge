@@ -6,56 +6,129 @@
     </div>
     <div class="anim-frame__viewport">
       <div ref="scrollInner" class="anim-frame__scroll">
-        <!-- Screen 1: Step 1 + Step 2 -->
+        <!-- Screen 1: Scene Info -->
         <div class="anim-group">
-          <div class="anim-step">
-            <div class="anim-step__head"><span class="anim-step__icon">🎨</span><span class="anim-step__title">场景信息</span></div>
-            <div class="anim-step__body">
-              <span class="mock-input">销售报表生成</span>
-              <span class="mock-input mock-input--sm">v1.0</span>
+          <div class="anim-group__left">
+            <div class="anim-step">
+              <div class="anim-step__head">🎨 步骤 1 · 场景信息</div>
+              <div class="anim-step__body">
+                <div class="a-input a-input--lg">销售数据月度汇总</div>
+                <div class="a-input a-input--sm">v1.0</div>
+              </div>
             </div>
           </div>
-          <div class="anim-step">
-            <div class="anim-step__head"><span class="anim-step__icon">📂</span><span class="anim-step__title">输入源</span></div>
-            <div class="anim-step__body">
-              <span class="mock-card mock-card--active">📊 Excel</span>
-              <span class="mock-card">🗄 CSV</span>
-              <span class="mock-upload">📤 上传文件</span>
+          <div class="anim-group__right">
+            <div class="a-panel">
+              <div class="a-panel__title">🤖 AI 助手</div>
+              <div class="a-panel__text">请填写场景名称，描述你的数据处理目标</div>
+              <div class="a-panel__dots"><i></i><i></i><i></i><i></i><i></i></div>
             </div>
           </div>
         </div>
 
-        <!-- Screen 2: Step 3 + Step 4 -->
+        <!-- Screen 2: Input Sources -->
         <div class="anim-group">
-          <div class="anim-step">
-            <div class="anim-step__head"><span class="anim-step__icon">⚡</span><span class="anim-step__title">处理步骤</span></div>
-            <div class="anim-step__body">
-              <span class="mock-ai-btn">✨ AI 生成 SQL</span>
-              <span class="mock-code"><span class="mock-code__kw">SELECT</span> * <span class="mock-code__kw">FROM</span> <span class="mock-code__str">"sales_data"</span></span>
-              <span class="mock-input mock-input--sm">result</span>
+          <div class="anim-group__left">
+            <div class="anim-step">
+              <div class="anim-step__head">📂 步骤 2 · 输入源</div>
+              <div class="anim-step__body">
+                <div class="a-types">
+                  <span class="a-type a-type--active">📊 Excel</span>
+                  <span class="a-type">🗄 CSV</span>
+                  <span class="a-type">🔌 DB</span>
+                  <span class="a-type">📋 JSON</span>
+                  <span class="a-type">📄 XML</span>
+                  <span class="a-type">📦 Parquet</span>
+                  <span class="a-type">🌐 API</span>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="anim-step">
-            <div class="anim-step__head"><span class="anim-step__icon">📤</span><span class="anim-step__title">输出配置</span></div>
-            <div class="anim-step__body">
-              <span class="mock-card mock-card--active">📊 Excel</span>
-              <span class="mock-card">🗄 CSV</span>
-              <span class="mock-mapping__item">city → 城市</span>
+          <div class="anim-group__right">
+            <div class="a-panel">
+              <div class="a-panel__title">🤖 AI 助手</div>
+              <div class="a-panel__text">请选择数据来源类型。支持 7 种格式，上传后可 AI 分析列结构</div>
+              <div class="a-panel__dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
             </div>
           </div>
         </div>
 
-        <!-- Screen 3: Step 5 + Confetti -->
+        <!-- Screen 3: Processing -->
         <div class="anim-group">
-          <div class="anim-step">
-            <div class="anim-step__head"><span class="anim-step__icon">🚀</span><span class="anim-step__title">预览与导出</span></div>
-            <div class="anim-step__body">
-              <span class="mock-btn">保存配置</span>
-              <span class="mock-btn mock-btn--accent">下载 YAML</span>
+          <div class="anim-group__left">
+            <div class="anim-step">
+              <div class="anim-step__head">⚡ 步骤 3 · 处理步骤</div>
+              <div class="anim-step__body">
+                <div class="a-code">
+                  <span class="a-code__kw">SELECT</span> city,
+                  <span class="a-code__kw">COUNT</span>(*) <span class="a-code__kw">AS</span> cnt,
+                  <span class="a-code__kw">SUM</span>(amount) <span class="a-code__kw">AS</span> total
+                  <span class="a-code__kw">FROM</span> <span class="a-code__str">"sales"</span>
+                  <span class="a-code__kw">GROUP BY</span> city
+                </div>
+                <span class="a-btn a-btn--ai">✨ AI 生成 SQL</span>
+              </div>
             </div>
           </div>
-          <div class="anim-confetti">
-            <span class="anim-confetti__piece" v-for="i in 12" :key="i" :style="{ '--i': i }">🎉</span>
+          <div class="anim-group__right">
+            <div class="a-panel">
+              <div class="a-panel__title">🤖 AI 助手</div>
+              <div class="a-panel__text">已根据场景自动生成 SQL 代码。支持自然语言描述需求，AI 生成查询</div>
+              <div class="a-panel__dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 4: Output -->
+        <div class="anim-group">
+          <div class="anim-group__left">
+            <div class="anim-step">
+              <div class="anim-step__head">📤 步骤 4 · 输出配置</div>
+              <div class="anim-step__body">
+                <div class="a-types">
+                  <span class="a-type a-type--active">📊 Excel</span>
+                  <span class="a-type">🗄 CSV</span>
+                  <span class="a-type">🔌 DB</span>
+                </div>
+                <div class="a-mapping">
+                  <span>city → 城市</span>
+                  <span>cnt → 订单数</span>
+                  <span>total → 总金额</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="anim-group__right">
+            <div class="a-panel">
+              <div class="a-panel__title">🤖 AI 助手</div>
+              <div class="a-panel__text">列映射已自动完成。输出格式为 Excel，文件名自动生成</div>
+              <div class="a-panel__dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 5: Export -->
+        <div class="anim-group">
+          <div class="anim-group__left">
+            <div class="anim-step">
+              <div class="anim-step__head">🚀 步骤 5 · 预览与导出</div>
+              <div class="anim-step__body">
+                <div class="a-actions">
+                  <span class="a-btn">📥 下载 YAML</span>
+                  <span class="a-btn a-btn--accent">▶ 执行流水线</span>
+                </div>
+              </div>
+            </div>
+            <div class="anim-confetti">
+              <span v-for="i in 8" :key="i" :style="{ animationDelay: (i * 0.15) + 's' }">🎉</span>
+            </div>
+          </div>
+          <div class="anim-group__right">
+            <div class="a-panel a-panel--done">
+              <div class="a-panel__title">🤖 AI 助手</div>
+              <div class="a-panel__text">🎉 配置完成！5 个步骤全部就绪，可下载 YAML 或直接执行</div>
+              <div class="a-panel__dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+            </div>
           </div>
         </div>
       </div>
@@ -75,43 +148,21 @@ onMounted(async () => {
   await nextTick()
   const container = scrollInner.value
   if (!container) return
-
   try {
     const groups = container.querySelectorAll<HTMLElement>('.anim-group')
     if (groups.length === 0) return
-
     const tl = createTimeline({ loop: true })
-
-    // Show screen 1
-    tl.add({ duration: 3500 })
-
-    // Scroll to screen 2
-    tl.add(container, {
-      translateY: -(groups[1].offsetTop - 8),
-      duration: 700,
-      easing: 'easeInOutQuad',
-    })
-    tl.add({ duration: 3500 })
-
-    // Scroll to screen 3
-    tl.add(container, {
-      translateY: -(groups[2].offsetTop - 8),
-      duration: 700,
-      easing: 'easeInOutQuad',
-    })
+    // Show first screen
     tl.add({ duration: 4000 })
-
-    // Pause then reset
-    tl.add({ duration: 1000 })
-    tl.add(container, {
-      translateY: 0,
-      duration: 500,
-      easing: 'easeInOutQuad',
-    })
+    for (let i = 1; i < groups.length; i++) {
+      tl.add(container, { translateY: -(groups[i].offsetTop - 8), duration: 800, easing: 'easeInOutQuad' })
+      tl.add({ duration: 4000 })
+    }
+    tl.add({ duration: 1500 })
+    tl.add(container, { translateY: 0, duration: 500, easing: 'easeInOutQuad' })
     tl.add({ duration: 2000 })
-
     anim = tl
-  } catch { /* silently ignore */ }
+  } catch { /* ignore */ }
 })
 
 onUnmounted(() => { anim?.pause() })
@@ -119,16 +170,15 @@ onUnmounted(() => { anim?.pause() })
 
 <style scoped>
 .anim-frame {
-  max-width: 100%; margin: 0 auto;
+  max-width: 560px; margin: 0 auto;
   border: 1px solid var(--color-border); border-radius: 12px;
   background: var(--color-surface);
   box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
   overflow: hidden;
 }
 .anim-frame__bar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; background: var(--color-surface-hover);
-  border-bottom: 1px solid var(--color-border-light);
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border-light);
 }
 .anim-frame__dots { display: flex; gap: 4px; }
 .anim-frame__dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--color-border); }
@@ -136,74 +186,104 @@ onUnmounted(() => { anim?.pause() })
 .anim-frame__dots i:nth-child(2) { background: #fbbf24; }
 .anim-frame__dots i:last-child { background: #34d399; }
 .anim-frame__title { font-size: 10px; color: var(--color-text-muted); }
-.anim-frame__viewport { overflow: hidden; height: 155px; }
-.anim-frame__scroll { display: flex; flex-direction: column; gap: 24px; padding: 8px 12px 160px; }
+.anim-frame__viewport { overflow: hidden; height: 170px; }
+.anim-frame__scroll { display: flex; flex-direction: column; gap: 0; padding: 0; }
 .anim-frame__hint {
   text-align: center; font-size: 10px; color: var(--color-text-muted);
-  padding: 6px; background: var(--color-surface-hover);
-  border-top: 1px solid var(--color-border-light);
+  padding: 5px; background: var(--color-surface-hover); border-top: 1px solid var(--color-border-light);
 }
 
-/* Group: two steps side by side */
+/* Group: left content + right AI panel */
 .anim-group {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 4px; border: 1px solid var(--color-border-light);
-  border-radius: 10px; background: var(--color-bg);
-  flex-shrink: 0;
+  display: flex; gap: 8px; padding: 8px;
+  background: linear-gradient(180deg, var(--color-bg), var(--color-surface));
+  flex-shrink: 0; min-height: 170px;
 }
+.anim-group__left { flex: 1; min-width: 0; }
+.anim-group__right { width: 140px; flex-shrink: 0; }
 
 /* Step card */
 .anim-step {
   background: var(--color-surface); border: 1px solid var(--color-border-light);
-  border-radius: 8px; padding: 8px 12px; flex-shrink: 0;
+  border-radius: 8px; padding: 10px 12px;
 }
-.anim-step__head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.anim-step__icon { font-size: 14px; }
-.anim-step__title { font-size: 12px; font-weight: 700; color: var(--color-text); }
-.anim-step__body { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.anim-step__head { font-size: 12px; font-weight: 700; color: var(--color-text); margin-bottom: 8px; }
+.anim-step__body { display: flex; flex-direction: column; gap: 6px; }
 
-/* Mock elements */
-.mock-input {
-  height: 22px; padding: 0 8px; font-size: 10px; color: var(--color-text);
+/* Mock form */
+.a-input {
+  height: 24px; padding: 0 8px; font-size: 10px; color: var(--color-text);
   background: var(--color-bg); border: 1px solid var(--color-border-light);
   border-radius: 5px; display: flex; align-items: center;
 }
-.mock-input--sm { max-width: 70px; }
-.mock-btn {
-  display: inline-flex; align-items: center;
-  padding: 3px 8px; font-size: 9px; font-weight: 600;
-  color: #fff; background: linear-gradient(135deg, #7c3aed, #6366f1);
-  border-radius: 5px; white-space: nowrap;
+.a-input--lg { width: 100%; }
+.a-input--sm { max-width: 80px; }
+
+.a-types { display: flex; gap: 3px; flex-wrap: wrap; }
+.a-type {
+  padding: 3px 5px; font-size: 8px; font-weight: 500;
+  color: var(--color-text-muted); background: var(--color-bg);
+  border: 1px solid var(--color-border-light); border-radius: 4px;
 }
-.mock-btn--accent {
-  background: rgba(255,255,255,0.6); color: #7c3aed;
-  border: 1px solid rgba(124,58,237,0.25);
+.a-type--active { color: #166534; background: #f0fdf4; border-color: #16a34a; }
+
+.a-code {
+  padding: 6px 8px; font-size: 9px; font-family: ui-monospace, monospace;
+  color: #e2e8f0; background: #1e293b; border-radius: 5px; line-height: 1.5;
 }
-.mock-card { padding: 3px 6px; font-size: 9px; font-weight: 500; color: var(--color-text-muted); background: var(--color-bg); border: 1px solid var(--color-border-light); border-radius: 4px; }
-.mock-card--active { color: #166534; background: #f0fdf4; border-color: #16a34a; }
-.mock-upload { display: flex; align-items: center; gap: 3px; padding: 3px 6px; font-size: 9px; color: var(--color-primary); background: var(--color-primary-bg); border: 1px dashed var(--color-primary-border); border-radius: 4px; }
-.mock-ai-btn { display: inline-flex; align-items: center; gap: 3px; padding: 3px 6px; font-size: 9px; font-weight: 600; color: #fff; background: linear-gradient(135deg, #7c3aed, #6366f1); border-radius: 4px; }
-.mock-code { padding: 5px 6px; font-size: 8px; font-family: ui-monospace, monospace; color: #e2e8f0; background: #1e293b; border-radius: 4px; line-height: 1.3; max-width: 140px; overflow: hidden; }
-.mock-code__kw { color: #93c5fd; }
-.mock-code__str { color: #fbbf24; }
-.mock-mapping__item { padding: 2px 5px; font-size: 8px; color: var(--color-text-secondary); background: var(--color-bg); border: 1px solid var(--color-border-light); border-radius: 3px; font-family: ui-monospace, monospace; }
+.a-code__kw { color: #93c5fd; }
+.a-code__str { color: #fbbf24; }
+
+.a-btn {
+  display: inline-flex; align-items: center; gap: 3px; padding: 4px 8px;
+  font-size: 9px; font-weight: 600; color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  border-radius: 4px; align-self: flex-start;
+}
+.a-btn--ai {
+  background: linear-gradient(135deg, #7c3aed, #6366f1);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,.3)} 50%{box-shadow:0 0 0 4px rgba(124,58,237,0)} }
+.a-btn--accent {
+  background: rgba(255,255,255,0.6); color: var(--color-primary);
+  border: 1px solid var(--color-primary-border);
+}
+
+.a-mapping { display: flex; gap: 3px; flex-wrap: wrap; }
+.a-mapping span {
+  padding: 2px 5px; font-size: 8px; color: var(--color-text-secondary);
+  background: var(--color-bg); border: 1px solid var(--color-border-light);
+  border-radius: 3px; font-family: ui-monospace, monospace;
+}
+
+.a-actions { display: flex; gap: 6px; }
+
+/* AI panel */
+.a-panel {
+  background: linear-gradient(180deg, rgba(124,58,237,0.04), rgba(99,102,241,0.02));
+  border: 1px solid rgba(124,58,237,0.1); border-radius: 8px;
+  padding: 10px; height: 100%; display: flex; flex-direction: column;
+}
+.a-panel--done { border-color: rgba(16,185,129,0.2); background: linear-gradient(180deg, rgba(16,185,129,0.04), rgba(5,150,105,0.02)); }
+.a-panel__title { font-size: 10px; font-weight: 600; color: #7c3aed; margin-bottom: 6px; }
+.a-panel--done .a-panel__title { color: #059669; }
+.a-panel__text { font-size: 9px; color: var(--color-text-muted); line-height: 1.5; flex: 1; }
+.a-panel__dots { display: flex; gap: 4px; margin-top: 8px; }
+.a-panel__dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--color-border); }
+.a-panel__dots i.on { background: #7c3aed; }
 
 /* Confetti */
 .anim-confetti {
-  display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;
-  padding: 12px 8px; opacity: 0.8;
+  display: flex; gap: 3px; justify-content: center; margin-top: 6px;
 }
-.anim-confetti__piece {
-  font-size: 18px; animation: confetti-bounce 1.5s ease-in-out infinite;
-  animation-delay: calc(var(--i) * 0.12s);
+.anim-confetti span {
+  font-size: 14px; animation: bounce 2s ease-in-out infinite;
 }
-@keyframes confetti-bounce {
-  0%,100% { transform: translateY(0) scale(1); opacity:1; }
-  50% { transform: translateY(-6px) scale(1.2); opacity:0.6; }
-}
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
 
-@media (max-width: 600px) {
-  .anim-frame__viewport { height: 180px; }
-  .anim-step { padding: 6px 10px; }
+@media (max-width: 480px) {
+  .anim-group__right { width: 100px; }
+  .anim-frame__viewport { height: 150px; }
 }
 </style>
