@@ -271,19 +271,42 @@ button:active:not([disabled]) {
 
 /* === Global Button Styles === */
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
+  background: linear-gradient(135deg, rgba(15,118,110,0.88), rgba(20,184,166,0.85)) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(15,118,110,0.15) !important;
   color: #fff !important;
-  border: none !important;
-  box-shadow: var(--shadow-button);
-  text-shadow: var(--text-shadow-on-gradient);
-  transition: all var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(15,118,110,0.12), 0 2px 8px rgba(15,118,110,0.08);
+  transition: all var(--transition-normal);
 }
 .btn-primary:hover {
-  filter: brightness(1.08);
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
+  background: linear-gradient(135deg, rgba(15,118,110,0.95), rgba(20,184,166,0.92)) !important;
+  box-shadow: 0 2px 4px rgba(15,118,110,0.18), 0 4px 20px rgba(15,118,110,0.12);
+  transform: translateY(-1px);
 }
 .btn-primary:active {
   transform: scale(0.97);
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.6) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.85) !important;
+  border-color: var(--color-primary-border) !important;
+  box-shadow: var(--shadow-md);
+}
+[data-theme="dark"] .btn-secondary {
+  background: rgba(41,37,36,0.5) !important;
+}
+[data-theme="dark"] .btn-secondary:hover {
+  background: rgba(41,37,36,0.75) !important;
 }
 
 /* === CTA pulse animation === */
