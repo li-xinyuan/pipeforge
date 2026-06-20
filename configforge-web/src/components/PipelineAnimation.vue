@@ -6,104 +6,61 @@
     </div>
     <div class="anim-frame__viewport">
       <div ref="scrollInner" class="anim-frame__scroll">
-        <!-- Step 1 -->
-        <div class="anim-step">
-          <div class="anim-step__head">
-            <span class="anim-step__icon">🎨</span>
-            <span class="anim-step__title">场景信息</span>
+        <!-- Screen 1: Step 1 + Step 2 -->
+        <div class="anim-group">
+          <div class="anim-step">
+            <div class="anim-step__head"><span class="anim-step__icon">🎨</span><span class="anim-step__title">场景信息</span></div>
+            <div class="anim-step__body">
+              <span class="mock-input">销售报表生成</span>
+              <span class="mock-input mock-input--sm">v1.0</span>
+            </div>
           </div>
-          <div class="anim-step__body">
-            <div class="mock-input">销售报表生成</div>
-            <div class="mock-input mock-input--sm">v1.0</div>
-            <div class="mock-textarea">根据每日销售明细生成汇总报表…</div>
-          </div>
-          <div class="anim-step__foot">
-            <span class="mock-btn">下一步 ↓</span>
-          </div>
-        </div>
-
-        <!-- Step 2 -->
-        <div class="anim-step">
-          <div class="anim-step__head">
-            <span class="anim-step__icon">📂</span>
-            <span class="anim-step__title">输入源</span>
-          </div>
-          <div class="anim-step__body">
-            <div class="mock-cards">
+          <div class="anim-step">
+            <div class="anim-step__head"><span class="anim-step__icon">📂</span><span class="anim-step__title">输入源</span></div>
+            <div class="anim-step__body">
               <span class="mock-card mock-card--active">📊 Excel</span>
               <span class="mock-card">🗄 CSV</span>
+              <span class="mock-upload">📤 上传文件</span>
             </div>
-            <div class="mock-upload">📤 上传 Excel 文件</div>
-            <div class="mock-input mock-input--sm">sales_data</div>
-          </div>
-          <div class="anim-step__foot">
-            <span class="mock-btn">下一步 ↓</span>
           </div>
         </div>
 
-        <!-- Step 3 -->
-        <div class="anim-step">
-          <div class="anim-step__head">
-            <span class="anim-step__icon">⚡</span>
-            <span class="anim-step__title">数据处理</span>
-          </div>
-          <div class="anim-step__body">
-            <div class="mock-ai-btn">🤖 AI 生成代码</div>
-            <div class="mock-code">
-              <span class="mock-code__kw">SELECT</span> * <span class="mock-code__kw">FROM</span> <span class="mock-code__str">"sales_data"</span>
+        <!-- Screen 2: Step 3 + Step 4 -->
+        <div class="anim-group">
+          <div class="anim-step">
+            <div class="anim-step__head"><span class="anim-step__icon">⚡</span><span class="anim-step__title">处理步骤</span></div>
+            <div class="anim-step__body">
+              <span class="mock-ai-btn">✨ AI 生成 SQL</span>
+              <span class="mock-code"><span class="mock-code__kw">SELECT</span> * <span class="mock-code__kw">FROM</span> <span class="mock-code__str">"sales_data"</span></span>
+              <span class="mock-input mock-input--sm">result</span>
             </div>
-            <div class="mock-input mock-input--sm">result</div>
           </div>
-          <div class="anim-step__foot">
-            <span class="mock-btn">下一步 ↓</span>
-          </div>
-        </div>
-
-        <!-- Step 4 -->
-        <div class="anim-step">
-          <div class="anim-step__head">
-            <span class="anim-step__icon">📤</span>
-            <span class="anim-step__title">输出配置</span>
-          </div>
-          <div class="anim-step__body">
-            <div class="mock-cards">
+          <div class="anim-step">
+            <div class="anim-step__head"><span class="anim-step__icon">📤</span><span class="anim-step__title">输出配置</span></div>
+            <div class="anim-step__body">
               <span class="mock-card mock-card--active">📊 Excel</span>
               <span class="mock-card">🗄 CSV</span>
+              <span class="mock-mapping__item">city → 城市</span>
             </div>
-            <div class="mock-mapping">
-              <span class="mock-mapping__item">name → 姓名</span>
-              <span class="mock-mapping__item">amount → 金额</span>
-              <span class="mock-mapping__item">date → 日期</span>
-            </div>
-          </div>
-          <div class="anim-step__foot">
-            <span class="mock-btn">下一步 ↓</span>
           </div>
         </div>
 
-        <!-- Step 5 -->
-        <div class="anim-step">
-          <div class="anim-step__head">
-            <span class="anim-step__icon">🚀</span>
-            <span class="anim-step__title">预览与导出</span>
-          </div>
-          <div class="anim-step__body">
-            <div class="mock-yaml">
-              <span class="mock-yaml__key">pipeline</span>: sales_report<br>
-              <span class="mock-yaml__key">inputs</span>:<br>
-              &nbsp;&nbsp;- sales_data<br>
-              <span class="mock-yaml__key">processors</span>: python<br>
-              <span class="mock-yaml__key">output</span>: report.xlsx
+        <!-- Screen 3: Step 5 + Confetti -->
+        <div class="anim-group">
+          <div class="anim-step">
+            <div class="anim-step__head"><span class="anim-step__icon">🚀</span><span class="anim-step__title">预览与导出</span></div>
+            <div class="anim-step__body">
+              <span class="mock-btn">保存配置</span>
+              <span class="mock-btn mock-btn--accent">下载 YAML</span>
             </div>
           </div>
-          <div class="anim-step__foot">
-            <span class="mock-btn">保存配置</span>
-            <span class="mock-btn mock-btn--accent">下载结果文件</span>
+          <div class="anim-confetti">
+            <span class="anim-confetti__piece" v-for="i in 12" :key="i" :style="{ '--i': i }">🎉</span>
           </div>
         </div>
       </div>
     </div>
-    <div class="anim-frame__hint">↓ 自动演示流程</div>
+    <div class="anim-frame__hint">↓ 自动演示完整流程</div>
   </div>
 </template>
 
@@ -120,51 +77,50 @@ onMounted(async () => {
   if (!container) return
 
   try {
-    const steps = container.querySelectorAll<HTMLElement>('.anim-step')
-    if (steps.length === 0) return
+    const groups = container.querySelectorAll<HTMLElement>('.anim-group')
+    if (groups.length === 0) return
 
     const tl = createTimeline({ loop: true })
 
-    // Start with step 1 visible for a moment
-    tl.add({ duration: 2000 })
+    // Show screen 1
+    tl.add({ duration: 3500 })
 
-    steps.forEach((el, i) => {
-      // Scroll to next step
-      const y = -(el.offsetTop - 8)
-      tl.add(container, {
-        translateY: y,
-        duration: 800,
-        easing: 'easeInOutQuad',
-      })
-      // Pause at each step (shorter for last step since reset follows)
-      tl.add({ duration: i === steps.length - 1 ? 2000 : 2500 })
-    })
-
-    // Pause at the end before resetting
-    tl.add({ duration: 1500 })
-    // Quick reset back to top
+    // Scroll to screen 2
     tl.add(container, {
-      translateY: 0,
-      duration: 600,
+      translateY: -(groups[1].offsetTop - 8),
+      duration: 700,
       easing: 'easeInOutQuad',
     })
-    tl.add({ duration: 1500 })
+    tl.add({ duration: 3500 })
+
+    // Scroll to screen 3
+    tl.add(container, {
+      translateY: -(groups[2].offsetTop - 8),
+      duration: 700,
+      easing: 'easeInOutQuad',
+    })
+    tl.add({ duration: 4000 })
+
+    // Pause then reset
+    tl.add({ duration: 1000 })
+    tl.add(container, {
+      translateY: 0,
+      duration: 500,
+      easing: 'easeInOutQuad',
+    })
+    tl.add({ duration: 2000 })
 
     anim = tl
-  } catch { /* silently ignore animation errors */ }
+  } catch { /* silently ignore */ }
 })
 
-onUnmounted(() => {
-  anim?.pause()
-})
+onUnmounted(() => { anim?.pause() })
 </script>
 
 <style scoped>
 .anim-frame {
-  max-width: 100%;
-  margin: 0 auto;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
+  max-width: 100%; margin: 0 auto;
+  border: 1px solid var(--color-border); border-radius: 12px;
   background: var(--color-surface);
   box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
   overflow: hidden;
@@ -181,94 +137,73 @@ onUnmounted(() => {
 .anim-frame__dots i:last-child { background: #34d399; }
 .anim-frame__title { font-size: 10px; color: var(--color-text-muted); }
 .anim-frame__viewport { overflow: hidden; height: 240px; }
-.anim-frame__scroll { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 200px; }
+.anim-frame__scroll { display: flex; flex-direction: column; gap: 16px; padding: 8px 12px 180px; }
 .anim-frame__hint {
   text-align: center; font-size: 10px; color: var(--color-text-muted);
   padding: 6px; background: var(--color-surface-hover);
   border-top: 1px solid var(--color-border-light);
 }
 
-.anim-step {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: 10px;
-  padding: 10px 14px;
+/* Group: two steps side by side */
+.anim-group {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 4px; border: 1px solid var(--color-border-light);
+  border-radius: 10px; background: var(--color-bg);
   flex-shrink: 0;
 }
-.anim-step__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.anim-step__icon { font-size: 15px; }
-.anim-step__title { font-size: 13px; font-weight: 700; color: var(--color-text); }
-.anim-step__body { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.anim-step__foot {
-  display: flex; align-items: center; justify-content: flex-end; gap: 6px;
-  margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--color-border-light);
-}
 
+/* Step card */
+.anim-step {
+  background: var(--color-surface); border: 1px solid var(--color-border-light);
+  border-radius: 8px; padding: 8px 12px; flex-shrink: 0;
+}
+.anim-step__head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.anim-step__icon { font-size: 14px; }
+.anim-step__title { font-size: 12px; font-weight: 700; color: var(--color-text); }
+.anim-step__body { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* Mock elements */
 .mock-input {
-  height: 24px; padding: 0 8px; font-size: 10px; color: var(--color-text);
+  height: 22px; padding: 0 8px; font-size: 10px; color: var(--color-text);
   background: var(--color-bg); border: 1px solid var(--color-border-light);
   border-radius: 5px; display: flex; align-items: center;
 }
-.mock-input--sm { max-width: 80px; }
-.mock-textarea {
-  height: 26px; padding: 4px 8px; font-size: 10px; color: var(--color-text-secondary);
-  background: var(--color-bg); border: 1px solid var(--color-border-light);
-  border-radius: 5px; line-height: 1.3;
-}
+.mock-input--sm { max-width: 70px; }
 .mock-btn {
   display: inline-flex; align-items: center;
-  padding: 4px 10px; font-size: 10px; font-weight: 600;
+  padding: 3px 8px; font-size: 9px; font-weight: 600;
   color: #fff; background: linear-gradient(135deg, #7c3aed, #6366f1);
-  border-radius: 6px; white-space: nowrap;
+  border-radius: 5px; white-space: nowrap;
 }
 .mock-btn--accent {
   background: rgba(255,255,255,0.6); color: #7c3aed;
-  border: 1.5px solid rgba(124,58,237,0.3);
-  backdrop-filter: blur(4px);
+  border: 1px solid rgba(124,58,237,0.25);
 }
-.mock-cards { display: flex; gap: 4px; }
-.mock-card {
-  padding: 4px 8px; font-size: 10px; font-weight: 500;
-  color: var(--color-text-muted); background: var(--color-bg);
-  border: 1px solid var(--color-border-light); border-radius: 5px;
-}
+.mock-card { padding: 3px 6px; font-size: 9px; font-weight: 500; color: var(--color-text-muted); background: var(--color-bg); border: 1px solid var(--color-border-light); border-radius: 4px; }
 .mock-card--active { color: #166534; background: #f0fdf4; border-color: #16a34a; }
-.mock-upload {
-  display: flex; align-items: center; gap: 3px;
-  padding: 4px 8px; font-size: 10px; color: var(--color-primary);
-  background: var(--color-primary-bg); border: 1px dashed var(--color-primary-border);
-  border-radius: 5px;
-}
-.mock-ai-btn {
-  display: inline-flex; align-items: center; gap: 3px;
-  padding: 4px 8px; font-size: 9px; font-weight: 600;
-  color: #fff; background: linear-gradient(135deg, #7c3aed, #6366f1);
-  border-radius: 5px;
-}
-.mock-code {
-  padding: 6px 8px; font-size: 9px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: #e2e8f0; background: #1e293b; border-radius: 5px; line-height: 1.4;
-  max-width: 220px; overflow: hidden;
-}
+.mock-upload { display: flex; align-items: center; gap: 3px; padding: 3px 6px; font-size: 9px; color: var(--color-primary); background: var(--color-primary-bg); border: 1px dashed var(--color-primary-border); border-radius: 4px; }
+.mock-ai-btn { display: inline-flex; align-items: center; gap: 3px; padding: 3px 6px; font-size: 9px; font-weight: 600; color: #fff; background: linear-gradient(135deg, #7c3aed, #6366f1); border-radius: 4px; }
+.mock-code { padding: 5px 6px; font-size: 8px; font-family: ui-monospace, monospace; color: #e2e8f0; background: #1e293b; border-radius: 4px; line-height: 1.3; max-width: 140px; overflow: hidden; }
 .mock-code__kw { color: #93c5fd; }
 .mock-code__str { color: #fbbf24; }
-.mock-mapping { display: flex; gap: 4px; flex-wrap: wrap; }
-.mock-mapping__item {
-  padding: 2px 6px; font-size: 9px; color: var(--color-text-secondary);
-  background: var(--color-bg); border: 1px solid var(--color-border-light);
-  border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+.mock-mapping__item { padding: 2px 5px; font-size: 8px; color: var(--color-text-secondary); background: var(--color-bg); border: 1px solid var(--color-border-light); border-radius: 3px; font-family: ui-monospace, monospace; }
+
+/* Confetti */
+.anim-confetti {
+  display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;
+  padding: 12px 8px; opacity: 0.8;
 }
-.mock-yaml {
-  padding: 6px 8px; font-size: 9px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: #cbd5e1; background: #1e293b; border-radius: 5px; line-height: 1.5;
-  max-width: 280px; overflow: hidden;
+.anim-confetti__piece {
+  font-size: 18px; animation: confetti-bounce 1.5s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.12s);
 }
-.mock-yaml__key { color: #7dd3fc; }
+@keyframes confetti-bounce {
+  0%,100% { transform: translateY(0) scale(1); opacity:1; }
+  50% { transform: translateY(-6px) scale(1.2); opacity:0.6; }
+}
 
 @media (max-width: 600px) {
-  .anim-frame__viewport { height: 110px; }
-  .anim-step { min-width: 280px; padding: 8px 10px; }
+  .anim-frame__viewport { height: 180px; }
+  .anim-step { padding: 6px 10px; }
 }
 </style>
