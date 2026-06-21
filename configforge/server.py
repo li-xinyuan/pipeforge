@@ -288,6 +288,10 @@ if os.path.exists(_static_dir):
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
+        # Don't intercept API or docs routes
+        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("redoc") or full_path.startswith("openapi"):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=404, content={"error": "Not found"})
         file_path = os.path.join(_static_dir, full_path)
         real = os.path.realpath(file_path)
         if not real.startswith(os.path.realpath(_static_dir) + os.sep):

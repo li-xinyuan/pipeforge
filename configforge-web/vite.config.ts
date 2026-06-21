@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8199',
         timeout: 120000, // 2 minutes for long-running pipeline + AI diagnosis
       }
     }
