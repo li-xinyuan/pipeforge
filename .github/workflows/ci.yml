@@ -23,8 +23,20 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Run all backend tests
-        run: uv run pytest configforge/tests/ -x -q
+      - name: Ruff lint
+        run: uv run ruff check configforge/
+
+      - name: Run all backend tests with coverage
+        run: uv run pytest configforge/tests/ -x -q --cov=configforge --cov-report=xml --cov-report=html --cov-report=term-missing
+
+      - name: Upload backend coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: |
+            coverage.xml
+            htmlcov/
 
   frontend:
     runs-on: ubuntu-latest
@@ -42,13 +54,24 @@ jobs:
         working-directory: configforge-web
         run: npm ci
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: configforge-web
-        run: npx vitest run
+        run: npx vitest run --coverage
+
+      - name: Upload frontend coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: configforge-web/coverage/
 
       - name: Type check
         working-directory: configforge-web
         run: npx vue-tsc --noEmit
+
+      - name: Lint
+        working-directory: configforge-web
+        run: npx eslint src/ --max-warnings=-1
 
   docker-build:
     needs: [backend, frontend]
@@ -83,6 +106,44 @@ jobs:
           docker logs configforge-ci
           docker stop configforge-ci
           exit 1
+
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install backend dependencies
+        run: uv sync
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: configforge-web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: configforge-web
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: configforge-web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        working-directory: configforge-web
+        run: npx playwright test --project=chromium
+        env:
+          CI: true
 
   security-scan:
     needs: [backend, frontend]

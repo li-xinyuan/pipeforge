@@ -1,7 +1,7 @@
 """Simple TTL memory cache for ConfigForge stores."""
 
-import time
 import threading
+import time
 
 
 class TTLCache:
@@ -11,7 +11,7 @@ class TTLCache:
         ttl: Time-to-live in seconds. Cached entries expire after this duration.
     """
 
-    def __init__(self, ttl: float = 5.0):
+    def __init__(self, ttl: float = 30.0):
         self._cache: dict[str, tuple[float, object]] = {}
         self._ttl = ttl
         self._lock = threading.Lock()
@@ -41,3 +41,10 @@ class TTLCache:
                 self._cache.clear()
             else:
                 self._cache.pop(key, None)
+
+    def invalidate_pattern(self, prefix: str):
+        """Invalidate all keys starting with prefix."""
+        with self._lock:
+            keys_to_remove = [k for k in self._cache if k.startswith(prefix)]
+            for k in keys_to_remove:
+                del self._cache[k]

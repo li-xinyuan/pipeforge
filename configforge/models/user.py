@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
 from enum import Enum
+
+from pydantic import BaseModel
 
 
 class UserRole(str, Enum):
@@ -13,6 +14,7 @@ class User(BaseModel):
     username: str
     role: UserRole = UserRole.editor
     created_at: str = ""
+    must_change_password: bool = False
 
 
 class UserWithHash(User):

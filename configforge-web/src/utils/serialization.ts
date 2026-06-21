@@ -1,4 +1,5 @@
-import type { WizardState, SceneInfo, InputSource, ProcessorStep, OutputTarget, UploadedFileMeta, AiSuggestion, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, JsonInputConfig, XmlInputConfig, ParquetInputConfig, ApiInputConfig, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig, CheckRule } from '../types/wizard'
+import type { WizardState, ExcelInputConfig, CsvInputConfig, DatabaseInputConfig, JsonInputConfig, XmlInputConfig, ParquetInputConfig, ApiInputConfig, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig, CheckRule } from '../types/wizard'
+import { camelToSnakeKey } from './transform'
 
 type InputConfig = ExcelInputConfig | CsvInputConfig | DatabaseInputConfig | JsonInputConfig | XmlInputConfig | ParquetInputConfig | ApiInputConfig
 type OutputConfig = ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig
@@ -141,19 +142,26 @@ export function stateToSnakeCase(state: WizardState): SnakeState {
       config: buildInputConfig(inp.config),
     })),
     processors: state.processors.map((p) => {
+      const snakeCheckpoints = (p.checkpoints || []).map((c: CheckRule) => {
+        const result: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(c)) {
+          result[camelToSnakeKey(key)] = value
+        }
+        return result as unknown as CheckRule
+      })
       if (p.plugin === 'python') {
         return {
           name: p.name, plugin: 'python' as const,
           input_tables: p.inputTables, output_tables: p.outputTables,
           script: p.script,
-          checkpoints: p.checkpoints?.map((c: CheckRule) => ({ ...c })) || [],
+          checkpoints: snakeCheckpoints,
         }
       }
       return {
         name: p.name, plugin: 'sql' as const,
         input_tables: p.inputTables, output_tables: p.outputTables,
         sql: p.sql,
-        checkpoints: p.checkpoints?.map((c: CheckRule) => ({ ...c })) || [],
+        checkpoints: snakeCheckpoints,
       }
     }),
     output: state.output

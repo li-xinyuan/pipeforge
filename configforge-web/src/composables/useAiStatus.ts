@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { useApi, type AiSettings } from './useApi'
+import { useApi } from './useApi'
 
 const aiConfigured = ref(false)
 const aiProvider = ref('')

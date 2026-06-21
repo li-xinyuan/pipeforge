@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { computed, h } from 'vue'
 import { NDataTable } from 'naive-ui'
-import type { DataTableColumns, DataTableProps } from 'naive-ui'
+import type { DataTableColumns } from 'naive-ui'
 
 export interface DryRunTableData {
   table_name: string

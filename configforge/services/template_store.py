@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from configforge.models.template import TemplateRequirement
 from configforge.utils.cache import TTLCache
-from configforge.utils.file_lock import read_json_locked, write_json_locked
+from configforge.utils.file_lock import write_json_locked
 from configforge.utils.migration import load_with_migration
 from configforge.utils.paths import get_data_dir
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 DATA_DIR = get_data_dir()
 STORE_PATH = os.path.join(DATA_DIR, "templates.json")
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "..", "templates")
-_cache = TTLCache(ttl=5.0)
+_cache = TTLCache(ttl=30.0)
 
 
 def _ensure_data_dir():
@@ -207,9 +207,9 @@ def ensure_builtin_templates() -> None:
     for path in sorted(glob.glob(os.path.join(TEMPLATES_DIR, "*.json"))):
         filename = os.path.basename(path)
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 builtin = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning("Failed to load built-in template %s: %s", filename, e)
             continue
 

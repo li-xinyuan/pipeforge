@@ -1,8 +1,9 @@
 """Tests for auto_diagnose service."""
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from configforge.services.ai.auto_diagnose import auto_diagnose, _infer_step
+import pytest
+
+from configforge.services.ai.auto_diagnose import _infer_step, auto_diagnose
 
 
 class TestInferStep:

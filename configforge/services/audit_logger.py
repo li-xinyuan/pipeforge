@@ -1,9 +1,9 @@
 """Audit logging for critical operations."""
 
-import json
 import os
-from datetime import datetime, UTC
-from configforge.utils.file_lock import write_json_locked, read_json_locked
+from datetime import UTC, datetime
+
+from configforge.utils.file_lock import read_json_locked, write_json_locked
 from configforge.utils.paths import get_data_dir
 
 AUDIT_LOG_PATH = os.path.join(get_data_dir(), "audit_log.json")
@@ -32,7 +32,14 @@ def log_audit(action: str, target_type: str, target_id: str, details: dict | Non
     _save_entries(entries)
 
 
-def get_audit_log(target_type: str | None = None, action: str | None = None, limit: int = 100) -> list[dict]:
+def get_audit_log(
+    target_type: str | None = None,
+    action: str | None = None,
+    limit: int = 100,
+    user: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+) -> list[dict]:
     """Query audit log entries with optional filters."""
     entries = _load_entries()
 
@@ -40,6 +47,12 @@ def get_audit_log(target_type: str | None = None, action: str | None = None, lim
         entries = [e for e in entries if e.get("target_type") == target_type]
     if action:
         entries = [e for e in entries if e.get("action") == action]
+    if user:
+        entries = [e for e in entries if e.get("target_id") == user or e.get("details", {}).get("user") == user]
+    if start_time:
+        entries = [e for e in entries if e.get("timestamp", "") >= start_time]
+    if end_time:
+        entries = [e for e in entries if e.get("timestamp", "") <= end_time]
 
     return entries[-limit:]
 

@@ -1,6 +1,6 @@
 import type { SavedConfig, WizardState } from '../types/wizard'
 import { stateToSnakeCase } from '../utils/serialization'
-import { useApi } from './useApi'
+import { useApi, ApiError, handleApiError } from './useApi'
 
 function mapConfig(raw: Record<string, unknown>): SavedConfig {
   return {
@@ -38,102 +38,146 @@ export interface ExecuteError {
 }
 
 export function useConfigApi() {
-  const { loading, error, request } = useApi()
+  const { loading, error, requestOrThrow } = useApi()
 
   async function listConfigs(page = 1, pageSize = 10, search = ''): Promise<ConfigListResult> {
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
     if (search) params.set('search', search)
-    const data = await request<{ items: Record<string, unknown>[]; total: number; page: number; page_size: number; total_pages: number } | Record<string, unknown>[]>(
-      'GET', `/api/configs?${params}`,
-    )
-    if (!data) return { items: [], total: 0, page, pageSize, totalPages: 0 }
-    const items = Array.isArray(data) ? data : (data.items || [])
-    return {
-      items: items.map(mapConfig),
-      total: Array.isArray(data) ? items.length : (data.total ?? items.length),
-      page: Array.isArray(data) ? page : (data.page ?? page),
-      pageSize: Array.isArray(data) ? pageSize : (data.page_size ?? pageSize),
-      totalPages: Array.isArray(data) ? 1 : (data.total_pages ?? 1),
+    try {
+      const data = await requestOrThrow<{ configs?: Record<string, unknown>[]; items?: Record<string, unknown>[]; total: number; page: number; page_size: number; total_pages?: number } | Record<string, unknown>[]>(
+        'GET', `/api/configs?${params}`,
+      )
+      const items = Array.isArray(data) ? data : (data.configs || data.items || [])
+      return {
+        items: items.map(mapConfig),
+        total: Array.isArray(data) ? items.length : (data.total ?? items.length),
+        page: Array.isArray(data) ? page : (data.page ?? page),
+        pageSize: Array.isArray(data) ? pageSize : (data.page_size ?? pageSize),
+        totalPages: Array.isArray(data) ? 1 : (data.total_pages ?? 1),
+      }
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return { items: [], total: 0, page, pageSize, totalPages: 0 }
     }
   }
 
   async function saveConfig(state: WizardState, configId?: string | null): Promise<string | null> {
     const body = { config_id: configId || null, state: stateToSnakeCase(state) }
-    const data = await request<{ id: string }>('POST', '/api/configs', body)
-    return data?.id ?? null
+    try {
+      const data = await requestOrThrow<{ id: string }>('POST', '/api/configs', body)
+      return data.id
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
   }
 
   async function deleteConfig(id: string): Promise<boolean> {
-    const result = await request<unknown>('DELETE', `/api/configs/${id}`)
-    return result !== null
+    try {
+      await requestOrThrow<unknown>('DELETE', `/api/configs/${id}`)
+      return true
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return false
+    }
   }
 
   async function loadConfigState(id: string): Promise<Record<string, unknown> | null> {
-    return request<Record<string, unknown>>('GET', `/api/configs/${id}`)
+    try {
+      return await requestOrThrow<Record<string, unknown>>('GET', `/api/configs/${id}`)
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
   }
 
   async function downloadConfigYaml(id: string): Promise<void> {
-    const blob = await request<Blob>('GET', `/api/configs/${id}/yaml`)
-    if (!blob || !(blob instanceof Blob)) return
-    const url = URL.createObjectURL(blob)
     try {
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `pipeline_${id}.yaml`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-    } finally {
-      URL.revokeObjectURL(url)
+      const blob = await requestOrThrow<Blob>('GET', `/api/configs/${id}/yaml`)
+      if (!(blob instanceof Blob)) return
+      const url = URL.createObjectURL(blob)
+      try {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `pipeline_${id}.yaml`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      } finally {
+        URL.revokeObjectURL(url)
+      }
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
     }
   }
 
   async function executeConfig(id: string, files: Record<string, string>): Promise<Blob | null> {
-    const result = await request<Blob>('POST', `/api/configs/${id}/execute`, { files })
-
-    // request returns null when API responds with non-200
-    if (result === null) {
-      const execError: ExecuteError = { message: error.value?.message || '执行失败' }
-      // Try to extract diagnosis from the error detail
-      const errDetail = error.value?.detail as Record<string, unknown> | undefined
-      if (errDetail && typeof errDetail === 'object' && 'diagnosis' in errDetail) {
-        const d = errDetail.diagnosis as Record<string, unknown>
-        if (d.cause && d.severity) {
-          execError.diagnosis = {
-            cause: d.cause as string,
-            suggestions: (d.suggestions as string[]) || [],
-            severity: d.severity as 'error' | 'warning',
-            step: d.step as number | undefined,
+    try {
+      const result = await requestOrThrow<Blob>('POST', `/api/configs/${id}/execute`, { files })
+      return result instanceof Blob ? result : null
+    } catch (e) {
+      if (e instanceof ApiError) {
+        const execError: ExecuteError = { message: e.message }
+        // Try to extract diagnosis from the error detail
+        const errDetail = (e as ApiError & { detail?: unknown }).detail as Record<string, unknown> | undefined
+        if (errDetail && typeof errDetail === 'object' && 'diagnosis' in errDetail) {
+          const d = errDetail.diagnosis as Record<string, unknown>
+          if (d.cause && d.severity) {
+            execError.diagnosis = {
+              cause: d.cause as string,
+              suggestions: (d.suggestions as string[]) || [],
+              severity: d.severity as 'error' | 'warning',
+              step: d.step as number | undefined,
+            }
           }
         }
+        throw execError
       }
-      throw execError
+      throw e
     }
-
-    return result instanceof Blob ? result : null
   }
 
   return { loading, error, listConfigs, saveConfig, deleteConfig, loadConfigState, downloadConfigYaml, executeConfig }
 }
 
 export function useConfigVersionApi() {
-  const { loading, error, request } = useApi()
+  const { loading, error, requestOrThrow } = useApi()
 
   async function listVersions(configId: string) {
-    const data = await request<unknown[]>('GET', `/api/configs/${configId}/versions`)
-    return data || []
+    try {
+      const data = await requestOrThrow<unknown[]>('GET', `/api/configs/${configId}/versions`)
+      return data || []
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return []
+    }
   }
 
   async function getVersion(configId: string, version: number) {
-    return request<Record<string, unknown>>('GET', `/api/configs/${configId}/versions/${version}`)
+    try {
+      return await requestOrThrow<Record<string, unknown>>('GET', `/api/configs/${configId}/versions/${version}`)
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
   }
 
   async function diffVersions(configId: string, v1: number, v2: number) {
-    return request<Record<string, unknown>>('GET', `/api/configs/${configId}/diff?v1=${v1}&v2=${v2}`)
+    try {
+      return await requestOrThrow<Record<string, unknown>>('GET', `/api/configs/${configId}/diff?v1=${v1}&v2=${v2}`)
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
   }
 
   async function rollback(configId: string, version: number) {
-    return request<Record<string, unknown>>('POST', `/api/configs/${configId}/versions/${version}/rollback`)
+    try {
+      return await requestOrThrow<Record<string, unknown>>('POST', `/api/configs/${configId}/versions/${version}/rollback`)
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
   }
 
   return { loading, error, listVersions, getVersion, diffVersions, rollback }

@@ -1,11 +1,7 @@
 """Integration tests for notification dispatch after pipeline execution."""
-import json
-import os
-import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
-from httpx import AsyncClient, ASGITransport
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from configforge.server import app
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -46,9 +42,9 @@ class TestDispatcherIntegration:
     @pytest.mark.asyncio
     async def test_should_trigger_filters_disabled(self):
         """Test that disabled configs are skipped."""
-        from configforge.services.notifier.dispatcher import should_trigger
         from configforge.models.notification import NotificationConfig
         from configforge.services.notifier.base import NotifyContext
+        from configforge.services.notifier.dispatcher import should_trigger
 
         config = NotificationConfig(
             id="n1", name="test", type="webhook",
@@ -62,9 +58,9 @@ class TestDispatcherIntegration:
     @pytest.mark.asyncio
     async def test_should_trigger_filters_by_status(self):
         """Test that trigger_on_success/failure filters work."""
-        from configforge.services.notifier.dispatcher import should_trigger
         from configforge.models.notification import NotificationConfig
         from configforge.services.notifier.base import NotifyContext
+        from configforge.services.notifier.dispatcher import should_trigger
 
         # Only trigger on failure
         config = NotificationConfig(
@@ -84,9 +80,9 @@ class TestDispatcherIntegration:
     @pytest.mark.asyncio
     async def test_dispatch_sends_and_records_history(self, tmp_path):
         """Test that dispatch sends notification and records history."""
-        from configforge.services.notifier.dispatcher import dispatch_notifications
-        from configforge.api.notifications import _load_notifications, _save_notifications
+        from configforge.api.notifications import _save_notifications
         from configforge.models.notification import NotificationConfig
+        from configforge.services.notifier.dispatcher import dispatch_notifications
 
         # Create a notification config
         config = NotificationConfig(
@@ -124,9 +120,9 @@ class TestDispatcherIntegration:
     @pytest.mark.asyncio
     async def test_dispatch_skips_non_matching_config_ids(self, tmp_path):
         """Test that config_ids filter works."""
-        from configforge.services.notifier.dispatcher import dispatch_notifications
-        from configforge.api.notifications import _save_notifications, _load_history
+        from configforge.api.notifications import _load_history, _save_notifications
         from configforge.models.notification import NotificationConfig
+        from configforge.services.notifier.dispatcher import dispatch_notifications
 
         # Config only triggers for cfg-A
         config = NotificationConfig(
@@ -167,9 +163,9 @@ class TestDispatcherIntegration:
     @pytest.mark.asyncio
     async def test_dispatch_does_not_raise_on_failure(self, tmp_path):
         """Test that notification failures don't affect the caller."""
-        from configforge.services.notifier.dispatcher import dispatch_notifications
         from configforge.api.notifications import _save_notifications
         from configforge.models.notification import NotificationConfig
+        from configforge.services.notifier.dispatcher import dispatch_notifications
 
         config = NotificationConfig(
             id="n1", name="推送", type="webhook",

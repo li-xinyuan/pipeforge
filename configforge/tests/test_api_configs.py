@@ -1,12 +1,12 @@
 import pytest
-from httpx import AsyncClient, ASGITransport
-from configforge.server import app
+from httpx import ASGITransport, AsyncClient
+
 from configforge.models.wizard import (
-    WizardState,
-    SceneInfo,
     SaveConfigRequest,
-    ExecuteConfigRequest,
+    SceneInfo,
+    WizardState,
 )
+from configforge.server import app
 
 
 def _make_state() -> WizardState:

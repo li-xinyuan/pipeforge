@@ -36,13 +36,11 @@ def should_trigger(config, context: NotifyContext) -> bool:
     """Check if a notification config should trigger for this context."""
     if not config.enabled:
         return False
-    if context.status == "success" and not config.trigger_on_success:
-        return False
-    if context.status == "failed" and not config.trigger_on_failure:
-        return False
-    if context.status == "anomaly" and not config.trigger_on_anomaly:
-        return False
-    return True
+    return not (
+        context.status == "success" and not config.trigger_on_success
+        or context.status == "failed" and not config.trigger_on_failure
+        or context.status == "anomaly" and not config.trigger_on_anomaly
+    )
 
 
 async def dispatch_notifications(execution_result: dict) -> None:

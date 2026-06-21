@@ -42,7 +42,7 @@
 
     <!-- Add/Edit Modal -->
     <div v-if="showAddModal || editingConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="closeModal">
-      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
+      <div class="bg-[var(--color-surface)] rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
         <h3 class="text-base font-semibold mb-4">{{ editingConfig ? '编辑推送' : '添加推送' }}</h3>
 
         <div class="space-y-3">
@@ -123,7 +123,7 @@
 
     <!-- Inline SMTP settings modal -->
     <div v-if="showSmtpModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showSmtpModal = false">
-      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
+      <div class="bg-[var(--color-surface)] rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-base font-semibold">配置 SMTP 邮件服务</h3>
           <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" @click="showSmtpModal = false">✕</button>
@@ -318,7 +318,7 @@ const smtpForm = reactive({
 watch(showSmtpModal, async (visible) => {
   if (visible) {
     smtpInlineMsg.value = ''
-    const data = await smtpRequest<Record<string, any>>('GET', '/api/notifications/smtp-settings')
+    const data = await smtpRequest<Record<string, unknown>>('GET', '/api/notifications/smtp-settings')
     if (data) {
       smtpForm.host = (data.host as string) || ''
       smtpForm.port = (data.port as number) ?? 587
@@ -335,9 +335,9 @@ async function saveSmtpInline() {
   smtpSaving.value = true
   smtpInlineMsg.value = ''
   try {
-    const body: Record<string, any> = { ...smtpForm }
+    const body: Record<string, unknown> = { ...smtpForm }
     if (!body.password) body.password = null
-    const result = await smtpRequest<Record<string, any>>('PUT', '/api/notifications/smtp-settings', body)
+    const result = await smtpRequest<Record<string, unknown>>('PUT', '/api/notifications/smtp-settings', body)
     if (result) {
       smtpInlineOk.value = true
       smtpInlineMsg.value = 'SMTP 设置已保存'
@@ -360,7 +360,7 @@ async function testSmtpInline() {
   smtpInlineMsg.value = ''
   try {
     await saveSmtpInline()
-    const result = await smtpRequest<Record<string, any>>('POST', '/api/notifications/smtp-test')
+    const result = await smtpRequest<Record<string, unknown>>('POST', '/api/notifications/smtp-test')
     if (result) {
       smtpInlineOk.value = !!result.success
       smtpInlineMsg.value = (result.message as string) || '测试完成'

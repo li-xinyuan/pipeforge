@@ -241,7 +241,7 @@ describe('useWizardStore', () => {
   it('updateProcessor updates Python processor script', () => {
     const store = useWizardStore()
     store.addProcessor('python')
-    store.updateProcessor(0, { name: 'py_step', plugin: 'python', script: 'def process(ctx): pass', inputTables: ['t1'], outputTables: ['out'] } as any)
+    store.updateProcessor(0, { name: 'py_step', plugin: 'python', script: 'def process(ctx): pass', inputTables: ['t1'], outputTables: ['out'], checkpoints: [] })
     expect(store.processors[0].script).toBe('def process(ctx): pass')
     expect(store.processors[0].name).toBe('py_step')
   })

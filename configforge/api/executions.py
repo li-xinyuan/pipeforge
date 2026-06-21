@@ -1,18 +1,17 @@
 """Execution history API."""
-import os
 import json
-import urllib.parse
+import os
 import shutil
-import uuid
-from datetime import datetime, UTC
+import urllib.parse
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
-from configforge.models.wizard import ExecutionRecord, ErrorResponse
-from configforge.utils.security import validate_id
+from configforge.models.wizard import ExecutionRecord
 from configforge.utils.file_lock import read_json_locked, write_json_locked
 from configforge.utils.paths import get_data_dir
+from configforge.utils.security import validate_id
 
 router = APIRouter(prefix="/api/executions", tags=["执行历史"])
 
@@ -163,7 +162,7 @@ async def list_executions(
     }
 
 
-@router.get("/{exec_id}", summary="获取执行详情", description="根据执行 ID 获取单次 Pipeline 执行的详细信息，包括状态、耗时、输入输出摘要、检查点结果和错误信息。")
+@router.get("/{exec_id}", summary="获取执行详情", description="根据执行 ID 获取单次 Pipeline 执行的详细信息，包括状态、耗时、输入输出摘要、检查点结果和错误信息。", response_model=ExecutionRecord)
 async def get_execution(exec_id: str):
     """Get execution detail."""
     validate_id(exec_id, "exec_id")

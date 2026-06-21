@@ -1,15 +1,16 @@
 """Tests for checkpoint rule executors."""
 import pytest
-from pipeforge.core.sqlite import SQLiteManager
-from pipeforge.core.checkpoints import execute_checks
+
 from pipeforge.config.exceptions import CheckpointError
 from pipeforge.config.models import (
+    CustomSqlRule,
+    EnumCheckRule,
     NullRateRule,
     UniquenessRule,
     ValueRangeRule,
-    CustomSqlRule,
-    EnumCheckRule,
 )
+from pipeforge.core.checkpoints import execute_checks
+from pipeforge.core.sqlite import SQLiteManager
 
 
 @pytest.fixture

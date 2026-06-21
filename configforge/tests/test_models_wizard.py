@@ -1,8 +1,14 @@
 import pytest
 from pydantic import ValidationError
+
 from configforge.models.wizard import (
-    SceneInfo, ProcessorConfig, InputSource, WizardState,
-    ExcelInputConfig, CsvInputConfig, DatabaseInputConfig,
+    CsvInputConfig,
+    DatabaseInputConfig,
+    ExcelInputConfig,
+    InputSource,
+    ProcessorConfig,
+    SceneInfo,
+    WizardState,
 )
 
 

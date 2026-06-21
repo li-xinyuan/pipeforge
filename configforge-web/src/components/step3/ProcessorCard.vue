@@ -1,7 +1,7 @@
 <template>
-  <div class="processor-card bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+  <div class="processor-card bg-[var(--color-surface)] border border-[var(--color-border-light)] dark:border-[var(--color-border)] rounded-lg overflow-hidden">
     <!-- Header: name + plugin badge + delete -->
-    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+    <div class="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-secondary)] dark:bg-[var(--color-surface-hover)] border-b border-[var(--color-border-light)] dark:border-[var(--color-border)]">
       <span class="text-lg">{{ proc.plugin === 'python' ? '🐍' : '🧪' }}</span>
       <span class="text-sm font-medium truncate flex-1">{{ proc.name || '处理步骤 ' + (index + 1) }}</span>
       <NTag size="small" :type="proc.plugin === 'python' ? 'warning' : 'success'">{{ proc.plugin === 'python' ? 'Python' : 'SQL' }}</NTag>

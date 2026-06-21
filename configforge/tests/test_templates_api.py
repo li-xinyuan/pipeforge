@@ -1,8 +1,9 @@
 """Tests for templates API endpoints."""
 
+import json
+
 import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import patch, MagicMock
+from httpx import ASGITransport, AsyncClient
 
 from configforge.server import app
 
@@ -240,3 +241,240 @@ class TestCheckCompatibility:
         data = resp.json()
         assert data["compatible"] is False
         assert any(i["status"] == "missing" for i in data["issues"])
+
+
+class TestUpdateTemplate:
+    @pytest.mark.anyio
+    async def test_update_name_and_description(self):
+        """Updating name and description of an existing template should succeed."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            create_resp = await client.post("/api/templates", json={
+                "name": "Original Name",
+                "description": "Original desc",
+                "category": "general",
+                "tags": [],
+                "config_state": {"inputs": [], "processors": []},
+            })
+            template_id = create_resp.json()["id"]
+
+            resp = await client.put(f"/api/templates/{template_id}", json={
+                "name": "Updated Name",
+                "description": "Updated desc",
+            })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["name"] == "Updated Name"
+        assert data["description"] == "Updated desc"
+
+    @pytest.mark.anyio
+    async def test_update_config_state(self):
+        """Updating config_state of an existing template should succeed."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            create_resp = await client.post("/api/templates", json={
+                "name": "Config Template",
+                "description": "desc",
+                "category": "general",
+                "tags": [],
+                "config_state": {"inputs": [], "processors": []},
+            })
+            template_id = create_resp.json()["id"]
+
+            new_config = {"inputs": [{"plugin": "csv"}], "processors": [{"type": "filter"}]}
+            resp = await client.put(f"/api/templates/{template_id}", json={
+                "config_state": new_config,
+            })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["config_state"] == new_config
+
+    @pytest.mark.anyio
+    async def test_update_no_fields_returns_400(self):
+        """Updating a template with no fields provided should return 400."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            create_resp = await client.post("/api/templates", json={
+                "name": "No Update Template",
+                "description": "desc",
+                "category": "general",
+                "tags": [],
+                "config_state": {"inputs": [], "processors": []},
+            })
+            template_id = create_resp.json()["id"]
+
+            resp = await client.put(f"/api/templates/{template_id}", json={})
+        assert resp.status_code == 400
+
+    @pytest.mark.anyio
+    async def test_update_nonexistent_returns_404(self):
+        """Updating a non-existent template should return 404."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.put("/api/templates/nonexistent-id", json={
+                "name": "New Name",
+            })
+        assert resp.status_code == 404
+
+    @pytest.mark.anyio
+    async def test_update_invalid_id_format_returns_400(self):
+        """Updating a template with invalid ID format should return 400."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.put("/api/templates/..bad-id", json={
+                "name": "New Name",
+            })
+        assert resp.status_code == 400
+
+
+class TestInstantiateTemplate:
+    @pytest.mark.anyio
+    async def test_instantiate_success(self):
+        """Instantiating an existing template should return config_state and template_id."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            create_resp = await client.post("/api/templates", json={
+                "name": "Instantiable Template",
+                "description": "Can be instantiated",
+                "category": "general",
+                "tags": [],
+                "config_state": {"inputs": [{"plugin": "csv"}], "processors": []},
+            })
+            template_id = create_resp.json()["id"]
+
+            resp = await client.post(f"/api/templates/{template_id}/instantiate")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "config_state" in data
+        assert data["template_id"] == template_id
+        assert data["config_state"]["inputs"] == [{"plugin": "csv"}]
+
+    @pytest.mark.anyio
+    async def test_instantiate_increments_usage_count(self):
+        """Instantiating a template should increment its usage_count."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            create_resp = await client.post("/api/templates", json={
+                "name": "Usage Count Template",
+                "description": "Track usage",
+                "category": "general",
+                "tags": [],
+                "config_state": {"inputs": [], "processors": []},
+            })
+            template_id = create_resp.json()["id"]
+
+            # Get initial usage count
+            get_resp = await client.get(f"/api/templates/{template_id}")
+            initial_count = get_resp.json().get("usage_count", 0)
+
+            # Instantiate
+            await client.post(f"/api/templates/{template_id}/instantiate")
+
+            # Check usage count after
+            get_resp2 = await client.get(f"/api/templates/{template_id}")
+            new_count = get_resp2.json().get("usage_count", 0)
+        assert new_count == initial_count + 1
+
+    @pytest.mark.anyio
+    async def test_instantiate_nonexistent_returns_404(self):
+        """Instantiating a non-existent template should return 404."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post("/api/templates/nonexistent-id/instantiate")
+        assert resp.status_code == 404
+
+
+class TestExportTemplate:
+    @pytest.mark.anyio
+    async def test_export_success(self):
+        """Exporting an existing template should return JSON with Content-Disposition header."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            create_resp = await client.post("/api/templates", json={
+                "name": "Exportable Template",
+                "description": "Can be exported",
+                "category": "general",
+                "tags": ["export"],
+                "config_state": {"inputs": [], "processors": []},
+            })
+            template_id = create_resp.json()["id"]
+
+            resp = await client.get(f"/api/templates/{template_id}/export")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["name"] == "Exportable Template"
+        assert "Content-Disposition" in resp.headers
+        assert f"template_{template_id}.json" in resp.headers["Content-Disposition"]
+
+    @pytest.mark.anyio
+    async def test_export_nonexistent_returns_404(self):
+        """Exporting a non-existent template should return 404."""
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.get("/api/templates/nonexistent-id/export")
+        assert resp.status_code == 404
+
+
+class TestImportTemplate:
+    @pytest.mark.anyio
+    async def test_import_success(self):
+        """Importing a valid JSON template file should succeed."""
+        import io
+        template_json = json.dumps({
+            "name": "Imported Template",
+            "description": "Imported from file",
+            "category": "imported",
+            "tags": ["imported"],
+            "config_state": {"inputs": [], "processors": []},
+            "author": "importer",
+        })
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/api/templates/import",
+                files={"file": ("template.json", io.BytesIO(template_json.encode()), "application/json")},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "id" in data
+
+    @pytest.mark.anyio
+    async def test_import_invalid_json_returns_400(self):
+        """Importing a file with invalid JSON should return 400."""
+        import io
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/api/templates/import",
+                files={"file": ("bad.json", io.BytesIO(b"not valid json{"), "application/json")},
+            )
+        assert resp.status_code == 400
+
+    @pytest.mark.anyio
+    async def test_import_missing_required_fields_returns_400(self):
+        """Importing a JSON file missing required fields should return 400."""
+        import io
+        template_json = json.dumps({
+            "name": "Incomplete Template",
+            # missing category and config_state
+        })
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/api/templates/import",
+                files={"file": ("incomplete.json", io.BytesIO(template_json.encode()), "application/json")},
+            )
+        assert resp.status_code == 400

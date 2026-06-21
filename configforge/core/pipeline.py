@@ -1,19 +1,3 @@
-from configforge.models.wizard import (
-    WizardState,
-    SceneInfo,
-    SceneInitRequest,
-    SceneInitResponse,
-    InputInferRequest,
-    InputInferResponse,
-    OutputInferRequest,
-    OutputInferResponse,
-    ColumnMappingItem,
-    ProcessorConfig,
-)
-from configforge.services.reader_dispatch import read_file_info
-from configforge.services.yaml_builder import build_yaml
-from configforge.utils.security import validate_id
-from configforge.utils.paths import get_upload_dir, get_log_dir, get_output_dir, get_pipeline_timeout
 import atexit
 import copy
 import glob
@@ -24,6 +8,22 @@ import signal
 import tempfile
 import uuid
 
+from configforge.models.wizard import (
+    ColumnMappingItem,
+    InputInferRequest,
+    InputInferResponse,
+    OutputInferRequest,
+    OutputInferResponse,
+    ProcessorConfig,
+    SceneInfo,
+    SceneInitRequest,
+    SceneInitResponse,
+    WizardState,
+)
+from configforge.services.reader_dispatch import read_file_info
+from configforge.services.yaml_builder import build_yaml
+from configforge.utils.paths import get_log_dir, get_output_dir, get_pipeline_timeout, get_upload_dir
+from configforge.utils.security import validate_id
 from pipeforge.core.engine import PipelineEngine
 
 UPLOAD_DIR = get_upload_dir()
@@ -152,13 +152,12 @@ def _prepare_execution(state: WizardState, skip_output: bool = False):
     for proc in _get_processors(exec_state):
         if proc.plugin == "python":
             continue  # Python 步骤不需要 SQL 自动包装
-        if proc.output_tables and proc.sql.strip():
-            if not _has_ddl(proc.sql):
-                output_table = proc.output_tables[0].replace('"', '')
-                proc.sql = (
-                    f'CREATE TABLE "{output_table}" AS '
-                    f"SELECT * FROM ({proc.sql})"
-                )
+        if proc.output_tables and proc.sql.strip() and not _has_ddl(proc.sql):
+            output_table = proc.output_tables[0].replace('"', '')
+            proc.sql = (
+                f'CREATE TABLE "{output_table}" AS '
+                f"SELECT * FROM ({proc.sql})"
+            )
 
     # Auto-fill output source_table from last processor if empty
     if not skip_output and exec_state.output and not getattr(exec_state.output.config, 'source_table', None):

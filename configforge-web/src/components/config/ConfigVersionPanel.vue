@@ -85,19 +85,79 @@
       </div>
 
       <!-- Diff results -->
-      <div v-if="diffResult" class="mt-2 max-h-48 overflow-y-auto">
-        <div v-if="!diffResult.changes?.length" class="text-xs text-slate-400 dark:text-slate-500 text-center py-2">
+      <div v-if="diffResult" class="mt-2 max-h-72 overflow-y-auto">
+        <div v-if="totalDiffCount === 0" class="text-xs text-slate-400 dark:text-slate-500 text-center py-2">
           两个版本无差异
         </div>
-        <div
-          v-for="(change, i) in (diffResult.changes || [])"
-          :key="i"
-          class="text-xs py-1 border-b border-slate-100 dark:border-slate-700 last:border-0"
-        >
-          <NTag size="tiny" :type="change.type === 'added' ? 'success' : change.type === 'removed' ? 'error' : 'warning'">
-            {{ change.type === 'added' ? '新增' : change.type === 'removed' ? '删除' : '修改' }}
-          </NTag>
-          <code class="ml-1 text-xs break-all">{{ change.path }}</code>
+
+        <!-- Diff tree grouped by top-level path -->
+        <div v-else class="space-y-1">
+          <div
+            v-for="group in diffGroups"
+            :key="group.name"
+            class="border rounded border-slate-200 dark:border-slate-700"
+          >
+            <!-- Group header -->
+            <div
+              class="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-slate-700/50"
+              @click="toggleGroup(group.name)"
+            >
+              <span class="text-xs transition-transform" :class="expandedGroups[group.name] ? 'rotate-90' : ''">&#9654;</span>
+              <span class="text-xs font-medium">{{ group.name }}</span>
+              <span class="text-xs text-slate-400 dark:text-slate-500">
+                ({{ group.items.length }})
+              </span>
+              <span v-if="group.addedCount" class="text-xs text-emerald-600 dark:text-emerald-400 ml-1">+{{ group.addedCount }}</span>
+              <span v-if="group.removedCount" class="text-xs text-red-500 dark:text-red-400 ml-1">-{{ group.removedCount }}</span>
+              <span v-if="group.modifiedCount" class="text-xs text-amber-600 dark:text-amber-400 ml-1">~{{ group.modifiedCount }}</span>
+            </div>
+
+            <!-- Group items -->
+            <div v-if="expandedGroups[group.name]" class="px-2 pb-2 space-y-0.5">
+              <!-- Added items -->
+              <div
+                v-for="(item, i) in group.added"
+                :key="'a' + i"
+                class="text-xs py-1 px-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-emerald-400"
+              >
+                <NTag size="tiny" type="success">新增</NTag>
+                <code class="ml-1 break-all">{{ item.path }}</code>
+                <div v-if="item.value !== null && item.value !== undefined" class="ml-10 mt-0.5 text-emerald-700 dark:text-emerald-300">
+                  <span class="text-slate-400 dark:text-slate-500">值: </span>
+                  <span class="break-all">{{ formatValue(item.value) }}</span>
+                </div>
+              </div>
+
+              <!-- Removed items -->
+              <div
+                v-for="(item, i) in group.removed"
+                :key="'r' + i"
+                class="text-xs py-1 px-2 rounded bg-red-50 dark:bg-red-900/20 border-l-2 border-red-400"
+              >
+                <NTag size="tiny" type="error">删除</NTag>
+                <code class="ml-1 break-all line-through text-red-600 dark:text-red-400">{{ item.path }}</code>
+                <div v-if="item.value !== null && item.value !== undefined" class="ml-10 mt-0.5 text-red-600 dark:text-red-400 line-through">
+                  <span class="text-slate-400 dark:text-slate-500 no-underline">值: </span>
+                  <span class="break-all">{{ formatValue(item.value) }}</span>
+                </div>
+              </div>
+
+              <!-- Modified items -->
+              <div
+                v-for="(item, i) in group.modified"
+                :key="'m' + i"
+                class="text-xs py-1 px-2 rounded bg-amber-50 dark:bg-amber-900/20 border-l-2 border-amber-400"
+              >
+                <NTag size="tiny" type="warning">修改</NTag>
+                <code class="ml-1 break-all">{{ item.path }}</code>
+                <div class="ml-10 mt-0.5 flex items-center gap-1 flex-wrap">
+                  <span class="text-red-500 dark:text-red-400 line-through break-all">{{ formatValue(item.old) }}</span>
+                  <span class="text-slate-400 dark:text-slate-500">&rarr;</span>
+                  <span class="text-emerald-600 dark:text-emerald-400 break-all">{{ formatValue(item.new) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -105,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, reactive } from 'vue'
 import { NButton, NTag, NSelect, useDialog, useMessage } from 'naive-ui'
 import { useApi, type VersionMeta, type DiffResult } from '../../composables/useApi'
 
@@ -122,17 +182,103 @@ const dialog = useDialog()
 const message = useMessage()
 const { getConfigVersions, getConfigVersionDetail, getConfigDiff, rollbackConfig } = useApi()
 
+interface VersionDetail {
+  scene?: { name?: string; version?: string }
+  inputs?: Array<{ table?: string; name?: string; plugin: string }>
+  processors?: Array<{ name?: string; plugin: string }>
+  output?: { plugin?: string }
+}
+
 const versions = ref<VersionMeta[]>([])
 const loading = ref(false)
 const selectedVersion = ref<number | null>(null)
-const versionDetail = ref<any>(null)
+const versionDetail = ref<VersionDetail | null>(null)
 const diffV1 = ref<number | null>(null)
 const diffV2 = ref<number | null>(null)
-const diffResult = ref<any>(null)
+const diffResult = ref<DiffResult | null>(null)
+const expandedGroups = reactive<Record<string, boolean>>({})
 
 const versionOptions = computed(() =>
   versions.value.map(v => ({ label: `v${v.version}`, value: v.version }))
 )
+
+interface DiffGroup {
+  name: string
+  added: Array<{ path: string; value: unknown }>
+  removed: Array<{ path: string; value: unknown }>
+  modified: Array<{ path: string; old: unknown; new: unknown }>
+  items: Array<{ path: string; type: 'added' | 'removed' | 'modified' }>
+  addedCount: number
+  removedCount: number
+  modifiedCount: number
+}
+
+const diffGroups = computed<DiffGroup[]>(() => {
+  if (!diffResult.value) return []
+  const map = new Map<string, DiffGroup>()
+
+  const getGroup = (path: string): DiffGroup => {
+    const topKey = path.split('.')[0].split('[')[0] || path
+    if (!map.has(topKey)) {
+      map.set(topKey, {
+        name: topKey,
+        added: [],
+        removed: [],
+        modified: [],
+        items: [],
+        addedCount: 0,
+        removedCount: 0,
+        modifiedCount: 0,
+      })
+    }
+    return map.get(topKey)!
+  }
+
+  for (const item of diffResult.value.added || []) {
+    const g = getGroup(item.path)
+    g.added.push(item)
+    g.items.push({ path: item.path, type: 'added' })
+    g.addedCount++
+  }
+  for (const item of diffResult.value.removed || []) {
+    const g = getGroup(item.path)
+    g.removed.push(item)
+    g.items.push({ path: item.path, type: 'removed' })
+    g.removedCount++
+  }
+  for (const item of diffResult.value.modified || []) {
+    const g = getGroup(item.path)
+    g.modified.push(item)
+    g.items.push({ path: item.path, type: 'modified' })
+    g.modifiedCount++
+  }
+
+  return Array.from(map.values())
+})
+
+const totalDiffCount = computed(() => {
+  if (!diffResult.value) return 0
+  return (diffResult.value.added?.length || 0)
+    + (diffResult.value.removed?.length || 0)
+    + (diffResult.value.modified?.length || 0)
+})
+
+function toggleGroup(name: string) {
+  expandedGroups[name] = !expandedGroups[name]
+}
+
+function formatValue(val: unknown): string {
+  if (val === null) return 'null'
+  if (val === undefined) return 'undefined'
+  if (typeof val === 'object') {
+    try {
+      return JSON.stringify(val, null, 2)
+    } catch {
+      return String(val)
+    }
+  }
+  return String(val)
+}
 
 async function loadVersions() {
   loading.value = true
@@ -159,7 +305,16 @@ async function doDiff() {
   if (!diffV1.value || !diffV2.value) return
   try {
     const data = await getConfigDiff(props.configId, diffV1.value, diffV2.value)
-    if (data) diffResult.value = data
+    if (data) {
+      diffResult.value = data
+      // Auto-expand all groups
+      for (const key of Object.keys(expandedGroups)) {
+        delete expandedGroups[key]
+      }
+      for (const group of diffGroups.value) {
+        expandedGroups[group.name] = true
+      }
+    }
   } catch {
     message.error('版本对比失败')
   }

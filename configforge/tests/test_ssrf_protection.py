@@ -1,5 +1,6 @@
 """Tests for SSRF protection (validate_url)."""
 import pytest
+
 from configforge.utils.security import validate_url
 
 

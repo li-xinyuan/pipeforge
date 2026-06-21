@@ -1,8 +1,7 @@
-import io
 import openpyxl
 
 
-def read_excel_info(file_like, sheet_name=None, max_sample_rows=10):
+def read_excel_info(file_like, sheet_name=None, max_sample_rows=100):
     wb = openpyxl.load_workbook(file_like, read_only=True)
     try:
         sheets = wb.sheetnames

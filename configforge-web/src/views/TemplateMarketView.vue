@@ -9,7 +9,7 @@
         <div class="market__search">
           <NInput
             v-model:value="searchQuery"
-            placeholder="搜索模板名称或描述..."
+            placeholder="搜索模板名称、描述或标签..."
             clearable
             size="small"
             class="market__search-input"
@@ -19,6 +19,18 @@
               <span style="color: var(--color-text-muted);">🔍</span>
             </template>
           </NInput>
+          <div class="market__header-actions">
+            <NButton size="small" class="market__import-btn" @click="triggerImport">
+              📥 导入模板
+            </NButton>
+            <input
+              ref="importInput"
+              type="file"
+              accept=".json"
+              style="display: none;"
+              @change="onImportFile"
+            />
+          </div>
         </div>
       </div>
     </section>
@@ -36,6 +48,12 @@
           <span class="market__filter-icon">{{ cat.icon }}</span>
           {{ cat.label }}
         </button>
+        <div class="market__sort">
+          <select v-model="sortBy" class="market__sort-select" @change="onSortChange">
+            <option value="">默认排序</option>
+            <option value="popular">热门模板</option>
+          </select>
+        </div>
       </div>
     </section>
 
@@ -47,10 +65,10 @@
 
       <NAlert v-else-if="error" type="error" :title="error.message" />
 
-      <div v-else-if="templates.length > 0" class="market__grid">
+      <div v-else-if="filteredTemplates.length > 0" class="market__grid">
         <ErrorBoundary>
         <div
-          v-for="tpl in templates"
+          v-for="tpl in pagedTemplates"
           :key="tpl.id"
           class="market__card card-lift"
           @click="onCardClick($event, tpl)"
@@ -78,6 +96,7 @@
                 <NButton size="small" quaternary @click="cancelDelete">取消</NButton>
               </template>
               <template v-else>
+                <NButton size="small" quaternary class="market__card-export" @click="onExport(tpl)">导出</NButton>
                 <NButton v-if="auth.isAdmin" size="small" type="error" quaternary class="market__card-delete" @click="requestDelete(tpl.id)">删除</NButton>
                 <NButton size="small" type="primary" class="btn-primary market__card-btn" @click="openPreview(tpl)">使用此模板</NButton>
               </template>
@@ -85,6 +104,21 @@
           </div>
         </div>
         </ErrorBoundary>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="filteredTemplates.length > pageSize" class="market__pagination">
+        <button
+          class="market__pagination-btn"
+          :disabled="currentPage <= 1"
+          @click="currentPage--"
+        >上一页</button>
+        <span class="market__pagination-info">{{ currentPage }} / {{ totalPages }}</span>
+        <button
+          class="market__pagination-btn"
+          :disabled="currentPage >= totalPages"
+          @click="currentPage++"
+        >下一页</button>
       </div>
 
       <div v-else class="market__empty">
@@ -104,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { NInput, NTag, NAlert, NButton } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import TemplatePreviewModal from '../components/template/TemplatePreviewModal.vue'
@@ -114,11 +148,36 @@ import { useAuthStore } from '../stores/auth'
 import ErrorBoundary from '../components/common/ErrorBoundary.vue'
 
 const auth = useAuthStore()
-const { listTemplates, deleteTemplate, loading, error } = useTemplateApi()
+const { listTemplates, deleteTemplate, exportTemplate, importTemplate, loading, error } = useTemplateApi()
 
 const templates = ref<Template[]>([])
 const searchQuery = ref('')
 const activeCategory = ref('')
+const sortBy = ref('')
+
+// ─── Pagination ───
+const currentPage = ref(1)
+const pageSize = 12
+
+const filteredTemplates = computed(() => {
+  const list = [...templates.value]
+  if (sortBy.value === 'popular') {
+    list.sort((a, b) => b.usageCount - a.usageCount)
+  }
+  return list
+})
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredTemplates.value.length / pageSize)))
+
+const pagedTemplates = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return filteredTemplates.value.slice(start, start + pageSize)
+})
+
+// Reset page when filters change
+watch([searchQuery, activeCategory], () => {
+  currentPage.value = 1
+})
 
 const categories = [
   { label: '全部', value: '', icon: '📋' },
@@ -175,6 +234,41 @@ function openPreview(tpl: Template) {
 
 function onPreviewClose() {
   previewTemplate.value = null
+}
+
+const importInput = ref<HTMLInputElement | null>(null)
+
+function triggerImport() {
+  importInput.value?.click()
+}
+
+async function onImportFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const result = await importTemplate(file)
+  if (result) {
+    await loadTemplates()
+  }
+  // Reset input so the same file can be re-selected
+  input.value = ''
+}
+
+async function onExport(tpl: Template) {
+  const blob = await exportTemplate(tpl.id)
+  if (!blob) return
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `template_${tpl.id}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+function onSortChange() {
+  currentPage.value = 1
 }
 
 function requestDelete(id: string) {
@@ -237,10 +331,21 @@ onUnmounted(() => {
 .market__search {
   max-width: 480px;
   margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .market__search-input {
-  width: 100%;
+  flex: 1;
+}
+
+.market__header-actions {
+  flex-shrink: 0;
+}
+
+.market__import-btn {
+  white-space: nowrap;
 }
 
 /* ───── Category filters ───── */
@@ -289,6 +394,29 @@ onUnmounted(() => {
 
 .market__filter-icon {
   font-size: 14px;
+}
+
+.market__sort {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.market__sort-select {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 6px;
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.market__sort-select:hover,
+.market__sort-select:focus {
+  border-color: var(--color-primary-border);
 }
 
 /* ───── Content grid ───── */
@@ -412,11 +540,59 @@ onUnmounted(() => {
   font-size: 12px;
 }
 
+.market__card-export {
+  font-size: 12px;
+}
+
 .market__card-confirm-text {
   font-size: var(--font-size-xs);
   color: var(--color-error, #d03050);
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* ───── Pagination ───── */
+.market__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.market__pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.market__pagination-btn:hover:not(:disabled) {
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-bg);
+}
+
+.market__pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.market__pagination-info {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+  min-width: 56px;
+  text-align: center;
 }
 
 /* ───── Empty state ───── */
@@ -510,6 +686,21 @@ onUnmounted(() => {
   .market__filter-tab {
     padding: 5px 10px;
     font-size: var(--font-size-xs);
+    min-height: 44px;
+  }
+  .market__card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .market__card-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .market__pagination-btn {
+    min-height: 44px;
+    padding: 8px 16px;
   }
 }
 </style>

@@ -2,6 +2,7 @@
 
 import json
 import os
+
 import pytest
 
 from configforge.services import audit_logger
@@ -62,7 +63,7 @@ class TestLogAudit:
         audit_logger.log_audit("create", "config", "c1")
         log_path = audit_logger.AUDIT_LOG_PATH
         assert os.path.exists(log_path)
-        with open(log_path, "r") as f:
+        with open(log_path) as f:
             data = json.load(f)
         assert len(data) == 1
         assert data[0]["target_id"] == "c1"

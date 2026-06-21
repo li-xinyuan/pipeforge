@@ -5,11 +5,16 @@
       'wizard-step-card--active': status === 'active',
       'wizard-step-card--completed': status === 'completed',
       'wizard-step-card--locked': status === 'locked',
+      'wizard-step-card--collapsed': collapsed,
     }"
     tabindex="-1"
     :data-step="step"
   >
-    <div class="wizard-step-card__header">
+    <div
+      class="wizard-step-card__header"
+      :class="{ 'wizard-step-card__header--clickable': status === 'completed' }"
+      @click="onHeaderClick"
+    >
       <div
         class="wizard-step-card__icon"
         :style="iconBg ? { background: iconBg } : {}"
@@ -17,18 +22,24 @@
       >{{ icon }}</div>
       <div class="wizard-step-card__titles">
         <h3 class="wizard-step-card__title">{{ title }}</h3>
-        <p class="wizard-step-card__desc">{{ description }}</p>
+        <p v-if="!collapsed" class="wizard-step-card__desc">{{ description }}</p>
+        <p v-else-if="summary" class="wizard-step-card__summary">{{ summary }}</p>
       </div>
       <span v-if="badge" class="wizard-step-card__badge" :class="`wizard-step-card__badge--${status}`">{{ badge }}</span>
+      <span v-if="status === 'completed'" class="wizard-step-card__chevron" :class="{ 'wizard-step-card__chevron--up': !collapsed }">▼</span>
     </div>
 
-    <div class="wizard-step-card__body">
-      <slot />
-    </div>
+    <Transition name="wizard-step-card-collapse">
+      <div v-if="!collapsed" class="wizard-step-card__body">
+        <slot />
+      </div>
+    </Transition>
 
-    <div v-if="$slots.footer" class="wizard-step-card__footer">
-      <slot name="footer" />
-    </div>
+    <Transition name="wizard-step-card-collapse">
+      <div v-if="!collapsed && $slots.footer" class="wizard-step-card__footer">
+        <slot name="footer" />
+      </div>
+    </Transition>
 
     <!-- Locked overlay -->
     <div v-if="status === 'locked'" class="wizard-step-card__lock-overlay" aria-hidden="true">
@@ -39,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   title: string
   description: string
   icon: string
@@ -47,14 +58,26 @@ defineProps<{
   badge?: string
   iconBg?: string
   step?: number
+  collapsed?: boolean
+  summary?: string
 }>()
+
+const emit = defineEmits<{
+  (e: 'header-click'): void
+}>()
+
+function onHeaderClick() {
+  if (props.status === 'completed') {
+    emit('header-click')
+  }
+}
 </script>
 
 <style scoped>
 .wizard-step-card {
   position: relative;
   z-index: 0;
-  background: rgba(255,255,255,0.45);
+  background: var(--color-surface-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: var(--radius-lg);
@@ -73,18 +96,17 @@ defineProps<{
 .wizard-step-card--completed {
   opacity: 0.85;
 }
+.wizard-step-card--collapsed {
+  padding-bottom: calc(var(--space-card-padding) * 0.6);
+}
+.wizard-step-card--collapsed .wizard-step-card__header {
+  margin-bottom: 0;
+}
 .wizard-step-card--locked {
   opacity: 0.4;
   filter: grayscale(0.3);
 }
 
-/* Dark mode */
-[data-theme="dark"] .wizard-step-card {
-  background: rgba(41,37,36,0.5);
-}
-[data-theme="dark"] .wizard-step-card:hover {
-  background: rgba(41,37,36,0.65);
-}
 .wizard-step-card--locked .wizard-step-card__body,
 .wizard-step-card--locked .wizard-step-card__footer {
   pointer-events: none;
@@ -141,6 +163,52 @@ defineProps<{
   margin: 1px 0 0;
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+}
+.wizard-step-card__summary {
+  margin: 1px 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.wizard-step-card__chevron {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+  align-self: center;
+}
+.wizard-step-card__chevron--up {
+  transform: rotate(180deg);
+}
+.wizard-step-card__header--clickable {
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  margin: calc(var(--space-card-padding) * -1);
+  margin-bottom: 0;
+  padding: var(--space-card-padding);
+  transition: background 0.15s ease;
+}
+.wizard-step-card__header--clickable:hover {
+  background: var(--color-surface-hover);
+}
+
+/* Collapse transition */
+.wizard-step-card-collapse-enter-active,
+.wizard-step-card-collapse-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+.wizard-step-card-collapse-enter-from,
+.wizard-step-card-collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+}
+.wizard-step-card-collapse-enter-to,
+.wizard-step-card-collapse-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+  margin-top: 0;
 }
 .wizard-step-card__badge {
   font-size: var(--font-size-xs);

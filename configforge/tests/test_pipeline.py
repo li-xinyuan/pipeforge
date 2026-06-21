@@ -1,16 +1,14 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from configforge.core.pipeline import _has_ddl, init_scene, infer_output, generate
+from configforge.core.pipeline import _has_ddl, generate, infer_output, init_scene
 from configforge.models.wizard import (
-    SceneInitRequest,
-    OutputInferRequest,
-    WizardState,
-    SceneInfo,
-    InputSource,
-    ProcessorConfig,
-    OutputTarget,
-    ExcelOutputConfig,
     ColumnMappingItem,
+    ExcelOutputConfig,
+    InputSource,
+    OutputInferRequest,
+    OutputTarget,
+    ProcessorConfig,
+    SceneInfo,
+    SceneInitRequest,
+    WizardState,
 )
 from configforge.services.yaml_builder import build_yaml
 

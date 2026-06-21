@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+
 from pydantic import BaseModel, ConfigDict, Field
 
-from configforge.utils.paths import get_data_dir
 from configforge.utils.crypto import get_cipher
+from configforge.utils.paths import get_data_dir
 
 SETTINGS_FILE = os.path.join(get_data_dir(), "smtp_settings.json")
 
@@ -40,7 +41,7 @@ class SmtpSettingsUpdate(BaseModel):
 def load_settings() -> SmtpSettings:
     if not os.path.exists(SETTINGS_FILE):
         return SmtpSettings()
-    with open(SETTINGS_FILE, "r") as f:
+    with open(SETTINGS_FILE) as f:
         raw = json.load(f)
     if raw.get("password"):
         try:

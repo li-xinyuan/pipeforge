@@ -52,7 +52,7 @@ function onStepClick(step: number, status: StepState['status']) {
   display: flex;
   gap: 4px;
   padding: 12px 16px;
-  background: rgba(255,255,255,0.55);
+  background: var(--color-surface-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--color-border-light);
@@ -87,7 +87,7 @@ function onStepClick(step: number, status: StepState['status']) {
 .wizard-progress__badge {
   position: absolute; top: -6px; right: -6px;
   min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
-  background: #ef4444; color: #fff; font-size: 10px; font-weight: 700;
+  background: var(--color-error); color: #fff; font-size: 10px; font-weight: 700;
   line-height: 18px; text-align: center;
 }
 .wizard-progress__connector {
@@ -101,6 +101,4 @@ function onStepClick(step: number, status: StepState['status']) {
   .wizard-progress__badge { display: none; }
   .wizard-progress__connector { width: 8px; }
 }
-
-[data-theme="dark"] .wizard-progress { background: rgba(41,37,36,0.5); }
 </style>

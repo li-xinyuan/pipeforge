@@ -1,19 +1,19 @@
 """Scheduled execution for ConfigForge pipelines using APScheduler."""
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
 import uuid
-from datetime import datetime, UTC
-from typing import Optional
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from pydantic import BaseModel, Field
 
-from configforge.utils.file_lock import read_json_locked, write_json_locked
-from configforge.utils.migration import load_with_migration, ensure_schema_version
+from configforge.utils.file_lock import write_json_locked
+from configforge.utils.migration import ensure_schema_version, load_with_migration
 from configforge.utils.paths import get_data_dir
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,8 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
     # Import here to avoid circular imports at module level
     from configforge.api.configs import CONFIGS_DIR
     from configforge.models.wizard import WizardState
-    from configforge.services.execution_service import execute as execute_service, ExecutionContext
+    from configforge.services.execution_service import ExecutionContext
+    from configforge.services.execution_service import execute as execute_service
 
     state_path = os.path.join(CONFIGS_DIR, f"{config_id}.state.json")
     if not os.path.exists(state_path):
@@ -120,7 +121,7 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
         _handle_retry(schedule_id, config_id, remaining_retries)
         return
 
-    with open(state_path, "r", encoding="utf-8") as f:
+    with open(state_path, encoding="utf-8") as f:
         state_dict = json.load(f)
 
     # Migrate old format
@@ -273,10 +274,8 @@ def remove_schedule(schedule_id: str) -> bool:
     _save_schedules(new_schedules)
 
     if _scheduler:
-        try:
+        with contextlib.suppress(Exception):
             _scheduler.remove_job(schedule_id)
-        except Exception:
-            pass  # Job may not exist if disabled
 
     return True
 
@@ -287,7 +286,7 @@ def list_schedules() -> list[ScheduleConfig]:
     return [ScheduleConfig(**s) for s in schedules]
 
 
-def update_schedule(schedule_id: str, cron_expression: str | None = None, description: str | None = None, retry_count: int | None = None, retry_interval: int | None = None) -> Optional[ScheduleConfig]:
+def update_schedule(schedule_id: str, cron_expression: str | None = None, description: str | None = None, retry_count: int | None = None, retry_interval: int | None = None) -> ScheduleConfig | None:
     """Update a schedule's cron expression, description, and/or retry settings."""
     schedules = _load_schedules()
     target = None
@@ -313,10 +312,8 @@ def update_schedule(schedule_id: str, cron_expression: str | None = None, descri
 
     # Re-register job if scheduler is running and schedule is enabled
     if _scheduler and target.get("enabled", True):
-        try:
+        with contextlib.suppress(Exception):
             _scheduler.remove_job(schedule_id)
-        except Exception:
-            pass
         _scheduler.add_job(
             _run_scheduled_pipeline,
             trigger=CronTrigger.from_crontab(target["cron_expression"]),
@@ -328,7 +325,7 @@ def update_schedule(schedule_id: str, cron_expression: str | None = None, descri
     return ScheduleConfig(**target)
 
 
-def toggle_schedule(schedule_id: str) -> Optional[ScheduleConfig]:
+def toggle_schedule(schedule_id: str) -> ScheduleConfig | None:
     """Toggle a schedule's enabled state."""
     schedules = _load_schedules()
     target = None
@@ -353,10 +350,8 @@ def toggle_schedule(schedule_id: str) -> Optional[ScheduleConfig]:
                 replace_existing=True,
             )
         else:
-            try:
+            with contextlib.suppress(Exception):
                 _scheduler.remove_job(schedule_id)
-            except Exception:
-                pass
 
     return ScheduleConfig(**target)
 

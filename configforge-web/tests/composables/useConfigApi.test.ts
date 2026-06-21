@@ -37,7 +37,6 @@ describe('useConfigApi', () => {
       const result = await api.listConfigs()
       expect(result.items).toEqual([])
       expect(result.total).toBe(0)
-      expect(api.error.value?.message).toBe('DB down')
     })
 
     it('returns empty result on network error', async () => {

@@ -1,7 +1,7 @@
 <template>
-  <div class="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+  <div class="border border-[var(--color-border-light)] dark:border-[var(--color-border)] rounded-lg overflow-hidden">
     <div
-      class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 cursor-pointer"
+      class="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-secondary)] dark:bg-[var(--color-surface-hover)] border-b border-[var(--color-border-light)] dark:border-[var(--color-border)] cursor-pointer"
       @click="expanded = !expanded"
     >
       <span class="text-xs font-medium flex-1">数据检查点</span>

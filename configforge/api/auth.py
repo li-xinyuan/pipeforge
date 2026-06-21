@@ -1,13 +1,16 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from configforge.middleware.auth import require_role
 from configforge.middleware.jwt import (
     create_access_token,
     decode_token,
     is_jwt_enabled,
 )
+from configforge.models.user import User
 from configforge.services.user_store import (
     authenticate,
+    change_password,
     create_user,
     get_user_by_id,
 )
@@ -24,6 +27,11 @@ class RegisterRequest(BaseModel):
     username: str
     password: str
     role: str = "editor"
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
 
 
 class TokenResponse(BaseModel):
@@ -64,30 +72,17 @@ async def login(req: LoginRequest):
     return TokenResponse(
         access_token=token,
         token_type="bearer",
-        user={"id": user.id, "username": user.username, "role": user.role},
+        user={"id": user.id, "username": user.username, "role": user.role, "must_change_password": user.must_change_password},
     )
 
 
 @router.post("/register", summary="注册新用户", description="注册新用户账号。仅管理员可执行此操作，需要在 Authorization 头中提供管理员 JWT 令牌。支持 admin、editor、viewer 三种角色。")
-async def register(req: RegisterRequest, request: Request):
+async def register(req: RegisterRequest, _user: User = Depends(require_role("admin"))):
     """Register a new user. Only admin can register new users."""
     if not is_jwt_enabled():
         raise HTTPException(
             status_code=400,
             detail={"error": "JWT authentication is not enabled", "code": "AUTH_DISABLED"},
-        )
-
-    # Verify caller is admin
-    payload = _get_current_user_from_request(request)
-    if not payload:
-        raise HTTPException(
-            status_code=401,
-            detail={"error": "Authentication required", "code": "AUTH_REQUIRED"},
-        )
-    if payload.get("role") != "admin":
-        raise HTTPException(
-            status_code=403,
-            detail={"error": "Only admin can register new users", "code": "FORBIDDEN"},
         )
 
     # Validate role
@@ -105,6 +100,17 @@ async def register(req: RegisterRequest, request: Request):
         )
 
     return {"id": user.id, "username": user.username, "role": user.role, "created_at": user.created_at}
+
+
+@router.post("/change-password", summary="修改密码", description="修改当前用户的登录密码。需要在 Authorization 头中提供有效的 JWT 令牌，并正确输入旧密码。")
+async def change_password_endpoint(req: ChangePasswordRequest, request: Request):
+    payload = _get_current_user_from_request(request)
+    if not payload:
+        raise HTTPException(401, detail={"error": "Authentication required", "code": "AUTH_REQUIRED"})
+    success = change_password(payload.get("sub", ""), req.old_password, req.new_password)
+    if not success:
+        raise HTTPException(400, detail={"error": "旧密码错误", "code": "INVALID_PASSWORD"})
+    return {"message": "密码修改成功"}
 
 
 @router.get("/me", summary="获取当前用户信息", description="获取当前已认证用户的信息，包括用户 ID、用户名、角色和创建时间。需要在 Authorization 头中提供有效的 JWT 令牌。")

@@ -1,6 +1,8 @@
 import os
 import tempfile
+
 import pytest
+
 from configforge.services.connection_store import ConnectionStore
 
 
@@ -55,12 +57,13 @@ def test_password_not_in_summary():
 
 def test_password_is_encrypted_on_disk():
     import configforge.services.connection_store as cs
-    conn = ConnectionStore.create({
+    _conn = ConnectionStore.create({
         "name": "Secure", "db_type": "mysql",
         "host": "h", "port": 1, "database": "d",
         "username": "u", "password": "secret",
     })
-    raw = open(cs.STORE_PATH).read()
+    with open(cs.STORE_PATH) as f:
+        raw = f.read()
     assert "secret" not in raw
 
 

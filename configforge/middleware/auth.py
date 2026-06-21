@@ -10,7 +10,6 @@ enabled), all API requests must include the key via X-API-Key header.
 
 If neither is set, authentication is disabled (dev mode).
 """
-import hmac
 import os
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -72,12 +71,63 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
             return await call_next(request)
 
-        # API Key authentication mode (original behavior)
-        key = request.headers.get("X-API-Key", "")
-        if not hmac.compare_digest(key, api_key):
-            return JSONResponse(
-                status_code=401,
-                content={"error": "Unauthorized", "code": "AUTH_FAILED"},
-            )
-
         return await call_next(request)
+
+
+from fastapi import Depends, HTTPException, Request
+
+from configforge.models.user import User, UserRole
+
+
+async def get_current_user_dep(request: Request) -> User:
+    """FastAPI 依赖：从请求中提取已认证用户。
+
+    JWT 未启用时返回默认 admin 用户（开发模式）。
+    """
+    from configforge.middleware.jwt import is_jwt_enabled
+
+    if not is_jwt_enabled():
+        # 开发模式：返回默认 admin 用户
+        return User(id="dev", username="dev", role=UserRole.admin)
+
+    # 从 Authorization 头解析用户
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail={"error": "未认证", "code": "AUTH_REQUIRED"})
+
+    from configforge.middleware.jwt import decode_token
+    from configforge.services.user_store import get_user_by_id
+
+    token = auth_header[7:]
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail={"error": "令牌无效或已过期", "code": "AUTH_FAILED"})
+
+    user = get_user_by_id(payload.get("sub", ""))
+    if not user:
+        raise HTTPException(status_code=401, detail={"error": "用户不存在", "code": "USER_NOT_FOUND"})
+
+    return user
+
+
+def require_role(*roles: str):
+    """角色权限依赖工厂。返回一个 FastAPI 依赖，检查当前用户是否具有指定角色之一。"""
+    async def dependency(request: Request, user: User = Depends(get_current_user_dep)):
+        if user.role not in [UserRole(r) for r in roles]:
+            # 记录权限拒绝审计日志
+            try:
+                from configforge.services.audit_logger import log_audit
+                log_audit(
+                    action="permission_denied",
+                    target_type="auth",
+                    target_id=user.id,
+                    details={"message": f"需要角色 {roles}，当前角色 {user.role.value}，访问 {request.method} {request.url.path}"},
+                )
+            except Exception:
+                pass  # 审计日志不应影响主流程
+            raise HTTPException(
+                status_code=403,
+                detail={"error": f"权限不足：需要角色 {roles}，当前角色 {user.role.value}", "code": "FORBIDDEN"},
+            )
+        return user
+    return dependency

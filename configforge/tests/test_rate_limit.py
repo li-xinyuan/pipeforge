@@ -3,6 +3,7 @@
 import json
 import os
 import time
+
 import pytest
 
 from configforge.utils.rate_limit import RateLimiter
@@ -101,7 +102,7 @@ class TestFilePersistence:
         """State should be persisted to the JSON file."""
         limiter.is_allowed("user1")
         assert os.path.exists(limiter.storage_path)
-        with open(limiter.storage_path, "r") as f:
+        with open(limiter.storage_path) as f:
             state = json.load(f)
         assert "user1" in state
         assert len(state["user1"]) == 1

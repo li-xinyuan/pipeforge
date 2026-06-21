@@ -13,6 +13,7 @@ app.use(router)
 
 // Global error handler — prevents unhandled errors from crashing the UI
 app.config.errorHandler = (err, _instance, info) => {
+  // eslint-disable-next-line no-console
   console.error('[ConfigForge] Unhandled error:', err, info)
 }
 

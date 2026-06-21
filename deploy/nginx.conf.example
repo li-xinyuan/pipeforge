@@ -1,0 +1,139 @@
+# ConfigForge Nginx HTTPS 配置示例
+#
+# 使用说明：
+#   1. 复制此文件到 nginx/nginx.conf
+#   2. 将 your-domain.com 替换为实际域名
+#   3. 确认 SSL 证书路径正确
+#   4. 运行 nginx -t 验证配置语法
+#
+# 前置条件：
+#   - SSL 证书文件已放置于 /etc/nginx/ssl/ 目录
+#   - docker-compose.yml 已配置 SSL 卷挂载
+#   - 后端服务 configforge 在 8000 端口运行
+
+upstream configforge_backend {
+    server configforge:8000;
+}
+
+# ============================================================
+# HTTP 80 端口 → HTTPS 301 跳转
+# ============================================================
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # Let's Encrypt ACME 验证路径（如使用 webroot 模式申请证书）
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # 所有其他请求跳转到 HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ============================================================
+# HTTPS 443 端口主配置
+# ============================================================
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+
+    # ----------------------------------------------------------
+    # SSL/TLS 证书配置
+    # ----------------------------------------------------------
+    ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+
+    # 仅允许 TLSv1.2 和 TLSv1.3，禁用旧版本
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # 推荐加密套件（兼顾安全性与兼容性）
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers on;
+
+    # SSL 会话缓存（减少重复握手开销）
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    ssl_session_tickets off;
+
+    # OCSP Stapling（加速客户端证书验证）
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    resolver 8.8.8.8 8.8.4.4 valid=300s;
+    resolver_timeout 5s;
+
+    # ----------------------------------------------------------
+    # HSTS（HTTP 严格传输安全）
+    # 警告：首次部署建议先使用 max-age=300 测试，确认无误后改为 31536000
+    # ----------------------------------------------------------
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # ----------------------------------------------------------
+    # 安全响应头
+    # ----------------------------------------------------------
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://your-domain.com; frame-ancestors 'none'" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    # ----------------------------------------------------------
+    # Gzip 压缩
+    # ----------------------------------------------------------
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
+    gzip_min_length 256;
+    gzip_comp_level 6;
+
+    # ----------------------------------------------------------
+    # 上传文件大小限制（支持大文件上传）
+    # ----------------------------------------------------------
+    client_max_body_size 100m;
+
+    # ----------------------------------------------------------
+    # API 反向代理 → 后端 8000 端口
+    # ----------------------------------------------------------
+    location /api/ {
+        proxy_pass http://configforge_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 长时间操作超时（如文件处理、AI 生成）
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+
+        # 禁用 API 响应缓存
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+    }
+
+    # 健康检查端点（不记录访问日志）
+    location /api/health {
+        proxy_pass http://configforge_backend;
+        access_log off;
+    }
+
+    # ----------------------------------------------------------
+    # 静态资源（带长期缓存）
+    # ----------------------------------------------------------
+    location /assets/ {
+        proxy_pass http://configforge_backend;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # ----------------------------------------------------------
+    # SPA 前端（所有未匹配路由回退到 index.html）
+    # ----------------------------------------------------------
+    location / {
+        proxy_pass http://configforge_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

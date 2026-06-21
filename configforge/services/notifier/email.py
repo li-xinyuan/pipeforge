@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
-from pathlib import Path
 
 from .base import NotifierBase, NotifyContext, NotifyResult
 

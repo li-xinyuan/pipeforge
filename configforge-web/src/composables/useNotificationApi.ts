@@ -1,4 +1,4 @@
-import { useApi } from './useApi'
+import { useApi, ApiError, handleApiError } from './useApi'
 
 export interface NotificationConfig {
   id: string
@@ -30,38 +30,73 @@ export interface NotificationHistoryEntry {
 }
 
 export function useNotificationApi() {
-  const { loading, error, request } = useApi()
+  const { loading, error, requestOrThrow } = useApi()
 
   async function listConfigs(): Promise<NotificationConfig[]> {
-    const data = await request<NotificationConfig[]>('GET', '/api/notifications/configs')
-    return data || []
+    try {
+      const data = await requestOrThrow<NotificationConfig[]>('GET', '/api/notifications/configs')
+      return data || []
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return []
+    }
   }
 
   async function getConfig(id: string): Promise<NotificationConfig | null> {
-    return request<NotificationConfig>('GET', `/api/notifications/configs/${id}`)
+    try {
+      return await requestOrThrow<NotificationConfig>('GET', `/api/notifications/configs/${id}`)
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
   }
 
   async function createConfig(body: Partial<NotificationConfig>): Promise<NotificationConfig | null> {
-    return request<NotificationConfig>('POST', '/api/notifications/configs', body)
+    try {
+      return await requestOrThrow<NotificationConfig>('POST', '/api/notifications/configs', body)
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
   }
 
   async function updateConfig(id: string, body: Partial<NotificationConfig>): Promise<NotificationConfig | null> {
-    return request<NotificationConfig>('PUT', `/api/notifications/configs/${id}`, body)
+    try {
+      return await requestOrThrow<NotificationConfig>('PUT', `/api/notifications/configs/${id}`, body)
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
   }
 
   async function deleteConfig(id: string): Promise<boolean> {
-    const result = await request<{ ok: boolean }>('DELETE', `/api/notifications/configs/${id}`)
-    return result?.ok ?? false
+    try {
+      const result = await requestOrThrow<{ ok: boolean }>('DELETE', `/api/notifications/configs/${id}`)
+      return result?.ok ?? false
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return false
+    }
   }
 
   async function testConfig(id: string): Promise<{ ok: boolean; message: string; provider: string }> {
-    const data = await request<{ ok: boolean; message: string; provider: string }>('POST', `/api/notifications/test/${id}`)
-    return data || { ok: false, message: '请求失败', provider: '' }
+    try {
+      const data = await requestOrThrow<{ ok: boolean; message: string; provider: string }>('POST', `/api/notifications/test/${id}`)
+      return data || { ok: false, message: '请求失败', provider: '' }
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return { ok: false, message: '请求失败', provider: '' }
+    }
   }
 
   async function getHistory(limit = 50): Promise<NotificationHistoryEntry[]> {
-    const data = await request<NotificationHistoryEntry[]>('GET', `/api/notifications/history?limit=${limit}`)
-    return data || []
+    try {
+      const data = await requestOrThrow<NotificationHistoryEntry[]>('GET', `/api/notifications/history?limit=${limit}`)
+      return data || []
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return []
+    }
   }
 
   return { loading, error, listConfigs, getConfig, createConfig, updateConfig, deleteConfig, testConfig, getHistory }

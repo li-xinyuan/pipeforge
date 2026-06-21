@@ -1,7 +1,9 @@
 """Tests for JSON reader."""
 import json
+
 import pytest
-from configforge.services.json_reader import read_json_info, _flatten
+
+from configforge.services.json_reader import _flatten, read_json_info
 
 
 class TestFlatten:

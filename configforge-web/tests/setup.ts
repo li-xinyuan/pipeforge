@@ -1,5 +1,10 @@
 import { vi } from 'vitest'
 
+// Mock window.alert for happy-dom environment
+if (typeof window !== 'undefined' && !window.alert) {
+  window.alert = vi.fn()
+}
+
 // Mock auth store for all tests
 vi.mock('../src/stores/auth', () => ({
   useAuthStore: vi.fn(() => ({

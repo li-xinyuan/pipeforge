@@ -29,9 +29,11 @@ describe('AiTriggerButton', () => {
     expect(wrapper.text()).not.toContain('AI 分析')
   })
 
-  it('adds loading class when loading', () => {
+  it('adds loading style when loading', () => {
     const wrapper = makeWrapper({ loading: true })
-    expect(wrapper.find('button').classes()).toContain('ai-trigger-btn--loading')
+    const btn = wrapper.find('button')
+    expect(btn.element.disabled).toBe(true)
+    expect(btn.attributes('style')).toContain('opacity')
   })
 
   it('is disabled when disabled prop is true', () => {
@@ -56,19 +58,13 @@ describe('AiTriggerButton', () => {
     expect(wrapper.emitted('click')).toBeUndefined()
   })
 
-  it('adds dark class when isDark is true', async () => {
-    vi.doMock('../../src/composables/useTheme', () => ({
-      useTheme: () => ({ isDark: { value: true }, toggleTheme: vi.fn() }),
-    }))
-    // Re-import with new mock
-    const { default: AiTriggerButtonDark } = await import('../../src/components/common/AiTriggerButton.vue')
-    const wrapper = mount(AiTriggerButtonDark, { props: { label: 'AI' } })
-    expect(wrapper.find('button').classes()).toContain('ai-trigger-btn--dark')
+  it('uses ai-btn class', () => {
+    const wrapper = makeWrapper()
+    expect(wrapper.find('button').classes()).toContain('ai-btn')
   })
 
-  it('has spin class on icon when loading', () => {
+  it('shows sparkles icon when loading', () => {
     const wrapper = makeWrapper({ loading: true })
-    const icon = wrapper.find('.ai-trigger-btn__icon')
-    expect(icon.classes()).toContain('ai-trigger-btn__icon--spin')
+    expect(wrapper.text()).toContain('✨')
   })
 })

@@ -83,10 +83,10 @@ describe('CheckpointSection', () => {
     expect(addRuleBtn).toBeTruthy()
     await addRuleBtn!.trigger('click')
 
-    const emitted = wrapper.emitted('update:checkpoints') as any
+    const emitted = wrapper.emitted('update:checkpoints') as unknown as [CheckRule[]][] | undefined
     expect(emitted).toBeTruthy()
-    expect(emitted[0][0]).toHaveLength(1)
-    expect(emitted[0][0][0].type).toBe('row_count')
+    expect(emitted![0][0]).toHaveLength(1)
+    expect(emitted![0][0][0].type).toBe('row_count')
   })
 
   it('removes rule on delete click', async () => {
@@ -98,9 +98,9 @@ describe('CheckpointSection', () => {
     expect(deleteBtn).toBeTruthy()
     await deleteBtn!.trigger('click')
 
-    const emitted = wrapper.emitted('update:checkpoints') as any
+    const emitted = wrapper.emitted('update:checkpoints') as unknown as [CheckRule[]][] | undefined
     expect(emitted).toBeTruthy()
-    expect(emitted[0][0]).toHaveLength(0)
+    expect(emitted![0][0]).toHaveLength(0)
   })
 
   it('renders null_rate rule with column and threshold fields', async () => {

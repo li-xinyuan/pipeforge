@@ -2,11 +2,35 @@ import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import router from '../router'
 
-export interface ApiError {
-  message: string
+export class ApiError extends Error {
   code: string
-  detail?: unknown
+  status: number
   data?: unknown
+  constructor(message: string, code: string, status: number, data?: unknown) {
+    super(message)
+    this.code = code
+    this.status = status
+    this.data = data
+  }
+}
+
+/** Global error handler for ApiError */
+export function handleApiError(error: ApiError): void {
+  switch (error.status) {
+    case 401:
+      useAuthStore().clearAuth()
+      router.push('/login')
+      break
+    case 403:
+      window.alert('权限不足')
+      break
+    case 500:
+      window.alert('服务器错误')
+      break
+    default:
+      window.alert(error.message)
+      break
+  }
 }
 
 export function useApi() {
@@ -32,21 +56,13 @@ export function useApi() {
     return headers
   }
 
-  /** Handle 401 responses — clear auth and redirect to login */
-  function handleUnauthorized() {
-    const auth = useAuthStore()
-    if (auth.isAuthenticated) {
-      auth.clearAuth()
-      router.push('/login')
-    }
-  }
-
-  async function request<T>(
+  /** Like request() but throws ApiError on failure instead of returning null */
+  async function requestOrThrow<T>(
     method: string,
     url: string,
     body?: unknown,
     options?: { signal?: AbortSignal },
-  ): Promise<T | null> {
+  ): Promise<T> {
     loading.value = true
     error.value = null
     try {
@@ -61,9 +77,17 @@ export function useApi() {
 
       // Handle 401 — redirect to login
       if (resp.status === 401) {
-        handleUnauthorized()
-        error.value = { message: '登录已过期，请重新登录', code: 'AUTH_FAILED' }
-        return null
+        const auth = useAuthStore()
+        if (auth.isAuthenticated) {
+          auth.clearAuth()
+          router.push('/login')
+        }
+        throw new ApiError('登录已过期，请重新登录', 'AUTH_FAILED', 401)
+      }
+
+      // Handle 403 — permission denied
+      if (resp.status === 403) {
+        throw new ApiError('权限不足', 'FORBIDDEN', 403)
       }
 
       const contentType = resp.headers.get('content-type') || ''
@@ -71,8 +95,7 @@ export function useApi() {
       // Explicitly binary content-type — return as blob
       if (contentType.includes('application/octet-stream') || contentType.includes('application/vnd.')) {
         if (!resp.ok) {
-          error.value = { message: `请求失败 (${resp.status})`, code: 'API_ERROR' }
-          return null
+          throw new ApiError(`请求失败 (${resp.status})`, 'API_ERROR', resp.status)
         }
         return await resp.blob() as unknown as T
       }
@@ -84,11 +107,12 @@ export function useApi() {
       try { data = JSON.parse(new TextDecoder().decode(buffer)) } catch { /* not JSON */ }
 
       if (!resp.ok) {
-        error.value = {
-          message: extractErrorMessage(data, `请求失败 (${resp.status})`),
-          code: extractErrorCode(data, 'API_ERROR'),
-        }
-        return null
+        throw new ApiError(
+          extractErrorMessage(data, `请求失败 (${resp.status})`),
+          extractErrorCode(data, 'API_ERROR'),
+          resp.status,
+          data,
+        )
       }
 
       // If JSON parsing succeeded, return parsed data
@@ -97,17 +121,40 @@ export function useApi() {
       // JSON parsing failed but response is ok — return as blob
       return new Blob([buffer]) as unknown as T
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') {
-        error.value = { message: '请求超时，请重试', code: 'TIMEOUT' }
-      } else if (e instanceof TypeError && e.message.includes('fetch')) {
-        error.value = { message: '网络连接失败，请检查后端服务是否运行', code: 'NETWORK_ERROR' }
-      } else {
-        const msg = e instanceof Error ? e.message : '网络请求失败'
-        error.value = { message: msg, code: 'NETWORK_ERROR' }
+      if (e instanceof ApiError) {
+        error.value = e
+        throw e
       }
-      return null
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        const apiErr = new ApiError('请求超时，请重试', 'TIMEOUT', 0)
+        error.value = apiErr
+        throw apiErr
+      }
+      if (e instanceof TypeError && e.message.includes('fetch')) {
+        const apiErr = new ApiError('网络连接失败，请检查后端服务是否运行', 'NETWORK_ERROR', 0)
+        error.value = apiErr
+        throw apiErr
+      }
+      const msg = e instanceof Error ? e.message : '网络请求失败'
+      const apiErr = new ApiError(msg, 'NETWORK_ERROR', 0)
+      error.value = apiErr
+      throw apiErr
     } finally {
       loading.value = false
+    }
+  }
+
+  /** @deprecated Use requestOrThrow + try/catch instead */
+  async function request<T>(
+    method: string,
+    url: string,
+    body?: unknown,
+    options?: { signal?: AbortSignal },
+  ): Promise<T | null> {
+    try {
+      return await requestOrThrow<T>(method, url, body, options)
+    } catch {
+      return null
     }
   }
 
@@ -186,6 +233,7 @@ export function useApi() {
     loading,
     error,
     request,
+    requestOrThrow,
     getSchedules,
     getConfigs,
     createSchedule,
@@ -260,7 +308,11 @@ export interface VersionMeta {
 }
 
 export interface DiffResult {
-  changes?: Array<{ type: 'added' | 'removed' | 'modified'; path: string }>
+  v1?: number
+  v2?: number
+  added?: Array<{ path: string; value: unknown }>
+  removed?: Array<{ path: string; value: unknown }>
+  modified?: Array<{ path: string; old: unknown; new: unknown }>
 }
 
 export interface AiSettings {

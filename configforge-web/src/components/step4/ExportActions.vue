@@ -7,6 +7,31 @@
     <NButton :loading="saving" @click="saveConfigHandler">保存配置</NButton>
   </div>
 
+  <!-- Execution progress panel -->
+  <div v-if="executionStage" class="export-actions__progress">
+    <div class="flex items-center gap-3 mb-2">
+      <NSpin v-if="executing" :size="16" />
+      <span v-else-if="execError" class="text-red-500 text-base">&#10060;</span>
+      <span v-else class="text-green-500 text-base">&#9989;</span>
+      <span class="text-sm font-medium">{{ executionMessage }}</span>
+    </div>
+    <NProgress
+      :percentage="executionProgress"
+      :status="execError ? 'error' : undefined"
+      :show-indicator="false"
+      :height="6"
+      :border-radius="3"
+    />
+    <div class="flex justify-between mt-1">
+      <span
+        v-for="s in stageSteps"
+        :key="s.key"
+        class="text-xs"
+        :class="stageStepClass(s.key)"
+      >{{ s.label }}</span>
+    </div>
+  </div>
+
   <!-- AI Diagnosis on execution failure -->
   <div v-if="execError || execDiagnosis" class="export-actions__diagnosis">
     <DiagnosisPanel
@@ -28,12 +53,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, useMessage, useDialog } from 'naive-ui'
-import type { ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig } from '../../types/wizard'
+import { NButton, NProgress, NSpin, useMessage, useDialog } from 'naive-ui'
+import type { ExcelOutputConfig, CsvOutputConfig } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
 import { useConfigApi } from '../../composables/useConfigApi'
 import { useAiApi } from '../../composables/useAiApi'
+import { useAuthStore } from '../../stores/auth'
+import { stateToSnakeCase } from '../../utils/serialization'
 import ConfettiBurst from '../ConfettiBurst.vue'
 import DiagnosisPanel from '../common/DiagnosisPanel.vue'
 
@@ -44,12 +71,33 @@ const message = useMessage()
 const dialog = useDialog()
 const router = useRouter()
 const store = useWizardStore()
-const { executePipeline, error: apiError } = useWizardApi()
+const { executePipeline, error: _apiError } = useWizardApi()
 const { saveConfig } = useConfigApi()
 const { askSuggestion } = useAiApi()
 const executing = ref(false)
 const saving = ref(false)
 const confettiRef = ref<InstanceType<typeof ConfettiBurst>>()
+
+// SSE execution progress state
+type ExecutionStage = 'input' | 'processor' | 'output' | 'complete' | 'error' | ''
+const executionStage = ref<ExecutionStage>('')
+const executionProgress = ref(0)
+const executionMessage = ref('')
+
+const stageSteps = [
+  { key: 'input', label: '输入' },
+  { key: 'processor', label: '处理' },
+  { key: 'output', label: '输出' },
+] as const
+
+function stageStepClass(key: string): string {
+  const order = ['input', 'processor', 'output']
+  const currentIdx = order.indexOf(executionStage.value)
+  const stepIdx = order.indexOf(key)
+  if (stepIdx < currentIdx) return 'text-green-500'
+  if (stepIdx === currentIdx) return 'text-blue-500 font-semibold'
+  return 'text-gray-400'
+}
 
 // AI diagnosis state
 const execError = ref('')
@@ -67,7 +115,7 @@ function buildExecutionFilename(storedFilename: string): string {
 }
 
 function safeSceneName(): string {
-  return store.scene.name.replace(/[\/\\:*?"<>|]/g, '-').trim() || 'output'
+  return store.scene.name.replace(/[/\\:*?"<>|]/g, '-').trim() || 'output'
 }
 
 async function copyYaml() {
@@ -84,6 +132,141 @@ function downloadYaml() {
   const name = store.scene.name.trim() || 'pipeline'
   a.href = url; a.download = `${name}_pipeline.yaml`; a.click()
   URL.revokeObjectURL(url)
+}
+
+/** Parse SSE text stream and yield events */
+function parseSSEStream(reader: ReadableStreamDefaultReader<Uint8Array>) {
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  return {
+    async *[Symbol.asyncIterator]() {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        let currentEvent = ''
+        let currentData = ''
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim()
+          } else if (line.startsWith('data: ')) {
+            currentData = line.slice(6)
+          } else if (line === '' && currentEvent) {
+            yield { event: currentEvent, data: currentData }
+            currentEvent = ''
+            currentData = ''
+          }
+        }
+      }
+    },
+  }
+}
+
+/** Execute pipeline with SSE progress streaming */
+async function downloadResultWithProgress() {
+  const state = store.getWizardState()
+  const auth = useAuthStore()
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`
+
+  const response = await fetch('/api/wizard/execute/stream', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ state: stateToSnakeCase(state) }),
+  })
+
+  if (!response.ok) {
+    // Fall back to non-streaming error handling
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      const errBody = await response.json()
+      throw new Error(errBody.detail || errBody.error || `执行失败 (${response.status})`)
+    }
+    throw new Error(`执行失败 (${response.status})`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error('无法读取响应流')
+
+  let lastCompleteData: Record<string, unknown> | null = null
+
+  const sseStream = parseSSEStream(reader)
+  for await (const { event, data } of sseStream) {
+    let parsed: Record<string, unknown> | null = null
+    try { parsed = JSON.parse(data) } catch { /* ignore */ }
+
+    switch (event) {
+      case 'start':
+        executionStage.value = 'input'
+        executionProgress.value = 5
+        executionMessage.value = '准备执行...'
+        break
+
+      case 'input_start':
+        executionStage.value = 'input'
+        executionProgress.value = 10
+        executionMessage.value = `读取输入：${parsed?.name || ''}`
+        break
+
+      case 'input_done':
+        executionProgress.value = 30
+        executionMessage.value = `输入完成：${parsed?.rows || 0} 行`
+        break
+
+      case 'processor_start':
+        executionStage.value = 'processor'
+        executionProgress.value = 40
+        executionMessage.value = `执行处理：${parsed?.name || ''}`
+        break
+
+      case 'processor_done':
+        executionProgress.value = 65
+        executionMessage.value = `处理完成：${parsed?.name || ''}`
+        break
+
+      case 'output_start':
+        executionStage.value = 'output'
+        executionProgress.value = 75
+        executionMessage.value = '写入输出...'
+        break
+
+      case 'output_done':
+        executionProgress.value = 90
+        executionMessage.value = `输出完成：${parsed?.rows || 0} 行`
+        break
+
+      case 'complete':
+        executionStage.value = 'complete'
+        executionProgress.value = 100
+        executionMessage.value = '执行完成'
+        lastCompleteData = parsed
+        break
+
+      case 'error':
+        executionStage.value = 'error'
+        executionMessage.value = '执行失败'
+        if (parsed) {
+          execError.value = (parsed.message as string) || '执行失败'
+          if (parsed.diagnosis && typeof parsed.diagnosis === 'object') {
+            execDiagnosis.value = parsed.diagnosis as { cause: string; impact?: string; suggestions: string[]; severity: 'error' | 'warning'; step?: number }
+          }
+          if (parsed.checks) {
+            // Checkpoint failure
+            execError.value = '数据检查点未通过'
+          }
+        }
+        break
+    }
+  }
+
+  return lastCompleteData
 }
 
 async function downloadResult() {
@@ -118,34 +301,41 @@ async function downloadResult() {
   executing.value = true
   execError.value = ''
   execDiagnosis.value = null
+  executionStage.value = ''
+  executionProgress.value = 0
+  executionMessage.value = ''
+
   try {
-    const state = store.getWizardState()
-    const result = await executePipeline(state)
-    if (result) {
-      if (result instanceof Blob) {
-        const url = URL.createObjectURL(result)
-        const a = document.createElement('a')
-        const storedFilename = (store.output?.plugin !== 'database' ? (store.output?.config as ExcelOutputConfig | CsvOutputConfig)?.filename : '') || 'output.xlsx'
-        a.href = url; a.download = buildExecutionFilename(storedFilename); a.click()
-        URL.revokeObjectURL(url)
-        confettiRef.value?.burst()
-        message.success('结果文件下载成功')
+    await downloadResultWithProgress()
+
+    const stage = executionStage.value as ExecutionStage
+    if (stage === 'complete' && !execError.value) {
+      confettiRef.value?.burst()
+
+      if (store.output?.plugin === 'database') {
+        message.success('执行成功，数据已写入目标数据库')
       } else {
-        // Database output: JSON response with success message
-        confettiRef.value?.burst()
-        message.success(result.message || '执行成功')
-      }
-    } else {
-      execError.value = apiError.value?.message || '执行失败，请检查配置'
-      // Try to extract diagnosis from API error
-      const errData = apiError.value?.data as Record<string, unknown> | undefined
-      if (errData && typeof errData.diagnosis === 'object' && errData.diagnosis) {
-        const diag = errData.diagnosis as { cause: string; impact?: string; suggestions: string[]; severity: 'error' | 'warning'; step?: number }
-        execDiagnosis.value = diag
+        // After SSE completes, download the result file using the original endpoint
+        const state = store.getWizardState()
+        const fileResult = await executePipeline(state)
+        if (fileResult) {
+          if (fileResult instanceof Blob) {
+            const url = URL.createObjectURL(fileResult)
+            const a = document.createElement('a')
+            const storedFilename = (store.output?.config as ExcelOutputConfig | CsvOutputConfig)?.filename || 'output.xlsx'
+            a.href = url; a.download = buildExecutionFilename(storedFilename); a.click()
+            URL.revokeObjectURL(url)
+            message.success('结果文件下载成功')
+          } else {
+            message.success(fileResult.message || '执行成功')
+          }
+        }
       }
     }
   } catch (e: unknown) {
     execError.value = e instanceof Error ? e.message : '执行失败'
+    executionStage.value = 'error'
+    executionMessage.value = '执行失败'
     execDiagnosis.value = null
   } finally {
     executing.value = false
@@ -233,6 +423,14 @@ defineExpose({
 </script>
 
 <style scoped>
+.export-actions__progress {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--n-color-modal, #f9fafb);
+  border-radius: 8px;
+  border: 1px solid var(--n-border-color, #e5e7eb);
+}
+
 .export-actions__diagnosis {
   margin-top: 12px;
 }

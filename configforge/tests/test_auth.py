@@ -1,10 +1,9 @@
 """Tests for authentication API endpoints."""
 
-import os
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
+
 from configforge.server import app
-from configforge.middleware import jwt as jwt_module
 
 
 @pytest.fixture(autouse=True)

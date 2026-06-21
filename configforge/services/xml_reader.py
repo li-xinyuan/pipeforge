@@ -1,7 +1,6 @@
 import io
 import xml.etree.ElementTree as ET
 
-
 MAX_XML_ROWS = 50000
 
 

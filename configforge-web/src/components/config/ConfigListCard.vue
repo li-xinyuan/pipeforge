@@ -17,8 +17,8 @@
       </div>
     </div>
     <div v-if="!batchMode" class="config-card-right">
-      <NButton v-if="cfg.inputCount > 0" size="small" secondary type="primary" @click.stop="$emit('execute', cfg)">执行</NButton>
-      <ConfigActionsMenu :config="cfg" @select="(key: string) => $emit('menu-select', key, cfg)" />
+      <NButton v-if="cfg.inputCount > 0 && canEdit" size="small" secondary type="primary" @click.stop="$emit('execute', cfg)">执行</NButton>
+      <ConfigActionsMenu :config="cfg" :can-edit="canEdit" @select="(key: string) => $emit('menu-select', key, cfg)" />
     </div>
   </div>
 </template>
@@ -33,6 +33,7 @@ defineProps<{
   configs: SavedConfig[]
   batchMode: boolean
   selectedIds: Set<string>
+  canEdit?: boolean
 }>()
 
 defineEmits<{
@@ -56,7 +57,7 @@ defineEmits<{
 
 .config-card:hover {
   border-color: var(--color-primary-border);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-md);
 }
 
 .config-card--selected {

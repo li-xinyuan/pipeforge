@@ -4,25 +4,29 @@ import os
 import re
 import uuid
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from configforge.api.preview import router as preview_router
-from configforge.api.files import router as files_router, cleanup_old_files, cleanup_old_logs
 from configforge.api.ai import router as ai_router
-from configforge.api.wizard import router as wizard_router
+from configforge.api.auth import router as auth_router
 from configforge.api.configs import router as configs_router
 from configforge.api.connections import router as connections_router
-from configforge.api.executions import router as exec_router, _cleanup_old_outputs
-from configforge.api.schedules import router as schedules_router
+from configforge.api.executions import _cleanup_old_outputs
+from configforge.api.executions import router as exec_router
+from configforge.api.files import cleanup_old_files, cleanup_old_logs
+from configforge.api.files import router as files_router
 from configforge.api.notifications import router as notifications_router
+from configforge.api.preview import router as preview_router
+from configforge.api.schedules import router as schedules_router
 from configforge.api.templates import router as templates_router
-from configforge.api.auth import router as auth_router
+from configforge.api.wizard import router as wizard_router
+from configforge.middleware.auth import AuthMiddleware, require_role
+from configforge.models.user import User
 from configforge.models.wizard import ErrorResponse
-from configforge.scheduler import start_scheduler, shutdown_scheduler
-from configforge.middleware.auth import AuthMiddleware
+from configforge.scheduler import shutdown_scheduler, start_scheduler
 from configforge.services.template_store import ensure_builtin_templates
 from configforge.utils.logging import request_id_var, setup_logging
 
@@ -67,8 +71,36 @@ async def _periodic_cleanup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
+
+    from configforge.utils.env import is_production
+
+    if is_production():
+        # 检查 JWT_SECRET
+        jwt_secret = os.environ.get("CONFIGFORGE_JWT_SECRET", "")
+        if not jwt_secret or len(jwt_secret) < 32:
+            _logger.critical("生产模式下必须设置 CONFIGFORGE_JWT_SECRET（长度 ≥ 32）")
+            raise SystemExit(1)
+
+        # 检查 ENCRYPTION_KEY
+        if not os.environ.get("CONFIGFORGE_ENCRYPTION_KEY"):
+            _logger.critical("生产模式下必须设置 CONFIGFORGE_ENCRYPTION_KEY")
+            raise SystemExit(1)
+
+        # 检查 CORS 不允许 *
+        cors_origins = os.environ.get("CORS_ORIGINS", "")
+        if not cors_origins or cors_origins.strip() == "*":
+            _logger.critical("生产模式下 CORS_ORIGINS 不允许为空或包含 *")
+            raise SystemExit(1)
+
     start_scheduler()
     ensure_builtin_templates()
+    # Auto-migrate index.json to v2 if needed
+    from configforge.utils.migration import migrate_index_v1_to_v2
+    migration_result = migrate_index_v1_to_v2()
+    if migration_result.get("migrated"):
+        _logger.info("Index migration completed: %s", migration_result.get("message"))
+    elif migration_result.get("errors"):
+        _logger.warning("Index migration had errors: %s", migration_result.get("errors"))
     # Ensure default admin user when JWT auth is enabled
     if os.environ.get("CONFIGFORGE_JWT_SECRET"):
         from configforge.services.user_store import ensure_default_admin
@@ -97,11 +129,13 @@ _OPENAPI_TAGS = [
     {"name": "通知管理", "description": "通知渠道和消息管理"},
     {"name": "模板管理", "description": "配置模板市场"},
     {"name": "认证管理", "description": "JWT 用户认证和授权"},
+    {"name": "系统", "description": "系统健康检查和运维接口"},
 ]
 
 app = FastAPI(
-    title="ConfigForge",
-    version=_get_version(),
+    title="ConfigForge API",
+    description="数据管道配置向导 API",
+    version="0.8.1",
     lifespan=lifespan,
     openapi_tags=_OPENAPI_TAGS,
 )
@@ -185,22 +219,30 @@ app.include_router(ai_router, prefix="/api/ai", tags=["AI 服务"])
 app.include_router(wizard_router, prefix="/api/wizard", tags=["向导"])
 app.include_router(configs_router, prefix="/api/configs", tags=["配置管理"])
 app.include_router(connections_router, prefix="/api", tags=["连接管理"])
-app.include_router(exec_router)
-app.include_router(schedules_router)
-app.include_router(notifications_router)
+app.include_router(exec_router, tags=["执行历史"])
+app.include_router(schedules_router, tags=["调度管理"])
+app.include_router(notifications_router, tags=["通知管理"])
 app.include_router(templates_router, prefix="/api/templates", tags=["模板管理"])
-app.include_router(auth_router)
+app.include_router(auth_router, tags=["认证管理"])
 
 
-@app.get("/api/audit-log", summary="获取审计日志", description="获取系统审计日志记录。支持按目标类型和操作类型筛选，默认返回最近 100 条。")
-async def get_audit_log_api(target_type: str | None = None, action: str | None = None, limit: int = 100):
+@app.get("/api/audit-log", summary="获取审计日志", description="获取系统审计日志记录。支持按目标类型、操作类型、用户、时间范围筛选，默认返回最近 100 条。", tags=["认证管理"])
+async def get_audit_log_api(
+    target_type: str | None = None,
+    action: str | None = None,
+    user: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    limit: int = 100,
+    _user: User = Depends(require_role("admin")),
+):
     from configforge.services.audit_logger import get_audit_log
-    return {"entries": get_audit_log(target_type, action, limit)}
+    return {"entries": get_audit_log(target_type, action, limit, user=user, start_time=start_time, end_time=end_time)}
 
 
-@app.get("/api/health", summary="健康检查", description="检查系统健康状态，包括数据目录可写性、配置目录存在性、调度器运行状态和加密密钥配置情况。")
+@app.get("/api/health", summary="健康检查", description="检查系统健康状态，包括数据目录可写性、配置目录存在性、调度器运行状态和加密密钥配置情况。", tags=["系统"])
 async def health():
-    from configforge.utils.paths import get_data_dir, get_configs_dir
+    from configforge.utils.paths import get_configs_dir, get_data_dir
 
     checks = {
         "status": "ok",
@@ -236,8 +278,8 @@ async def health():
 
     return checks
 
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 _static_dir = os.path.join(os.path.dirname(__file__), "static")
 

@@ -36,7 +36,7 @@ const ps = computed(() => props.pageSize ?? 25)
 const totalPages = computed(() => Math.ceil(props.rows.length / ps.value))
 const pagedRows = computed(() => props.rows.slice((page.value - 1) * ps.value, page.value * ps.value))
 
-const datePattern = /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$|^\d{8}$|^\d{4}年\d{1,2}月\d{1,2}日$|^\d{1,2}[-\/]\d{1,2}[-\/]\d{4}$/
+const datePattern = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$|^\d{8}$|^\d{4}年\d{1,2}月\d{1,2}日$|^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/
 
 const columnTypes = computed(() =>
   props.columns.map((_, ci) => {

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from .base import NotifierBase, NotifyContext, NotifyResult
-from .formatters import format_dingtalk, format_wecom, format_feishu, format_generic
-
 import httpx
+
+from .base import NotifierBase, NotifyContext, NotifyResult
+from .formatters import format_dingtalk, format_feishu, format_generic, format_wecom
 
 # Map provider name → formatter function
 FORMATTERS = {
@@ -40,7 +40,7 @@ class WebhookNotifier(NotifierBase):
         headers = {"Content-Type": "application/json", **self.headers}
 
         last_error: str | None = None
-        for attempt in range(1 + self.max_retries):
+        for _attempt in range(1 + self.max_retries):
             try:
                 async with httpx.AsyncClient(timeout=self.timeout) as client:
                     resp = await client.post(self.url, json=payload, headers=headers)

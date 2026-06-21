@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, highlightActiveLine, rectangularSelection, crosshairCursor } from '@codemirror/view'
 import { EditorState, Compartment } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
@@ -60,30 +60,30 @@ const langCompartment = new Compartment()
 
 // Custom light theme for better contrast
 const lightTheme = EditorView.theme({
-  '&': { fontSize: '13px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff' },
-  '.cm-content': { fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, Consolas, monospace', padding: '8px 0', color: '#1e293b' },
-  '.cm-focused': { outline: 'none', borderColor: '#0d9488' },
-  '.cm-gutters': { backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', color: '#94a3b8' },
-  '.cm-activeLineGutter': { backgroundColor: '#f1f5f9' },
-  '.cm-activeLine': { backgroundColor: '#f1f5f9' },
-  '.cm-selectionBackground': { backgroundColor: '#ccfbf1 !important' },
-  '.cm-cursor': { borderLeftColor: '#0d9488' },
-  '.cm-placeholder': { color: '#94a3b8', fontStyle: 'italic' },
-  '.cm-matchingBracket': { backgroundColor: '#ccfbf1', outline: '1px solid #0d9488' },
+  '&': { fontSize: '13px', border: '1px solid var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-surface)' },
+  '.cm-content': { fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, Consolas, monospace', padding: '8px 0', color: 'var(--color-text)' },
+  '.cm-focused': { outline: 'none', borderColor: 'var(--color-primary-light)' },
+  '.cm-gutters': { backgroundColor: 'var(--color-bg-secondary)', borderRight: '1px solid var(--color-border-light)', color: 'var(--color-text-muted)' },
+  '.cm-activeLineGutter': { backgroundColor: 'var(--color-surface-hover)' },
+  '.cm-activeLine': { backgroundColor: 'var(--color-surface-hover)' },
+  '.cm-selectionBackground': { backgroundColor: 'var(--color-primary-bg) !important' },
+  '.cm-cursor': { borderLeftColor: 'var(--color-primary-light)' },
+  '.cm-placeholder': { color: 'var(--color-text-muted)', fontStyle: 'italic' },
+  '.cm-matchingBracket': { backgroundColor: 'var(--color-primary-bg)', outline: '1px solid var(--color-primary-light)' },
 }, { dark: false })
 
 // Custom dark theme
 const darkTheme = EditorView.theme({
-  '&': { fontSize: '13px', border: '1px solid #334155', borderRadius: '8px', backgroundColor: '#282c34' },
+  '&': { fontSize: '13px', border: '1px solid var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-code-bg)' },
   '.cm-content': { fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, Consolas, monospace', padding: '8px 0', color: '#abb2bf', caretColor: '#528bff' },
-  '.cm-focused': { outline: 'none', borderColor: '#14b8a6' },
-  '.cm-gutters': { backgroundColor: '#282c34', borderRight: '1px solid #334155', color: '#636d83' },
+  '.cm-focused': { outline: 'none', borderColor: 'var(--color-primary-light)' },
+  '.cm-gutters': { backgroundColor: 'var(--color-code-bg)', borderRight: '1px solid var(--color-border)', color: '#636d83' },
   '.cm-activeLineGutter': { backgroundColor: '#2c313a' },
   '.cm-activeLine': { backgroundColor: '#2c313a' },
-  '.cm-selectionBackground': { backgroundColor: '#134e4a !important' },
+  '.cm-selectionBackground': { backgroundColor: 'var(--color-primary-bg) !important' },
   '.cm-cursor': { borderLeftColor: '#528bff' },
   '.cm-placeholder': { color: '#636d83', fontStyle: 'italic' },
-  '.cm-matchingBracket': { backgroundColor: '#134e4a', outline: '1px solid #14b8a6' },
+  '.cm-matchingBracket': { backgroundColor: 'var(--color-primary-bg)', outline: '1px solid var(--color-primary-light)' },
 }, { dark: true })
 
 // Custom SQL highlight style for light mode (lazy, may fail in happy-dom)
@@ -185,7 +185,7 @@ function getLanguageExtension() {
 }
 
 function getHighlightExtension() {
-  let h: ReturnType<typeof HighlightStyle.define> | null = null
+  let h: ReturnType<typeof HighlightStyle.define> | null
   if (props.language === 'sql') {
     h = isDark.value ? sqlDarkHighlight : sqlHighlight
   } else if (props.language === 'yaml') {

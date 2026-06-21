@@ -9,26 +9,32 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from configforge.middleware.auth import require_role
 from configforge.models.notification import (
     NotificationConfig,
     NotificationConfigCreate,
     NotificationConfigUpdate,
     NotificationHistoryEntry,
 )
+from configforge.models.user import User
 from configforge.services.notifier.base import NotifyContext, NotifyResult
 from configforge.services.notifier.smtp_settings import (
     SmtpSettings,
     SmtpSettingsUpdate,
-    load_settings as load_smtp_settings,
-    save_settings as save_smtp_settings,
     mask_password,
 )
+from configforge.services.notifier.smtp_settings import (
+    load_settings as load_smtp_settings,
+)
+from configforge.services.notifier.smtp_settings import (
+    save_settings as save_smtp_settings,
+)
 from configforge.services.notifier.webhook import WebhookNotifier
-from configforge.utils.security import validate_id
-from configforge.utils.paths import get_data_dir
 from configforge.utils.migration import load_with_migration
+from configforge.utils.paths import get_data_dir
+from configforge.utils.security import validate_id
 
 router = APIRouter(prefix="/api/notifications", tags=["通知管理"])
 
@@ -88,14 +94,14 @@ def add_history_entry(entry: NotificationHistoryEntry) -> None:
 
 
 @router.get("/configs", summary="获取通知配置列表", description="获取所有通知推送配置的列表，包括 Webhook 和邮件类型。")
-async def api_list_notification_configs():
+async def api_list_notification_configs(_user: User = Depends(require_role("viewer", "editor", "admin"))):
     """List all notification configs."""
     configs = _load_notifications()
     return [c.model_dump() for c in configs]
 
 
 @router.post("/configs", summary="创建通知配置", description="创建一个新的通知推送配置。支持 Webhook（需提供 URL）和邮件类型。可配置启用状态、触发条件和通知模板。")
-async def api_create_notification_config(req: NotificationConfigCreate):
+async def api_create_notification_config(req: NotificationConfigCreate, _user: User = Depends(require_role("editor", "admin"))):
     """Create a new notification config."""
     if req.type == "webhook" and not req.webhook_url:
         raise HTTPException(status_code=400, detail="Webhook URL 不能为空")
@@ -111,7 +117,7 @@ async def api_create_notification_config(req: NotificationConfigCreate):
 
 
 @router.get("/configs/{config_id}", summary="获取通知配置详情", description="根据配置 ID 获取单个通知推送配置的详细信息。")
-async def api_get_notification_config(config_id: str):
+async def api_get_notification_config(config_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     """Get a single notification config."""
     validate_id(config_id, "config_id")
     configs = _load_notifications()
@@ -122,7 +128,7 @@ async def api_get_notification_config(config_id: str):
 
 
 @router.put("/configs/{config_id}", summary="更新通知配置", description="更新指定的通知推送配置。支持部分更新，只需提供需要修改的字段。Webhook 类型必须保留 URL。")
-async def api_update_notification_config(config_id: str, req: NotificationConfigUpdate):
+async def api_update_notification_config(config_id: str, req: NotificationConfigUpdate, _user: User = Depends(require_role("editor", "admin"))):
     """Update a notification config."""
     validate_id(config_id, "config_id")
     configs = _load_notifications()
@@ -139,7 +145,7 @@ async def api_update_notification_config(config_id: str, req: NotificationConfig
 
 
 @router.delete("/configs/{config_id}", summary="删除通知配置", description="删除指定的通知推送配置。操作不可撤销。")
-async def api_delete_notification_config(config_id: str):
+async def api_delete_notification_config(config_id: str, _user: User = Depends(require_role("editor", "admin"))):
     """Delete a notification config."""
     validate_id(config_id, "config_id")
     configs = _load_notifications()
@@ -151,7 +157,7 @@ async def api_delete_notification_config(config_id: str):
 
 
 @router.post("/test/{config_id}", summary="测试通知推送", description="向指定通知配置发送测试消息，验证推送是否正常工作。仅对已启用的配置有效。")
-async def api_test_notification(config_id: str):
+async def api_test_notification(config_id: str, _user: User = Depends(require_role("editor", "admin"))):
     """Test a notification config by sending a test message."""
     validate_id(config_id, "config_id")
     configs = _load_notifications()
@@ -176,7 +182,7 @@ async def api_test_notification(config_id: str):
 
 
 @router.get("/history", summary="获取通知历史", description="获取通知推送的历史记录列表。默认返回最近 50 条，可通过 limit 参数调整。最多保留 200 条历史记录。")
-async def api_notification_history(limit: int = 50):
+async def api_notification_history(limit: int = 50, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     """Get notification history."""
     history = _load_history()
     return [e.model_dump() for e in history[-limit:]]
@@ -186,7 +192,7 @@ async def api_notification_history(limit: int = 50):
 
 
 @router.get("/smtp-settings", summary="获取 SMTP 设置", description="获取当前 SMTP 邮件服务器的配置信息。密码字段会被脱敏显示。")
-async def api_get_smtp_settings():
+async def api_get_smtp_settings(_user: User = Depends(require_role("admin"))):
     """Get current SMTP settings (password is masked)."""
     settings = load_smtp_settings()
     data = settings.model_dump()
@@ -195,7 +201,7 @@ async def api_get_smtp_settings():
 
 
 @router.put("/smtp-settings", summary="更新 SMTP 设置", description="更新 SMTP 邮件服务器配置，包括主机、端口、用户名、密码、TLS 设置和发件人地址。支持部分更新。")
-async def api_update_smtp_settings(body: SmtpSettingsUpdate):
+async def api_update_smtp_settings(body: SmtpSettingsUpdate, _user: User = Depends(require_role("admin"))):
     """Update SMTP settings (partial update supported)."""
     existing = load_smtp_settings()
     password = existing.password if body.password is None else body.password
@@ -217,7 +223,7 @@ async def api_update_smtp_settings(body: SmtpSettingsUpdate):
 
 
 @router.post("/smtp-test", summary="测试 SMTP 连接", description="测试 SMTP 邮件服务器连接是否正常。向配置的发件人地址发送一封测试邮件，验证 SMTP 配置是否正确。")
-async def api_test_smtp():
+async def api_test_smtp(_user: User = Depends(require_role("admin"))):
     """Test SMTP connection by sending a test email to the configured sender."""
     settings = load_smtp_settings()
     if not settings.host:

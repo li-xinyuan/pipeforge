@@ -8,7 +8,7 @@
     <section class="home__toolbar">
       <div class="home__toolbar-inner">
         <div class="home__toolbar-actions">
-          <NButton type="primary" size="small" class="btn-primary" @click="startNewConfig">✏ 新建配置</NButton>
+          <NButton v-if="authStore.canEdit" type="primary" size="small" class="btn-primary" @click="startNewConfig">✏ 新建配置</NButton>
           <NButton size="small" class="btn-secondary" @click="router.push('/templates')">📦 模板市场</NButton>
           <NButton size="small" class="btn-secondary" @click="router.push('/guide')">📖 指南</NButton>
         </div>
@@ -22,74 +22,41 @@
           <h2 class="home__configs-title">最近配置</h2>
           <NTag v-if="totalCount > 0" size="small" :bordered="false" class="home__configs-count">{{ totalCount }} 个配置</NTag>
         </div>
-        <div v-if="totalCount > 0 || searchQuery" class="home__configs-header-right">
-          <NInput
-            v-model:value="searchQuery"
-            placeholder="搜索配置名称..."
-            aria-label="搜索配置名称"
-            size="small"
-            clearable
-            class="home__search-input"
-            @update:value="onSearch"
-          >
-            <template #prefix>
-              <span style="color: var(--color-text-muted);">🔍</span>
-            </template>
-          </NInput>
-          <NButton v-if="!batchMode" size="small" @click="enterBatchMode">批量管理</NButton>
-          <NButton v-else size="small" @click="exitBatchMode">取消</NButton>
-        </div>
-      </div>
-
-      <div v-if="loading" class="home__skeleton">
-        <div v-for="n in 3" :key="n" class="home__skeleton-card" />
-      </div>
-
-      <NAlert v-else-if="error" type="error" :title="error" />
-
-      <div v-else-if="configs.length > 0" class="home__config-list">
-        <!-- Batch action bar -->
-        <div v-if="batchMode" class="home__batch-bar">
-          <NCheckbox :checked="isAllSelected" :indeterminate="isSomeSelected && !isAllSelected" @update:checked="toggleSelectAll">全选</NCheckbox>
-          <span class="home__batch-count">已选 {{ selectedIds.size }} 项</span>
-          <NButton size="small" type="error" :disabled="selectedIds.size === 0" :loading="batchDeleting" @click="onBatchDelete">删除选中</NButton>
-        </div>
-
-        <ErrorBoundary>
-        <ConfigListCard
-          :configs="configs"
+        <ConfigToolbar
+          v-if="totalCount > 0 || searchQuery"
+          :search-query="searchQuery"
           :batch-mode="batchMode"
-          :selected-ids="selectedIds"
-          @toggle-select="toggleSelect"
-          @execute="openExecuteModal"
-          @menu-select="onMenuSelect"
+          @update:search-query="searchQuery = $event"
+          @search="onSearch"
+          @enter-batch-mode="enterBatchMode"
+          @exit-batch-mode="exitBatchMode"
         />
-        </ErrorBoundary>
-
-        <!-- Pagination -->
-        <div v-if="totalPages > 1" class="home__pagination">
-          <NButton size="small" :disabled="currentPage <= 1" @click="onPageChange(currentPage - 1)">← 上一页</NButton>
-          <span class="home__pagination-info">{{ currentPage }} / {{ totalPages }}</span>
-          <NButton size="small" :disabled="currentPage >= totalPages" @click="onPageChange(currentPage + 1)">下一页 →</NButton>
-          <span class="home__pagination-sep"></span>
-          <NSelect v-model:value="pageSize" :options="pageSizeOptions" size="small" class="home__page-size-select" @update:value="onPageSizeChange" />
-          <span class="home__pagination-sep"></span>
-          <span class="home__pagination-jump">
-            跳至
-            <NInput v-model:value="jumpPage" size="small" class="home__jump-input" @keyup.enter="onJumpPage" />
-            页
-          </span>
-        </div>
       </div>
 
-      <div v-else style="text-align: center; padding: 40px 20px; color: var(--color-text-muted);">
-        <p style="font-size: 48px; margin-bottom: 12px;">📋</p>
-        <p v-if="searchQuery" style="font-size: var(--font-size-base); font-weight: 500; margin-bottom: 8px;">没有找到匹配的配置</p>
-        <template v-else>
-          <p style="font-size: var(--font-size-base); font-weight: 500; margin-bottom: 8px;">还没有配置</p>
-          <p style="font-size: var(--font-size-sm);">点击上方按钮开始创建你的第一个数据管道配置</p>
-        </template>
-      </div>
+      <ConfigListSection
+        :loading="loading"
+        :error="error"
+        :configs="configs"
+        :batch-mode="batchMode"
+        :selected-ids="selectedIds"
+        :is-all-selected="isAllSelected"
+        :is-some-selected="isSomeSelected"
+        :can-edit="authStore.canEdit"
+        :search-query="searchQuery"
+        :batch-deleting="batchDeleting"
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :page-size="pageSize"
+        :page-size-options="pageSizeOptions"
+        @toggle-select="toggleSelect"
+        @toggle-select-all="toggleSelectAll"
+        @execute="openExecuteModal"
+        @menu-select="onMenuSelect"
+        @batch-delete="onBatchDelete"
+        @page-change="onPageChange"
+        @page-size-change="onPageSizeChange"
+        @jump-page="onJumpPage"
+      />
     </section>
 
     <!-- 删除确认弹窗 -->
@@ -146,17 +113,19 @@ import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfigApi } from '../composables/useConfigApi'
 import { useWizardStore } from '../stores/wizard'
+import { useAuthStore } from '../stores/auth'
 import type { SavedConfig } from '../types/wizard'
-import { NButton, NAlert, NModal, NTag, NInput, NCheckbox, NSelect, useMessage } from 'naive-ui'
+import { NButton, NModal, NTag, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import ExecuteConfigModal from '../components/ExecuteConfigModal.vue'
 import ConfigVersionPanel from '../components/config/ConfigVersionPanel.vue'
-import ConfigListCard from '../components/config/ConfigListCard.vue'
 import AiStatusBanner from '../components/AiStatusBanner.vue'
-import ErrorBoundary from '../components/common/ErrorBoundary.vue'
+import ConfigToolbar from '../components/home/ConfigToolbar.vue'
+import ConfigListSection from '../components/home/ConfigListSection.vue'
 
 const router = useRouter()
 const store = useWizardStore()
+const authStore = useAuthStore()
 const message = useMessage()
 const { listConfigs, deleteConfig, downloadConfigYaml } = useConfigApi()
 
@@ -172,9 +141,8 @@ const pageSizeOptions = [
   { label: '20 条/页', value: 20 },
   { label: '50 条/页', value: 50 },
 ]
-const jumpPage = ref('')
 const searchQuery = ref('')
-const showIntro = ref(false)
+const _showIntro = ref(false)
 
 const deleteModalVisible = ref(false)
 const deletingConfig = ref<SavedConfig | null>(null)
@@ -290,13 +258,9 @@ function onPageSizeChange(val: number) {
   loadConfigList()
 }
 
-function onJumpPage() {
-  const page = parseInt(jumpPage.value, 10)
-  if (!isNaN(page) && page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
-    jumpPage.value = ''
-    loadConfigList()
-  }
+function onJumpPage(page: number) {
+  currentPage.value = page
+  loadConfigList()
 }
 
 onMounted(() => {
@@ -404,7 +368,7 @@ function onVersionRefreshed() {
 }
 
 .home__hero-gradient {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light), #0d9488);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light), var(--color-primary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -569,18 +533,6 @@ function onVersionRefreshed() {
   flex-shrink: 0;
 }
 
-.home__configs-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  justify-content: flex-end;
-}
-
-.home__search-input {
-  max-width: 200px;
-}
-
 .home__configs-title {
   font-size: 18px;
   font-weight: 700;
@@ -590,70 +542,6 @@ function onVersionRefreshed() {
 
 .home__configs-count {
   font-size: var(--font-size-xs);
-}
-
-.home__batch-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  background: var(--color-primary-bg);
-  border: 1px solid var(--color-primary-border);
-  border-radius: var(--radius-md);
-  margin-bottom: 4px;
-}
-
-.home__batch-count {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  flex: 1;
-}
-
-.home__config-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.home__pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border-light);
-  flex-wrap: wrap;
-}
-
-.home__pagination-info {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  min-width: 60px;
-  text-align: center;
-}
-
-.home__pagination-sep {
-  width: 1px;
-  height: 16px;
-  background: var(--color-border-light);
-}
-
-.home__page-size-select {
-  width: 110px;
-}
-
-.home__pagination-jump {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.home__jump-input {
-  width: 52px;
-  text-align: center;
 }
 
 /* ───── button overrides ───── */
@@ -729,37 +617,5 @@ function onVersionRefreshed() {
     flex-wrap: wrap;
     gap: 8px;
   }
-  .home__search-input {
-    max-width: 140px;
-  }
-  .home__batch-bar {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-}
-
-/* ───── Skeleton shimmer ───── */
-.home__skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.home__skeleton-card {
-  height: 64px;
-  border-radius: 12px;
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-hover) 25%,
-    var(--color-border-light) 50%,
-    var(--color-surface-hover) 75%
-  );
-  background-size: 200% 100%;
-  animation: cf-shimmer 1.5s infinite ease-in-out;
-}
-
-@keyframes cf-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
 }
 </style>

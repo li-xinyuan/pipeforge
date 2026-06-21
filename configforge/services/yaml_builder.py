@@ -1,4 +1,5 @@
 import yaml
+
 from configforge.models.wizard import WizardState
 
 

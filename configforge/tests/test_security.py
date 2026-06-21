@@ -1,4 +1,5 @@
 import pytest
+
 from configforge.utils.security import validate_id
 
 

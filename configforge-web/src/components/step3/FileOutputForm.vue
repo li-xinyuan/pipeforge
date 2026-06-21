@@ -57,7 +57,7 @@
       <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
       <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
     </div>
-    <div class="flex items-center flex-wrap gap-1 border border-slate-200 rounded px-2 py-1.5 min-h-[32px] bg-white">
+    <div class="flex items-center flex-wrap gap-1 border border-[var(--color-border-light)] rounded px-2 py-1.5 min-h-[32px] bg-[var(--color-surface)]">
       <template v-for="(part, i) in filenameParts" :key="i">
         <NTag size="tiny" :type="part.tag ? 'info' : 'default'" :bordered="true" closable @close="removeTagPart(i)">{{ part.text }}</NTag>
       </template>

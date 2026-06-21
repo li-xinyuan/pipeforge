@@ -129,7 +129,7 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, type Ref } from 'vue'
-import { NButton, NTag, NInput, NSelect, NDropdown } from 'naive-ui'
+import { NButton, NTag, NInput, NDropdown } from 'naive-ui'
 import ColumnPreview from '../step2/ColumnPreview.vue'
 import CodeEditor from '../common/CodeEditor.vue'
 import AiTriggerButton from '../common/AiTriggerButton.vue'
@@ -263,7 +263,7 @@ const currentFromTable = computed(() => {
 
 const displayTable = computed(() => currentFromTable.value || props.availableTables[0]?.value || '')
 
-const datePattern = /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$|^\d{8}$|^\d{4}年\d{1,2}月\d{1,2}日$|^\d{1,2}[-\/]\d{1,2}[-\/]\d{4}$/
+const datePattern = /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$|^\d{8}$|^\d{4}年\d{1,2}月\d{1,2}日$|^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/
 
 function inferColType(values: string[]): string {
   const v = values.filter(x => x != null && String(x).trim())

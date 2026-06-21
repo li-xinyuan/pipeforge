@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { useWizardStore } from '../../src/stores/wizard'
+import type { ComponentPublicInstance } from 'vue'
 
 // Single mock with controllable return value
 const mockGenerateYaml = vi.fn()
@@ -74,7 +75,7 @@ describe('YamlPreview', () => {
     await new Promise(r => setTimeout(r, 100))
     await wrapper.vm.$nextTick()
 
-    const vm = wrapper.vm as any
+    const vm = wrapper.vm as ComponentPublicInstance<{ loadYaml: () => Promise<void>; yamlText: string }>
     expect(typeof vm.loadYaml).toBe('function')
     const editor = wrapper.find('.code-editor-stub')
     expect(editor.text()).toContain('processors:')

@@ -5,21 +5,23 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { NButton, NDropdown } from 'naive-ui'
 import type { SavedConfig } from '../../types/wizard'
 
 const props = defineProps<{
   config: SavedConfig
+  canEdit?: boolean
 }>()
 
 defineEmits<{
   select: [key: string]
 }>()
 
-const menuOptions = [
+const menuOptions = computed(() => [
   { label: '编辑', key: 'edit' },
   { label: '版本历史', key: 'versions' },
   { label: '下载 YAML', key: 'download' },
-  { label: '删除', key: 'delete' },
-]
+  ...(props.canEdit !== false ? [{ label: '删除', key: 'delete' }] : []),
+])
 </script>

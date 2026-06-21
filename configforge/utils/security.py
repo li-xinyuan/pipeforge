@@ -94,8 +94,16 @@ def validate_url(url: str) -> str:
     try:
         ip = ipaddress.ip_address(hostname)
     except ValueError:
-        # hostname is a domain name, not an IP — allow DNS resolution
-        # (We could add DNS resolution check here in the future)
+        # hostname is a domain name — resolve and check
+        import socket
+        try:
+            addr_infos = socket.getaddrinfo(hostname, None)
+            for addr_info in addr_infos:
+                resolved_ip = ipaddress.ip_address(addr_info[4][0])
+                if resolved_ip.is_private or resolved_ip.is_loopback or resolved_ip.is_link_local or resolved_ip.is_reserved:
+                    raise ValueError(f"域名 {hostname} 解析到内网 IP {resolved_ip}，访问被阻止")
+        except socket.gaierror:
+            raise ValueError(f"无法解析域名 {hostname}")
         ip = None
 
     if ip is not None and (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved):

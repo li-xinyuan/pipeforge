@@ -1,5 +1,6 @@
 """Tests for TTLCache."""
 import time
+
 from configforge.utils.cache import TTLCache
 
 

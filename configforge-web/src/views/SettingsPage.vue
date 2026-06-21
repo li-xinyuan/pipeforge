@@ -6,8 +6,9 @@
     <div class="settings__body">
       <h1 class="settings__title">设置</h1>
 
-      <NTabs type="segment" animated>
-        <NTabPane name="ai" tab="AI 模型">
+      <!-- Desktop: NTabs -->
+      <NTabs v-if="!isMobile" type="segment" animated>
+        <NTabPane v-if="authStore.canAdmin" name="ai" tab="AI 模型">
           <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
             配置 AI 模型后，可在向导中使用 AI 辅助生成 SQL、自动列映射和场景描述等功能。
           </p>
@@ -76,7 +77,7 @@
           </div>
         </NTabPane>
 
-        <NTabPane name="database" tab="数据库连接">
+        <NTabPane v-if="authStore.canAdmin" name="database" tab="数据库连接">
           <div class="settings__card">
             <ConnectionManager />
           </div>
@@ -139,15 +140,120 @@
           </div>
         </NTabPane>
       </NTabs>
+
+      <!-- Mobile: NCollapse -->
+      <NCollapse v-else :default-expanded-names="['ai', 'database', 'smtp']">
+        <NCollapseItem v-if="authStore.canAdmin" name="ai" title="AI 模型">
+          <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
+            配置 AI 模型后，可在向导中使用 AI 辅助生成 SQL、自动列映射和场景描述等功能。
+          </p>
+          <div class="settings__card">
+            <div class="settings__row">
+              <span class="settings__label">启用 AI</span>
+              <NSwitch :value="form.enabled" @update:value="form.enabled = $event" />
+            </div>
+            <div class="settings__divider" />
+            <div class="settings__field">
+              <label class="settings__field-label">提供商</label>
+              <NSelect v-model:value="form.provider" :options="providerOptions" />
+            </div>
+            <div class="settings__field">
+              <label class="settings__field-label">模型</label>
+              <NInput v-model:value="form.model" :placeholder="defaultModel" />
+              <p class="settings__hint">留空使用默认：{{ defaultModel }}</p>
+            </div>
+            <div class="settings__field">
+              <label class="settings__field-label">API Key</label>
+              <NInput v-model:value="form.api_key" type="password" placeholder="sk-..." show-password-toggle />
+              <p v-if="maskedKey" class="settings__hint">当前：{{ maskedKey }}</p>
+            </div>
+            <div class="settings__field">
+              <label class="settings__field-label">Base URL</label>
+              <NInput v-model:value="form.base_url" :placeholder="form.provider === 'openai' ? 'https://api.openai.com/v1（默认）' : '必填'" />
+            </div>
+            <div class="settings__field">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <label class="settings__field-label" style="margin-bottom: 0;">Temperature</label>
+                <span style="font-size: var(--font-size-sm); font-weight: 600; color: var(--color-primary);">{{ form.temperature }}</span>
+              </div>
+              <NSlider v-model:value="form.temperature" :min="0" :max="2" :step="0.1" />
+            </div>
+            <div class="settings__field">
+              <label class="settings__field-label">Max Tokens</label>
+              <NInputNumber v-model:value="form.max_tokens" :min="256" :max="65536" class="w-full" placeholder="最大令牌数" />
+            </div>
+            <div class="settings__divider" />
+            <div class="settings__actions">
+              <NButton :loading="testing" @click="testConnection">测试连接</NButton>
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">测试前将自动保存当前设置</span>
+              <NButton type="primary" class="btn-primary" :loading="saving" @click="saveSettings">保存设置</NButton>
+            </div>
+            <p v-if="testResult" class="settings__result" :class="testResult.ok ? 'settings__result--ok' : 'settings__result--error'">
+              {{ testResult.msg }}
+            </p>
+            <p v-if="saveMsg" class="settings__result settings__result--ok">{{ saveMsg }}</p>
+          </div>
+        </NCollapseItem>
+
+        <NCollapseItem v-if="authStore.canAdmin" name="database" title="数据库连接">
+          <div class="settings__card">
+            <ConnectionManager />
+          </div>
+        </NCollapseItem>
+
+        <NCollapseItem name="smtp" title="邮件推送">
+          <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
+            配置 SMTP 邮件服务后，可在步骤 5 中添加邮件推送通知。
+          </p>
+          <div class="settings__card">
+            <div class="settings__field">
+              <label class="settings__field-label">SMTP 服务器</label>
+              <NInput v-model:value="smtpForm.host" placeholder="smtp.gmail.com" />
+            </div>
+            <div class="settings__field">
+              <label class="settings__field-label">端口</label>
+              <NInputNumber v-model:value="smtpForm.port" :min="1" :max="65535" class="w-full" placeholder="587" />
+            </div>
+            <div class="settings__field">
+              <label class="settings__field-label">用户名</label>
+              <NInput v-model:value="smtpForm.user" placeholder="your@gmail.com" />
+            </div>
+            <div class="settings__field">
+              <label class="settings__field-label">密码 / 授权码</label>
+              <NInput v-model:value="smtpForm.password" type="password" placeholder="SMTP 密码或应用专用密码" show-password-toggle />
+              <p v-if="smtpMaskedPwd" class="settings__hint">当前：{{ smtpMaskedPwd }}</p>
+            </div>
+            <div class="settings__field">
+              <label class="settings__field-label">发件人地址</label>
+              <NInput v-model:value="smtpForm.sender" placeholder="留空则使用用户名作为发件人" />
+            </div>
+            <div class="settings__row">
+              <span class="settings__label">启用 TLS</span>
+              <NSwitch :value="smtpForm.use_tls" @update:value="smtpForm.use_tls = $event" />
+            </div>
+            <div class="settings__divider" />
+            <div class="settings__actions">
+              <NButton :loading="smtpTesting" @click="testSmtpConnection">测试连接</NButton>
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">测试前将自动保存当前设置</span>
+              <NButton type="primary" class="btn-primary" :loading="smtpSaving" @click="saveSmtpSettings">保存设置</NButton>
+            </div>
+            <p v-if="smtpTestResult" class="settings__result" :class="smtpTestResult.ok ? 'settings__result--ok' : 'settings__result--error'">
+              {{ smtpTestResult.msg }}
+            </p>
+            <p v-if="smtpSaveMsg" class="settings__result settings__result--ok">{{ smtpSaveMsg }}</p>
+          </div>
+        </NCollapseItem>
+      </NCollapse>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAiApi } from '../composables/useWizardApi'
 import { useApi } from '../composables/useApi'
-import { NButton, NInput, NSelect, NSwitch, NSlider, NInputNumber, NTabs, NTabPane, useMessage } from 'naive-ui'
+import { useAuthStore } from '../stores/auth'
+import { NButton, NInput, NSelect, NSwitch, NSlider, NInputNumber, NTabs, NTabPane, NCollapse, NCollapseItem, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import ConnectionManager from '../components/common/ConnectionManager.vue'
 
@@ -163,6 +269,15 @@ interface AiSettingsForm {
 
 const { getAiSettings, updateAiSettings, testAiConnection } = useAiApi()
 const message = useMessage()
+const authStore = useAuthStore()
+
+// ─── Mobile detection ───
+const isMobile = ref(window.innerWidth < 768)
+function onResize() {
+  isMobile.value = window.innerWidth < 768
+}
+onMounted(() => window.addEventListener('resize', onResize))
+onUnmounted(() => window.removeEventListener('resize', onResize))
 
 const form = reactive<AiSettingsForm>({
   provider: 'openai', api_key: '', base_url: '', model: '',
@@ -210,7 +325,7 @@ async function testConnection() {
       testResult.value = { ok: false, msg }
       message.error(msg)
     }
-  } catch (e) {
+  } catch {
     const msg = '网络请求失败'
     testResult.value = { ok: false, msg }
     message.error(msg)
@@ -273,7 +388,7 @@ onMounted(async () => {
   }
 
   // Load SMTP settings
-  const smtpData = await smtpRequest<Record<string, any>>('GET', '/api/notifications/smtp-settings')
+  const smtpData = await smtpRequest<Record<string, unknown>>('GET', '/api/notifications/smtp-settings')
   if (smtpData) {
     smtpForm.host = (smtpData.host as string) || ''
     smtpForm.port = (smtpData.port as number) ?? 587
@@ -288,9 +403,9 @@ async function saveSmtpSettings() {
   smtpSaving.value = true
   smtpSaveMsg.value = ''
   try {
-    const body: Record<string, any> = { ...smtpForm }
+    const body: Record<string, unknown> = { ...smtpForm }
     if (!body.password) body.password = null
-    const result = await smtpRequest<Record<string, any>>('PUT', '/api/notifications/smtp-settings', body)
+    const result = await smtpRequest<Record<string, unknown>>('PUT', '/api/notifications/smtp-settings', body)
     if (result) {
       smtpSaveMsg.value = 'SMTP 设置已保存'
       smtpMaskedPwd.value = (result.password as string) || ''
@@ -306,7 +421,7 @@ async function testSmtpConnection() {
   smtpTestResult.value = null
   try {
     await saveSmtpSettings()
-    const result = await smtpRequest<Record<string, any>>('POST', '/api/notifications/smtp-test')
+    const result = await smtpRequest<Record<string, unknown>>('POST', '/api/notifications/smtp-test')
     if (result) {
       smtpTestResult.value = { ok: !!result.success, msg: (result.message as string) || '测试完成' }
     } else {
@@ -415,6 +530,9 @@ async function testSmtpConnection() {
   }
   .settings__actions {
     flex-direction: column;
+  }
+  .settings__actions .n-button {
+    min-height: 44px;
   }
 }
 </style>

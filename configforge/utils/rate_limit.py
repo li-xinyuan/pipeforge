@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import time
-from typing import Optional
 
 from configforge.utils.paths import get_data_dir
 
@@ -34,7 +33,7 @@ class RateLimiter:
         self,
         max_requests: int = 10,
         window_seconds: int = 60,
-        storage_path: Optional[str] = None,
+        storage_path: str | None = None,
     ):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
@@ -79,7 +78,7 @@ class RateLimiter:
         if not os.path.exists(self.storage_path):
             return {}
         try:
-            with open(self.storage_path, "r", encoding="utf-8") as f:
+            with open(self.storage_path, encoding="utf-8") as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 try:
                     return json.load(f)

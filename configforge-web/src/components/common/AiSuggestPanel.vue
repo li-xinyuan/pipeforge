@@ -4,7 +4,7 @@
     <div class="text-sm text-slate-900 dark:text-slate-100 mb-3 leading-relaxed" v-html="sanitizedContent"></div>
     <div class="flex gap-2">
       <button @click="$emit('accept')" class="inline-flex items-center justify-center gap-2 px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700">采纳</button>
-      <button @click="$emit('regenerate')" class="inline-flex items-center justify-center gap-2 px-2.5 py-1 text-xs font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50">重新生成</button>
+      <button @click="$emit('regenerate')" class="inline-flex items-center justify-center gap-2 px-2.5 py-1 text-xs font-medium bg-[var(--color-surface)] text-[var(--color-text-secondary)] border border-[var(--color-border-light)] dark:border-[var(--color-border)] rounded-md hover:bg-[var(--color-surface-hover)]">重新生成</button>
     </div>
   </div>
 </template>

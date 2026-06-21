@@ -1,5 +1,5 @@
+from configforge.models.ai import AiProvider, AiSettings
 from configforge.services.ai.base import LlmBackend
-from configforge.models.ai import AiSettings, AiProvider
 
 
 def create_backend(settings: AiSettings) -> LlmBackend:

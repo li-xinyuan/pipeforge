@@ -1,5 +1,6 @@
 import pytest
 from pydantic import ValidationError
+
 from configforge.models.ai import AiProvider, AiSettings, AiSettingsUpdate
 
 

@@ -6,8 +6,8 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from configforge.models.user import User, UserWithHash, UserRole
-from configforge.utils.file_lock import read_json_locked, write_json_locked
+from configforge.models.user import User
+from configforge.utils.file_lock import write_json_locked
 from configforge.utils.migration import load_with_migration
 from configforge.utils.paths import get_data_dir
 
@@ -90,7 +90,7 @@ def ensure_default_admin():
     """Ensure the default admin user exists (username: admin, password: admin123)."""
     store = _load()
     users = store.get("users", {})
-    for uid, u in users.items():
+    for _uid, u in users.items():
         if u.get("username") == "admin":
             return  # Admin already exists
     # Create default admin
@@ -101,6 +101,7 @@ def ensure_default_admin():
         "role": "admin",
         "password_hash": _hash_password("admin123"),
         "created_at": _now_iso(),
+        "must_change_password": True,
     }
     store["users"] = users
     _save(store)
@@ -139,6 +140,7 @@ def authenticate(username: str, password: str) -> User | None:
                     username=u["username"],
                     role=u.get("role", "editor"),
                     created_at=u.get("created_at", ""),
+                    must_change_password=u.get("must_change_password", False),
                 )
             return None
     return None
@@ -183,4 +185,22 @@ def get_user_by_id(user_id: str) -> User | None:
         username=u["username"],
         role=u.get("role", "editor"),
         created_at=u.get("created_at", ""),
+        must_change_password=u.get("must_change_password", False),
     )
+
+
+def change_password(user_id: str, old_password: str, new_password: str) -> bool:
+    """Change a user's password. Returns True on success, False if old password is incorrect."""
+    store = _load()
+    users = store.get("users", {})
+    u = users.get(user_id)
+    if not u:
+        return False
+    if not _verify_password(old_password, u.get("password_hash", "")):
+        return False
+    u["password_hash"] = _hash_password(new_password)
+    u["must_change_password"] = False
+    users[user_id] = u
+    store["users"] = users
+    _save(store)
+    return True

@@ -37,6 +37,8 @@ RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuse
 
 USER appuser
 
+ENV CONFIGFORGE_ENV=production
+
 # Expose port
 EXPOSE 8000
 

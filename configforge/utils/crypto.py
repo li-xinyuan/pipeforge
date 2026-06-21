@@ -3,7 +3,9 @@
 import hashlib
 import logging
 import os
+import stat
 from base64 import urlsafe_b64encode
+
 from cryptography.fernet import Fernet
 
 from configforge.utils.paths import get_data_dir
@@ -40,11 +42,12 @@ def get_cipher() -> Fernet:
         os.makedirs(data_dir, exist_ok=True)
         with open(key_path, "wb") as f:
             f.write(key)
+        os.chmod(key_path, stat.S_IRUSR | stat.S_IWUSR)  # 600
         logger.warning(
-            "CONFIGFORGE_ENCRYPTION_KEY not set. Auto-generated .fernet_key at %s. "
-            "This key will be lost if the container is restarted, making all "
-            "encrypted credentials (database passwords, API keys, SMTP passwords) "
-            "unrecoverable. Set CONFIGFORGE_ENCRYPTION_KEY in production!",
+            "CONFIGFORGE_ENCRYPTION_KEY not set. Auto-generated .fernet_key at %s "
+            "(permissions: 600). This key will be lost if the container is restarted, "
+            "making all encrypted credentials (database passwords, API keys, SMTP "
+            "passwords) unrecoverable. Set CONFIGFORGE_ENCRYPTION_KEY in production!",
             key_path,
         )
 
@@ -52,7 +55,8 @@ def get_cipher() -> Fernet:
         _warned_no_env_key = True
         logger.warning(
             "CONFIGFORGE_ENCRYPTION_KEY environment variable is not set. "
-            "Using auto-generated key file. This is NOT recommended for production."
+            "Using auto-generated key file. This is NOT safe for production — "
+            "set CONFIGFORGE_ENCRYPTION_KEY to a stable secret to prevent data loss."
         )
 
     return Fernet(key)

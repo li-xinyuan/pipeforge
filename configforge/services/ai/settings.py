@@ -1,19 +1,25 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
+from typing import TYPE_CHECKING
 
-from configforge.utils.paths import get_data_dir
 from configforge.utils.crypto import get_cipher
+from configforge.utils.paths import get_data_dir
+
+if TYPE_CHECKING:
+    from configforge.models.ai import AiSettings
 
 SETTINGS_FILE = os.path.join(get_data_dir(), "ai_settings.json")
 
 
-def load_settings() -> "AiSettings":
+def load_settings() -> AiSettings:
     from configforge.models.ai import AiSettings
 
     if not os.path.exists(SETTINGS_FILE):
         return AiSettings()
-    with open(SETTINGS_FILE, "r") as f:
+    with open(SETTINGS_FILE) as f:
         raw = json.load(f)
     if raw.get("api_key"):
         try:
@@ -28,7 +34,7 @@ def load_settings() -> "AiSettings":
     return AiSettings(**raw)
 
 
-def save_settings(settings: "AiSettings") -> None:
+def save_settings(settings: AiSettings) -> None:
     os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
     data = settings.model_dump()
     if data.get("api_key"):

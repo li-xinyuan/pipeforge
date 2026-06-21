@@ -81,7 +81,7 @@
 
   <!-- Inline connection manager modal -->
   <div v-if="showConnManager" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="closeConnManager">
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
+    <div class="bg-[var(--color-surface)] rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-base font-semibold">管理数据库连接</h3>
         <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" @click="closeConnManager">✕</button>
@@ -97,7 +97,7 @@ import { NSelect, NButton, NRadioGroup, NRadio, NInput, NTag, NSpin } from 'naiv
 import { useConnectionApi } from '../../composables/useWizardApi'
 import { useConnections } from '../../composables/useConnections'
 import ConnectionManager from '../common/ConnectionManager.vue'
-import type { InputSource, DatabaseInputConfig, DbConnectionSummary } from '../../types/wizard'
+import type { InputSource, DatabaseInputConfig } from '../../types/wizard'
 
 const props = defineProps<{ input: InputSource; index: number }>()
 const emit = defineEmits<{ update: [input: InputSource] }>()

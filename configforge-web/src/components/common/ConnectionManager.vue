@@ -154,7 +154,7 @@ async function onSaveAndTestEdit() {
   saving.value = true
   errorMsg.value = null
 
-  const data: Record<string, any> = { name: form.name }
+  const data: Record<string, unknown> = { name: form.name }
   if (form.dbType === 'sqlite') {
     data.file_path = form.filePath
   } else {
@@ -192,7 +192,7 @@ async function onSave() {
   errorMsg.value = null
 
   if (editingId.value) {
-    const data: Record<string, any> = { name: form.name }
+    const data: Record<string, unknown> = { name: form.name }
     if (form.dbType === 'sqlite') {
       data.file_path = form.filePath
     } else {

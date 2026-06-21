@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { ProcessorStep } from '../types/wizard'
+import type { ProcessorStep, CheckRule } from '../types/wizard'
+import { camelToSnakeKey } from '../utils/transform'
 
 export const useWizardProcessorsStore = defineStore('wizardProcessors', () => {
   const processors = ref<ProcessorStep[]>([])
@@ -47,8 +48,17 @@ export const useWizardProcessorsStore = defineStore('wizardProcessors', () => {
         plugin,
         inputTables: (raw.inputTables || []) as string[],
         outputTables: (raw.outputTables || (raw.outputTable ? [raw.outputTable] : [])) as string[],
-        // CheckRule fields use snake_case matching backend, no camelCase conversion needed
-        checkpoints: ((raw.checkpoints || []) as Record<string, unknown>[]).map((c) => ({ ...c, on_failure: c.on_failure || 'block' })),
+        // Convert any camelCase keys (from snakeToCamel) back to snake_case for CheckRule
+        checkpoints: ((raw.checkpoints || []) as Record<string, unknown>[]).map((c) => {
+          const normalized: Record<string, unknown> = {}
+          for (const [key, value] of Object.entries(c)) {
+            normalized[camelToSnakeKey(key)] = value
+          }
+          if (!normalized.on_failure) {
+            normalized.on_failure = 'block'
+          }
+          return normalized as unknown as CheckRule
+        }),
       }
       if (plugin === 'python') {
         return { ...base, script: ((raw.config as Record<string, unknown>)?.script || raw.script || '') as string } as ProcessorStep

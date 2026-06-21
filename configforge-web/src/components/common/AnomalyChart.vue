@@ -157,15 +157,15 @@ const chartData = computed<ChartRow[]>(() => {
 }
 
 .anomaly-chart__bar-fill--ok {
-  background: #22c55e;
+  background: var(--color-success);
 }
 
 .anomaly-chart__bar-fill--warning {
-  background: #f59e0b;
+  background: var(--color-warning);
 }
 
 .anomaly-chart__bar-fill--error {
-  background: #ef4444;
+  background: var(--color-error);
 }
 
 .anomaly-chart__pct {
@@ -177,15 +177,15 @@ const chartData = computed<ChartRow[]>(() => {
 }
 
 .anomaly-chart__pct.anomaly-chart__bar-fill--ok {
-  color: #22c55e;
+  color: var(--color-success);
 }
 
 .anomaly-chart__pct.anomaly-chart__bar-fill--warning {
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .anomaly-chart__pct.anomaly-chart__bar-fill--error {
-  color: #ef4444;
+  color: var(--color-error);
 }
 
 .anomaly-chart__tag {
@@ -198,29 +198,17 @@ const chartData = computed<ChartRow[]>(() => {
 }
 
 .anomaly-chart__tag--error {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
+  background: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .anomaly-chart__tag--warning {
-  background: rgba(245, 158, 11, 0.12);
-  color: #d97706;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .anomaly-chart__tag--info {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
-}
-
-:root.dark .anomaly-chart__tag--error {
-  color: #fca5a5;
-}
-
-:root.dark .anomaly-chart__tag--warning {
-  color: #fcd34d;
-}
-
-:root.dark .anomaly-chart__tag--info {
-  color: #93c5fd;
+  background: var(--color-info-bg);
+  color: var(--color-info);
 }
 </style>

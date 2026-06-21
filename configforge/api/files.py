@@ -2,12 +2,12 @@ import os
 import time
 import uuid
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from configforge.models.wizard import FileUploadResponse, ErrorResponse
-from configforge.utils.paths import get_upload_dir, get_log_dir
+from configforge.models.wizard import ErrorResponse, FileUploadResponse
+from configforge.utils.paths import get_log_dir, get_upload_dir
 
-router = APIRouter()
+router = APIRouter(tags=["文件管理"])
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv", ".json", ".xml", ".parquet"}
 MAX_FILE_SIZE = 50 * 1024 * 1024

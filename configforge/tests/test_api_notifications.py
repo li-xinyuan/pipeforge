@@ -1,9 +1,8 @@
 """Tests for notification API endpoints."""
-import json
-import os
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import patch, AsyncMock, MagicMock
+from httpx import ASGITransport, AsyncClient
 
 from configforge.server import app
 

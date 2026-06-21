@@ -1,5 +1,6 @@
+from typing import Annotated, Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from typing import Optional, Literal, Annotated
 
 from pipeforge.config.models import CheckRule
 
@@ -10,6 +11,7 @@ class SceneInfo(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
     version: str = "1.0"
+    tags: list[str] = []
 
 
 class ExcelInputConfig(BaseModel):
@@ -176,7 +178,7 @@ class WizardState(BaseModel):
     scene: SceneInfo = Field(default_factory=lambda: SceneInfo(name="Untitled Scene"))
     inputs: list[InputSource] = []
     processors: list[ProcessorConfig] = []
-    output: Optional[OutputTarget] = None
+    output: OutputTarget | None = None
     uploaded_files: dict[str, dict] = {}
 
 
@@ -197,6 +199,20 @@ class InputInferRequest(BaseModel):
 
     file_id: str
     type: str = "excel"  # "excel" or "csv"
+
+
+class ApiInferRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str = ""
+    method: Literal["GET", "POST"] = "GET"
+    headers: dict[str, str] = {}
+    params: dict[str, str] = {}
+    body: dict | None = None
+    data_path: str = ""
+    pagination: Literal["none", "offset", "cursor"] = "none"
+    page_size: int = 100
+    max_pages: int = 10
 
 
 class ColumnInfo(BaseModel):
@@ -236,7 +252,7 @@ class GenerateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     yaml: str
-    template: Optional[bytes] = None
+    template: bytes | None = None
 
 
 class ColumnPreview(BaseModel):
@@ -250,8 +266,8 @@ class PreviewRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     file_id: str
-    sheet: Optional[str] = None
-    max_rows: Optional[int] = None
+    sheet: str | None = None
+    max_rows: int | None = None
 
 
 class FileUploadResponse(BaseModel):
@@ -309,6 +325,8 @@ class ConfigMeta(BaseModel):
     current_version: int = 1
     created_at: str = ""
     inputs: list[ConfigInputMeta] = []
+    tags: list[str] = []
+    input_types: list[str] = []
 
 
 class SaveConfigRequest(BaseModel):

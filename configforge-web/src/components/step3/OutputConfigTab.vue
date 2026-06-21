@@ -1,56 +1,9 @@
 <template>
   <div>
     <!-- Output type selector -->
-    <p v-if="showOutputTypeChoices" style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 12px;">选择输出格式，配置数据的导出方式</p>
-    <div v-if="showOutputTypeChoices" class="grid grid-cols-3 gap-3 mb-5">
-      <div
-        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-green-900/30',
-          props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'excel' ? 'border-green-600 bg-green-50' : 'border-green-600 bg-green-50']"
-        @click="switchOutputType('excel'); showOutputTypeChoices = false"
-      >
-        <span class="text-2xl block mb-2">📊</span>
-        <span class="text-sm font-semibold">Excel</span>
-        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.xlsx 模板输出</span>
-      </div>
-      <div
-        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-blue-900/30',
-          props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'csv' ? 'border-blue-600 bg-blue-50' : 'border-blue-600 bg-blue-50']"
-        @click="switchOutputType('csv'); showOutputTypeChoices = false"
-      >
-        <span class="text-2xl block mb-2">🗄</span>
-        <span class="text-sm font-semibold">CSV</span>
-        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.csv / .tsv 导出</span>
-      </div>
-      <div
-        :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-purple-900/30',
-          props.pulseCta ? 'pulse-cta' : '',
-          store.output?.plugin === 'database' ? 'border-purple-600 bg-purple-50' : 'border-purple-600 bg-purple-50']"
-        @click="switchOutputType('database'); showOutputTypeChoices = false"
-      >
-        <span class="text-2xl block mb-2">🔌</span>
-        <span class="text-sm font-semibold">Database</span>
-        <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">MySQL / PostgreSQL</span>
-      </div>
-      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
-        <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.3</NTag>
-        <span class="text-2xl block mb-2">📄</span>
-        <span class="text-sm font-semibold">PDF</span>
-      </div>
-      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
-        <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.4</NTag>
-        <span class="text-2xl block mb-2">🖥</span>
-        <span class="text-sm font-semibold">PPT</span>
-      </div>
-      <div class="text-center opacity-55 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-3 relative">
-        <NTag class="absolute top-1 right-1" size="tiny" :bordered="false">v0.5</NTag>
-        <span class="text-2xl block mb-2">🌐</span>
-        <span class="text-sm font-semibold">API</span>
-      </div>
-    </div>
-    <div v-else-if="outputConfig" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-      <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+    <OutputTypeSelector v-if="showOutputTypeChoices" :pulse-cta="props.pulseCta" @select="onOutputTypeSelect" />
+    <div v-else-if="outputConfig" class="bg-[var(--color-surface)] border border-[var(--color-border-light)] dark:border-[var(--color-border)] rounded-lg overflow-hidden">
+      <div class="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-secondary)] dark:bg-[var(--color-surface-hover)] border-b border-[var(--color-border-light)] dark:border-[var(--color-border)]">
         <span class="text-lg">{{ outputTypeInfo.icon }}</span>
         <span class="text-sm font-medium truncate flex-1">{{ outputTypeInfo.desc }}</span>
         <NTag size="small" :type="store.output?.plugin === 'csv' ? 'info' : store.output?.plugin === 'database' ? 'warning' : 'success'">{{ outputTypeInfo.label }}</NTag>
@@ -82,36 +35,25 @@
       <DatabaseOutputForm @open-conn-manager="showConnManager = true" />
 
       <!-- Column mapping -->
-      <div class="cf-form-group--full">
-        <div class="flex items-center justify-between mb-2">
-          <label class="cf-label" style="margin-bottom: 0;"><span class="cf-required">*</span> 列映射</label>
-          <div class="flex gap-2">
-            <NButton
-              v-if="store.output?.plugin === 'csv'"
-              size="small"
-              @click="onInferColumns"
-            >{{ inferColumnLabel }}</NButton>
-            <AiTriggerButton
-              v-else
-              label="AI 推断列映射"
-              :loading="mappingLoading"
-              @click="onAiMapping"
-            />
-            <NButton v-if="outputConfig.columns.length > 0" size="small" @click="onMapAll">全部映射</NButton>
-            <NButton v-if="outputConfig.columns.length > 0" size="small" @click="onSmartMatch">智能匹配</NButton>
-            <NButton v-if="store.output?.plugin !== 'csv'" size="small" @click="addColumn">+ 添加列映射</NButton>
-          </div>
-        </div>
-        <ColumnMapping v-if="outputConfig.columns.length > 0" :columns="outputConfig.columns" @remove="removeColumn" />
-        <p v-else class="text-xs text-slate-400 mt-1">{{ store.output?.plugin === 'csv' ? `点击"${inferColumnLabel}"自动填充列映射` : '点击"+ 添加列映射"添加源列到目标列的映射' }}</p>
-      </div>
+      <ColumnMappingEditor
+        :columns="outputConfig.columns"
+        :plugin="store.output?.plugin ?? ''"
+        :infer-column-label="inferColumnLabel"
+        :mapping-loading="mappingLoading"
+        @infer="onInferColumns"
+        @ai-mapping="onAiMapping"
+        @map-all="onMapAll"
+        @smart-match="onSmartMatch"
+        @add-column="addColumn"
+        @remove="removeColumn"
+      />
       </div>
     </div>
   </div>
 
   <!-- Inline connection manager modal -->
   <div v-if="showConnManager" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showConnManager = false">
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
+    <div class="bg-[var(--color-surface)] rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-base font-semibold">管理数据库连接</h3>
         <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" @click="closeConnManager">✕</button>
@@ -126,10 +68,10 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
 import type { ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig, ColumnMappingItem } from '../../types/wizard'
-import { NInput, NButton, NTag, NSelect, useMessage, useDialog } from 'naive-ui'
+import { NButton, NTag, NSelect, useMessage, useDialog } from 'naive-ui'
 import { inferSelectColumns } from '../../utils/sql'
-import ColumnMapping from './ColumnMapping.vue'
-import AiTriggerButton from '../common/AiTriggerButton.vue'
+import ColumnMappingEditor from './ColumnMappingEditor.vue'
+import OutputTypeSelector from './OutputTypeSelector.vue'
 import ConnectionManager from '../common/ConnectionManager.vue'
 import DatabaseOutputForm from './DatabaseOutputForm.vue'
 import FileOutputForm from './FileOutputForm.vue'
@@ -155,6 +97,12 @@ async function closeConnManager() {
   showConnManager.value = false
   await loadConnections()
 }
+
+function onOutputTypeSelect(plugin: 'excel' | 'csv' | 'database') {
+  switchOutputType(plugin)
+  showOutputTypeChoices.value = false
+}
+
 watch(() => store.output?.plugin, (plugin) => {
   if (plugin) showOutputTypeChoices.value = false
 }, { immediate: true })
@@ -166,7 +114,7 @@ function getDateStr(): string {
 }
 
 function safeSceneName(): string {
-  return store.scene.name.replace(/[\/\\:*?"<>|]/g, '-').trim() || 'output'
+  return store.scene.name.replace(/[/\\:*?"<>|]/g, '-').trim() || 'output'
 }
 
 function buildFilename(ext: string): string {
@@ -185,7 +133,7 @@ function applyAutoFilename(ext: string) {
 const outputConfig = computed(() => (store.output?.config ?? { columns: [], sourceTable: '' }) as ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig)
 const excelConfig = computed(() => store.output?.config as ExcelOutputConfig | undefined)
 
-const { connectionOptions, loadConnectionOptions: loadConnections } = useConnections()
+const { connectionOptions: _connectionOptions, loadConnectionOptions: loadConnections } = useConnections()
 
 const sourceTableOptions = computed(() => {
   const tables: Array<{ label: string; value: string }> = []
@@ -209,7 +157,7 @@ const outputTypeInfo = computed(() => {
 
 const prevFileIds = ref<string[]>([])
 const prevSql = ref('')
-let lastAutoInferred = false
+let _lastAutoInferred = false
 let inferTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(() => store.inputs, (inputs) => {
@@ -219,7 +167,7 @@ watch(() => store.inputs, (inputs) => {
   prevFileIds.value = currentIds
   if (hasChange && outputConfig.value.columns.length > 0) {
     outputConfig.value.columns = []
-    lastAutoInferred = false
+    _lastAutoInferred = false
   }
 }, { deep: true })
 
@@ -329,7 +277,7 @@ function removeTemplate() {
   if (!excelCfg) return
   excelCfg.template = ''
   excelCfg.columns = []
-  lastAutoInferred = false
+  _lastAutoInferred = false
 }
 
 async function onInferColumns() {
@@ -354,14 +302,14 @@ async function onInferColumns() {
     const result = await executeSql(sql, tableMapping)
     if (result && result.columns.length > 0) {
       outputConfig.value.columns = result.columns.map(col => ({ source: col, target: col }))
-      lastAutoInferred = true
+      _lastAutoInferred = true
       return
     }
     message.warning('无法从当前 SQL 中提取列名（可能是 SELECT * 或复杂语句），请手动添加列映射。')
     return
   }
   outputConfig.value.columns = cols.map(col => ({ source: col, target: col }))
-  lastAutoInferred = true
+  _lastAutoInferred = true
 }
 
 async function onAiMapping() {
@@ -440,7 +388,7 @@ function clearOutputType() {
     negativeText: '取消',
     onPositiveClick: () => {
       outputConfig.value.columns = []
-      lastAutoInferred = false
+      _lastAutoInferred = false
       showOutputTypeChoices.value = true
     },
   })
@@ -476,7 +424,7 @@ function switchOutputType(plugin: 'excel' | 'csv' | 'database') {
     filename: buildFilename(ext),
     columns: [] as ColumnMappingItem[],
   }
-  lastAutoInferred = false
+  _lastAutoInferred = false
   if (plugin === 'csv') {
     store.setOutput({
       plugin: 'csv',

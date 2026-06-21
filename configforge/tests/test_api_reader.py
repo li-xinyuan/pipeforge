@@ -1,8 +1,9 @@
 """Tests for API reader."""
-import json
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from configforge.services.api_reader import read_api_info, _extract_data
+
+from configforge.services.api_reader import _extract_data, read_api_info
 
 
 class TestExtractData:

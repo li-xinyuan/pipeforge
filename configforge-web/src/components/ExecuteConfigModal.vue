@@ -198,9 +198,10 @@ async function onExecute() {
         URL.revokeObjectURL(url)
       }
     }
-  } catch (err: any) {
-    execError.value = err?.message || '执行失败'
-    execDiagnosis.value = err?.diagnosis || null
+  } catch (err: unknown) {
+    const errorObj = err as Record<string, unknown> | null | undefined
+    execError.value = (errorObj?.message as string) || '执行失败'
+    execDiagnosis.value = (errorObj?.diagnosis as { cause: string; suggestions: string[]; severity: 'error' | 'warning'; step?: number } | null) || null
   }
   executing.value = false
 }

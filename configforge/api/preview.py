@@ -1,15 +1,15 @@
-import io
-import json
 import os
 import re
 import sqlite3
-from fastapi import APIRouter, HTTPException
-from configforge.models.wizard import ErrorResponse, PreviewRequest, SqlExecuteRequest, SqlExecuteResponse
-from configforge.services.reader_dispatch import read_file_info, infer_file_type
-from configforge.utils.security import validate_id, safe_identifier
-from configforge.utils.paths import get_upload_dir
 
-router = APIRouter()
+from fastapi import APIRouter, HTTPException
+
+from configforge.models.wizard import ErrorResponse, PreviewRequest, SqlExecuteRequest, SqlExecuteResponse
+from configforge.services.reader_dispatch import infer_file_type, read_file_info
+from configforge.utils.paths import get_upload_dir
+from configforge.utils.security import safe_identifier, validate_id
+
+router = APIRouter(tags=["数据预览"])
 UPLOAD_DIR = get_upload_dir()
 
 
@@ -69,16 +69,18 @@ async def preview_file(req: PreviewRequest):
                 error="File not found", code="FILE_NOT_FOUND", recoverable=True
             ).model_dump(),
         )
-    with open(path, "rb") as f:
-        content = f.read()
-    info = read_file_info(path, content=content, sheet_name=req.sheet, max_rows=req.max_rows)
-    return {
+    file_size = os.path.getsize(path)
+    info = read_file_info(path, sheet_name=req.sheet, max_rows=req.max_rows)
+    result = {
         "sheets": info["sheets"],
         "columns": info["columns"],
         "rows": [
             [str(v) if v else "" for v in row] for row in info["sample_rows"]
         ],
     }
+    if file_size > 10 * 1024 * 1024:
+        result["warning"] = f"File size ({file_size / (1024 * 1024):.1f}MB) exceeds 10MB. Only preview data is loaded."
+    return result
 
 
 @router.post("/sql", summary="执行预览 SQL", description="在内存 SQLite 数据库中执行 SQL 查询进行数据预览。将上传的文件加载为临时表，仅允许 SELECT 查询，自动添加 LIMIT 限制结果行数。禁止 DDL/DML 语句。")
@@ -108,10 +110,8 @@ async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
                     ).model_dump(),
                 )
             file_type = infer_file_type(file_id)
-            with open(path, "rb") as f:
-                content = f.read()
 
-            info = read_file_info(path, file_type=file_type, content=content)
+            info = read_file_info(path, file_type=file_type)
 
             total_source_rows += info.get("total_rows", 0)
             sample_rows_loaded += len(info.get("sample_rows", []))

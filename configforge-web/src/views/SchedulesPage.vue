@@ -4,7 +4,7 @@
     <div class="max-w-4xl mx-auto px-4 py-6">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-bold">定时任务</h2>
-        <NButton type="primary" size="small" @click="showAddModal = true">新建定时任务</NButton>
+        <NButton v-if="authStore.canEdit" type="primary" size="small" @click="showAddModal = true">新建定时任务</NButton>
       </div>
 
       <div v-if="loading" class="text-sm text-slate-400 dark:text-slate-500 text-center py-12">加载中...</div>
@@ -111,9 +111,11 @@ import { NButton, NTag, NModal, NSelect, NInput, useDialog, useMessage } from 'n
 import AppNavBar from '../components/common/AppNavBar.vue'
 import { formatDateTime as formatTime } from '../utils/format'
 import { useApi, type ScheduleItem } from '../composables/useApi'
+import { useAuthStore } from '../stores/auth'
 
 const dialog = useDialog()
 const message = useMessage()
+const authStore = useAuthStore()
 const { getSchedules, getConfigs, createSchedule, updateSchedule, toggleSchedule, deleteSchedule } = useApi()
 
 interface ConfigOption {

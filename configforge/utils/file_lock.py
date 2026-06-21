@@ -6,7 +6,7 @@ from typing import Any
 
 def read_json_locked(path: str) -> Any:
     """Read JSON file with shared lock."""
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         fcntl.flock(f.fileno(), fcntl.LOCK_SH)
         try:
             return json.load(f)

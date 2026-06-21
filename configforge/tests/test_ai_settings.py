@@ -1,8 +1,8 @@
-import json
 import os
 import tempfile
-from configforge.services.ai.settings import load_settings, save_settings, mask_key
-from configforge.models.ai import AiSettings, AiProvider
+
+from configforge.models.ai import AiProvider, AiSettings
+from configforge.services.ai.settings import load_settings, mask_key, save_settings
 
 
 def test_load_defaults():

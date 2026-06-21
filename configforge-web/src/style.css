@@ -35,6 +35,8 @@
   --color-surface: #ffffff;
   --color-surface-hover: #f7f7f6;
   --color-surface-glass: rgba(255, 255, 255, 0.55);
+  --color-surface-input: rgba(255, 255, 255, 0.6);
+  --color-surface-input-focus: #ffffff;
   --color-code-bg: #1e293b;
   --color-code-text: #e2e8f0;
 
@@ -128,6 +130,8 @@
   --color-surface: #292524;
   --color-surface-hover: #33302d;
   --color-surface-glass: rgba(41,37,36,0.85);
+  --color-surface-input: rgba(41,37,36,0.5);
+  --color-surface-input-focus: rgba(41,37,36,0.7);
   --color-code-bg: #1c1917;
   --color-code-text: #a7f3d0;
 
@@ -204,10 +208,15 @@
 }
 
 /* === Base Styles === */
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font-family);
   background: var(--color-bg);
   color: var(--color-text);
+  overflow-x: hidden;
   transition: background var(--transition-normal), color var(--transition-normal);
 }
 
@@ -289,7 +298,7 @@ button:active:not([disabled]) {
 
 .btn-secondary,
 .n-button.btn-secondary {
-  background: rgba(255,255,255,0.48) !important;
+  background: var(--color-surface-input) !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   border: 1px solid var(--color-border) !important;
@@ -299,15 +308,9 @@ button:active:not([disabled]) {
 }
 .btn-secondary:hover,
 .n-button.btn-secondary:hover {
-  background: rgba(255,255,255,0.8) !important;
+  background: var(--color-surface-input-focus) !important;
   border-color: var(--color-primary-border) !important;
   box-shadow: var(--shadow-md) !important;
-}
-[data-theme="dark"] .btn-secondary {
-  background: rgba(41,37,36,0.5) !important;
-}
-[data-theme="dark"] .btn-secondary:hover {
-  background: rgba(41,37,36,0.75) !important;
 }
 
 /* === CTA pulse animation === */
@@ -511,18 +514,14 @@ button:active:not([disabled]) {
    GLASS SURFACE — 毛玻璃卡片工具类
    ============================================================ */
 .glass {
-  background: rgba(255,255,255,0.45);
+  background: var(--color-surface-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 .glass-strong {
-  background: rgba(255,255,255,0.6);
+  background: var(--color-surface-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-}
-[data-theme="dark"] .glass,
-[data-theme="dark"] .glass-strong {
-  background: rgba(41,37,36,0.5);
 }
 
 /* ============================================================
@@ -560,7 +559,7 @@ button:active:not([disabled]) {
 }
 
 .cf-btn--secondary {
-  background: rgba(255,255,255,0.6);
+  background: var(--color-surface-input);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: var(--color-text);
@@ -568,7 +567,7 @@ button:active:not([disabled]) {
   box-shadow: var(--shadow-sm);
 }
 .cf-btn--secondary:hover {
-  background: rgba(255,255,255,0.85);
+  background: var(--color-surface-input-focus);
   border-color: var(--color-primary-border);
   box-shadow: var(--shadow-md);
 }
@@ -599,7 +598,7 @@ button:active:not([disabled]) {
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--color-border);
-  background: rgba(255,255,255,0.5);
+  background: var(--color-surface-input);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   font-family: var(--font-body, var(--font-family));
@@ -611,8 +610,38 @@ button:active:not([disabled]) {
 .cf-input:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(15,118,110,0.08);
-  background: rgba(255,255,255,0.8);
+  background: var(--color-surface-input-focus);
 }
 .cf-input::placeholder { color: var(--color-text-muted); }
-[data-theme="dark"] .cf-input { background: rgba(41,37,36,0.4); }
-[data-theme="dark"] .cf-input:focus { background: rgba(41,37,36,0.6); }
+
+/* ============================================================
+   MOBILE TOUCH-FRIENDLY — 触摸友好全局样式
+   ============================================================ */
+@media (max-width: 767px) {
+  /* Ensure all interactive elements have minimum 44px touch target */
+  button:not([disabled]),
+  a:not([disabled]),
+  [role="button"],
+  .n-button,
+  .n-switch,
+  .n-checkbox,
+  .n-radio,
+  .n-tag--clickable,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+  }
+
+  /* Small icon buttons: expand tap area via padding */
+  .n-button--small,
+  button[style*="padding: 4px"],
+  button[style*="padding:2px"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Prevent horizontal scroll on all containers */
+  .app-shell {
+    overflow-x: hidden;
+  }
+}

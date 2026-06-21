@@ -1,9 +1,11 @@
 import os
 import tempfile
+
 import pytest
 from fastapi.testclient import TestClient
-from configforge.server import app
+
 import configforge.utils.security as security
+from configforge.server import app
 
 
 @pytest.fixture(autouse=True)

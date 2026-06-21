@@ -1,24 +1,23 @@
 """Unit tests for configforge.scheduler module."""
 import json
-import os
-import tempfile
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 import configforge.scheduler as scheduler
 from configforge.scheduler import (
     ScheduleConfig,
+    _run_scheduled_pipeline,
+    _update_schedule_last_run,
     _validate_cron,
     add_schedule,
-    remove_schedule,
-    list_schedules,
-    update_schedule,
-    toggle_schedule,
-    _update_schedule_last_run,
     get_next_run_time,
-    start_scheduler,
+    list_schedules,
+    remove_schedule,
     shutdown_scheduler,
-    _run_scheduled_pipeline,
+    start_scheduler,
+    toggle_schedule,
+    update_schedule,
 )
 
 
@@ -123,7 +122,7 @@ class TestAddSchedule:
     def test_add_disabled_no_job(self, monkeypatch):
         mock_scheduler = MagicMock()
         monkeypatch.setattr(scheduler, "_scheduler", mock_scheduler)
-        sched = add_schedule("cfg1", "0 8 * * *")
+        _sched = add_schedule("cfg1", "0 8 * * *")
         # Default is enabled=True, so job should be added
         mock_scheduler.add_job.assert_called_once()
 
@@ -230,7 +229,7 @@ class TestGetNextRunTime:
         assert get_next_run_time("nonexistent") is None
 
     def test_returns_iso_string_when_job_exists(self, monkeypatch):
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
         mock_scheduler = MagicMock()
         mock_job = MagicMock()
         mock_job.next_run_time = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
@@ -323,10 +322,10 @@ class TestRunScheduledPipeline:
         cfg_path = tmp_path / "test-cfg.state.json"
         cfg_path.write_text(json.dumps(state))
 
-        with patch("configforge.api.configs.CONFIGS_DIR", str(tmp_path)):
-            with patch("configforge.api.executions._update_exec_index"):
-                with patch("configforge.api.executions._save_failed_execution"):
-                    _run_scheduled_pipeline("sched1", "test-cfg")
+        with patch("configforge.api.configs.CONFIGS_DIR", str(tmp_path)), \
+             patch("configforge.api.executions._update_exec_index"), \
+             patch("configforge.api.executions._save_failed_execution"):
+            _run_scheduled_pipeline("sched1", "test-cfg")
 
         # Should mark as failed due to file input without file_id
         result = list_schedules()

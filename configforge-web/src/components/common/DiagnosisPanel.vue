@@ -241,23 +241,13 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel--error {
-  border: 1px solid #ef4444;
-  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid var(--color-error);
+  background: var(--color-error-bg);
 }
 
 .diagnosis-panel--warning {
-  border: 1px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.05);
-}
-
-:root.dark .diagnosis-panel--error {
-  border-color: #dc2626;
-  background: rgba(220, 38, 38, 0.1);
-}
-
-:root.dark .diagnosis-panel--warning {
-  border-color: #d97706;
-  background: rgba(217, 119, 6, 0.1);
+  border: 1px solid var(--color-warning);
+  background: var(--color-warning-bg);
 }
 
 .diagnosis-panel__header {
@@ -281,23 +271,13 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel__severity--error {
-  background: #fecaca;
-  color: #991b1b;
+  background: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .diagnosis-panel__severity--warning {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-:root.dark .diagnosis-panel__severity--error {
-  background: rgba(220, 38, 38, 0.2);
-  color: #fca5a5;
-}
-
-:root.dark .diagnosis-panel__severity--warning {
-  background: rgba(217, 119, 6, 0.2);
-  color: #fcd34d;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .diagnosis-panel__cause {
@@ -311,16 +291,11 @@ const borderClass = computed(() => {
   align-items: flex-start;
   gap: 6px;
   font-size: 12px;
-  color: #b45309;
-  background: rgba(245, 158, 11, 0.08);
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
   border-radius: 4px;
   padding: 6px 10px;
   margin-bottom: 8px;
-}
-
-:root.dark .diagnosis-panel__impact {
-  color: #fbbf24;
-  background: rgba(217, 119, 6, 0.12);
 }
 
 .diagnosis-panel__impact-icon {
@@ -350,9 +325,9 @@ const borderClass = computed(() => {
 
 .diagnosis-panel__goto {
   font-size: 11px;
-  color: #0d9488;
+  color: var(--color-primary);
   background: none;
-  border: 1px solid #0d9488;
+  border: 1px solid var(--color-primary);
   border-radius: 4px;
   padding: 1px 8px;
   cursor: pointer;
@@ -360,8 +335,8 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel__goto:hover {
-  background: #0d9488;
-  color: white;
+  background: var(--color-primary);
+  color: #fff;
 }
 
 .diagnosis-panel__autofix {
@@ -370,16 +345,16 @@ const borderClass = computed(() => {
 
 .diagnosis-panel__autofix-btn {
   font-size: 12px;
-  color: #0d9488;
+  color: var(--color-primary);
   background: none;
-  border: 1px dashed #0d9488;
+  border: 1px dashed var(--color-primary);
   border-radius: 6px;
   padding: 4px 12px;
   cursor: pointer;
 }
 
 .diagnosis-panel__autofix-btn:hover:not(:disabled) {
-  background: rgba(13, 148, 136, 0.1);
+  background: var(--color-primary-bg);
 }
 
 .diagnosis-panel__autofix-btn:disabled {
@@ -389,9 +364,9 @@ const borderClass = computed(() => {
 
 .diagnosis-panel__rewrite-btn {
   font-size: 12px;
-  color: #6366f1;
+  color: var(--color-ai);
   background: none;
-  border: 1px dashed #6366f1;
+  border: 1px dashed var(--color-ai);
   border-radius: 6px;
   padding: 4px 12px;
   cursor: pointer;
@@ -399,7 +374,7 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel__rewrite-btn:hover:not(:disabled) {
-  background: rgba(99, 102, 241, 0.1);
+  background: var(--color-ai-bg);
 }
 
 .diagnosis-panel__rewrite-btn:disabled {
@@ -429,7 +404,7 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel__fix-reason {
-  color: #0d9488;
+  color: var(--color-primary);
 }
 
 .diagnosis-panel__diff {
@@ -437,11 +412,11 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel__diff-old {
-  color: #ef4444;
+  color: var(--color-error);
 }
 
 .diagnosis-panel__diff-new {
-  color: #22c55e;
+  color: var(--color-success);
 }
 
 .diagnosis-panel__diff code {
@@ -452,8 +427,8 @@ const borderClass = computed(() => {
 .diagnosis-panel__apply-btn {
   margin-top: 8px;
   font-size: 12px;
-  color: white;
-  background: #0d9488;
+  color: #fff;
+  background: var(--color-primary);
   border: none;
   border-radius: 6px;
   padding: 6px 16px;
@@ -461,7 +436,7 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel__apply-btn:hover {
-  background: #0f766e;
+  background: var(--color-primary-light);
 }
 
 .diagnosis-panel__tech {
@@ -499,9 +474,9 @@ const borderClass = computed(() => {
 
 .diagnosis-panel__chat-btn {
   font-size: 12px;
-  color: #0ea5e9;
+  color: var(--color-info);
   background: none;
-  border: 1px dashed #0ea5e9;
+  border: 1px dashed var(--color-info);
   border-radius: 6px;
   padding: 4px 12px;
   cursor: pointer;
@@ -509,7 +484,7 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel__chat-btn:hover {
-  background: rgba(14, 165, 233, 0.1);
+  background: var(--color-info-bg);
 }
 
 .diagnosis-panel__chat {
@@ -539,11 +514,11 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel__chat-msg--user .diagnosis-panel__chat-role {
-  color: #6366f1;
+  color: var(--color-ai);
 }
 
 .diagnosis-panel__chat-msg--ai .diagnosis-panel__chat-role {
-  color: #0d9488;
+  color: var(--color-primary);
 }
 
 .diagnosis-panel__chat-text {
@@ -569,13 +544,13 @@ const borderClass = computed(() => {
 }
 
 .diagnosis-panel__chat-field:focus {
-  border-color: #0ea5e9;
+  border-color: var(--color-info);
 }
 
 .diagnosis-panel__chat-send {
   font-size: 12px;
-  color: white;
-  background: #0ea5e9;
+  color: #fff;
+  background: var(--color-info);
   border: none;
   border-radius: 4px;
   padding: 4px 12px;

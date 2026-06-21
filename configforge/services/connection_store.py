@@ -2,15 +2,16 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
+
 from configforge.utils.cache import TTLCache
 from configforge.utils.crypto import get_cipher
-from configforge.utils.file_lock import read_json_locked, write_json_locked
+from configforge.utils.file_lock import write_json_locked
 from configforge.utils.migration import load_with_migration
-from configforge.utils.paths import get_data_dir, get_configs_dir
+from configforge.utils.paths import get_configs_dir, get_data_dir
 
 DATA_DIR = get_data_dir()
 STORE_PATH = os.path.join(DATA_DIR, "db_connections.json")
-_cache = TTLCache(ttl=5.0)
+_cache = TTLCache(ttl=30.0)
 
 
 def _ensure_data_dir():
@@ -155,20 +156,62 @@ class ConnectionStore:
 
     @staticmethod
     def count_references(conn_id: str) -> list[str]:
-        """Check how many saved configs reference this connection. Returns list of config IDs."""
-        # Search saved wizard configs for references to this connection
-        import glob
+        """Check how many saved configs reference this connection. Returns list of config IDs.
+
+        Optimized: first scans index.json for input_types containing 'database'
+        and only reads state.json for those configs. Falls back to reading all
+        state.json files if index lacks the needed fields.
+        """
         refs = []
+        index_path = os.path.join(get_configs_dir(), "index.json")
+
+        # Try reading from index.json first
+        if os.path.exists(index_path):
+            try:
+                with open(index_path, encoding="utf-8") as f:
+                    index_data = json.load(f)
+                configs = index_data if isinstance(index_data, list) else index_data.get("configs", [])
+
+                # Check if index entries have 'input_types' field (v2 schema)
+                has_input_types = any("input_types" in e for e in configs) if configs else False
+
+                if has_input_types:
+                    for entry in configs:
+                        config_id = entry.get("id", "")
+                        # Only check configs that have database inputs
+                        input_types = entry.get("input_types", [])
+                        if "database" not in input_types:
+                            continue
+                        # Read state.json only for database-input configs
+                        state_path = os.path.join(get_configs_dir(), f"{config_id}.state.json")
+                        if not os.path.exists(state_path):
+                            continue
+                        try:
+                            with open(state_path, encoding="utf-8") as sf:
+                                state = json.load(sf)
+                            for state_inp in state.get("inputs", []):
+                                cfg = state_inp.get("config", {})
+                                if cfg.get("connection_id") == conn_id or cfg.get("connectionId") == conn_id:
+                                    refs.append(config_id)
+                                    break
+                        except (OSError, json.JSONDecodeError):
+                            continue
+                    return refs
+            except (OSError, json.JSONDecodeError):
+                pass
+
+        # Fallback: scan individual state.json files (old method)
+        import glob
         for path in glob.glob(os.path.join(get_configs_dir(), "*.state.json")):
             try:
-                with open(path, "r") as f:
+                with open(path) as f:
                     data = json.load(f)
                 for inp in data.get("inputs", []):
                     cfg = inp.get("config", {})
                     if cfg.get("connection_id") == conn_id or cfg.get("connectionId") == conn_id:
-                        refs.append(os.path.basename(path).replace(".json", ""))
+                        refs.append(os.path.basename(path).replace(".state.json", ""))
                         break
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 continue
         return refs
 

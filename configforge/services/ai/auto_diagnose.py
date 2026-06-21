@@ -9,14 +9,14 @@ import logging
 import time
 from collections import OrderedDict
 
-from configforge.services.ai.settings import load_settings
 from configforge.services.ai.factory import create_backend
 from configforge.services.ai.orchestrator import build_prompt, parse_response
+from configforge.services.ai.settings import load_settings
 
 logger = logging.getLogger(__name__)
 
-# ── Diagnosis cache (LRU, max 100 entries, 1h TTL) ──────────────────
-_MAX_CACHE_SIZE = 100
+# ── Diagnosis cache (LRU, max 200 entries, 1h TTL) ──────────────────
+_MAX_CACHE_SIZE = 200
 _CACHE_TTL_SECONDS = 3600  # 1 hour
 
 _diagnosis_cache: OrderedDict[str, tuple[float, dict]] = OrderedDict()

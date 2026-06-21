@@ -2,14 +2,24 @@ import asyncio
 import json
 import logging
 import time
-from configforge.utils.rate_limit import RateLimiter
-from fastapi import APIRouter, HTTPException, Request
-from configforge.models.ai import AiOrchestrateRequest, AiSuggestionRequest, AiSuggestionResponse, AiSettings, AiSettingsUpdate
-from configforge.services.ai.settings import load_settings, save_settings, mask_key
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from configforge.middleware.auth import require_role
+from configforge.models.ai import (
+    AiOrchestrateRequest,
+    AiSettings,
+    AiSettingsUpdate,
+    AiSuggestionRequest,
+    AiSuggestionResponse,
+)
+from configforge.models.user import User
 from configforge.services.ai.factory import create_backend
 from configforge.services.ai.orchestrator import build_prompt, parse_response
+from configforge.services.ai.settings import load_settings, mask_key, save_settings
+from configforge.utils.rate_limit import RateLimiter
 
-router = APIRouter()
+router = APIRouter(tags=["AI 服务"])
 logger = logging.getLogger("configforge.ai")
 
 # Persistent rate limiter: 10 requests per 60s window per IP
@@ -36,7 +46,7 @@ def _sanitize_error(msg: str) -> str:
 
 
 @router.post("/suggest", response_model=AiSuggestionResponse, summary="AI 智能建议", description="根据类别和上下文获取 AI 生成的建议内容。支持 SQL 编写、数据处理、配置优化等场景。每个 IP 限流 10 次/分钟。")
-async def suggest(req: AiSuggestionRequest, request: Request):
+async def suggest(req: AiSuggestionRequest, request: Request, _user: User = Depends(require_role("editor", "admin"))):
     _check_rate_limit(request.client.host if request.client else "unknown")
     settings = load_settings()
     if not settings.enabled:
@@ -69,7 +79,7 @@ async def suggest(req: AiSuggestionRequest, request: Request):
 
 
 @router.post("/orchestrate", summary="AI 编排多步 Pipeline", description="使用 AI 从自然语言描述规划多步骤 SQL Pipeline。返回包含步骤列表、解释说明和原始响应的编排结果。每个 IP 限流 10 次/分钟。")
-async def orchestrate(req: AiOrchestrateRequest, request: Request):
+async def orchestrate(req: AiOrchestrateRequest, request: Request, _user: User = Depends(require_role("editor", "admin"))):
     """AI plans multi-step SQL pipeline from natural language."""
     _check_rate_limit(request.client.host if request.client else "unknown")
     settings = load_settings()
@@ -112,7 +122,7 @@ async def orchestrate(req: AiOrchestrateRequest, request: Request):
 
 
 @router.post("/translate-checkpoint", summary="AI 翻译检查规则", description="将自然语言描述的数据检查需求翻译为具体的 CheckRule JSON。支持行数检查、空值率检查、唯一性检查、范围检查、枚举检查和自定义 SQL 检查等规则类型。")
-async def translate_checkpoint(req: AiSuggestionRequest, request: Request):
+async def translate_checkpoint(req: AiSuggestionRequest, request: Request, _user: User = Depends(require_role("editor", "admin"))):
     """将自然语言检查需求翻译为具体的 CheckRule JSON。"""
     _check_rate_limit(request.client.host if request.client else "unknown")
     settings = load_settings()
@@ -171,7 +181,7 @@ async def translate_checkpoint(req: AiSuggestionRequest, request: Request):
 
 
 @router.get("/settings", summary="获取 AI 设置", description="获取当前 AI 服务的配置信息，包括启用的提供商、模型名称等。API Key 会被脱敏显示。")
-async def get_settings():
+async def get_settings(_user: User = Depends(require_role("admin"))):
     settings = load_settings()
     data = settings.model_dump()
     data["api_key"] = mask_key(settings.api_key)
@@ -179,7 +189,7 @@ async def get_settings():
 
 
 @router.put("/settings", summary="更新 AI 设置", description="更新 AI 服务配置，包括提供商、API Key、模型名称等。支持部分更新，未提供的字段保持不变。")
-async def update_settings(body: AiSettingsUpdate):
+async def update_settings(body: AiSettingsUpdate, _user: User = Depends(require_role("admin"))):
     existing = load_settings()
     api_key = existing.api_key if body.api_key is None else body.api_key
     dump = body.model_dump(exclude={"api_key"})
@@ -189,7 +199,7 @@ async def update_settings(body: AiSettingsUpdate):
 
 
 @router.post("/test", summary="测试 AI 连接", description="测试 AI 服务的连接是否正常。发送简单请求验证 API Key 有效性和网络连通性，返回提供商、模型和延迟信息。")
-async def test_connection():
+async def test_connection(_user: User = Depends(require_role("admin"))):
     settings = load_settings()
     if not settings.api_key:
         raise HTTPException(status_code=400, detail="未配置 API Key")

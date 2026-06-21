@@ -1,47 +1,40 @@
-import json
+import logging
 import os
 import shutil
 import urllib.parse
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
-import logging
-
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
-from configforge.core.pipeline import execute_pipeline
+from configforge.middleware.auth import require_role
+from configforge.models.user import User
 from configforge.models.wizard import (
-    ConfigMeta,
     ConfigInputMeta,
+    ConfigMeta,
     ConfigVersionMeta,
+    ErrorResponse,
+    ExecuteConfigRequest,
     SaveConfigRequest,
     SaveConfigResponse,
-    ExecuteConfigRequest,
     WizardState,
-    ErrorResponse,
-    ExecutionRecord,
 )
-from configforge.api.executions import (
-    EXEC_DIR,
-    _update_exec_index,
-    _save_failed_execution,
-    _sanitize_summary,
+from configforge.services.audit_logger import log_audit
+from configforge.services.execution_service import (
+    ExecutionContext,
 )
-from configforge.services.yaml_builder import build_yaml
 from configforge.services.execution_service import (
     execute as execute_service,
-    ExecutionContext,
-    ExecutionResult,
 )
+from configforge.services.yaml_builder import build_yaml
 from configforge.utils.cache import TTLCache
-from configforge.utils.security import validate_id, sanitize_connection_string
 from configforge.utils.file_lock import read_json_locked, write_json_locked
-from configforge.utils.migration import load_with_migration, ensure_schema_version
+from configforge.utils.migration import ensure_schema_version
 from configforge.utils.paths import get_configs_dir
-from configforge.services.audit_logger import log_audit
+from configforge.utils.security import validate_id
 
-router = APIRouter()
+router = APIRouter(tags=["配置管理"])
 logger = logging.getLogger(__name__)
 
 def _validate_config_id(config_id: str) -> str:
@@ -55,14 +48,22 @@ CONFIGS_DIR = get_configs_dir()
 os.makedirs(CONFIGS_DIR, exist_ok=True)
 
 INDEX_PATH = os.path.join(CONFIGS_DIR, "index.json")
-_cache = TTLCache(ttl=5.0)
+_cache = TTLCache(ttl=10.0)
+
+
+INDEX_SCHEMA_VERSION = 2
 
 
 def _load_index() -> list[dict]:
     cached = _cache.get("index")
     if cached is not None:
         return cached
-    data = load_with_migration(INDEX_PATH, default=[])
+    if not os.path.exists(INDEX_PATH):
+        result = []
+        _cache.set("index", result)
+        return result
+    data = read_json_locked(INDEX_PATH)
+    # Support both v1 (plain list) and v2 (dict with schema_version) formats
     if isinstance(data, list):
         result = data
     else:
@@ -72,39 +73,53 @@ def _load_index() -> list[dict]:
 
 
 def _save_index(data: list[dict]) -> None:
-    write_json_locked(INDEX_PATH, data)
+    wrapper = {
+        "schema_version": INDEX_SCHEMA_VERSION,
+        "configs": data,
+    }
+    write_json_locked(INDEX_PATH, wrapper)
     _cache.invalidate("index")
 
 
-@router.get("", summary="获取配置列表", description="分页获取所有已保存的 Pipeline 配置列表。支持按场景名称和描述进行搜索。返回按更新时间倒序排列的配置元数据。")
+@router.get("", summary="获取配置列表", description="分页获取所有已保存的 Pipeline 配置列表。支持按场景名称和描述进行搜索，支持排序。仅返回索引字段，不读取 state.json。")
 async def list_configs(
     search: str = None,
     page: int = 1,
-    page_size: int = 10,
+    page_size: int = 50,
+    sort: str = "updated_at",
+    order: str = "desc",
+    _user: User = Depends(require_role("viewer", "editor", "admin")),
 ) -> dict:
     index = _load_index()
-    # Sort by updated_at descending (newest first)
-    index = sorted(index, key=lambda e: e.get("updated_at", ""), reverse=True)
+
+    # Search filter
     if search:
         q = search.lower()
         index = [e for e in index
                  if q in e.get("scene_name", "").lower()
-                 or q in e.get("description", "").lower()]
+                 or q in e.get("description", "").lower()
+                 or q in e.get("name", "").lower()
+                 or any(q in t for t in e.get("tags", []))]
+
+    # Sort
+    reverse = order.lower() == "desc"
+    # Map "name" to "scene_name" for backward compatibility
+    sort_key = "scene_name" if sort == "name" else sort
+    index = sorted(index, key=lambda e: e.get(sort_key, ""), reverse=reverse)
+
     total = len(index)
-    total_pages = max(1, (total + page_size - 1) // page_size)
     start = (page - 1) * page_size
     items = [ConfigMeta(**e) for e in index[start:start + page_size]]
     return {
-        "items": items,
+        "configs": items,
         "total": total,
         "page": page,
         "page_size": page_size,
-        "total_pages": total_pages,
     }
 
 
 @router.post("", response_model=SaveConfigResponse, summary="保存配置", description="创建或更新一个 Pipeline 配置。如果是更新已有配置，旧版本会自动归档到版本历史中。同时生成对应的 YAML 配置文件。")
-async def save_config(req: SaveConfigRequest):
+async def save_config(req: SaveConfigRequest, _user: User = Depends(require_role("editor", "admin"))):
     config_id = req.config_id or uuid.uuid4().hex
     now_str = datetime.now(UTC).isoformat()
 
@@ -162,6 +177,12 @@ async def save_config(req: SaveConfigRequest):
         for inp in req.state.inputs
     ]
 
+    # Extract input_types from inputs
+    input_types = list(dict.fromkeys(inp.plugin for inp in req.state.inputs))
+
+    # Extract tags from scene
+    tags = req.state.scene.tags
+
     meta = ConfigMeta(
         id=config_id,
         scene_name=req.state.scene.name or "未命名配置",
@@ -173,6 +194,8 @@ async def save_config(req: SaveConfigRequest):
         current_version=current_version,
         created_at=created_at,
         inputs=input_metas,
+        tags=tags,
+        input_types=input_types,
     )
 
     index = _load_index()
@@ -188,7 +211,7 @@ async def save_config(req: SaveConfigRequest):
 
 
 @router.delete("/{config_id}", summary="删除配置", description="删除指定的 Pipeline 配置，包括其状态文件、YAML 文件和所有版本历史。操作不可撤销。")
-async def delete_config(config_id: str):
+async def delete_config(config_id: str, _user: User = Depends(require_role("editor", "admin"))):
     _validate_config_id(config_id)
     index = _load_index()
     entry = next((e for e in index if e.get("id") == config_id), None)
@@ -219,7 +242,7 @@ async def delete_config(config_id: str):
 
 
 @router.get("/{config_id}", summary="获取配置详情", description="根据配置 ID 获取完整的 Pipeline 状态数据，包括场景信息、输入源、处理器和输出配置。")
-async def load_config(config_id: str):
+async def load_config(config_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     _validate_config_id(config_id)
     state_path = os.path.join(CONFIGS_DIR, f"{config_id}.state.json")
     if not os.path.exists(state_path):
@@ -235,7 +258,7 @@ async def load_config(config_id: str):
 
 
 @router.get("/{config_id}/yaml", summary="下载配置 YAML", description="下载指定配置的 Pipeline YAML 文件。YAML 文件包含完整的 Pipeline 定义，可用于版本控制和迁移。")
-async def download_config_yaml(config_id: str):
+async def download_config_yaml(config_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     _validate_config_id(config_id)
     yaml_path = os.path.join(CONFIGS_DIR, f"{config_id}.yaml")
     if not os.path.exists(yaml_path):
@@ -249,12 +272,12 @@ async def download_config_yaml(config_id: str):
         yaml_path,
         media_type="application/x-yaml",
         filename=f"{config_id}.yaml",
-        headers={"Content-Disposition": f'attachment; filename="pipeline.yaml"'},
+        headers={"Content-Disposition": 'attachment; filename="pipeline.yaml"'},
     )
 
 
 @router.post("/{config_id}/execute", summary="执行已保存的配置", description="执行指定 ID 的已保存 Pipeline 配置。可通过 files 参数为各输入源指定上传文件。支持文件输出和数据库输出。")
-async def execute_config(config_id: str, req: ExecuteConfigRequest):
+async def execute_config(config_id: str, req: ExecuteConfigRequest, _user: User = Depends(require_role("editor", "admin"))):
     _validate_config_id(config_id)
     state_path = os.path.join(CONFIGS_DIR, f"{config_id}.state.json")
     if not os.path.exists(state_path):
@@ -363,66 +386,52 @@ def _list_version_files(config_id: str) -> list[int]:
     return sorted(versions)
 
 
+def _deep_diff(old: any, new: any, path: str, result: dict) -> None:
+    """Recursively compare two values and collect structured diff into result."""
+    if old == new:
+        return
+
+    # Both are dicts — recurse by key
+    if isinstance(old, dict) and isinstance(new, dict):
+        all_keys = set(old.keys()) | set(new.keys())
+        for key in sorted(all_keys):
+            child_path = f"{path}.{key}" if path else key
+            if key not in old:
+                result["added"].append({"path": child_path, "value": new[key]})
+            elif key not in new:
+                result["removed"].append({"path": child_path, "value": old[key]})
+            else:
+                _deep_diff(old[key], new[key], child_path, result)
+        return
+
+    # Both are lists — compare by index
+    if isinstance(old, list) and isinstance(new, list):
+        max_len = max(len(old), len(new))
+        for i in range(max_len):
+            child_path = f"{path}[{i}]"
+            if i >= len(old):
+                result["added"].append({"path": child_path, "value": new[i]})
+            elif i >= len(new):
+                result["removed"].append({"path": child_path, "value": old[i]})
+            else:
+                _deep_diff(old[i], new[i], child_path, result)
+        return
+
+    # Scalar or type mismatch — treat as modified
+    result["modified"].append({"path": path, "old": old, "new": new})
+
+
 def _diff_states(state1: dict, state2: dict) -> dict:
-    """Diff two config state dicts using deepdiff. Returns structured changes."""
-    from deepdiff import DeepDiff
-
-    diff = DeepDiff(state1, state2, ignore_order=True, verbose_level=2)
-    changes = []
-
-    for change_type, items in diff.items():
-        if change_type == "values_changed":
-            for path, detail in items.items():
-                changes.append({
-                    "type": "changed",
-                    "path": path,
-                    "old": detail.get("old_value"),
-                    "new": detail.get("new_value"),
-                })
-        elif change_type == "dictionary_item_added":
-            for path in items:
-                changes.append({
-                    "type": "added",
-                    "path": str(path) if not isinstance(path, str) else path,
-                    "new": items[path] if isinstance(items, dict) else None,
-                })
-        elif change_type == "dictionary_item_removed":
-            for path in items:
-                changes.append({
-                    "type": "removed",
-                    "path": str(path) if not isinstance(path, str) else path,
-                    "old": items[path] if isinstance(items, dict) else None,
-                })
-        elif change_type == "iterable_item_added":
-            for path, detail in items.items():
-                changes.append({
-                    "type": "added",
-                    "path": str(path),
-                    "new": detail,
-                })
-        elif change_type == "iterable_item_removed":
-            for path, detail in items.items():
-                changes.append({
-                    "type": "removed",
-                    "path": str(path),
-                    "old": detail,
-                })
-        elif change_type == "type_changes":
-            for path, detail in items.items():
-                changes.append({
-                    "type": "changed",
-                    "path": path,
-                    "old": str(detail.get("old_type")),
-                    "new": str(detail.get("new_type")),
-                })
-
-    return {"v1": None, "v2": None, "changes": changes}
+    """Diff two config state dicts. Returns structured changes with dot-notation paths."""
+    result: dict = {"added": [], "removed": [], "modified": []}
+    _deep_diff(state1, state2, "", result)
+    return result
 
 
 # === Version endpoints ===
 
-@router.get("/{config_id}/versions", summary="获取配置版本列表", description="获取指定配置的所有历史版本列表。每个版本包含版本号、场景版本、变更摘要、创建时间等信息。")
-async def list_versions(config_id: str) -> list[ConfigVersionMeta]:
+@router.get("/{config_id}/versions", summary="获取配置版本列表", description="获取指定配置的所有历史版本列表。每个版本包含版本号、场景版本、变更摘要、创建时间等信息。", response_model=list[ConfigVersionMeta])
+async def list_versions(config_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))) -> list[ConfigVersionMeta]:
     _validate_config_id(config_id)
     versions = _list_version_files(config_id)
     result = []
@@ -445,7 +454,7 @@ async def list_versions(config_id: str) -> list[ConfigVersionMeta]:
 
 
 @router.get("/{config_id}/versions/{version}", summary="获取指定版本详情", description="获取指定配置的特定版本状态数据。可用于查看历史配置或进行版本对比。")
-async def get_version(config_id: str, version: int):
+async def get_version(config_id: str, version: int, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     _validate_config_id(config_id)
     state = _read_version_state(config_id, version)
     if state is None:
@@ -464,7 +473,7 @@ async def get_version(config_id: str, version: int):
 
 
 @router.post("/{config_id}/versions/{version}/rollback", summary="回滚到指定版本", description="将配置回滚到指定的历史版本。当前版本会自动归档，回滚后的内容将作为新版本保存。")
-async def rollback_version(config_id: str, version: int):
+async def rollback_version(config_id: str, version: int, _user: User = Depends(require_role("editor", "admin"))):
     _validate_config_id(config_id)
 
     # 1. Read the target version's state
@@ -537,7 +546,7 @@ async def rollback_version(config_id: str, version: int):
 
 
 @router.get("/{config_id}/diff", summary="对比两个版本差异", description="对比指定配置的两个版本之间的差异。使用 deepdiff 进行深度对比，返回新增、修改、删除等变更详情。")
-async def diff_versions(config_id: str, v1: int, v2: int):
+async def diff_versions(config_id: str, v1: int, v2: int, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     _validate_config_id(config_id)
 
     state1 = _read_version_state(config_id, v1)
@@ -564,6 +573,4 @@ async def diff_versions(config_id: str, v1: int, v2: int):
         s.pop("change_summary", None)
 
     result = _diff_states(state1, state2)
-    result["v1"] = v1
-    result["v2"] = v2
-    return result
+    return {"v1": v1, "v2": v2, **result}

@@ -1,11 +1,11 @@
 """Tests for config version management endpoints (list, get, rollback, diff)."""
-import json
 import os
-import tempfile
+
 import pytest
 from fastapi.testclient import TestClient
-from configforge.server import app
+
 import configforge.api.configs as configs_mod
+from configforge.server import app
 
 
 @pytest.fixture(autouse=True)

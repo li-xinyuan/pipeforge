@@ -1,8 +1,8 @@
 import { ref, watch } from 'vue'
-import { useApi } from './useApi'
+import { useApi, ApiError, handleApiError } from './useApi'
 
 export function useAiApi() {
-  const { loading: suggesting, error: apiError, request } = useApi()
+  const { loading: suggesting, error: apiError, requestOrThrow } = useApi()
   const aiError = ref<string | null>(null)
 
   // Sync API error to aiError
@@ -15,25 +15,46 @@ export function useAiApi() {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 120000)
     try {
-      const data = await request<{ content: string }>('POST', '/api/ai/suggest', { category, context }, { signal: controller.signal })
+      const data = await requestOrThrow<{ content: string }>('POST', '/api/ai/suggest', { category, context }, { signal: controller.signal })
       return data?.content ?? null
+    } catch (e) {
+      if (e instanceof ApiError) {
+        aiError.value = e.message
+        handleApiError(e)
+      }
+      return null
     } finally {
       clearTimeout(timer)
     }
   }
 
   async function getAiSettings() {
-    return request<Record<string, unknown>>('GET', '/api/ai/settings')
+    try {
+      return await requestOrThrow<Record<string, unknown>>('GET', '/api/ai/settings')
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
   }
 
   async function updateAiSettings(body: Record<string, unknown>) {
-    const result = await request<unknown>('PUT', '/api/ai/settings', body)
-    return result !== null
+    try {
+      await requestOrThrow<unknown>('PUT', '/api/ai/settings', body)
+      return true
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return false
+    }
   }
 
   async function testAiConnection() {
-    const data = await request<{ ok?: boolean } & Record<string, unknown>>('POST', '/api/ai/test')
-    return { ok: data !== null, data }
+    try {
+      const data = await requestOrThrow<{ ok?: boolean } & Record<string, unknown>>('POST', '/api/ai/test')
+      return { ok: true, data }
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return { ok: false, data: null }
+    }
   }
 
   async function askOrchestrate(context: Record<string, unknown>): Promise<{
@@ -49,7 +70,7 @@ export function useAiApi() {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 120000)
     try {
-      return await request<{
+      return await requestOrThrow<{
         steps: Array<
           | { name: string; plugin: 'sql'; input_tables: string[]; output_tables: string[]; sql: string }
           | { name: string; plugin: 'python'; input_tables: string[]; output_tables: string[]; script: string }
@@ -58,6 +79,12 @@ export function useAiApi() {
         raw?: string
         parse_error?: boolean
       }>('POST', '/api/ai/orchestrate', { context }, { signal: controller.signal })
+    } catch (e) {
+      if (e instanceof ApiError) {
+        aiError.value = e.message
+        handleApiError(e)
+      }
+      return null
     } finally {
       clearTimeout(timer)
     }

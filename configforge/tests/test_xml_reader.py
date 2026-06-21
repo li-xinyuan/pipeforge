@@ -1,6 +1,7 @@
 """Tests for XML reader."""
 import pytest
-from configforge.services.xml_reader import read_xml_info, _find_row_elements, _element_to_dict
+
+from configforge.services.xml_reader import _element_to_dict, _find_row_elements, read_xml_info
 
 
 class TestFindRowElements:

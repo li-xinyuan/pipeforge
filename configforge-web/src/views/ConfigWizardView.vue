@@ -19,6 +19,9 @@
           :status="stepStatus(1)"
           :badge="stepBadge(1)"
           :step="1"
+          :collapsed="isStepCollapsed(1)"
+          :summary="stepSummary(1)"
+          @header-click="onStepHeaderClick(1)"
         >
           <div class="wizard__form-grid">
             <div class="wizard__form-group">
@@ -58,6 +61,9 @@
           :status="stepStatus(2)"
           :badge="stepBadge(2)"
           :step="2"
+          :collapsed="isStepCollapsed(2)"
+          :summary="stepSummary(2)"
+          @header-click="onStepHeaderClick(2)"
         >
           <InputSourceList :pulse-cta="currentStep === 2" />
           <template #footer>
@@ -79,6 +85,9 @@
           :status="stepStatus(3)"
           :badge="stepBadge(3)"
           :step="3"
+          :collapsed="isStepCollapsed(3)"
+          :summary="stepSummary(3)"
+          @header-click="onStepHeaderClick(3)"
         >
           <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && !store.canProceed(3)" />
           <template #footer>
@@ -100,6 +109,9 @@
           :status="stepStatus(4)"
           :badge="stepBadge(4)"
           :step="4"
+          :collapsed="isStepCollapsed(4)"
+          :summary="stepSummary(4)"
+          @header-click="onStepHeaderClick(4)"
         >
           <OutputConfigTab :pulse-cta="currentStep === 4" />
           <template #footer>
@@ -121,6 +133,9 @@
           :status="stepStatus(5)"
           :badge="stepBadge(5)"
           :step="5"
+          :collapsed="isStepCollapsed(5)"
+          :summary="stepSummary(5)"
+          @header-click="onStepHeaderClick(5)"
         >
           <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
             <div class="cf-stat-card">
@@ -226,8 +241,8 @@ import ErrorBoundary from '../components/common/ErrorBoundary.vue'
 const store = useWizardStore()
 const route = useRoute()
 const { loadConfigState } = useConfigApi()
-const { dryRun } = useWizardApi()
-const { suggesting: precheckLoading, aiError: precheckAiError, askSuggestion } = useAiApi()
+const { dryRun, error: wizardApiError } = useWizardApi()
+const { suggesting: precheckLoading, aiError: _precheckAiError, askSuggestion } = useAiApi()
 
 // AI Precheck state
 interface PrecheckIssue {
@@ -262,6 +277,7 @@ async function runPrecheck() {
       processors: store.processors.map(p => ({
         name: p.name,
         plugin: p.plugin,
+        inputTables: p.inputTables || [],
         outputTables: p.outputTables,
         hasCode: p.plugin === 'sql' ? !!p.sql.trim() : !!p.script?.trim(),
       })),
@@ -312,7 +328,47 @@ const outputTypeLabel = computed(() => {
 
 // Local state
 const currentStep = ref(1)
+const expandedStep = ref(1)
 const saveAsTemplateVisible = ref(false)
+
+// Sync expandedStep with currentStep
+watch(currentStep, (val) => {
+  expandedStep.value = val
+})
+
+// Step summary computed
+function stepSummary(n: number): string {
+  switch (n) {
+    case 1:
+      return store.scene.name ? `场景：${store.scene.name}` : '未填写场景名称'
+    case 2:
+      return store.inputs.length > 0 ? `${store.inputs.length} 个输入源（${inputTypeSummary.value}）` : '未配置输入源'
+    case 3:
+      return store.processors.length > 0 ? `${store.processors.length} 个处理步骤（${processorTypeSummary.value}）` : '未配置处理步骤'
+    case 4:
+      return outputTypeLabel.value !== '未配置' ? `输出类型：${outputTypeLabel.value}` : '未配置输出'
+    case 5:
+      return '待执行'
+    default:
+      return ''
+  }
+}
+
+function isStepCollapsed(n: number): boolean {
+  // Current step is always expanded
+  if (n === currentStep.value) return false
+  // Allow one additional completed step to be expanded
+  return expandedStep.value !== n
+}
+
+function onStepHeaderClick(n: number) {
+  if (n < currentStep.value) {
+    expandedStep.value = expandedStep.value === n ? currentStep.value : n
+    if (expandedStep.value === n) {
+      scrollToStep(n)
+    }
+  }
+}
 
 // Keyboard shortcuts
 useKeyboard({
@@ -349,6 +405,8 @@ async function runDryRun() {
       const firstTable = result.tables[0]
       previewColumns.value = firstTable.columns
       previewRows.value = firstTable.rows
+    } else if (wizardApiError.value) {
+      dryRunError.value = wizardApiError.value.message || '预览执行失败'
     } else {
       dryRunError.value = '预览未返回数据'
     }
@@ -425,11 +483,11 @@ function scrollToStep(n: number) {
   if (n < 1 || n > 5) return
   manualScroll = true
   setTimeout(() => { manualScroll = false }, 1000)
-  const el = stepRefs[n - 1]?.value
-  if (el?.$el instanceof HTMLElement) {
-    el.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
   nextTick(() => {
+    const el = stepRefs[n - 1]?.value
+    if (el?.$el instanceof HTMLElement) {
+      el.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
     const target = document.querySelector(`[data-step="${n}"]`)
     if (target) {
       (target as HTMLElement).focus({ preventScroll: true })
@@ -683,20 +741,20 @@ onUnmounted(() => {
 }
 
 .ai-precheck-result__summary--error {
-  background: rgba(239, 68, 68, 0.08);
-  color: #dc2626;
-  border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-bottom: 1px solid var(--color-error-border);
 }
 
 .ai-precheck-result__summary--warning {
-  background: rgba(245, 158, 11, 0.08);
-  color: #d97706;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border-bottom: 1px solid var(--color-warning-border);
 }
 
 .ai-precheck-result__summary--ok {
-  background: rgba(16, 185, 129, 0.08);
-  color: #059669;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .ai-precheck-result__issues {
@@ -725,18 +783,18 @@ onUnmounted(() => {
 }
 
 .ai-precheck-result__issue--error .ai-precheck-result__badge {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
+  background: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .ai-precheck-result__issue--warning .ai-precheck-result__badge {
-  background: rgba(245, 158, 11, 0.12);
-  color: #d97706;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .ai-precheck-result__issue--info .ai-precheck-result__badge {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
+  background: var(--color-info-bg);
+  color: var(--color-info);
 }
 
 .ai-precheck-result__step {

@@ -102,7 +102,7 @@ import { useAiApi } from '../../composables/useWizardApi'
 
 const store = useWizardStore()
 const { getAiSettings } = useAiApi()
-const props = defineProps<{ pulseCta?: boolean }>()
+const _props = defineProps<{ pulseCta?: boolean }>()
 const aiConfigured = ref(false)
 const lastInferredName = ref('')
 

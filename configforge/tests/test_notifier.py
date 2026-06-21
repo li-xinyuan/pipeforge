@@ -1,16 +1,17 @@
 """Unit tests for configforge.services.notifier module."""
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from configforge.services.notifier.base import NotifyContext, NotifyResult
-from configforge.services.notifier.webhook import WebhookNotifier
+import pytest
+
+from configforge.services.notifier.base import NotifyContext
 from configforge.services.notifier.email import EmailNotifier, _render_template
 from configforge.services.notifier.formatters import (
     format_dingtalk,
-    format_wecom,
     format_feishu,
     format_generic,
+    format_wecom,
 )
+from configforge.services.notifier.webhook import WebhookNotifier
 
 
 def _success_context() -> NotifyContext:

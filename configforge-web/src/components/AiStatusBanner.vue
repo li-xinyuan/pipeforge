@@ -28,7 +28,7 @@ import { NButton } from 'naive-ui'
 import { useAiStatus } from '../composables/useAiStatus'
 
 const router = useRouter()
-const { aiConfigured, aiProvider, aiModel, checkStatus } = useAiStatus()
+const { aiConfigured, aiProvider: _aiProvider, aiModel: _aiModel, checkStatus } = useAiStatus()
 
 onMounted(checkStatus)
 </script>

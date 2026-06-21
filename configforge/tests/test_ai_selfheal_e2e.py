@@ -1,10 +1,10 @@
 """E2E tests for AI self-healing: auto_diagnose integration with execution flow."""
 import os
 import tempfile
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch, MagicMock
+from httpx import ASGITransport, AsyncClient
 
 from configforge.server import app
 
@@ -168,7 +168,7 @@ async def test_ai_suggest_anomaly_category():
 @pytest.mark.anyio
 async def test_auto_diagnose_integration_with_mock():
     """Test auto_diagnose is called and result saved when execution fails."""
-    mock_diagnosis = {
+    _mock_diagnosis = {
         "cause": "列名不存在",
         "suggestions": ["检查列名拼写"],
         "severity": "error",

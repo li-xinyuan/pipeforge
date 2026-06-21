@@ -5,6 +5,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue'), meta: { public: true } },
+    { path: '/change-password', name: 'change-password', component: () => import('../views/ChangePasswordView.vue') },
     { path: '/', name: 'home', component: () => import('../views/HomeView.vue') },
     {
       path: '/config/new',
@@ -88,6 +89,12 @@ router.beforeEach(async (to, _from, next) => {
   // Protected route — must be authenticated
   if (!auth.isAuthenticated) {
     next({ path: '/login', query: { redirect: to.fullPath } })
+    return
+  }
+
+  // 强制修改密码
+  if (auth.needChangePassword && to.path !== '/change-password') {
+    next('/change-password')
     return
   }
 

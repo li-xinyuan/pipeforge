@@ -1,7 +1,7 @@
 <template>
-  <div class="input-source-card bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden relative">
+  <div class="input-source-card bg-[var(--color-surface)] dark:bg-[var(--color-surface)] border border-[var(--color-border-light)] dark:border-[var(--color-border)] rounded-lg overflow-hidden relative">
     <!-- Header: name + plugin badge + delete -->
-    <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+    <div class="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-secondary)] dark:bg-[var(--color-surface-hover)] border-b border-[var(--color-border-light)] dark:border-[var(--color-border)]">
       <span class="text-lg">{{ pluginIcon }}</span>
       <span class="text-sm font-medium truncate flex-1">{{ input.table || '新输入源' }}</span>
       <NTag :type="pluginTagType" size="small">{{ pluginLabel }}</NTag>
@@ -67,7 +67,7 @@
       <FileInputForm :input="input" :index="index" :sheet-names="sheetNames" :analyzing="analyzing" @update="handleUpdate" />
 
       <!-- Database-specific fields -->
-      <div v-if="input.plugin === 'database'" class="cf-form-group--full pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
+      <div v-if="input.plugin === 'database'" class="cf-form-group--full pt-3 border-t border-dashed border-[var(--color-border-light)] dark:border-[var(--color-border)]">
         <DatabaseForm :input="input" :index="index" @update="handleUpdate" />
       </div>
 
@@ -150,7 +150,7 @@
     </div>
 
     <!-- AI analysis overlay -->
-    <div v-if="analyzing" class="absolute inset-0 bg-white/65 dark:bg-slate-800/65 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 rounded-md" style="pointer-events: auto; cursor: wait;">
+    <div v-if="analyzing" class="absolute inset-0 bg-[var(--color-surface)]/65 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 rounded-md" style="pointer-events: auto; cursor: wait;">
       <NSpin size="medium" />
       <span class="text-sm text-teal-600 font-medium">AI 分析中...</span>
     </div>
@@ -180,7 +180,7 @@ import type { InputSource, ExcelInputConfig, ApiInputConfig, ConfirmedAnalysis }
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
 import { useFileUpload } from '../../composables/useFileUpload'
-import { useApi } from '../../composables/useApi'
+import { useApi, ApiError } from '../../composables/useApi'
 import { NInput, NButton, NTag, NUpload, NSpin, useDialog } from 'naive-ui'
 import type { UploadCustomRequestOptions } from 'naive-ui'
 import ColumnPreview from './ColumnPreview.vue'
@@ -535,7 +535,7 @@ async function loadApiPreview() {
       max_pages: cfg.maxPages,
     })
     if (!result) {
-      error.value = { message: 'API 请求失败', code: 'API_ERROR' }
+      error.value = new ApiError('API 请求失败', 'API_ERROR', 0)
       return
     }
     if (result.columns && result.rows) {
@@ -543,7 +543,7 @@ async function loadApiPreview() {
       previewVisible.value = true
     }
   } catch (e) {
-    error.value = { message: e instanceof Error ? e.message : '网络错误', code: 'NETWORK_ERROR' }
+    error.value = new ApiError(e instanceof Error ? e.message : '网络错误', 'NETWORK_ERROR', 0)
   } finally {
     previewLoading.value = false
   }

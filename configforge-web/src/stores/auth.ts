@@ -1,21 +1,27 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import router from '../router'
+import { ApiError, handleApiError } from '../composables/useApi'
 
 export interface AuthUser {
   id: string
   username: string
   role: string
   created_at: string
+  must_change_password?: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string>('')
   const user = ref<AuthUser | null>(null)
   const jwtEnabled = ref<boolean | null>(null) // null = unknown (not checked yet)
+  const mustChangePassword = ref(false)
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
+  const canEdit = computed(() => user.value?.role === 'admin' || user.value?.role === 'editor')
+  const canAdmin = computed(() => user.value?.role === 'admin')
+  const needChangePassword = computed(() => mustChangePassword.value)
 
   /** Check if JWT auth is enabled on the backend */
   async function checkJwtStatus(): Promise<boolean> {
@@ -64,6 +70,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       token.value = data.access_token
       user.value = data.user
+      mustChangePassword.value = data.user.must_change_password || false
       jwtEnabled.value = true
       return { success: true }
     } catch {
@@ -78,9 +85,16 @@ export const useAuthStore = defineStore('auth', () => {
       const resp = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token.value}` },
       })
+      if (resp.status === 401) {
+        handleApiError(new ApiError('登录已过期，请重新登录', 'AUTH_FAILED', 401))
+        return false
+      }
+      if (resp.status === 403) {
+        handleApiError(new ApiError('权限不足', 'FORBIDDEN', 403))
+        return false
+      }
       if (!resp.ok) {
-        // Token invalid or expired
-        logout()
+        handleApiError(new ApiError(`请求失败 (${resp.status})`, 'API_ERROR', resp.status))
         return false
       }
       user.value = await resp.json()
@@ -107,8 +121,12 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     jwtEnabled,
+    mustChangePassword,
     isAuthenticated,
     isAdmin,
+    canEdit,
+    canAdmin,
+    needChangePassword,
     checkJwtStatus,
     login,
     fetchUser,
@@ -116,8 +134,9 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth,
   }
 }, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pinia-plugin-persistedstate pick type mismatch
   persist: {
     key: 'configforge_auth',
-    pick: ['token', 'user'],
-  },
+    pick: ['token', 'user', 'mustChangePassword'],
+  } as any,
 })

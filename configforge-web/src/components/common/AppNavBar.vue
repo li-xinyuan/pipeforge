@@ -18,7 +18,7 @@
       </button>
       <!-- User menu (only when JWT auth is enabled) -->
       <div v-if="auth.isAuthenticated" class="app-nav-bar__user">
-        <button class="app-nav-bar__user-btn" @click="showUserMenu = !showUserMenu" :aria-label="用户菜单">
+        <button class="app-nav-bar__user-btn" @click="showUserMenu = !showUserMenu" :aria-label="'用户菜单'">
           <span class="app-nav-bar__user-avatar">{{ auth.user?.username?.charAt(0).toUpperCase() }}</span>
           <span class="app-nav-bar__user-name">{{ auth.user?.username }}</span>
         </button>
@@ -33,6 +33,36 @@
         </Transition>
       </div>
     </div>
+    <!-- Mobile hamburger button (visible ≤767px) -->
+    <button class="app-nav-bar__hamburger" @click="showMobileDrawer = true" aria-label="打开导航菜单">
+      <span class="app-nav-bar__hamburger-icon" :class="{ 'app-nav-bar__hamburger-icon--open': showMobileDrawer }"></span>
+    </button>
+    <!-- Mobile drawer -->
+    <NDrawer v-model:show="showMobileDrawer" placement="left" :width="260" class="app-nav-bar__drawer">
+      <NDrawerContent :title="'ConfigForge'" closable>
+        <div class="app-nav-bar__drawer-links">
+          <router-link to="/" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'home' }" @click="showMobileDrawer = false">我的配置</router-link>
+          <router-link to="/templates" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'templates' }" @click="showMobileDrawer = false">模板市场</router-link>
+          <router-link to="/history" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'history' }" @click="showMobileDrawer = false">执行历史</router-link>
+          <router-link to="/schedules" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'schedules' }" @click="showMobileDrawer = false">定时任务</router-link>
+          <router-link to="/settings" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'settings' }" @click="showMobileDrawer = false">设置</router-link>
+        </div>
+        <div class="app-nav-bar__drawer-footer">
+          <button class="app-nav-bar__drawer-theme-btn" @click="toggleTheme">
+            {{ isDark ? '☀ 亮色模式' : '☾ 暗色模式' }}
+          </button>
+          <template v-if="auth.isAuthenticated">
+            <div class="app-nav-bar__drawer-user">
+              <span class="app-nav-bar__user-avatar">{{ auth.user?.username?.charAt(0).toUpperCase() }}</span>
+              <span class="app-nav-bar__drawer-user-name">{{ auth.user?.username }}</span>
+              <span class="app-nav-bar__user-role">{{ roleLabel }}</span>
+            </div>
+            <button v-if="auth.isAdmin" class="app-nav-bar__drawer-action" @click="showMobileDrawer = false; onOpenRegister()">注册新用户</button>
+            <button class="app-nav-bar__drawer-action app-nav-bar__drawer-action--danger" @click="showMobileDrawer = false; onLogout()">退出登录</button>
+          </template>
+        </div>
+      </NDrawerContent>
+    </NDrawer>
     <!-- Click-outside backdrop for user menu -->
     <Teleport to="body">
       <div v-if="showUserMenu" class="app-nav-bar__backdrop" @click="showUserMenu = false"></div>
@@ -78,6 +108,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { NDrawer, NDrawerContent } from 'naive-ui'
 import { useTheme } from '../../composables/useTheme'
 import { useAuthStore } from '../../stores/auth'
 
@@ -89,6 +120,7 @@ defineProps<{
 const { isDark, toggleTheme } = useTheme()
 const auth = useAuthStore()
 const showUserMenu = ref(false)
+const showMobileDrawer = ref(false)
 const showRegisterModal = ref(false)
 const registerLoading = ref(false)
 const registerError = ref('')
@@ -285,7 +317,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   height: 28px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-  color: #ffffff;
+  color: #fff;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
 }
@@ -491,7 +523,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   font-family: var(--font-family);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  color: #ffffff;
+  color: #fff;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   border: none;
   border-radius: var(--radius-md);
@@ -526,6 +558,168 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   transform: translateY(-4px) scale(0.97);
 }
 
+/* ───── Hamburger button (mobile only) ───── */
+.app-nav-bar__hamburger {
+  display: none;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0;
+  transition: all var(--transition-fast);
+  color: var(--color-text);
+}
+
+.app-nav-bar__hamburger:hover {
+  border-color: var(--color-primary-lighter);
+  background: var(--color-primary-bg);
+}
+
+.app-nav-bar__hamburger-icon {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--color-text);
+  position: relative;
+  transition: background var(--transition-fast);
+}
+
+.app-nav-bar__hamburger-icon::before,
+.app-nav-bar__hamburger-icon::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--color-text);
+  transition: transform var(--transition-fast);
+}
+
+.app-nav-bar__hamburger-icon::before {
+  top: -6px;
+}
+
+.app-nav-bar__hamburger-icon::after {
+  top: 6px;
+}
+
+.app-nav-bar__hamburger-icon--open {
+  background: transparent;
+}
+
+.app-nav-bar__hamburger-icon--open::before {
+  top: 0;
+  transform: rotate(45deg);
+}
+
+.app-nav-bar__hamburger-icon--open::after {
+  top: 0;
+  transform: rotate(-45deg);
+}
+
+/* ───── Mobile drawer ───── */
+.app-nav-bar__drawer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-nav-bar__drawer-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.app-nav-bar__drawer-link:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.app-nav-bar__drawer-link--active {
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.app-nav-bar__drawer-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-light);
+  margin-top: 16px;
+}
+
+.app-nav-bar__drawer-theme-btn {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: none;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.app-nav-bar__drawer-theme-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-bg);
+}
+
+.app-nav-bar__drawer-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+}
+
+.app-nav-bar__drawer-user-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.app-nav-bar__drawer-action {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.app-nav-bar__drawer-action:hover {
+  background: var(--color-surface-hover);
+}
+
+.app-nav-bar__drawer-action--danger:hover {
+  color: var(--color-error);
+}
+
 /* Mobile */
 @media (max-width: 767px) {
   .app-nav-bar {
@@ -534,11 +728,11 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   .app-nav-bar__name {
     display: none;
   }
-  .app-nav-bar__link {
-    font-size: var(--font-size-xs);
-  }
-  .app-nav-bar__user-name {
+  .app-nav-bar__right {
     display: none;
+  }
+  .app-nav-bar__hamburger {
+    display: flex;
   }
 }
 </style>
