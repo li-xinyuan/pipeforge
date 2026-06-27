@@ -15,7 +15,7 @@
       grid
       :model-value="store.output.config as unknown as Record<string, unknown>"
       :schema="dbOutputSchema"
-      :skip-fields="['columns', 'sourceTable', 'primaryKeyColumns']"
+      :skip-fields="['columns', 'sourceTable', 'primaryKeyColumns', 'connection_string']"
       @update:model-value="onSchemaUpdate"
     />
     <!-- Primary key columns (upsert only, reactive options from columns) -->
