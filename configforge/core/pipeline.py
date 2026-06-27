@@ -140,6 +140,16 @@ def _prepare_execution(state: WizardState, skip_output: bool = False):
     """
     exec_state = copy.deepcopy(state)
 
+    # 限制③第一阶段止血：json/xml/parquet/api 输入源仅支持预览，暂不可执行。
+    # ValueError 已在 _USER_ERRORS 中（execution_service.py:33），直接抛出即返回 422。
+    _SUPPORTED_EXEC_PLUGINS = {"excel", "csv", "database"}
+    for inp in exec_state.inputs:
+        if inp.plugin not in _SUPPORTED_EXEC_PLUGINS:
+            raise ValueError(
+                f"输入源 '{inp.plugin}' 当前仅支持预览，暂不可执行。"
+                f"支持的输入类型：excel / csv / database"
+            )
+
     if skip_output:
         exec_state.output = None  # dry-run skips output, avoid output validation errors
 

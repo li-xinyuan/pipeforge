@@ -1,4 +1,6 @@
-from configforge.core.pipeline import _has_ddl, generate, infer_output, init_scene
+import pytest
+
+from configforge.core.pipeline import _has_ddl, _prepare_execution, generate, infer_output, init_scene
 from configforge.models.wizard import (
     ColumnMappingItem,
     ExcelOutputConfig,
@@ -202,3 +204,60 @@ class TestCheckpoints:
         assert "row_count" in yaml_str
         assert "min" in yaml_str
         assert "block" in yaml_str
+
+
+class TestPrepareExecutionValidation:
+    """限制③第一阶段止血：json/xml/parquet/api 输入源执行前校验。
+
+    验证标准（v2.0 方案 3.4 第一阶段）：
+    - 执行含幽灵类型的 pipeline 返回 422 + 友好错误信息
+    - ValueError 已在 _USER_ERRORS 中，直接抛出即返回 422
+    """
+
+    @pytest.mark.parametrize("plugin,config", [
+        ("json", {"type": "json", "flatten_separator": "."}),
+        ("xml", {"type": "xml", "row_element": "item"}),
+        ("parquet", {"type": "parquet"}),
+        ("api", {"type": "api", "url": "http://example.com", "method": "GET"}),
+    ])
+    def test_preview_only_plugins_rejected(self, plugin, config):
+        """json/xml/parquet/api 输入源在 _prepare_execution 阶段被拒绝。"""
+        state = WizardState(
+            scene=SceneInfo(name="test_preview_only"),
+            inputs=[InputSource(
+                plugin=plugin,
+                table="t",
+                param_key="k",
+                config=config,
+            )],
+        )
+        with pytest.raises(ValueError, match="仅支持预览"):
+            _prepare_execution(state)
+
+    def test_supported_plugins_not_rejected_as_preview_only(self):
+        """excel/csv 输入源不会被'仅支持预览'校验拒绝。
+
+        校验通过后会继续执行后续步骤（可能因文件不存在等其他原因失败），
+        但不应抛出含'仅支持预览'的 ValueError。
+        """
+        for plugin, config in [
+            ("csv", {"type": "csv", "delimiter": ",", "encoding": "utf-8"}),
+            ("excel", {"type": "excel", "sheet": ""}),
+        ]:
+            state = WizardState(
+                scene=SceneInfo(name="test_supported"),
+                inputs=[InputSource(
+                    plugin=plugin,
+                    table="t",
+                    param_key="k",
+                    config=config,
+                )],
+            )
+            try:
+                _prepare_execution(state)
+            except ValueError as e:
+                # 不应因"仅支持预览"校验被拒绝
+                assert "仅支持预览" not in str(e), f"{plugin} 不应被预览校验拒绝: {e}"
+            except Exception:
+                # 其他错误（文件不存在、build_yaml 失败等）可接受
+                pass

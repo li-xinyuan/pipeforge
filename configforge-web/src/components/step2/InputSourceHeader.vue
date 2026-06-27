@@ -3,6 +3,7 @@
     <span class="text-lg">{{ pluginIcon }}</span>
     <span class="text-sm font-medium truncate flex-1">{{ input.table || '新输入源' }}</span>
     <NTag :type="pluginTagType" size="small">{{ pluginLabel }}</NTag>
+    <NTag v-if="isPreviewOnly" type="warning" size="small">仅预览</NTag>
     <NTag v-if="analyzing" type="warning" size="small">AI 分析中...</NTag>
     <NButton text type="error" size="tiny" class="ml-auto" @click="$emit('remove')">删除</NButton>
   </div>
@@ -37,4 +38,8 @@ const pluginTagTypeMap: Record<string, 'info' | 'warning' | 'success' | 'default
 const pluginIcon = computed(() => pluginIconMap[props.input.plugin] || '📄')
 const pluginLabel = computed(() => pluginLabelMap[props.input.plugin] || props.input.plugin)
 const pluginTagType = computed(() => pluginTagTypeMap[props.input.plugin] || 'default')
+
+// 限制③第一阶段止血：json/xml/parquet/api 输入源仅支持预览，不可执行
+const PREVIEW_ONLY_PLUGINS = ['json', 'xml', 'parquet', 'api']
+const isPreviewOnly = computed(() => PREVIEW_ONLY_PLUGINS.includes(props.input.plugin))
 </script>
