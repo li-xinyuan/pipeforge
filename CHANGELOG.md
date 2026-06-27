@@ -2,6 +2,37 @@
 
 All notable changes to ConfigForge / PipeForge will be documented in this file.
 
+## [v1.2.1] - 2026-06-27
+
+### E2E 全流程测试 + UI 优化
+
+通过模拟真实用户的端到端全流程测试（登录 → 向导 5 步 → 保存配置 → 首页操作 → 执行流水线），发现并修复 6 个 bug，优化多处 UI 布局。
+
+#### Bug 修复（6 个）
+
+1. **连接创建 camelCase/snake_case 字段名不匹配** — `ConnectionManager.vue` 的 `buildCreatePayload()` 添加 camelCase→snake_case 转换
+2. **连接列表显示 "(undefined)"** — `useConnectionApi.ts` 添加 `db_type`→`dbType` 归一化
+3. **Python/SQL schema 丢失 `x-ui-widget: code-editor`** — `models.py` 中 `SqlProcessorConfig.sql` 和 `PythonProcessorConfig.script` 重新声明 `json_schema_extra`（Pydantic v2 子类覆盖父类字段时需重新声明）
+4. **Step 4 源表不自动选择导致"下一步"禁用** — `OutputConfigTab.vue` 的 `syncSourceTable()` watch 添加 `immediate: true`
+5. **版本历史"当前版本"硬编码为 v0** — 前端绑定 `cfg.currentVersion`，`SavedConfig` 类型新增 `currentVersion` 字段
+6. **执行配置时 `file_id`/`fileId` 别名冲突导致 `extra_forbidden`** — 后端 `execute_config` 统一使用 alias `fileId`
+
+#### UI 优化
+
+- **版本号统一管理** — 移除 Step 1 版本号手动输入，由系统自动递增 `current_version`，首页和版本历史统一显示 `v1`/`v2`/`v3`
+- **输出配置字段布局修复** — `SchemaForm` 新增 `grid` prop 启用内部 2 列网格，CSV/Excel/Database 三种输出类型字段均匀分布
+- **Database 输出隐藏 `connection_string` 运行时字段** — 该字段由 pipeline 执行时根据 `connectionId` 自动填充，用户无需手动填写
+- **输入配置自动弹出文件选择框** — 选择 Excel/CSV/JSON/XML/Parquet 文件类型后自动触发文件选择对话框，与 Excel 输出模板上传行为一致
+- **启用 JSON/XML/Parquet 输入源** — 后端已注册这三个输入插件（基于 `ReaderBackedInputPlugin`，支持完整执行流程），移除前端过时的"仅预览"限制
+- **进度条位置优化** — 顶部 padding 24px→10px，与第一步卡片 10px 间距上下对称
+- **AI 助手面板间距** — GuidePanel 顶部和底部各留 10px 间距，与进度条对齐
+
+#### 测试覆盖
+
+- 登录/认证、主页导航、Wizard 5 步全流程、首页配置列表/下载/导出/执行/导入/版本历史/连接管理
+- 后端配置 API（list/save/update/delete/download/export/versions）全部通过
+- 前端 565 测试、后端 200 测试全部通过，无回归
+
 ## [v1.2.0] - 2026-06-26
 
 ### Phase 5E：架构演进
