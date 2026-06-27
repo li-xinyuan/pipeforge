@@ -91,7 +91,8 @@ class InputSpec(BaseModel):
 
 class SqlProcessorConfig(LooseSqlProcessorConfig):
     """限制②C：继承 loose 基类，sql 改为必填。"""
-    sql: str  # 必填（覆盖 loose 默认 ""）
+    # 必填（覆盖 loose 默认 ""）；json_schema_extra 需重新声明（Finding 2: 不合并继承）
+    sql: str = Field(json_schema_extra={"x-ui-widget": "code-editor"})
 
     @field_validator("sql")
     @classmethod
@@ -103,7 +104,8 @@ class SqlProcessorConfig(LooseSqlProcessorConfig):
 
 class PythonProcessorConfig(LoosePythonProcessorConfig):
     """限制②C：继承 loose 基类，script 改为必填。"""
-    script: str  # 必填（覆盖 loose 默认 ""）
+    # 必填（覆盖 loose 默认 ""）；json_schema_extra 需重新声明（Finding 2: 不合并继承）
+    script: str = Field(json_schema_extra={"x-ui-widget": "code-editor"})
 
     @field_validator("script")
     @classmethod

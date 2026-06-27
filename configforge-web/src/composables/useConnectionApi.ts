@@ -13,8 +13,9 @@ export function useConnectionApi() {
 
   async function fetchConnections(): Promise<DbConnectionSummary[]> {
     try {
-      const result = await requestOrThrow<DbConnectionSummary[]>('GET', '/api/connections')
-      return result || []
+      const result = await requestOrThrow<Record<string, unknown>[]>('GET', '/api/connections')
+      // Backend returns db_type (snake_case); normalize to dbType for frontend
+      return (result || []).map((c) => ({ ...c, dbType: c.dbType ?? c.db_type } as unknown as DbConnectionSummary))
     } catch (e) {
       if (e instanceof ApiError) handleApiError(e)
       return []
@@ -23,7 +24,9 @@ export function useConnectionApi() {
 
   async function createConnection(data: Record<string, unknown>): Promise<DbConnectionSummary | null> {
     try {
-      return await requestOrThrow<DbConnectionSummary>('POST', '/api/connections', data)
+      const result = await requestOrThrow<Record<string, unknown>>('POST', '/api/connections', data)
+      if (!result) return null
+      return { ...result, dbType: result.dbType ?? result.db_type } as unknown as DbConnectionSummary
     } catch (e) {
       if (e instanceof ApiError) handleApiError(e)
       return null
@@ -32,7 +35,9 @@ export function useConnectionApi() {
 
   async function updateConnection(id: string, data: Record<string, unknown>): Promise<DbConnectionSummary | null> {
     try {
-      return await requestOrThrow<DbConnectionSummary>('PUT', `/api/connections/${id}`, data)
+      const result = await requestOrThrow<Record<string, unknown>>('PUT', `/api/connections/${id}`, data)
+      if (!result) return null
+      return { ...result, dbType: result.dbType ?? result.db_type } as unknown as DbConnectionSummary
     } catch (e) {
       if (e instanceof ApiError) handleApiError(e)
       return null

@@ -187,6 +187,24 @@ function cancelEdit() {
   showForm.value = false
 }
 
+// Build create payload with snake_case keys matching backend CreateConnectionRequest
+function buildCreatePayload(): Record<string, unknown> {
+  const data: Record<string, unknown> = {
+    name: form.name,
+    db_type: form.dbType,
+  }
+  if (form.dbType === 'sqlite') {
+    data.file_path = form.filePath
+  } else {
+    data.host = form.host
+    data.port = form.port
+    data.database = form.database
+    data.username = form.username
+    data.password = form.password
+  }
+  return data
+}
+
 async function onSave() {
   saving.value = true
   errorMsg.value = null
@@ -211,7 +229,7 @@ async function onSave() {
       errorMsg.value = api.connectionError.value || '更新失败'
     }
   } else {
-    const result = await api.createConnection({ ...form })
+    const result = await api.createConnection(buildCreatePayload())
     if (result) {
       message.success('连接已保存')
       Object.assign(form, emptyForm())
@@ -227,7 +245,7 @@ async function onSave() {
 async function onSaveAndTest() {
   saving.value = true
   errorMsg.value = null
-  const result = await api.createConnection({ ...form })
+  const result = await api.createConnection(buildCreatePayload())
   if (!result) {
     errorMsg.value = api.connectionError.value || '保存失败'
     saving.value = false
