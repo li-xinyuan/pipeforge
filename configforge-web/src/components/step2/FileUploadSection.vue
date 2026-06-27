@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { InputSource, ExcelInputConfig } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
@@ -78,6 +78,17 @@ const fileAcceptHintMap: Record<string, string> = {
 
 const fileAcceptAttr = computed(() => fileAcceptMap[props.input.plugin] || '')
 const fileAcceptHint = computed(() => fileAcceptHintMap[props.input.plugin] || '')
+
+// 自动弹出文件选择框（与输出配置 Excel 模板自动弹出行为一致）
+onMounted(() => {
+  if (props.input.fileId) return
+  setTimeout(() => {
+    const el = (uploadRef.value as { $el?: HTMLElement } | undefined)?.$el
+    if (!el) return
+    const fileInput = el.querySelector('input[type="file"]') as HTMLInputElement | null
+    fileInput?.click()
+  }, 200)
+})
 
 const analyzing = computed(() => false) // placeholder; parent controls analyzing state
 
