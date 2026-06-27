@@ -117,6 +117,7 @@ jobs:
           docker run -d --name configforge-ci -p 8000:8000 \
             -e CONFIGFORGE_JWT_SECRET=ci-test-secret-key-at-least-32-chars-long \
             -e CONFIGFORGE_ENCRYPTION_KEY=ci-test-encryption-key-32-chars \
+            -e CORS_ORIGINS=http://localhost \
             configforge:ci
           sleep 5
           for i in $(seq 1 10); do
