@@ -23,7 +23,6 @@ from configforge.models.wizard import (
     SaveConfigResponse,
     WizardState,
 )
-from configforge.storage import get_audit_store
 from configforge.services.execution_service import (
     ExecutionContext,
 )
@@ -31,6 +30,7 @@ from configforge.services.execution_service import (
     execute as execute_service,
 )
 from configforge.services.yaml_builder import build_yaml
+from configforge.storage import get_audit_store
 from configforge.utils.file_lock import read_json_locked, write_json_locked
 from configforge.utils.migration import ensure_schema_version
 from configforge.utils.security import validate_id
@@ -48,7 +48,8 @@ def _validate_config_id(config_id: str) -> str:
 
 
 # Storage layer extracted to services/config_store.py (T-5E-01)
-from configforge.services.config_store import (
+# Re-exported for backward compat (tests monkeypatch configs_mod.INDEX_PATH etc.)
+from configforge.services.config_store import (  # noqa: F401
     CONFIGS_DIR,
     INDEX_PATH,
     INDEX_SCHEMA_VERSION,
@@ -546,7 +547,7 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest, _user: User 
 
 
 # Version management helpers extracted to services/config_store.py (T-5E-01)
-from configforge.services.config_store import _read_version_state, _list_version_files
+from configforge.services.config_store import _list_version_files, _read_version_state
 
 
 def _deep_diff(old: any, new: any, path: str, result: dict) -> None:

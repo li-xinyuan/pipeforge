@@ -10,6 +10,7 @@ T-5E-03 起，通用 SQL schema 实现已迁移至 `configforge.storage.sql_sche
 from __future__ import annotations
 
 from configforge.storage.sql_schema import (
+    audit_log_table,
     connections_table,
     drop_all,
     get_database_url,
@@ -22,7 +23,6 @@ from configforge.storage.sql_schema import (
     settings_table,
     templates_table,
     users_table,
-    audit_log_table,
 )
 
 __all__ = [

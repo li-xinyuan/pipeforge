@@ -2,7 +2,6 @@ import yaml
 
 from configforge.models.wizard import WizardState
 
-
 # configforge DatabaseInputConfig 专有字段（pipeforge DbInputConfig 不识别，extra="forbid"）
 _DB_INPUT_EXCLUDE = {"connection_id", "query_type"}
 

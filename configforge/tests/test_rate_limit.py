@@ -1,5 +1,6 @@
 """Tests for the RateLimiter utility."""
 
+import contextlib
 import json
 import os
 import time
@@ -170,10 +171,8 @@ def sql_limiter_env(tmp_path, monkeypatch):
     for suffix in ("", "-wal", "-shm"):
         p = db_path + suffix
         if os.path.exists(p):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(p)
-            except OSError:
-                pass
 
 
 class TestSqlBackend:

@@ -155,8 +155,8 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
     logger.info("Scheduled job fired: schedule=%s config=%s remaining_retries=%d", schedule_id, config_id, remaining_retries)
 
     # Import here to avoid circular imports at module level
-    from configforge.services.config_store import CONFIGS_DIR
     from configforge.models.wizard import WizardState
+    from configforge.services.config_store import CONFIGS_DIR
     from configforge.services.execution_service import ExecutionContext
     from configforge.services.execution_service import execute as execute_service
 
@@ -427,8 +427,9 @@ def start_scheduler() -> None:
 
     # Add daily backup job at 2:00 AM
     try:
-        from configforge.utils.backup import create_backup, save_backup_to_disk
         import logging as _logging
+
+        from configforge.utils.backup import create_backup, save_backup_to_disk
 
         _backup_logger = _logging.getLogger("configforge.backup")
 

@@ -6,10 +6,8 @@ Supports scheduled backups with retention policy.
 
 import io
 import os
-import shutil
 import zipfile
 from datetime import datetime
-from pathlib import Path
 
 from configforge.utils.paths import get_configs_dir, get_data_dir
 

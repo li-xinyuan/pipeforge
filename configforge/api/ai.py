@@ -205,7 +205,6 @@ def _rule_based_checkpoint_suggestions(columns: list[dict]) -> list[dict]:
     for col in columns:
         name = (col.get("name") or "").lower()
         col_type = (col.get("type") or "").lower()
-        sample_values = col.get("sample_values", [])
 
         # Email column → suggest regex/uniqueness check
         if "email" in name or "mail" in name:

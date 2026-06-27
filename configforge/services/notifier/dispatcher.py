@@ -141,9 +141,8 @@ async def dispatch_notifications(execution_result: dict) -> None:
             continue
 
         # If config_ids is set, only trigger for matching pipeline config IDs
-        if config.config_ids is not None:
-            if pipeline_config_id and pipeline_config_id not in config.config_ids:
-                continue
+        if config.config_ids is not None and pipeline_config_id and pipeline_config_id not in config.config_ids:
+            continue
 
         # Frequency control: skip if within cooldown
         if _is_within_cooldown(config.id, pipeline_config_id, context.status):

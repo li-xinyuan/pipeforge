@@ -48,7 +48,7 @@ def postgres_engine():
     测试开始前 DROP 所有表，测试结束后 DROP 所有表。
     避免与生产数据冲突。
     """
-    from configforge.storage.sql_schema import get_engine, metadata, init_schema
+    from configforge.storage.sql_schema import get_engine, init_schema, metadata
 
     # 保存原始环境变量，确保模块结束后恢复（避免污染其他测试模块）
     orig_backend = os.environ.get("CONFIGFORGE_STORAGE_BACKEND")
@@ -110,6 +110,8 @@ def postgres_engine():
 @pytest.fixture(autouse=True)
 def clear_tables(postgres_engine):
     """每个测试前清空所有表数据（不 DROP，只 DELETE）。"""
+    from sqlalchemy import delete
+
     from configforge.storage.sql_schema import (
         audit_log_table,
         connections_table,
@@ -118,7 +120,6 @@ def clear_tables(postgres_engine):
         templates_table,
         users_table,
     )
-    from sqlalchemy import delete
 
     with postgres_engine.begin() as conn:
         # Disable FK checks, delete all, re-enable
@@ -248,9 +249,10 @@ class TestPostgresConnectionStore:
 
     def test_password_is_encrypted_in_db(self, postgres_env):
         """明文密码不应直接存入数据库，应 Fernet 加密。"""
+        from sqlalchemy import select
+
         from configforge.storage.sql_backend import SqliteConnectionStore
         from configforge.storage.sql_schema import connections_table, get_engine
-        from sqlalchemy import select
 
         store = SqliteConnectionStore()
         store.create({
@@ -532,8 +534,8 @@ class TestPostgresSettingsStore:
     """PostgreSQL SettingsStore CRUD + 加密。"""
 
     def test_smtp_settings_save_and_load(self, postgres_env):
-        from configforge.storage.sql_backend import SqliteSettingsStore
         from configforge.services.notifier.smtp_settings import SmtpSettings
+        from configforge.storage.sql_backend import SqliteSettingsStore
         store = SqliteSettingsStore(kind="smtp")
 
         # Default when empty
@@ -556,8 +558,8 @@ class TestPostgresSettingsStore:
         assert loaded.password == "smtp-secret"  # Decrypted
 
     def test_ai_settings_save_and_load(self, postgres_env):
-        from configforge.storage.sql_backend import SqliteSettingsStore
         from configforge.models.ai import AiSettings
+        from configforge.storage.sql_backend import SqliteSettingsStore
         store = SqliteSettingsStore(kind="ai")
 
         settings = AiSettings(
@@ -574,11 +576,13 @@ class TestPostgresSettingsStore:
 
     def test_password_is_encrypted_in_db(self, postgres_env):
         """SMTP 密码在数据库中应 Fernet 加密。"""
-        from configforge.storage.sql_backend import SqliteSettingsStore
-        from configforge.storage.sql_schema import settings_table, get_engine
-        from configforge.services.notifier.smtp_settings import SmtpSettings
-        from sqlalchemy import select
         import json
+
+        from sqlalchemy import select
+
+        from configforge.services.notifier.smtp_settings import SmtpSettings
+        from configforge.storage.sql_backend import SqliteSettingsStore
+        from configforge.storage.sql_schema import get_engine, settings_table
 
         store = SqliteSettingsStore(kind="smtp")
         store.save_settings(SmtpSettings(

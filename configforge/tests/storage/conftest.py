@@ -6,8 +6,8 @@
 """
 from __future__ import annotations
 
+import contextlib
 import os
-import shutil
 from collections.abc import Iterator
 
 import pytest
@@ -59,10 +59,8 @@ def sqlite_env(tmp_path: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[
     for suffix in ("", "-wal", "-shm"):
         p = db_path + suffix
         if os.path.exists(p):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(p)
-            except OSError:
-                pass
 
 
 @pytest.fixture

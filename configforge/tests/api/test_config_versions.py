@@ -4,8 +4,8 @@ import os
 
 from fastapi.testclient import TestClient
 
-from configforge.services.config_store import CONFIGS_DIR
 from configforge.server import app
+from configforge.services.config_store import CONFIGS_DIR
 
 client = TestClient(app)
 

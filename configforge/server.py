@@ -302,8 +302,9 @@ async def health():
 
 @app.get("/api/metrics", summary="Prometheus 指标", description="返回 Prometheus 格式的监控指标数据，包括 HTTP 请求计数、请求延迟、Pipeline 执行统计等。可用于集成 Prometheus + Grafana 监控系统。", tags=["系统"])
 async def metrics():
-    from configforge.utils.metrics import get_metrics, get_metrics_content_type
     from fastapi import Response
+
+    from configforge.utils.metrics import get_metrics, get_metrics_content_type
     return Response(content=get_metrics(), media_type=get_metrics_content_type())
 
 

@@ -50,10 +50,6 @@ async def get_storage_backend_info(_user: User = Depends(require_role("admin")))
     """返回当前存储后端的只读信息。"""
     backend = os.environ.get("CONFIGFORGE_STORAGE_BACKEND", "json").lower()
     database_url = os.environ.get("CONFIGFORGE_DATABASE_URL", "")
-    sqlite_path = os.environ.get("CONFIGFORGE_SQLITE_PATH", "")
-
-    # 判断实际使用的 URL（与 sql_schema.get_database_url 逻辑一致）
-    actual_url = database_url if database_url else f"sqlite:///{sqlite_path or '<data_dir>/configforge.db'}"
 
     # 获取引擎方言和表信息
     dialect = None

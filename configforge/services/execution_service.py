@@ -24,7 +24,7 @@ from configforge.core.pipeline import PipelineTimeoutError, _prepare_execution, 
 from configforge.models.wizard import ExecutionRecord, WizardState
 from configforge.services.ai.auto_diagnose import auto_diagnose
 from configforge.services.notifier.dispatcher import dispatch_notifications_async
-from configforge.utils.metrics import record_pipeline_execution, active_connections, configs_total
+from configforge.utils.metrics import active_connections, record_pipeline_execution
 from configforge.utils.security import sanitize_connection_string
 from pipeforge.config.exceptions import CheckpointError
 

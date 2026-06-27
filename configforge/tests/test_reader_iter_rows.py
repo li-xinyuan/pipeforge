@@ -10,14 +10,11 @@
 4. 全量数据正确（与 read_xxx_info 的 columns 一致）
 """
 import json
-import tempfile
 from pathlib import Path
 
-import pytest
-
 from configforge.services.json_reader import iter_json_rows
-from configforge.services.xml_reader import iter_xml_rows
 from configforge.services.parquet_reader import iter_parquet_rows
+from configforge.services.xml_reader import iter_xml_rows
 
 
 # ---------------------------------------------------------------------------

@@ -46,8 +46,9 @@ async def create_backup_api(_user: User = Depends(require_role("admin"))):
 
 @router.get("/download/{filename}", summary="下载备份", description="下载指定的备份文件。")
 async def download_backup_api(filename: str, _user: User = Depends(require_role("admin"))):
-    from configforge.utils.backup import _get_backup_dir
     import os
+
+    from configforge.utils.backup import _get_backup_dir
 
     # Validate filename to prevent path traversal
     if "/" in filename or "\\" in filename or ".." in filename:

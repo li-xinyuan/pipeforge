@@ -27,7 +27,6 @@ from configforge.services.notifier.formatters import (
 )
 from configforge.services.notifier.webhook import WebhookNotifier
 
-
 # ---------------------------------------------------------------------------
 # TestBuildNotifyContextEnhanced
 # ---------------------------------------------------------------------------

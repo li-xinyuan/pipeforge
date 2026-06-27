@@ -34,7 +34,6 @@ from typing import Literal
 import pytest
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-
 # ---------------------------------------------------------------------------
 # spike 模型：模拟未来 models_loose.py 的设计
 # ---------------------------------------------------------------------------

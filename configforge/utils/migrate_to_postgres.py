@@ -311,7 +311,7 @@ def main():
     if not args.dry_run:
         print()
         print("To use PostgreSQL backend, set:")
-        print(f'  CONFIGFORGE_STORAGE_BACKEND=postgresql')
+        print('  CONFIGFORGE_STORAGE_BACKEND=postgresql')
         print(f'  CONFIGFORGE_DATABASE_URL="{database_url}"')
         print()
         print("Note: Pipeline configs (configs/) are NOT migrated — they remain in JSON.")

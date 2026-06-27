@@ -30,6 +30,8 @@ from sqlalchemy import delete, func, insert, select, update
 from configforge.services.connection_store import ConnectionStore
 from configforge.services.user_store import (
     _hash_password as _hash_pw,
+)
+from configforge.services.user_store import (
     _verify_password as _verify_pw,
 )
 from configforge.storage.sql_schema import (
@@ -551,9 +553,8 @@ class SqliteAuditStore:
                 "details": _json_loads(row.get("details", "{}"), {}),
             }
             # User filter (applied after load since it checks both target_id and details.user)
-            if user:
-                if entry["target_id"] != user and entry["details"].get("user") != user:
-                    continue
+            if user and entry["target_id"] != user and entry["details"].get("user") != user:
+                continue
             entries.append(entry)
 
         # Reverse to chronological order (oldest first, matching JSON backend)

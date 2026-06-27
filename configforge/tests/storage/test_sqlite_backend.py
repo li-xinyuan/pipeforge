@@ -6,9 +6,9 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
-from unittest.mock import MagicMock
 
 from configforge.storage.sqlite_backend import (
     SqliteAuditStore,
@@ -19,15 +19,11 @@ from configforge.storage.sqlite_backend import (
     SqliteUserStore,
 )
 from configforge.storage.sqlite_schema import (
-    audit_log_table,
     connections_table,
     get_engine,
-    schedules_table,
     settings_table,
-    templates_table,
     users_table,
 )
-
 
 # ---------------------------------------------------------------------------
 # SqliteConnectionStore
@@ -525,7 +521,7 @@ class TestSqliteSettingsStore:
         assert len(raw["password"]) > 50  # Fernet ciphertext
 
     def test_save_and_load_ai_settings_round_trip(self, sqlite_env):
-        from configforge.models.ai import AiSettings, AiProvider
+        from configforge.models.ai import AiProvider, AiSettings
 
         store = SqliteSettingsStore(kind="ai")
         original = AiSettings(
@@ -548,7 +544,7 @@ class TestSqliteSettingsStore:
         assert loaded.enabled is True
 
     def test_ai_api_key_is_encrypted_in_db(self, sqlite_env):
-        from configforge.models.ai import AiSettings, AiProvider
+        from configforge.models.ai import AiProvider, AiSettings
 
         store = SqliteSettingsStore(kind="ai")
         store.save_settings(AiSettings(

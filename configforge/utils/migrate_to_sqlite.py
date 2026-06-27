@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 from typing import Any
 
 from sqlalchemy import insert, select
@@ -33,7 +32,6 @@ from configforge.storage.sqlite_schema import (
     get_engine,
     get_sqlite_path,
     init_schema,
-    metadata,
     schedules_table,
     settings_table,
     templates_table,
@@ -288,7 +286,7 @@ def main():
         get_engine.cache_clear()
 
     db_path = get_sqlite_path()
-    print(f"=== JSON → SQLite Migration (T-5E-02) ===")
+    print("=== JSON → SQLite Migration (T-5E-02) ===")
     print(f"SQLite database: {db_path}")
     print(f"Mode: {'dry-run' if args.dry_run else 'write'}")
     print()
@@ -344,13 +342,13 @@ def main():
     print(f"  migrated: {m}, skipped: {s}")
 
     print()
-    print(f"=== Migration Summary ===")
+    print("=== Migration Summary ===")
     print(f"Total migrated: {total_migrated}")
     print(f"Total skipped:  {total_skipped}")
     if not args.dry_run:
         print()
         print("To use SQLite backend, set:")
-        print(f"  CONFIGFORGE_STORAGE_BACKEND=sqlite")
+        print("  CONFIGFORGE_STORAGE_BACKEND=sqlite")
         print(f"  CONFIGFORGE_SQLITE_PATH={db_path}")
         print()
         print("Note: Pipeline configs (configs/) are NOT migrated — they remain in JSON.")

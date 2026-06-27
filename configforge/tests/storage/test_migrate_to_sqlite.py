@@ -13,8 +13,6 @@ from __future__ import annotations
 import json
 import os
 
-import pytest
-
 from configforge.storage.sqlite_schema import (
     audit_log_table,
     connections_table,
@@ -225,7 +223,7 @@ class TestMigrateSettings:
     def test_migrate_smtp_settings(self, sqlite_env):
         data_dir = sqlite_env["data_dir"]
         cipher = get_cipher()
-        encrypted_pwd = cipher.encrypt("smtp-pwd".encode()).decode()
+        encrypted_pwd = cipher.encrypt(b"smtp-pwd").decode()
         settings_data = {
             "host": "smtp.test.com", "port": 587, "user": "u",
             "password": encrypted_pwd, "use_tls": True, "sender": "s@x.com",
@@ -306,8 +304,12 @@ class TestMigrateEmptyData:
     def test_migrate_with_no_json_files(self, sqlite_env):
         """没有 JSON 文件时应正常完成（迁移 0 条）。"""
         from configforge.utils.migrate_to_sqlite import (
-            migrate_connections, migrate_templates, migrate_users,
-            migrate_schedules, migrate_audit_log, migrate_settings,
+            migrate_audit_log,
+            migrate_connections,
+            migrate_schedules,
+            migrate_settings,
+            migrate_templates,
+            migrate_users,
         )
         assert migrate_connections(dry_run=False) == (0, 0)
         assert migrate_templates(dry_run=False) == (0, 0)

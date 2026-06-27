@@ -4,8 +4,8 @@
 本模块 re-export 所有公共接口，保持 configforge.services.json_reader 的向后兼容。
 """
 from pipeforge.readers.json import (
-    MAX_JSON_ROWS,
     _HAS_IJSON,
+    MAX_JSON_ROWS,
     _flatten,
     iter_json_rows,
     read_json_info,
