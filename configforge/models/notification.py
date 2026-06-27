@@ -103,6 +103,7 @@ class NotificationHistoryEntry(BaseModel):
     config_name: str  # notification config name
     execution_id: str
     pipeline_config_name: str
+    pipeline_config_id: str = ""  # pipeline config id (for cross-worker cooldown)
     status: str  # success / failed
     notify_success: bool
     provider: str

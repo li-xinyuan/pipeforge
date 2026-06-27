@@ -16,6 +16,13 @@ from configforge.models.ai import (
 from configforge.models.user import User
 from configforge.services.ai.factory import create_backend
 from configforge.services.ai.orchestrator import build_prompt, parse_response
+from configforge.services.ai.rules import (
+    checkpoint_suggestions,
+    mapping_suggestions,
+)
+from configforge.services.ai.rules import (
+    optimize_suggestions as _optimize_suggestions_rules,
+)
 from configforge.services.ai.settings import mask_key
 from configforge.storage import get_settings_store
 from configforge.utils.rate_limit import RateLimiter
@@ -197,71 +204,8 @@ async def get_settings(_user: User = Depends(require_role("admin"))):
 
 
 def _rule_based_checkpoint_suggestions(columns: list[dict]) -> list[dict]:
-    """Rule-based checkpoint suggestions using column metadata heuristics.
-
-    Falls back when AI is not configured. Returns a list of CheckRule dicts.
-    """
-    suggestions: list[dict] = []
-    for col in columns:
-        name = (col.get("name") or "").lower()
-        col_type = (col.get("type") or "").lower()
-
-        # Email column → suggest regex/uniqueness check
-        if "email" in name or "mail" in name:
-            suggestions.append({
-                "type": "custom_sql",
-                "sql": f"SELECT COUNT(*) as cnt FROM {{{{table}}}} WHERE {col.get('name')} NOT LIKE '%@%'",
-                "result_column": "cnt",
-                "comparison": "==",
-                "expected_value": 0,
-                "on_failure": "warn",
-                "description": f"邮箱格式检查（{col.get('name')}）",
-            })
-
-        # Numeric column → suggest range check
-        if col_type in ("int", "integer", "float", "double", "decimal", "number"):
-            suggestions.append({
-                "type": "value_range",
-                "table": "{{table}}",
-                "column": col.get("name"),
-                "min_value": None,
-                "max_value": None,
-                "on_failure": "warn",
-                "description": f"数值范围检查（{col.get('name')}）",
-            })
-
-        # ID column → suggest uniqueness check
-        if "id" in name or name.endswith("_id") or name == "id":
-            suggestions.append({
-                "type": "uniqueness",
-                "table": "{{table}}",
-                "column": col.get("name"),
-                "on_failure": "block",
-                "description": f"唯一性检查（{col.get('name')}）",
-            })
-
-        # Date column → suggest not-null check
-        if "date" in name or "time" in name or col_type in ("date", "datetime", "timestamp"):
-            suggestions.append({
-                "type": "null_rate",
-                "table": "{{table}}",
-                "column": col.get("name"),
-                "max_null_rate": 0.0,
-                "on_failure": "warn",
-                "description": f"日期非空检查（{col.get('name')}）",
-            })
-
-    # Always suggest a row_count check as a baseline
-    suggestions.append({
-        "type": "row_count",
-        "table": "{{table}}",
-        "min": 1,
-        "max": None,
-        "on_failure": "warn",
-        "description": "行数检查（确保至少 1 行数据）",
-    })
-
-    return suggestions
+    """Deprecated alias for checkpoint_suggestions (kept for backward compat)."""
+    return checkpoint_suggestions(columns)
 
 
 @router.post("/suggest-checkpoint", summary="AI 推荐检查规则", description="根据数据列特征智能推荐数据检查规则。如检测到 email 列推荐格式检查，检测到数值列推荐范围检查。AI 未配置时使用规则引擎兜底。")
@@ -341,114 +285,8 @@ async def suggest_checkpoint(request: Request, _user: User = Depends(require_rol
 
 
 def _rule_based_mapping_suggestions(source_columns: list[str], target_columns: list[str]) -> list[dict]:
-    """Rule-based column mapping using name matching heuristics.
-
-    Returns list of {source, target, confidence, reason} dicts.
-    """
-    # Common synonyms/abbreviations (CN-EN, abbreviations)
-    SYNONYMS = {
-        "name": ["名称", "名字", "姓名", "nm"],
-        "id": ["编号", "标识", "identifier"],
-        "email": ["邮箱", "电子邮件", "mail", "e-mail"],
-        "phone": ["电话", "手机", "mobile", "tel", "telephone"],
-        "address": ["地址", "addr"],
-        "age": ["年龄", "岁数"],
-        "gender": ["性别", "sex"],
-        "date": ["日期", "时间", "time", "created_at", "updated_at"],
-        "amount": ["金额", "数量", "money", "price", "total"],
-        "status": ["状态", "state"],
-        "type": ["类型", "category", "kind"],
-        "city": ["城市", "town"],
-        "country": ["国家", "nation"],
-        "company": ["公司", "企业", "org", "organization"],
-        "description": ["描述", "说明", "desc", "remark", "备注"],
-    }
-
-    # Build reverse lookup: synonym → canonical
-    synonym_to_canonical = {}
-    for canonical, syns in SYNONYMS.items():
-        for syn in syns:
-            synonym_to_canonical[syn.lower()] = canonical
-        synonym_to_canonical[canonical] = canonical
-
-    def _normalize(s: str) -> str:
-        """Normalize column name: lowercase, remove underscores/spacing."""
-        return s.lower().replace("_", "").replace("-", "").replace(" ", "").strip()
-
-    suggestions: list[dict] = []
-    used_targets: set[str] = set()
-
-    # First pass: exact matches and synonym matches
-    for src in source_columns:
-        src_norm = _normalize(src)
-        src_canonical = synonym_to_canonical.get(src_norm, src_norm)
-
-        best_target = None
-        best_confidence = 0.0
-        best_reason = ""
-
-        for tgt in target_columns:
-            if tgt in used_targets:
-                continue
-            tgt_norm = _normalize(tgt)
-            tgt_canonical = synonym_to_canonical.get(tgt_norm, tgt_norm)
-
-            if src_norm == tgt_norm:
-                best_target = tgt
-                best_confidence = 1.0
-                best_reason = "名称完全匹配"
-                break
-            elif src_canonical == tgt_canonical and (
-                src_canonical != src_norm or tgt_canonical != tgt_norm
-            ):
-                # At least one side is a non-canonical synonym → synonym match
-                best_target = tgt
-                best_confidence = 0.9
-                best_reason = "同义词匹配"
-                break
-            elif src_canonical == tgt_canonical:
-                best_target = tgt
-                best_confidence = 0.85
-                best_reason = "规范化后匹配"
-
-        if best_target:
-            suggestions.append({
-                "source": src,
-                "target": best_target,
-                "confidence": best_confidence,
-                "reason": best_reason,
-            })
-            used_targets.add(best_target)
-
-    # Second pass: fuzzy substring matching for unmatched sources
-    for src in source_columns:
-        if any(s["source"] == src for s in suggestions):
-            continue
-        src_norm = _normalize(src)
-
-        best_target = None
-        best_confidence = 0.0
-        for tgt in target_columns:
-            if tgt in used_targets:
-                continue
-            tgt_norm = _normalize(tgt)
-            # Substring match
-            if src_norm and tgt_norm and (src_norm in tgt_norm or tgt_norm in src_norm):
-                confidence = 0.6
-                if confidence > best_confidence:
-                    best_target = tgt
-                    best_confidence = confidence
-
-        if best_target:
-            suggestions.append({
-                "source": src,
-                "target": best_target,
-                "confidence": best_confidence,
-                "reason": "子串匹配",
-            })
-            used_targets.add(best_target)
-
-    return suggestions
+    """Deprecated alias for mapping_suggestions (kept for backward compat)."""
+    return mapping_suggestions(source_columns, target_columns)
 
 
 @router.post("/suggest-mapping", summary="AI 智能列映射", description="根据源列和目标列名称智能匹配，支持同义词、缩写、中英文对照。AI 未配置时使用规则引擎兜底。")
@@ -584,47 +422,7 @@ async def optimize_suggestions(request: Request, _user: User = Depends(require_r
                 await backend.close()
 
     # Fallback: rule-based optimization suggestions
-    suggestions: list[dict] = []
-    processors = state.get("processors", [])
-    has_checkpoints = any(p.get("plugin") == "check" for p in processors)
-    has_dedup = any(p.get("plugin") == "dedup" for p in processors)
-
-    if not has_checkpoints:
-        suggestions.append({
-            "category": "数据质量",
-            "suggestion": "建议添加数据检查点（CheckPoint），在关键步骤后验证数据完整性",
-            "priority": "high",
-        })
-
-    if not has_dedup:
-        suggestions.append({
-            "category": "数据质量",
-            "suggestion": "建议添加去重步骤，避免数据重复导致分析结果偏差",
-            "priority": "medium",
-        })
-
-    if len(processors) == 0:
-        suggestions.append({
-            "category": "数据处理",
-            "suggestion": "当前配置没有数据处理步骤，建议添加必要的转换或过滤处理器",
-            "priority": "medium",
-        })
-
-    if len(processors) > 5:
-        suggestions.append({
-            "category": "性能优化",
-            "suggestion": "处理步骤较多，建议考虑合并相似步骤或拆分为多个 Pipeline",
-            "priority": "low",
-        })
-
-    if not suggestions:
-        suggestions.append({
-            "category": "总体评价",
-            "suggestion": "配置结构合理，暂无关键优化建议",
-            "priority": "low",
-        })
-
-    return {"suggestions": suggestions, "source": "rules"}
+    return {"suggestions": _optimize_suggestions_rules(state), "source": "rules"}
 
 
 @router.put("/settings", summary="更新 AI 设置", description="更新 AI 服务配置，包括提供商、API Key、模型名称等。支持部分更新，未提供的字段保持不变。")

@@ -2,7 +2,6 @@
 
 import asyncio
 import contextlib
-import json
 import logging
 import os
 import uuid
@@ -156,22 +155,20 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
 
     # Import here to avoid circular imports at module level
     from configforge.models.wizard import WizardState
-    from configforge.services.config_store import CONFIGS_DIR
     from configforge.services.execution_service import ExecutionContext
     from configforge.services.execution_service import execute as execute_service
+    from configforge.storage import get_config_store
 
-    state_path = os.path.join(CONFIGS_DIR, f"{config_id}.state.json")
-    if not os.path.exists(state_path):
+    config_store = get_config_store()
+    state_dict = config_store.get_config(config_id)
+    if state_dict is None:
         logger.error("Config state not found for scheduled execution: %s", config_id)
         _update_schedule_last_run(schedule_id, "failed")
         _handle_retry(schedule_id, config_id, remaining_retries)
         return
 
-    with open(state_path, encoding="utf-8") as f:
-        state_dict = json.load(f)
-
-    # Migrate old format
-    state_dict = ensure_schema_version(state_dict, state_path)
+    # Migrate old format (file_path 仅用于 logging)
+    state_dict = ensure_schema_version(state_dict, f"{config_id}.state.json")
 
     # Remove internal fields that are not part of WizardState schema
     state_dict.pop("_saved_at", None)
@@ -215,8 +212,7 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
         return
 
     # Get config metadata for execution record
-    from configforge.services.config_store import load_index
-    index = load_index()
+    index = config_store.list_configs("")
     entry = next((e for e in index if e.get("id") == config_id), None)
     config_version = entry.get("current_version") if entry else None
 

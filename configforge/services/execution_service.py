@@ -65,20 +65,78 @@ class ExecutionResult:
     diagnosis: dict | None = None
 
 
-def _build_context_from_state(state: WizardState) -> ExecutionContext:
-    """Build an ExecutionContext from a WizardState, extracting summaries."""
-    return ExecutionContext(
-        scene_name=state.scene.name or "",
-        inputs_summary=[
+def _auto_fill_context(state: WizardState, context: ExecutionContext) -> None:
+    """Auto-fill missing ExecutionContext fields from state (mutates in place).
+
+    Shared by execute() and execute_with_progress() to avoid duplicated setup.
+    """
+    if not context.scene_name:
+        context.scene_name = state.scene.name or ""
+    if not context.inputs_summary:
+        context.inputs_summary = [
             {"name": inp.name, "plugin": inp.plugin, "param_key": inp.param_key}
             for inp in state.inputs
-        ],
-        processors_summary=[
+        ]
+    if not context.processors_summary:
+        context.processors_summary = [
             {"name": p.name, "plugin": p.plugin}
             for p in state.processors
-        ],
-        output_type=state.output.plugin if state.output else "",
+        ]
+    if not context.output_type:
+        context.output_type = state.output.plugin if state.output else ""
+
+
+async def _handle_execution_failure(
+    exc: BaseException,
+    exec_id: str,
+    started_at: str,
+    context: ExecutionContext,
+    *,
+    sanitize_errors: bool,
+    on_failed: Callable[[], None] | None = None,
+    log_label: str = "Pipeline execution failed",
+) -> ExecutionResult:
+    """Classify an exception, record the failed execution, and return the result.
+
+    Unified handler shared by execute() and execute_with_progress(): maps
+    CheckpointError / user errors / unexpected exceptions to the appropriate
+    _handle_failure() call, eliminating triplicated except-branches.
+    """
+    if isinstance(exc, CheckpointError):
+        return await _handle_failure(
+            exec_id, started_at, context,
+            error_message="数据检查点未通过",
+            checks=[r.model_dump() for r in exc.results],
+            sanitize_errors=False,
+            on_failed=on_failed,
+        )
+    if isinstance(exc, _USER_ERRORS):
+        error_msg = sanitize_connection_string(str(exc)) if sanitize_errors else str(exc)
+        return await _handle_failure(
+            exec_id, started_at, context,
+            error_message=error_msg,
+            sanitize_errors=False,
+            on_failed=on_failed,
+            error_type=type(exc).__name__,
+        )
+    # Unexpected exception
+    logger.exception("%s", log_label)
+    error_msg = sanitize_connection_string(str(exc)) if sanitize_errors else str(exc)
+    return await _handle_failure(
+        exec_id, started_at, context,
+        error_message=error_msg,
+        sanitize_errors=False,
+        on_failed=on_failed,
+        error_type=type(exc).__name__,
     )
+
+
+def _error_event(result: ExecutionResult) -> dict:
+    """Build an SSE error event dict from a failed ExecutionResult."""
+    data: dict = {"message": result.error_message, "diagnosis": result.diagnosis}
+    if result.checks:
+        data["checks"] = result.checks
+    return {"event": "error", "data": json.dumps(data, ensure_ascii=False)}
 
 
 async def execute(
@@ -102,21 +160,7 @@ async def execute(
     Returns:
         ExecutionResult for the caller to construct HTTP response or log.
     """
-    # Auto-fill missing context fields from state
-    if not context.scene_name:
-        context.scene_name = state.scene.name or ""
-    if not context.inputs_summary:
-        context.inputs_summary = [
-            {"name": inp.name, "plugin": inp.plugin, "param_key": inp.param_key}
-            for inp in state.inputs
-        ]
-    if not context.processors_summary:
-        context.processors_summary = [
-            {"name": p.name, "plugin": p.plugin}
-            for p in state.processors
-        ]
-    if not context.output_type:
-        context.output_type = state.output.plugin if state.output else ""
+    _auto_fill_context(state, context)
 
     exec_id = uuid.uuid4().hex[:8]
     started_at = datetime.now(UTC).isoformat()
@@ -125,35 +169,12 @@ async def execute(
     active_connections.inc()
     try:
         output_path = execute_pipeline(state)
-    except CheckpointError as e:
-        active_connections.dec()
-        return await _handle_failure(
-            exec_id, started_at, context,
-            error_message="数据检查点未通过",
-            checks=[r.model_dump() for r in e.results],
-            sanitize_errors=False,
-            on_failed=on_failed,
-        )
-    except _USER_ERRORS as e:
-        active_connections.dec()
-        error_msg = sanitize_connection_string(str(e)) if sanitize_errors else str(e)
-        return await _handle_failure(
-            exec_id, started_at, context,
-            error_message=error_msg,
-            sanitize_errors=False,
-            on_failed=on_failed,
-            error_type=type(e).__name__,
-        )
     except Exception as e:
         active_connections.dec()
-        logger.exception("Pipeline execution failed")
-        error_msg = sanitize_connection_string(str(e)) if sanitize_errors else str(e)
-        return await _handle_failure(
-            exec_id, started_at, context,
-            error_message=error_msg,
-            sanitize_errors=False,
+        return await _handle_execution_failure(
+            e, exec_id, started_at, context,
+            sanitize_errors=sanitize_errors,
             on_failed=on_failed,
-            error_type=type(e).__name__,
         )
 
     # --- Success ---
@@ -389,21 +410,7 @@ async def execute_with_progress(
       - complete: execution finished successfully
       - error: execution failed
     """
-    # Auto-fill missing context fields from state
-    if not context.scene_name:
-        context.scene_name = state.scene.name or ""
-    if not context.inputs_summary:
-        context.inputs_summary = [
-            {"name": inp.name, "plugin": inp.plugin, "param_key": inp.param_key}
-            for inp in state.inputs
-        ]
-    if not context.processors_summary:
-        context.processors_summary = [
-            {"name": p.name, "plugin": p.plugin}
-            for p in state.processors
-        ]
-    if not context.output_type:
-        context.output_type = state.output.plugin if state.output else ""
+    _auto_fill_context(state, context)
 
     exec_id = uuid.uuid4().hex[:8]
     started_at = datetime.now(UTC).isoformat()
@@ -522,50 +529,11 @@ async def execute_with_progress(
             }),
         }
 
-    except CheckpointError as e:
-        active_connections.dec()
-        result = await _handle_failure(
-            exec_id, started_at, context,
-            error_message="数据检查点未通过",
-            checks=[r.model_dump() for r in e.results],
-            sanitize_errors=False,
-        )
-        yield {
-            "event": "error",
-            "data": json.dumps({
-                "message": result.error_message,
-                "checks": result.checks,
-                "diagnosis": result.diagnosis,
-            }),
-        }
-    except _USER_ERRORS as e:
-        active_connections.dec()
-        error_msg = sanitize_connection_string(str(e)) if sanitize_errors else str(e)
-        result = await _handle_failure(
-            exec_id, started_at, context,
-            error_message=error_msg,
-            sanitize_errors=False,
-        )
-        yield {
-            "event": "error",
-            "data": json.dumps({
-                "message": result.error_message,
-                "diagnosis": result.diagnosis,
-            }),
-        }
     except Exception as e:
         active_connections.dec()
-        logger.exception("Pipeline execution failed (SSE)")
-        error_msg = sanitize_connection_string(str(e)) if sanitize_errors else str(e)
-        result = await _handle_failure(
-            exec_id, started_at, context,
-            error_message=error_msg,
-            sanitize_errors=False,
+        result = await _handle_execution_failure(
+            e, exec_id, started_at, context,
+            sanitize_errors=sanitize_errors,
+            log_label="Pipeline execution failed (SSE)",
         )
-        yield {
-            "event": "error",
-            "data": json.dumps({
-                "message": result.error_message,
-                "diagnosis": result.diagnosis,
-            }),
-        }
+        yield _error_event(result)

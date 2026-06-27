@@ -23,6 +23,7 @@ from configforge.scheduler import (
 from configforge.scheduler import (
     update_schedule as _sched_update_schedule,
 )
+from configforge.services import config_store as _config_store
 from configforge.services.audit_logger import (
     get_audit_log as _get_audit_log,
 )
@@ -238,3 +239,185 @@ class JsonSettingsStore:
             save_settings(settings)
         else:
             raise ValueError(f"Unknown settings kind: {self._kind}")
+
+
+class JsonConfigStore:
+    """JSON 后端 — Pipeline 配置存储 (P1-5 落地 ConfigStoreProtocol)。
+
+    实现 ConfigStoreProtocol 的 7 个方法，封装 state.json / index.json / 版本目录
+    的持久化细节。委托给 services.config_store 模块的函数与常量，保持与现有
+    函数式 API 一致；通过模块引用（而非 from...import 常量）确保测试 patch
+    config_store.CONFIGS_DIR / INDEX_PATH 生效。
+
+    职责边界：
+    - Store：state.json + index.json + 版本目录的 CRUD（不生成 YAML）
+    - Service（ConfigService）：WizardState 校验 / YAML 生成 / 审计 / 业务编排
+    """
+
+    def list_configs(self, search: str = "") -> list[dict[str, Any]]:
+        """列出配置索引（搜索过滤后的全量列表，不排序不分页）。
+
+        搜索范围：scene_name / description / name / tags。
+        排序与分页由 ConfigService 负责。
+        """
+        index = _config_store.load_index()
+
+        if search:
+            q = search.lower()
+            index = [
+                e for e in index
+                if q in e.get("scene_name", "").lower()
+                or q in e.get("description", "").lower()
+                or q in e.get("name", "").lower()
+                or any(q in t for t in e.get("tags", []))
+            ]
+        return index
+
+    def get_config(self, config_id: str) -> dict[str, Any] | None:
+        """读取配置的完整 state.json。不存在返回 None。"""
+        import os
+
+        from configforge.utils.file_lock import read_json_locked
+
+        state_path = os.path.join(_config_store.CONFIGS_DIR, f"{config_id}.state.json")
+        if not os.path.exists(state_path):
+            return None
+        return read_json_locked(state_path)
+
+    def save_config(
+        self, config_id: str, state: dict[str, Any], is_update: bool = False,
+    ) -> dict[str, Any]:
+        """保存配置：版本归档 + 写 state.json + 更新 index。返回 index entry。
+
+        注意：不写 YAML 文件（由 ConfigService 调用 build_yaml 后单独写入）。
+        state dict 应已清除 file_id、设置 uploaded_files={} 等持久化字段。
+        """
+        import os
+        import shutil
+        from datetime import UTC, datetime
+
+        from configforge.utils.file_lock import write_json_locked
+
+        now_str = datetime.now(UTC).isoformat()
+        configs_dir = _config_store.CONFIGS_DIR
+        versions_dir = os.path.join(configs_dir, config_id)
+
+        if is_update:
+            index = _config_store.load_index()
+            old_entry = next((e for e in index if e.get("id") == config_id), None)
+            old_version = old_entry.get("current_version", 1) if old_entry else 1
+            created_at = old_entry.get("created_at", now_str) if old_entry else now_str
+
+            # Move current files to version directory before overwriting
+            os.makedirs(versions_dir, exist_ok=True)
+            for suffix in ("state.json", "yaml"):
+                current_path = os.path.join(configs_dir, f"{config_id}.{suffix}")
+                target_path = os.path.join(versions_dir, f"v{old_version}.{suffix}")
+                if os.path.exists(current_path):
+                    shutil.move(current_path, target_path)
+            current_version = old_version + 1
+        else:
+            created_at = now_str
+            current_version = 1
+
+        state_path = os.path.join(configs_dir, f"{config_id}.state.json")
+        state["_saved_at"] = now_str
+        write_json_locked(state_path, state)
+
+        # Build index entry from state dict
+        scene = state.get("scene") or {}
+        inputs = state.get("inputs") or []
+        output = state.get("output") or {}
+        entry = {
+            "id": config_id,
+            "scene_name": scene.get("name", "未命名配置"),
+            "description": scene.get("description", ""),
+            "input_count": len(inputs),
+            "output_type": output.get("plugin", ""),
+            "version": scene.get("version", "1.0"),
+            "updated_at": now_str,
+            "current_version": current_version,
+            "created_at": created_at,
+            "inputs": [
+                {
+                    "name": i.get("name", ""),
+                    "param_key": i.get("param_key", "") or i.get("paramKey", ""),
+                    "plugin": i.get("plugin", ""),
+                }
+                for i in inputs
+            ],
+            "tags": scene.get("tags", []),
+            "input_types": list(dict.fromkeys(i.get("plugin", "") for i in inputs)),
+        }
+
+        index = _config_store.load_index()
+        existing = next(
+            (i for i, e in enumerate(index) if e.get("id") == config_id), None
+        )
+        if existing is not None:
+            index[existing] = entry
+        else:
+            index.append(entry)
+        _config_store.save_index(index)
+
+        return entry
+
+    def delete_config(self, config_id: str) -> bool:
+        """删除配置：从 index 移除 + 删 state.json + 删 yaml + 删版本目录。"""
+        import os
+        import shutil
+
+        index = _config_store.load_index()
+        entry = next((e for e in index if e.get("id") == config_id), None)
+        if entry is None:
+            return False
+
+        index = [e for e in index if e.get("id") != config_id]
+        _config_store.save_index(index)
+
+        configs_dir = _config_store.CONFIGS_DIR
+        for ext in (".yaml", ".state.json"):
+            p = os.path.join(configs_dir, f"{config_id}{ext}")
+            if os.path.exists(p):
+                os.remove(p)
+
+        versions_dir = os.path.join(configs_dir, config_id)
+        if os.path.isdir(versions_dir):
+            shutil.rmtree(versions_dir)
+        return True
+
+    def list_versions(self, config_id: str) -> list[dict[str, Any]]:
+        """列出配置的版本历史，返回版本元信息 dict 列表。"""
+        versions = _config_store.list_version_files(config_id)
+        result: list[dict[str, Any]] = []
+        for v in versions:
+            state = _config_store.read_version_state(config_id, v)
+            if state is None:
+                continue
+            scene = state.get("scene") or {}
+            output = state.get("output") or {}
+            result.append({
+                "version": v,
+                "scene_version": scene.get("version", "1.0"),
+                "change_summary": state.get("change_summary", ""),
+                "created_at": state.get("_saved_at", ""),
+                "input_count": len(state.get("inputs", [])),
+                "processor_count": len(state.get("processors", [])),
+                "output_type": output.get("plugin", ""),
+            })
+        return result
+
+    def get_version(self, config_id: str, version: int) -> dict[str, Any] | None:
+        """读取指定版本的 state。不存在返回 None。"""
+        return _config_store.read_version_state(config_id, version)
+
+    def save_version(self, config_id: str, version: int, state: dict[str, Any]) -> None:
+        """写入一个版本快照到 versions 目录。"""
+        import os
+
+        from configforge.utils.file_lock import write_json_locked
+
+        versions_dir = os.path.join(_config_store.CONFIGS_DIR, config_id)
+        os.makedirs(versions_dir, exist_ok=True)
+        path = os.path.join(versions_dir, f"v{version}.state.json")
+        write_json_locked(path, state)

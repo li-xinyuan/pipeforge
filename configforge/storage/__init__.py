@@ -19,6 +19,7 @@ from functools import lru_cache
 
 from configforge.storage.base import (
     AuditStoreProtocol,
+    ConfigStoreProtocol,
     ConnectionStoreProtocol,
     ScheduleStoreProtocol,
     SettingsStoreProtocol,
@@ -27,6 +28,7 @@ from configforge.storage.base import (
 )
 from configforge.storage.json_backend import (
     JsonAuditStore,
+    JsonConfigStore,
     JsonConnectionStore,
     JsonScheduleStore,
     JsonSettingsStore,
@@ -71,6 +73,23 @@ def get_connection_store() -> ConnectionStoreProtocol:
         _validate_postgresql_config()
         return _get_sql_class("SqliteConnectionStore")()
     raise NotImplementedError(f"Storage backend '{backend}' is not implemented yet")
+
+
+@lru_cache(maxsize=1)
+def get_config_store() -> ConfigStoreProtocol:
+    """获取 Pipeline 配置存储实例 (P1-5 落地)。
+
+    JSON 后端返回 JsonConfigStore；SQLite / PostgreSQL 后端暂未实现
+    SqliteConfigStore（ConfigStoreProtocol 是 7 个 Protocol 中最后落地的，
+    SQL 后端实现留待后续迭代）。
+    """
+    backend = _get_backend()
+    if backend == "json":
+        return JsonConfigStore()
+    raise NotImplementedError(
+        f"Config storage backend '{backend}' is not implemented yet. "
+        "Only JSON backend is supported for configs."
+    )
 
 
 @lru_cache(maxsize=1)
@@ -147,12 +166,14 @@ def get_settings_store(kind: str = "smtp") -> SettingsStoreProtocol:
 
 __all__ = [
     "AuditStoreProtocol",
+    "ConfigStoreProtocol",
     "ConnectionStoreProtocol",
     "ScheduleStoreProtocol",
     "SettingsStoreProtocol",
     "TemplateStoreProtocol",
     "UserStoreProtocol",
     "get_audit_store",
+    "get_config_store",
     "get_connection_store",
     "get_schedule_store",
     "get_settings_store",

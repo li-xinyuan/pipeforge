@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from configforge.models.notification import NotificationConfig
+from configforge.models.notification import NotificationConfig, NotificationHistoryEntry
 from configforge.services.notifier.base import NotifyContext
 from configforge.services.notifier.dispatcher import (
     _is_within_cooldown,
@@ -26,6 +26,20 @@ from configforge.services.notifier.formatters import (
     render_template,
 )
 from configforge.services.notifier.webhook import WebhookNotifier
+
+
+@pytest.fixture(autouse=True)
+def _isolate_history(tmp_path, monkeypatch):
+    """Isolate notification history file so cooldown checks read a clean store."""
+    monkeypatch.setattr(
+        "configforge.services.notifier.store.NOTIFICATIONS_PATH",
+        tmp_path / "notifications.json",
+    )
+    monkeypatch.setattr(
+        "configforge.services.notifier.store.HISTORY_PATH",
+        tmp_path / "notification_history.json",
+    )
+
 
 # ---------------------------------------------------------------------------
 # TestBuildNotifyContextEnhanced
@@ -336,6 +350,25 @@ class TestFrequencyControl:
     def test_custom_cooldown_zero_allows_immediate(self):
         _record_trigger("cfg1", "pipe1", "success")
         assert _is_within_cooldown("cfg1", "pipe1", "success", cooldown_seconds=0) is False
+
+    def test_cross_worker_cooldown_via_history(self):
+        """Cooldown should hit even when the in-process cache is empty, by
+        reading the shared history file (simulates another worker / restart)."""
+        from datetime import datetime, timezone
+
+        from configforge.services.notifier.store import add_history_entry
+
+        # Another worker sent a notification 10s ago → recorded in shared history
+        triggered_at = datetime.now(timezone.utc).isoformat()
+        add_history_entry(NotificationHistoryEntry(
+            id="h1", config_id="cfg1", config_name="n",
+            execution_id="e1", pipeline_config_name="p",
+            pipeline_config_id="pipe1", status="success",
+            notify_success=True, provider="generic", message="ok",
+            triggered_at=triggered_at,
+        ))
+        # In-process cache is empty (reset in setup_method), yet cooldown applies
+        assert _is_within_cooldown("cfg1", "pipe1", "success") is True
 
     @pytest.mark.asyncio
     async def test_dispatch_skips_within_cooldown(self):

@@ -13,11 +13,12 @@ from typing import Any, Protocol, runtime_checkable
 class ConfigStoreProtocol(Protocol):
     """Pipeline 配置存储接口。"""
 
-    def list_configs(
-        self, page: int = 1, page_size: int = 20,
-        search: str = "", sort: str = "updated",
-    ) -> dict[str, Any]:
-        """分页列出配置，返回 {items, total, page, page_size}。"""
+    def list_configs(self, search: str = "") -> list[dict[str, Any]]:
+        """列出配置索引（搜索过滤后的全量列表，不排序不分页）。
+
+        搜索范围：scene_name / description / name / tags。
+        排序与分页由 service 层负责，使存储层与 list_all 模式一致。
+        """
         ...
 
     def get_config(self, config_id: str) -> dict[str, Any] | None:

@@ -13,6 +13,7 @@ from configforge.services.notifier.base import NotifyContext
 from configforge.services.notifier.sender import send_notification as _send_notification
 from configforge.services.notifier.store import (
     add_history_entry,
+    get_last_triggered_at,
 )
 from configforge.services.notifier.store import (
     load_notifications as _load_notifications,
@@ -24,7 +25,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_NOTIFICATION_COOLDOWN_SECONDS = 300  # 5 minutes
 
 # In-memory frequency control: {(notification_config_id, pipeline_config_id, status): last_trigger_epoch}
-# NOTE: Process-level state; resets on restart. Adequate for short-term dedup.
+# NOTE: Process-level cache used as a fast path. The authoritative cooldown
+# source is the shared notification history file (see get_last_triggered_at),
+# which works across workers and survives restarts.
 _last_trigger_times: dict[tuple[str, str, str], float] = {}
 
 
@@ -102,12 +105,26 @@ def _is_within_cooldown(
     """Check if a notification was recently sent for the same (config, pipeline, status) tuple.
 
     Returns True if within cooldown period (should skip), False otherwise.
+
+    Two-layer lookup: an in-process cache (fast path) plus the shared
+    notification history file (authoritative, works across workers).
     """
     key = (notification_config_id, pipeline_config_id, status)
+    now = time.time()
+
+    # 1. Fast path: in-process cache
     last = _last_trigger_times.get(key)
-    if last is None:
-        return False
-    return (time.time() - last) < cooldown_seconds
+    if last is not None and (now - last) < cooldown_seconds:
+        return True
+
+    # 2. Authoritative path: shared history (covers other workers / restarts)
+    history_last = get_last_triggered_at(notification_config_id, pipeline_config_id, status)
+    if history_last is not None and (now - history_last) < cooldown_seconds:
+        # Backfill the in-process cache so subsequent checks stay fast.
+        _last_trigger_times[key] = history_last
+        return True
+
+    return False
 
 
 def _record_trigger(
@@ -164,6 +181,7 @@ async def dispatch_notifications(execution_result: dict) -> None:
                 config_name=config.name,
                 execution_id=context.execution_id,
                 pipeline_config_name=context.config_name,
+                pipeline_config_id=pipeline_config_id,
                 status=context.status,
                 notify_success=result.success,
                 provider=result.provider,
