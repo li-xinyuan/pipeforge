@@ -21,8 +21,16 @@
     />
   </div>
 
-  <!-- CSV config fields -->
-  <template v-if="input.plugin === 'csv'">
+  <!-- CSV config fields — SchemaForm 驱动（限制①第二阶段迁移） -->
+  <SchemaForm
+    v-if="input.plugin === 'csv' && csvSchema"
+    :model-value="input.config as unknown as Record<string, unknown>"
+    :schema="csvSchema"
+    :disabled="analyzing"
+    @update:model-value="$emit('update', { ...input, config: $event as unknown as CsvInputConfig })"
+  />
+  <!-- CSV fallback：schema 未加载时使用原表单 -->
+  <template v-else-if="input.plugin === 'csv'">
     <!-- Delimiter -->
     <div>
       <label class="cf-label">分隔符</label>
@@ -88,10 +96,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import type { InputSource, CsvInputConfig, ExcelInputConfig, JsonInputConfig, XmlInputConfig } from '../../types/wizard'
 import { NInput, NSelect, NCheckbox } from 'naive-ui'
 import { ENCODING_OPTIONS } from '../../constants/encodings'
+import SchemaForm from '../common/SchemaForm.vue'
+import { usePluginSchema } from '../../composables/usePluginSchema'
+import { registerAsyncOptionsLoader } from '../../composables/widgetRegistry'
 
 const props = defineProps<{
   input: InputSource
@@ -105,4 +116,16 @@ defineEmits<{
 }>()
 
 const sheetOptions = computed(() => props.sheetNames.map(s => ({ label: s, value: s })))
+
+// 限制①：csv input 用 SchemaForm 渲染，schema 从后端获取
+const { getSchema, load } = usePluginSchema()
+const csvSchema = computed(() => getSchema('csv', 'input'))
+
+// 注册编码选项 loader（schema 中 encoding 字段的 x-ui-options-from: 'encodings' 引用）
+registerAsyncOptionsLoader('encodings', () => Promise.resolve(ENCODING_OPTIONS))
+
+onMounted(() => {
+  // 确保插件 schema 已加载（模块级缓存，多次调用安全）
+  load()
+})
 </script>

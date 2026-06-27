@@ -41,7 +41,10 @@ class LooseCsvInputConfig(BaseModel):
 
     type: Literal["csv"] = "csv"
     delimiter: str = ","
-    encoding: str = "utf-8"
+    encoding: str = Field(
+        default="utf-8",
+        json_schema_extra={"x-ui-options-from": "encodings"},
+    )
     has_header: bool = Field(default=True, alias="hasHeader")
 
 

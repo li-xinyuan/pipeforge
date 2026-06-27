@@ -35,8 +35,8 @@
         <!-- enum / async options → NSelect -->
         <NSelect
           v-if="field.kind === 'enum' || field.kind === 'async-select'"
-          :value="modelValue[field.key] ?? field.default"
-          :options="field.options"
+          :value="(modelValue[field.key] ?? field.default) as string | null"
+          :options="(field.options as never)"
           :loading="field.asyncLoading"
           :disabled="disabled"
           size="small"
@@ -45,7 +45,7 @@
         <!-- integer/number → NInputNumber -->
         <NInputNumber
           v-else-if="field.kind === 'number'"
-          :value="modelValue[field.key] ?? field.default"
+          :value="(modelValue[field.key] ?? field.default) as number | null"
           :disabled="disabled"
           size="small"
           @update:value="onUpdate(field.key, $event)"
