@@ -114,7 +114,10 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Start container and health check
         run: |
-          docker run -d --name configforge-ci -p 8000:8000 configforge:ci
+          docker run -d --name configforge-ci -p 8000:8000 \
+            -e CONFIGFORGE_JWT_SECRET=ci-test-secret-key-at-least-32-chars-long \
+            -e CONFIGFORGE_ENCRYPTION_KEY=ci-test-encryption-key-32-chars \
+            configforge:ci
           sleep 5
           for i in $(seq 1 10); do
             if curl -sf http://localhost:8000/api/health; then
