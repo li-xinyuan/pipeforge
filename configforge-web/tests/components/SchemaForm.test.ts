@@ -304,4 +304,44 @@ describe('SchemaForm', () => {
       expect((input.element as HTMLInputElement).disabled).toBe(true)
     })
   })
+
+  describe('skipFields（额外跳过字段）', () => {
+    it('skipFields 中的字段被跳过', () => {
+      const wrapper = mount(SchemaForm, {
+        props: {
+          modelValue: { delimiter: ',', encoding: 'utf-8', hasHeader: true, sourceTable: 't1' },
+          schema: {
+            properties: {
+              delimiter: { type: 'string', default: ',' },
+              encoding: { type: 'string', default: 'utf-8' },
+              sourceTable: { type: 'string', default: '' },
+            },
+          },
+          skipFields: ['sourceTable'],
+        },
+      })
+      const inputs = wrapper.findAll('[data-test="n-input"]')
+      // delimiter + encoding 渲染，sourceTable 被跳过
+      expect(inputs).toHaveLength(2)
+    })
+
+    it('skipFields 与默认跳过字段（type/file）合并', () => {
+      const wrapper = mount(SchemaForm, {
+        props: {
+          modelValue: { type: 'csv', delimiter: ',', file: null, columns: [] },
+          schema: {
+            properties: {
+              type: { const: 'csv', default: 'csv', type: 'string' },
+              delimiter: { type: 'string', default: ',' },
+              file: { type: ['string', 'null'], default: null },
+              columns: { type: 'array', default: [] },
+            },
+          },
+          skipFields: ['columns'],
+        },
+      })
+      // type/file 默认跳过，columns 额外跳过，只剩 delimiter
+      expect(wrapper.findAll('[data-test="n-input"]')).toHaveLength(1)
+    })
+  })
 })

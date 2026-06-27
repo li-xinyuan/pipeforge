@@ -1,4 +1,13 @@
 <template>
+  <!--
+    FileOutputForm — csv/excel 输出配置表单（限制①第二阶段迁移）。
+
+    迁移策略：
+    - Excel 模板上传 + sheet 选择器：保留为自定义 UI（含副作用：上传后自动填充
+      columns、sheet 变更触发列重映射），不迁入 SchemaForm。
+    - 其余字段（csv: delimiter/encoding/outputDir/filename；excel: outputDir/filename）
+      迁入 SchemaForm，filename 通过 filename-template 命名 widget 渲染。
+  -->
   <template v-if="store.output?.plugin === 'excel'">
     <!-- Template file upload (Excel only, drag-and-drop style) -->
     <div class="cf-form-group--full">
@@ -50,68 +59,38 @@
     </div>
   </template>
 
-  <!-- Filename template (Excel & CSV) -->
-  <div v-if="store.output?.plugin !== 'database'" class="cf-form-group--full">
-    <div class="flex items-center gap-1 mb-1">
-      <label class="cf-label" style="margin-bottom: 0;">输出文件名</label>
-      <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{date:%Y%m%d}}')">年月日</NTag>
-      <NTag size="tiny" class="cursor-pointer" @click="insertTag('{{time:%H%M%S}}')">时分秒</NTag>
-    </div>
-    <div class="flex items-center flex-wrap gap-1 border border-[var(--color-border-light)] rounded px-2 py-1.5 min-h-[32px] bg-[var(--color-surface)]">
-      <template v-for="(part, i) in filenameParts" :key="i">
-        <NTag size="tiny" :type="part.tag ? 'info' : 'default'" :bordered="true" closable @close="removeTagPart(i)">{{ part.text }}</NTag>
-      </template>
-      <input
-        ref="plainInputRef"
-        v-model="plainText"
-        class="flex-1 min-w-[40px] outline-none text-sm bg-transparent"
-        :placeholder="filenameParts.length === 0 ? '输入文件名' : ''"
-        @keyup.enter="commitPlainText"
-        @blur="commitPlainText"
-      >
-      <NButton v-if="baseFilename" text size="tiny" type="error" class="ml-auto" aria-label="清除文件名" @click="clearFilename">✕</NButton>
-    </div>
-    <span class="text-sm text-slate-400 font-medium">{{ fileExtension }}</span>
-  </div>
-
-  <!-- Delimiter (CSV only) -->
-  <div v-if="store.output?.plugin === 'csv'">
-    <label class="cf-label">分隔符</label>
-    <NInput
-      :value="csvConfig.delimiter"
-      size="small"
-      @update:value="updateCsvConfig({ delimiter: $event })"
-    />
-  </div>
-
-  <!-- Encoding (CSV only) -->
-  <div v-if="store.output?.plugin === 'csv'">
-    <label class="cf-label">编码</label>
-    <NSelect
-      :value="csvConfig.encoding"
-      :options="ENCODING_OPTIONS"
-      size="small"
-      @update:value="updateCsvConfig({ encoding: $event })"
-    />
-  </div>
-
-  <!-- Output directory (Excel & CSV) -->
-  <div v-if="store.output?.plugin !== 'database'">
-    <label class="cf-label">输出目录</label>
-    <NInput v-model:value="fileOutputConfig!.outputDir" size="small" />
-  </div>
+  <!-- CSV/Excel 输出字段 — SchemaForm 驱动（限制①第二阶段迁移） -->
+  <SchemaForm
+    v-if="store.output?.plugin === 'csv' && csvOutputSchema"
+    :model-value="store.output.config as unknown as Record<string, unknown>"
+    :schema="csvOutputSchema"
+    :skip-fields="['columns', 'sourceTable']"
+    :widget-props="{ 'filename-template': { extension: '.csv' } }"
+    @update:model-value="onSchemaUpdate"
+  />
+  <SchemaForm
+    v-else-if="store.output?.plugin === 'excel' && excelOutputSchema"
+    :model-value="store.output.config as unknown as Record<string, unknown>"
+    :schema="excelOutputSchema"
+    :skip-fields="['columns', 'sourceTable', 'template', 'sheet']"
+    :widget-props="{ 'filename-template': { extension: '.xlsx' } }"
+    @update:model-value="onSchemaUpdate"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useFileUpload } from '../../composables/useFileUpload'
 import { useWizardApi } from '../../composables/useWizardApi'
-import type { ExcelOutputConfig, CsvOutputConfig } from '../../types/wizard'
+import type { ExcelOutputConfig } from '../../types/wizard'
 import type { UploadCustomRequestOptions } from 'naive-ui'
-import { NInput, NButton, NTag, NUpload, NSelect } from 'naive-ui'
+import { NInput, NButton, NTag, NUpload, NSelect, useMessage } from 'naive-ui'
+import SchemaForm from '../common/SchemaForm.vue'
+import FilenameTemplate from '../common/FilenameTemplate.vue'
+import { usePluginSchema } from '../../composables/usePluginSchema'
+import { registerWidget, registerAsyncOptionsLoader } from '../../composables/widgetRegistry'
 import { ENCODING_OPTIONS } from '../../constants/encodings'
-import { useMessage } from 'naive-ui'
 
 const store = useWizardStore()
 const message = useMessage()
@@ -120,8 +99,6 @@ const { uploading: templateUploading, error: templateUploadError, upload: upload
 
 const templateUploadRef = ref<InstanceType<typeof NUpload>>()
 const templateSheets = ref<string[]>([])
-const plainInputRef = ref<HTMLInputElement>()
-const plainText = ref('')
 
 const emit = defineEmits<{
   'remove-template': []
@@ -129,69 +106,29 @@ const emit = defineEmits<{
   'template-uploaded': []
 }>()
 
-const fileOutputConfig = computed(() => store.output?.plugin !== 'database' ? store.output!.config as ExcelOutputConfig | CsvOutputConfig : null)
-const fileExtension = computed(() => {
-  if (store.output?.plugin === 'csv') return '.csv'
-  if (store.output?.plugin === 'database') return ''
-  return '.xlsx'
-})
 const excelConfig = computed(() => store.output!.config as ExcelOutputConfig)
-const csvConfig = computed(() => store.output!.config as CsvOutputConfig)
 
-const baseFilename = computed(() => {
-  const fn = fileOutputConfig.value?.filename || ''
-  const ext = fileExtension.value
-  return fn.endsWith(ext) ? fn.slice(0, -ext.length) : fn
+// 限制①：csv/excel output 用 SchemaForm 渲染，schema 从后端获取
+const { getSchema, load } = usePluginSchema()
+const csvOutputSchema = computed(() => getSchema('csv', 'output'))
+const excelOutputSchema = computed(() => getSchema('excel', 'output'))
+
+// 注册编码选项 loader（csv output 的 encoding 字段引用）
+registerAsyncOptionsLoader('encodings', () => Promise.resolve(ENCODING_OPTIONS))
+// 注册 filename-template 命名 widget（csv/excel output 的 filename 字段引用）
+registerWidget('filename-template', FilenameTemplate)
+
+onMounted(() => {
+  load()
 })
 
-const filenameParts = computed(() => {
-  const fn = baseFilename.value
-  const parts: Array<{ text: string; tag: boolean }> = []
-  const re = /\{\{.+?\}\}/g
-  let last = 0; let m
-  while ((m = re.exec(fn)) !== null) {
-    if (m.index > last) parts.push({ text: fn.slice(last, m.index), tag: false })
-    parts.push({ text: m[0], tag: true })
-    last = m.index + m[0].length
-  }
-  if (last < fn.length) parts.push({ text: fn.slice(last), tag: false })
-  return parts
-})
-
-function insertTag(tag: string) {
-  if (fileOutputConfig.value) fileOutputConfig.value.filename = baseFilename.value + tag + fileExtension.value
+/** SchemaForm update:modelValue 回调：可变更新，保留 config 对象引用。 */
+function onSchemaUpdate(updated: Record<string, unknown>): void {
+  Object.assign(store.output!.config, updated)
 }
 
-function commitPlainText() {
-  const v = plainText.value.trim()
-  if (!v) return
-  if (fileOutputConfig.value) fileOutputConfig.value.filename = baseFilename.value + v + fileExtension.value
-  plainText.value = ''
-}
-
-function removeTagPart(idx: number) {
-  const parts = filenameParts.value
-  const removed = parts[idx].text
-  if (fileOutputConfig.value) fileOutputConfig.value.filename = baseFilename.value.replace(removed, '') + fileExtension.value
-}
-
-function clearFilename() {
-  if (fileOutputConfig.value) fileOutputConfig.value.filename = fileExtension.value
-  plainText.value = ''
-}
-
-function updateExcelConfig(partial: Partial<ExcelOutputConfig>) {
-  const cfg = store.output!.config as ExcelOutputConfig
-  Object.assign(cfg, partial)
-}
-
-function updateCsvConfig(patch: Partial<CsvOutputConfig>) {
-  if (store.output) {
-    store.setOutput({
-      ...store.output,
-      config: { ...store.output.config, ...patch } as CsvOutputConfig,
-    })
-  }
+function updateExcelConfig(partial: Partial<ExcelOutputConfig>): void {
+  Object.assign(store.output!.config, partial)
 }
 
 async function handleTemplateUpload({ file, onFinish, onError }: UploadCustomRequestOptions) {

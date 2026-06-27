@@ -119,14 +119,19 @@ const props = defineProps<{
    * 例如：{ 'sheet-selector': { options: [...], disabled: false } }
    */
   widgetProps?: Record<string, Record<string, unknown>>
+  /**
+   * 额外跳过的字段（与默认跳过字段 type/file 合并）。
+   * 用于跳过由其他组件处理的字段（如 output 的 columns/sourceTable）。
+   */
+  skipFields?: string[]
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: Record<string, unknown>]
 }>()
 
-/** 跳过的字段：discriminator 和 runtime 注入字段。 */
-const SKIP_FIELDS = new Set(['type', 'file'])
+/** 默认跳过的字段：discriminator 和 runtime 注入字段。 */
+const DEFAULT_SKIP_FIELDS = new Set(['type', 'file'])
 
 /** 异步选项加载状态缓存（按 loader name 索引）。 */
 const asyncOptionsMap = ref<Record<string, SelectOption[]>>({})
@@ -135,9 +140,10 @@ const asyncLoadingMap = ref<Record<string, boolean>>({})
 /** 计算可渲染字段列表（顺序与 schema.properties 一致）。 */
 const renderableFields = computed<RenderableField[]>(() => {
   const properties = props.schema.properties || {}
+  const skipSet = new Set([...DEFAULT_SKIP_FIELDS, ...(props.skipFields ?? [])])
   const result: RenderableField[] = []
   for (const [key, prop] of Object.entries(properties)) {
-    if (SKIP_FIELDS.has(key)) continue
+    if (skipSet.has(key)) continue
     const widgetName = prop['x-ui-widget']
     const asyncFrom = prop['x-ui-options-from']
     const widget = widgetName ? getWidget(widgetName) : undefined

@@ -111,10 +111,16 @@ class LooseExcelOutputConfig(BaseModel):
 
     type: Literal["excel"] = "excel"
     template: str = ""
-    sheet: str = "Sheet1"
+    sheet: str = Field(
+        default="Sheet1",
+        json_schema_extra={"x-ui-widget": "sheet-selector"},
+    )
     output_dir: str = Field(default="./output/", alias="outputDir")
     source_table: str = Field(default="", alias="sourceTable")
-    filename: str | None = None
+    filename: str | None = Field(
+        default=None,
+        json_schema_extra={"x-ui-widget": "filename-template"},
+    )
     columns: list[LooseColumnMapping] = []
 
 
@@ -125,9 +131,15 @@ class LooseCsvOutputConfig(BaseModel):
     type: Literal["csv"] = "csv"
     source_table: str = Field(default="", alias="sourceTable")
     output_dir: str = Field(default="./output/", alias="outputDir")
-    filename: str | None = None
+    filename: str | None = Field(
+        default=None,
+        json_schema_extra={"x-ui-widget": "filename-template"},
+    )
     delimiter: str = ","
-    encoding: str = "utf-8"
+    encoding: str = Field(
+        default="utf-8",
+        json_schema_extra={"x-ui-options-from": "encodings"},
+    )
     columns: list[LooseColumnMapping] = []
 
 
