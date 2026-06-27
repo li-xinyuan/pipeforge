@@ -426,18 +426,37 @@ class TestBuildYamlEdgeCases:
 class TestYamlBuilderBugFixes:
     """yaml_builder 3 个已知 bug 的修复验证。"""
 
-    @pytest.mark.parametrize("plugin,config_cls", [
-        ("json", JsonInputConfig),
-        ("xml", XmlInputConfig),
-        ("parquet", ParquetInputConfig),
+    @pytest.mark.parametrize("plugin,config_cls,expected_type", [
+        ("json", JsonInputConfig, "json"),
+        ("xml", XmlInputConfig, "xml"),
+        ("parquet", ParquetInputConfig, "parquet"),
     ])
-    def test_bug1_ghost_input_raises_value_error(self, plugin, config_cls):
-        """bug #1: json/xml/parquet 输入源不再落入 else 当 excel，显式抛 ValueError。"""
+    def test_bug1_reader_backed_input_builds_yaml(self, plugin, config_cls, expected_type):
+        """限制③C：json/xml/parquet 输入源现在生成有效 YAML（reader 适配器支持执行）。
+
+        bug #1 原 fix（Day 2-3 止血）抛 ValueError；Day 5-7 实现 reader 适配器后，
+        这些输入源可执行，yaml_builder 生成对应 config 分支。
+        """
         state = WizardState(
             scene=SceneInfo(name="S"),
             inputs=[InputSource(
-                name="ghost_in", plugin=plugin, table="t1", param_key="p1", file_id="f1",
+                name="reader_in", plugin=plugin, table="t1", param_key="p1", file_id="f1",
                 config=config_cls(),
+            )],
+        )
+        result = build_yaml(state)
+        data = yaml.safe_load(result)
+        cfg = data["inputs"][0]["config"]
+        assert cfg["type"] == expected_type
+
+    def test_bug1_api_input_still_raises_value_error(self):
+        """限制③：api 输入源延后到第三阶段，仍抛 ValueError。"""
+        from configforge.models.wizard import ApiInputConfig
+        state = WizardState(
+            scene=SceneInfo(name="S"),
+            inputs=[InputSource(
+                name="api_in", plugin="api", table="t1", param_key="p1", file_id="",
+                config=ApiInputConfig(url="http://example.com"),
             )],
         )
         with pytest.raises(ValueError, match="仅支持预览"):

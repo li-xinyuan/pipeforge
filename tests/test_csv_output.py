@@ -31,7 +31,7 @@ class TestCsvOutputPlugin:
     def test_registered_as_csv_output(self):
         from pipeforge.core.registry import PluginRegistry
         cls = PluginRegistry.get("csv", "output")
-        assert cls is CsvOutputPlugin
+        assert cls.config_model() is CsvOutputConfig
 
     def test_basic_write(self):
         from pipeforge.core.sqlite import SQLiteManager

@@ -25,11 +25,26 @@ def build_yaml(state: WizardState) -> str:
             }
         elif cfg.type == "excel":
             config_dict = {"type": "excel", "sheet": cfg.sheet}
+        elif cfg.type == "json":
+            # 限制③C：json 输入源现在可执行（reader 适配器）
+            config_dict = {
+                "type": "json",
+                "flatten_separator": cfg.flatten_separator,
+            }
+        elif cfg.type == "xml":
+            # 限制③C：xml 输入源现在可执行（reader 适配器）
+            config_dict = {
+                "type": "xml",
+                "row_element": cfg.row_element,
+            }
+        elif cfg.type == "parquet":
+            # 限制③C：parquet 输入源现在可执行（reader 适配器）
+            config_dict = {"type": "parquet"}
         else:
-            # bug #1 修复：json/xml/parquet/api 不再落入 else 当 excel，显式抛错
+            # api 输入源延后到 v2.0.0（第三阶段），暂不支持执行
             raise ValueError(
                 f"输入源 '{cfg.type}' 当前仅支持预览，暂不可执行。"
-                f"支持的输入类型：excel / csv / database"
+                f"支持的输入类型：excel / csv / database / json / xml / parquet"
             )
         d["inputs"].append({
             "name": inp.name, "plugin": inp.plugin, "table": inp.table,

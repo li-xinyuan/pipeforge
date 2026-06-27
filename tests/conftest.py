@@ -2,10 +2,40 @@ import tempfile
 import os
 import copy
 import csv as csv_module
+import sys
 
 import pytest
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
+
+
+@pytest.fixture(autouse=True)
+def _ensure_plugins_registered():
+    """确保插件注册表在每项测试前处于完整状态。
+
+    tests/test_registry.py 的 setup_method 调用 PluginRegistry.clear() 后无 teardown，
+    导致后续测试（字母序在 r 之后，如 test_xml_input.py）找不到插件。
+    configforge/tests/test_plugins_api.py 的 reload 也会改变类对象身份，使 ``is`` 检查失效。
+
+    本 fixture 在每项测试前重新加载所有插件模块，触发 @register_plugin 重新注册。
+    注意：reload 会创建新的类对象，测试中不应使用 ``is`` 检查插件类身份，
+    应改用 ``cls.config_model() is XxxConfig``（config 类来自 config.models，不被 reload）。
+    """
+    import importlib
+    import pkgutil
+
+    from pipeforge.plugins._loader import load_all_plugins
+
+    load_all_plugins()  # 确保所有插件模块已导入
+    for subpkg in ("input", "processor", "output"):
+        pkg = importlib.import_module(f"pipeforge.plugins.{subpkg}")
+        for _finder, name, _ispkg in pkgutil.iter_modules(pkg.__path__):
+            if name.startswith("_"):
+                continue
+            mod_path = f"pipeforge.plugins.{subpkg}.{name}"
+            if mod_path in sys.modules:
+                importlib.reload(sys.modules[mod_path])
+    yield
 
 
 @pytest.fixture

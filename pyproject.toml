@@ -27,6 +27,7 @@ dependencies = [
     "pymysql>=1.1.0",
     "psycopg2-binary>=2.9.0",
     "pyarrow>=24.0.0",
+    "ijson>=3.2",
     "sse-starlette>=2.0.0",
     "prometheus_client>=0.20.0",
 ]

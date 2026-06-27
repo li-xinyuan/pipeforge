@@ -140,14 +140,15 @@ def _prepare_execution(state: WizardState, skip_output: bool = False):
     """
     exec_state = copy.deepcopy(state)
 
-    # 限制③第一阶段止血：json/xml/parquet/api 输入源仅支持预览，暂不可执行。
+    # 限制③C：json/xml/parquet 现已支持执行（reader 适配器）。
+    # api 输入源延后到 v2.0.0（第三阶段），暂不支持执行。
     # ValueError 已在 _USER_ERRORS 中（execution_service.py:33），直接抛出即返回 422。
-    _SUPPORTED_EXEC_PLUGINS = {"excel", "csv", "database"}
+    _UNSUPPORTED_EXEC_PLUGINS = {"api"}
     for inp in exec_state.inputs:
-        if inp.plugin not in _SUPPORTED_EXEC_PLUGINS:
+        if inp.plugin in _UNSUPPORTED_EXEC_PLUGINS:
             raise ValueError(
                 f"输入源 '{inp.plugin}' 当前仅支持预览，暂不可执行。"
-                f"支持的输入类型：excel / csv / database"
+                f"支持的输入类型：excel / csv / database / json / xml / parquet"
             )
 
     if skip_output:
@@ -256,7 +257,8 @@ def _prepare_execution(state: WizardState, skip_output: bool = False):
             src = os.path.join(UPLOAD_DIR, inp.file_id)
             if os.path.exists(src):
                 ext = os.path.splitext(inp.file_id)[1].lower()
-                if ext in (".xlsx", ".xls", ".csv"):
+                if ext in (".xlsx", ".xls", ".csv", ".json", ".xml", ".parquet"):
+                    # 限制③C 修复（审核报告 4.3）：json/xml/parquet 文件保留原后缀，不强制改名
                     dst_name = inp.file_id
                 else:
                     dst_name = inp.file_id + (".xlsx" if inp.plugin == "excel" else ".csv")

@@ -17,7 +17,7 @@ from configforge.server import app
 
 @pytest.fixture(autouse=True)
 def _ensure_plugins_registered():
-    """确保插件注册表只含 8 个真实插件。
+    """确保插件注册表只含 11 个真实插件（6 input + 2 processor + 3 output）。
 
     全量测试运行时，tests/test_registry.py 注册的 fake 插件（如 list_test）
     会残留在全局注册表中。先 clear 清空所有，再 reload 真实插件模块
@@ -44,7 +44,7 @@ class TestListPlugins:
 
     @pytest.mark.anyio
     async def test_list_plugins_returns_all(self):
-        """应返回所有 8 个已注册插件。"""
+        """应返回所有 11 个已注册插件。"""
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
@@ -52,20 +52,20 @@ class TestListPlugins:
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
-        assert len(data) == 8
+        assert len(data) == 11
 
     @pytest.mark.anyio
     async def test_list_plugins_filter_input(self):
-        """按 type=input 过滤应返回 3 个输入插件。"""
+        """按 type=input 过滤应返回 6 个输入插件（含 ③C reader 适配器）。"""
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
             resp = await client.get("/api/plugins", params={"plugin_type": "input"})
         assert resp.status_code == 200
         data = resp.json()
-        assert len(data) == 3
+        assert len(data) == 6
         names = {p["name"] for p in data}
-        assert names == {"csv", "excel", "database"}
+        assert names == {"csv", "excel", "database", "json", "xml", "parquet"}
         assert all(p["type"] == "input" for p in data)
 
     @pytest.mark.anyio

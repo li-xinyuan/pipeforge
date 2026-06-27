@@ -207,23 +207,41 @@ class TestCheckpoints:
 
 
 class TestPrepareExecutionValidation:
-    """限制③第一阶段止血：json/xml/parquet/api 输入源执行前校验。
+    """限制③C：json/xml/parquet 现已支持执行（reader 适配器），仅 api 被拒绝。
 
-    验证标准（v2.0 方案 3.4 第一阶段）：
-    - 执行含幽灵类型的 pipeline 返回 422 + 友好错误信息
+    验证标准（v2.0 方案 3.4 第二阶段）：
+    - api 输入源在 _prepare_execution 阶段被拒绝（延后到 v2.0.0 第三阶段）
+    - json/xml/parquet 不再被预览校验拒绝
     - ValueError 已在 _USER_ERRORS 中，直接抛出即返回 422
     """
+
+    def test_api_plugin_rejected(self):
+        """api 输入源在 _prepare_execution 阶段被拒绝（延后到第三阶段）。"""
+        state = WizardState(
+            scene=SceneInfo(name="test_api_rejected"),
+            inputs=[InputSource(
+                plugin="api",
+                table="t",
+                param_key="k",
+                config={"type": "api", "url": "http://example.com", "method": "GET"},
+            )],
+        )
+        with pytest.raises(ValueError, match="仅支持预览"):
+            _prepare_execution(state)
 
     @pytest.mark.parametrize("plugin,config", [
         ("json", {"type": "json", "flatten_separator": "."}),
         ("xml", {"type": "xml", "row_element": "item"}),
         ("parquet", {"type": "parquet"}),
-        ("api", {"type": "api", "url": "http://example.com", "method": "GET"}),
     ])
-    def test_preview_only_plugins_rejected(self, plugin, config):
-        """json/xml/parquet/api 输入源在 _prepare_execution 阶段被拒绝。"""
+    def test_reader_backed_plugins_not_rejected(self, plugin, config):
+        """限制③C：json/xml/parquet 不再被预览校验拒绝（reader 适配器已支持执行）。
+
+        校验通过后会继续执行后续步骤（可能因文件不存在等其他原因失败），
+        但不应抛出含'仅支持预览'的 ValueError。
+        """
         state = WizardState(
-            scene=SceneInfo(name="test_preview_only"),
+            scene=SceneInfo(name="test_reader_backed"),
             inputs=[InputSource(
                 plugin=plugin,
                 table="t",
@@ -231,15 +249,17 @@ class TestPrepareExecutionValidation:
                 config=config,
             )],
         )
-        with pytest.raises(ValueError, match="仅支持预览"):
+        try:
             _prepare_execution(state)
+        except ValueError as e:
+            # 不应因"仅支持预览"校验被拒绝
+            assert "仅支持预览" not in str(e), f"{plugin} 不应被预览校验拒绝: {e}"
+        except Exception:
+            # 其他错误（文件不存在、build_yaml 失败等）可接受
+            pass
 
     def test_supported_plugins_not_rejected_as_preview_only(self):
-        """excel/csv 输入源不会被'仅支持预览'校验拒绝。
-
-        校验通过后会继续执行后续步骤（可能因文件不存在等其他原因失败），
-        但不应抛出含'仅支持预览'的 ValueError。
-        """
+        """excel/csv/database 输入源不会被'仅支持预览'校验拒绝。"""
         for plugin, config in [
             ("csv", {"type": "csv", "delimiter": ",", "encoding": "utf-8"}),
             ("excel", {"type": "excel", "sheet": ""}),

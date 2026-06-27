@@ -24,11 +24,14 @@ class TestAutoLoad:
     """T-5E-05: 自动加载机制测试。"""
 
     def test_load_all_registers_input_plugins(self):
-        """load_all_plugins 应注册 3 个 input 插件。"""
+        """load_all_plugins 应注册 6 个 input 插件（含 ③C reader 适配器）。"""
         inputs = PluginRegistry.list_by_type("input")
         assert "csv" in inputs
         assert "excel" in inputs
         assert "database" in inputs
+        assert "json" in inputs
+        assert "xml" in inputs
+        assert "parquet" in inputs
 
     def test_load_all_registers_processor_plugins(self):
         """load_all_plugins 应注册 2 个 processor 插件。"""
@@ -44,13 +47,13 @@ class TestAutoLoad:
         assert "database" in outputs
 
     def test_load_all_total_plugin_count(self):
-        """总共应注册 8 个插件。"""
+        """总共应注册 11 个插件（6 input + 2 processor + 3 output）。"""
         total = (
             len(PluginRegistry.list_by_type("input"))
             + len(PluginRegistry.list_by_type("processor"))
             + len(PluginRegistry.list_by_type("output"))
         )
-        assert total == 8
+        assert total == 11
 
     def test_load_all_is_idempotent(self):
         """重复调用 load_all_plugins 不应产生副作用（覆盖式注册）。"""
@@ -61,7 +64,7 @@ class TestAutoLoad:
             + len(PluginRegistry.list_by_type("processor"))
             + len(PluginRegistry.list_by_type("output"))
         )
-        assert total == 8
+        assert total == 11
 
 
 class TestConfigSchema:
@@ -109,9 +112,9 @@ class TestListAll:
         result = PluginRegistry.list_all()
         assert isinstance(result, list)
 
-    def test_list_all_returns_8_plugins(self):
-        """list_all 应返回 8 个插件。"""
-        assert len(PluginRegistry.list_all()) == 8
+    def test_list_all_returns_11_plugins(self):
+        """list_all 应返回 11 个插件。"""
+        assert len(PluginRegistry.list_all()) == 11
 
     def test_list_all_item_has_required_fields(self):
         """每项应包含 name/type/label/config_schema 四个字段。"""

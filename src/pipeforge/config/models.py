@@ -51,6 +51,32 @@ class DbInputConfig(BaseModel):
         return self
 
 
+class JsonInputConfig(BaseModel):
+    """限制③C：JSON 输入源配置（reader 适配器支持执行）。"""
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["json"] = "json"
+    file: str | None = None
+    flatten_separator: str = "."
+
+
+class XmlInputConfig(BaseModel):
+    """限制③C：XML 输入源配置（reader 适配器支持执行）。"""
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["xml"] = "xml"
+    file: str | None = None
+    row_element: str = ""
+
+
+class ParquetInputConfig(BaseModel):
+    """限制③C：Parquet 输入源配置（reader 适配器支持执行）。"""
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["parquet"] = "parquet"
+    file: str | None = None
+
+
 class InputSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -58,7 +84,10 @@ class InputSpec(BaseModel):
     plugin: str
     table: str
     param_key: str
-    config: Annotated[ExcelInputConfig | CsvInputConfig | DbInputConfig, Field(discriminator="type")]
+    config: Annotated[
+        ExcelInputConfig | CsvInputConfig | DbInputConfig | JsonInputConfig | XmlInputConfig | ParquetInputConfig,
+        Field(discriminator="type"),
+    ]
 
     @field_validator("param_key")
     @classmethod

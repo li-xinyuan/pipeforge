@@ -85,4 +85,4 @@ class TestCsvInputPlugin:
         """Verify the plugin is registered under 'csv' input type."""
         from pipeforge.core.registry import PluginRegistry
         cls = PluginRegistry.get("csv", "input")
-        assert cls is CsvInputPlugin
+        assert cls.config_model() is CsvInputConfig
