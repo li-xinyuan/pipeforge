@@ -30,19 +30,38 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
-import type { ColumnMappingItem, ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig } from '../../types/wizard'
+import type { ColumnMappingItem } from '../../types/wizard'
 import { NButton, useMessage } from 'naive-ui'
 import { inferSelectColumns } from '../../utils/sql'
 import ColumnMapping from './ColumnMapping.vue'
 import AiTriggerButton from '../common/AiTriggerButton.vue'
+
+/**
+ * ColumnMappingEditor — 列映射编辑器（限制①第三阶段迁移为命名 widget）。
+ *
+ * Widget 协议：
+ * - modelValue: ColumnMappingItem[]（列映射数组）
+ * - update:modelValue: 列映射数组变更时 emit
+ *
+ * Store 访问保留用于读取上下文（inputs/processors/uploadedFiles），
+ * 列数据通过 modelValue/update:modelValue 流转，不再直接写 store。
+ * ColumnMapping.vue 的 v-model 就地修改仍通过共享引用更新 store（行为不变）。
+ */
+const props = defineProps<{
+  /** 列映射数组（widget 协议：modelValue）。 */
+  modelValue: ColumnMappingItem[]
+}>()
+
+const emit = defineEmits<{
+  'update:modelValue': [value: ColumnMappingItem[]]
+}>()
 
 const store = useWizardStore()
 const message = useMessage()
 const { executeSql } = useWizardApi()
 const { suggesting: mappingLoading, askSuggestion } = useAiApi()
 
-const outputConfig = computed(() => (store.output?.config ?? { columns: [], sourceTable: '' }) as ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig)
-const columns = computed(() => outputConfig.value.columns)
+const columns = computed(() => props.modelValue)
 const plugin = computed(() => store.output?.plugin ?? '')
 
 const inferColumnLabel = computed(() => {
@@ -60,8 +79,8 @@ watch(() => store.inputs, (inputs) => {
   const hasChange = prevFileIds.value.length !== currentIds.length
     || prevFileIds.value.some((id, i) => id !== currentIds[i])
   prevFileIds.value = currentIds
-  if (hasChange && outputConfig.value.columns.length > 0) {
-    outputConfig.value.columns = []
+  if (hasChange && props.modelValue.length > 0) {
+    emit('update:modelValue', [])
     _lastAutoInferred = false
   }
 }, { deep: true })
@@ -86,7 +105,7 @@ watch(
 onMounted(() => {
   const p0 = store.processors[0]
   const hasCode = p0 && (p0.plugin === 'sql' ? p0.sql.trim() : p0.script.trim())
-  if (store.output?.plugin === 'csv' && outputConfig.value.columns.length === 0 && hasCode) {
+  if (store.output?.plugin === 'csv' && props.modelValue.length === 0 && hasCode) {
     prevSql.value = p0.plugin === 'sql' ? p0.sql : p0.script
     onInferColumns()
   }
@@ -116,14 +135,14 @@ async function onInferColumns() {
     }
     const result = await executeSql(sql, tableMapping)
     if (result && result.columns.length > 0) {
-      outputConfig.value.columns = result.columns.map(col => ({ source: col, target: col }))
+      emit('update:modelValue', result.columns.map(col => ({ source: col, target: col })))
       _lastAutoInferred = true
       return
     }
     message.warning('无法从当前 SQL 中提取列名（可能是 SELECT * 或复杂语句），请手动添加列映射。')
     return
   }
-  outputConfig.value.columns = cols.map(col => ({ source: col, target: col }))
+  emit('update:modelValue', cols.map(col => ({ source: col, target: col })))
   _lastAutoInferred = true
 }
 
@@ -135,7 +154,7 @@ async function onAiMapping() {
       sourceCols.push(...fileMeta.columns)
     }
   }
-  const targetCols = outputConfig.value.columns.map((c: ColumnMappingItem) => c.target)
+  const targetCols = props.modelValue.map((c: ColumnMappingItem) => c.target)
   const content = await askSuggestion('mapping', {
     sourceColumns: sourceCols,
     targetColumns: targetCols,
@@ -144,7 +163,7 @@ async function onAiMapping() {
     try {
       const parsed = JSON.parse(content)
       if (parsed.mappings) {
-        outputConfig.value.columns = parsed.mappings
+        emit('update:modelValue', parsed.mappings as ColumnMappingItem[])
       }
       store.setSuggestion('mapping', { category: 'mapping', status: 'pending', content, timestamp: Date.now() })
     } catch { /* ignore */ }
@@ -152,11 +171,11 @@ async function onAiMapping() {
 }
 
 function addColumn() {
-  outputConfig.value.columns.push({ source: '', target: '' })
+  emit('update:modelValue', [...props.modelValue, { source: '', target: '' }])
 }
 
 function removeColumn(index: number) {
-  outputConfig.value.columns.splice(index, 1)
+  emit('update:modelValue', props.modelValue.filter((_, i) => i !== index))
 }
 
 function normalizeColumnName(name: string): string {
@@ -164,25 +183,27 @@ function normalizeColumnName(name: string): string {
 }
 
 function onMapAll() {
-  const cols = outputConfig.value.columns as ColumnMappingItem[]
-  for (const col of cols) {
+  const sourceCols = getSourceColumns()
+  const newColumns = props.modelValue.map(col => {
     if (!col.source && col.target) {
-      const sourceCols = getSourceColumns()
       const match = sourceCols.find(s => s === col.target)
-      if (match) col.source = match
+      if (match) return { ...col, source: match }
     }
-  }
+    return col
+  })
+  emit('update:modelValue', newColumns)
 }
 
 function onSmartMatch() {
-  const cols = outputConfig.value.columns as ColumnMappingItem[]
   const sourceCols = getSourceColumns()
-  for (const col of cols) {
-    if (col.source) continue
+  const newColumns = props.modelValue.map(col => {
+    if (col.source) return col
     const normalizedTarget = normalizeColumnName(col.target)
     const match = sourceCols.find(s => normalizeColumnName(s) === normalizedTarget)
-    if (match) col.source = match
-  }
+    if (match) return { ...col, source: match }
+    return col
+  })
+  emit('update:modelValue', newColumns)
 }
 
 function getSourceColumns(): string[] {

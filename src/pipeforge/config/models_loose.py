@@ -127,7 +127,10 @@ class LooseExcelOutputConfig(BaseModel):
         default=None,
         json_schema_extra={"x-ui-widget": "filename-template"},
     )
-    columns: list[LooseColumnMapping] = []
+    columns: list[LooseColumnMapping] = Field(
+        default=[],
+        json_schema_extra={"x-ui-widget": "column-mapping"},
+    )
 
 
 class LooseCsvOutputConfig(BaseModel):
@@ -146,7 +149,10 @@ class LooseCsvOutputConfig(BaseModel):
         default="utf-8",
         json_schema_extra={"x-ui-options-from": "encodings"},
     )
-    columns: list[LooseColumnMapping] = []
+    columns: list[LooseColumnMapping] = Field(
+        default=[],
+        json_schema_extra={"x-ui-widget": "column-mapping"},
+    )
 
 
 class LooseDatabaseOutputConfig(BaseModel):
@@ -172,7 +178,10 @@ class LooseDatabaseOutputConfig(BaseModel):
         },
     )
     source_table: str = Field(default="", alias="sourceTable")
-    columns: list[LooseColumnMapping] = []
+    columns: list[LooseColumnMapping] = Field(
+        default=[],
+        json_schema_extra={"x-ui-widget": "column-mapping"},
+    )
     create_table_if_not_exists: bool = Field(default=True, alias="createTableIfNotExists")
     primary_key_columns: list[str] = Field(
         default=[],

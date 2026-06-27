@@ -34,8 +34,11 @@
         <!-- Database output form (ConnectionSelector 自包含连接管理 modal) -->
         <DatabaseOutputForm />
 
-        <!-- Column mapping (self-contained component) -->
-        <ColumnMappingEditor />
+        <!-- Column mapping — 命名 widget 协议（modelValue + update:modelValue） -->
+        <ColumnMappingEditor
+          :model-value="outputConfig.columns"
+          @update:model-value="(cols: ColumnMappingItem[]) => outputConfig.columns = cols"
+        />
       </div>
     </div>
   </div>
@@ -51,6 +54,10 @@ import ColumnMappingEditor from './ColumnMappingEditor.vue'
 import OutputTypeSelector from './OutputTypeSelector.vue'
 import DatabaseOutputForm from './DatabaseOutputForm.vue'
 import FileOutputForm from './FileOutputForm.vue'
+import { registerWidget } from '../../composables/widgetRegistry'
+
+// 注册 column-mapping 命名 widget（output 的 columns 字段引用）
+registerWidget('column-mapping', ColumnMappingEditor)
 
 const props = defineProps<{ pulseCta?: boolean }>()
 const store = useWizardStore()
