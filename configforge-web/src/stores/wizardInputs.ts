@@ -1,27 +1,58 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { InputSource, UploadedFileMeta } from '../types/wizard'
+import { usePluginSchema } from '../composables/usePluginSchema'
+
+/**
+ * deriveDefaultsFromSchema — 从 JSON schema 的 properties.default 派生配置默认值。
+ *
+ * 限制①动态表单基础设施：消除前端硬编码默认值，单一数据源来自后端 schema。
+ *
+ * 规则：
+ * - 包含 `type` 字段（鉴别联合 discriminator，config 必须携带）
+ * - 跳过 `file` 字段（pipeforge 运行时注入，前端不收集）
+ * - 其他字段读取 `default` 值；无 default 时跳过（由 SchemaForm 运行时回退）
+ */
+function deriveDefaultsFromSchema(schema: Record<string, unknown> | undefined): Record<string, unknown> | null {
+  if (!schema || typeof schema !== 'object') return null
+  const properties = (schema as { properties?: Record<string, { default?: unknown }> }).properties
+  if (!properties) return null
+  const result: Record<string, unknown> = {}
+  for (const [key, prop] of Object.entries(properties)) {
+    if (key === 'file') continue // 运行时注入字段，前端不收集
+    if (prop && 'default' in prop) {
+      result[key] = prop.default
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null
+}
+
+/** api 插件无后端 schema（configforge 专属预览插件），保留硬编码默认值。 */
+function apiInputDefaults(): Record<string, unknown> {
+  return { type: 'api', url: '', method: 'GET', headers: {}, params: {}, dataPath: '', pagination: 'none', pageSize: 100, maxPages: 10 }
+}
 
 export const useWizardInputsStore = defineStore('wizardInputs', () => {
   const inputs = ref<InputSource[]>([])
   const uploadedFiles = ref<Record<string, UploadedFileMeta>>({})
 
   function addInput(plugin: InputSource['plugin'] = 'excel') {
-    let config: InputSource['config']
-    if (plugin === 'csv') {
-      config = { type: 'csv' as const, delimiter: ',', encoding: 'utf-8', hasHeader: true }
-    } else if (plugin === 'database') {
-      config = { type: 'database' as const, connectionId: '', queryType: 'table' as const, tables: [], sql: '' }
-    } else if (plugin === 'json') {
-      config = { type: 'json' as const, flattenSeparator: '.' }
-    } else if (plugin === 'xml') {
-      config = { type: 'xml' as const, rowElement: '' }
-    } else if (plugin === 'parquet') {
-      config = { type: 'parquet' as const }
-    } else if (plugin === 'api') {
-      config = { type: 'api' as const, url: '', method: 'GET', headers: {}, params: {}, dataPath: '', pagination: 'none', pageSize: 100, maxPages: 10 }
+    let config: Record<string, unknown>
+
+    if (plugin === 'api') {
+      // api 插件无后端 schema，使用专属默认值
+      config = apiInputDefaults()
     } else {
-      config = { type: 'excel' as const, sheet: '' }
+      // 优先从后端 schema 派生默认值（限制①：单一数据源）
+      const { getSchema } = usePluginSchema()
+      const schema = getSchema(plugin, 'input')
+      const derived = deriveDefaultsFromSchema(schema)
+      if (derived) {
+        config = derived
+      } else {
+        // schema 未加载时的回退（Day 13-16 迁移完成后可移除）
+        config = hardcodedInputDefaults(plugin)
+      }
     }
 
     inputs.value.push({
@@ -30,7 +61,17 @@ export const useWizardInputsStore = defineStore('wizardInputs', () => {
       paramKey: '',
       fileId: '',
       config,
-    } as InputSource)
+    } as unknown as InputSource)
+  }
+
+  /** 硬编码回退默认值（schema 未加载时使用，Day 13-16 后移除）。 */
+  function hardcodedInputDefaults(plugin: string): Record<string, unknown> {
+    if (plugin === 'csv') return { type: 'csv', delimiter: ',', encoding: 'utf-8', hasHeader: true }
+    if (plugin === 'database') return { type: 'database', connectionId: '', queryType: 'table', tables: [], sql: '' }
+    if (plugin === 'json') return { type: 'json', flattenSeparator: '.' }
+    if (plugin === 'xml') return { type: 'xml', rowElement: '' }
+    if (plugin === 'parquet') return { type: 'parquet' }
+    return { type: 'excel', sheet: '' }
   }
 
   function removeInput(index: number) { inputs.value.splice(index, 1) }
