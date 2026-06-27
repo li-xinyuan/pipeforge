@@ -148,12 +148,34 @@ class LooseDatabaseOutputConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     type: Literal["database"] = "database"
-    connection_id: str = Field(default="", alias="connectionId")
+    connection_id: str = Field(
+        default="",
+        alias="connectionId",
+        json_schema_extra={"x-ui-widget": "connection-selector"},
+    )
     target_table: str = Field(default="", alias="targetTable")
-    write_mode: Literal["replace", "append", "upsert"] = Field(default="replace", alias="writeMode")
+    write_mode: Literal["replace", "append", "upsert"] = Field(
+        default="replace",
+        alias="writeMode",
+        json_schema_extra={
+            "x-ui-enum-labels": {
+                "replace": "替换（覆盖）",
+                "append": "追加",
+                "upsert": "更新（upsert）",
+            },
+        },
+    )
     source_table: str = Field(default="", alias="sourceTable")
     columns: list[LooseColumnMapping] = []
     create_table_if_not_exists: bool = Field(default=True, alias="createTableIfNotExists")
-    primary_key_columns: list[str] = Field(default=[], alias="primaryKeyColumns")
+    primary_key_columns: list[str] = Field(
+        default=[],
+        alias="primaryKeyColumns",
+        json_schema_extra={
+            "x-ui-widget": "multi-select",
+            "x-ui-visible-when": "writeMode == 'upsert'",
+            "x-ui-options-from": "output-columns",
+        },
+    )
     batch_size: int = Field(default=1000, ge=1, le=100000)
     connection_string: str = ""

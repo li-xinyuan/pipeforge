@@ -25,8 +25,8 @@ vi.mock('naive-ui', () => ({
     emits: ['update:value'],
   },
   NSelect: {
-    template: '<select data-test="n-select" :value="value" :disabled="disabled" @change="$emit(\'update:value\', $event.target.value)"><option v-for="o in (options || [])" :key="o.value" :value="o.value">{{ o.label }}</option></select>',
-    props: ['value', 'options', 'size', 'disabled', 'loading'],
+    template: '<select data-test="n-select" :multiple="multiple" :value="value" :disabled="disabled" @change="$emit(\'update:value\', $event.target.value)"><option v-for="o in (options || [])" :key="o.value" :value="o.value">{{ o.label }}</option></select>',
+    props: ['value', 'options', 'size', 'disabled', 'loading', 'multiple'],
     emits: ['update:value'],
   },
   NInputNumber: {
@@ -342,6 +342,146 @@ describe('SchemaForm', () => {
       })
       // type/file 默认跳过，columns 额外跳过，只剩 delimiter
       expect(wrapper.findAll('[data-test="n-input"]')).toHaveLength(1)
+    })
+  })
+
+  describe('条件显隐（x-ui-visible-when）', () => {
+    it('条件为 true 时显示字段', () => {
+      const schema = {
+        properties: {
+          writeMode: { type: 'string', enum: ['replace', 'append', 'upsert'], default: 'upsert' },
+          primaryKeyColumns: {
+            type: 'array',
+            default: [],
+            'x-ui-visible-when': "writeMode == 'upsert'",
+          },
+        },
+      }
+      const wrapper = mountForm({ writeMode: 'upsert', primaryKeyColumns: [] }, schema)
+      // writeMode + primaryKeyColumns 条件成立 → 2 个字段渲染
+      expect(wrapper.findAll('.schema-form-field')).toHaveLength(2)
+    })
+
+    it('条件为 false 时隐藏字段', () => {
+      const schema = {
+        properties: {
+          writeMode: { type: 'string', enum: ['replace', 'append', 'upsert'], default: 'replace' },
+          primaryKeyColumns: {
+            type: 'array',
+            default: [],
+            'x-ui-visible-when': "writeMode == 'upsert'",
+          },
+        },
+      }
+      const wrapper = mountForm({ writeMode: 'replace', primaryKeyColumns: [] }, schema)
+      // 只有 writeMode 渲染，primaryKeyColumns 被隐藏
+      expect(wrapper.findAll('.schema-form-field')).toHaveLength(1)
+    })
+
+    it('无法解析的表达式默认显示字段', () => {
+      const schema = {
+        properties: {
+          field: {
+            type: 'string',
+            default: '',
+            'x-ui-visible-when': 'invalid expression',
+          },
+        },
+      }
+      const wrapper = mountForm({ field: '' }, schema)
+      expect(wrapper.find('[data-test="n-input"]').exists()).toBe(true)
+    })
+  })
+
+  describe('enum 标签（x-ui-enum-labels）', () => {
+    it('用 enum-labels 提供 option label', () => {
+      const schema = {
+        properties: {
+          writeMode: {
+            type: 'string',
+            enum: ['replace', 'append', 'upsert'],
+            default: 'replace',
+            'x-ui-enum-labels': {
+              replace: '替换（覆盖）',
+              append: '追加',
+              upsert: '更新（upsert）',
+            },
+          },
+        },
+      }
+      const wrapper = mountForm({ writeMode: 'replace' }, schema)
+      const options = wrapper.find('[data-test="n-select"]').findAll('option')
+      expect(options).toHaveLength(3)
+      expect(options[0].text()).toBe('替换（覆盖）')
+      expect(options[1].text()).toBe('追加')
+      expect(options[2].text()).toBe('更新（upsert）')
+    })
+
+    it('未提供 enum-labels 时回退到 enum 值本身', () => {
+      const schema = {
+        properties: {
+          encoding: {
+            type: 'string',
+            enum: ['utf-8', 'gbk'],
+            default: 'utf-8',
+          },
+        },
+      }
+      const wrapper = mountForm({ encoding: 'utf-8' }, schema)
+      const options = wrapper.find('[data-test="n-select"]').findAll('option')
+      expect(options[0].text()).toBe('utf-8')
+    })
+  })
+
+  describe('multi-select（x-ui-widget: multi-select）', () => {
+    it('挂载后从 async loader 加载选项并渲染 multiple NSelect', async () => {
+      const loader = vi.fn(async () => [
+        { label: 'id', value: 'id' },
+        { label: 'name', value: 'name' },
+      ])
+      registerAsyncOptionsLoader('output-columns', loader)
+
+      const schema = {
+        properties: {
+          primaryKeyColumns: {
+            type: 'array',
+            default: [],
+            'x-ui-widget': 'multi-select',
+            'x-ui-options-from': 'output-columns',
+          },
+        },
+      }
+      const wrapper = mountForm({ primaryKeyColumns: [] }, schema)
+      await flushPromises()
+
+      expect(loader).toHaveBeenCalledOnce()
+      const select = wrapper.find('[data-test="n-select"]')
+      expect(select.exists()).toBe(true)
+      // multiple 属性透传
+      expect((select.element as HTMLSelectElement).multiple).toBe(true)
+      const options = select.findAll('option')
+      expect(options).toHaveLength(2)
+      expect(options[0].text()).toBe('id')
+    })
+
+    it('type array + x-ui-options-from 也识别为 multi-select', async () => {
+      registerAsyncOptionsLoader('cols', async () => [
+        { label: 'a', value: 'a' },
+      ])
+      const schema = {
+        properties: {
+          cols: {
+            type: 'array',
+            default: [],
+            'x-ui-options-from': 'cols',
+          },
+        },
+      }
+      const wrapper = mountForm({ cols: [] }, schema)
+      await flushPromises()
+      const select = wrapper.find('[data-test="n-select"]')
+      expect(select.exists()).toBe(true)
+      expect((select.element as HTMLSelectElement).multiple).toBe(true)
     })
   })
 })

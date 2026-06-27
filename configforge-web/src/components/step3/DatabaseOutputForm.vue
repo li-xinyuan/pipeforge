@@ -1,47 +1,22 @@
 <template>
-  <template v-if="store.output?.plugin === 'database'">
-    <!-- Connection selector -->
-    <div>
-      <label class="cf-label"><span class="cf-required">*</span> 数据库连接</label>
-      <div class="flex items-center gap-2">
-        <NSelect
-          v-model:value="dbConfig.connectionId"
-          :options="connectionOptions"
-          placeholder="-- 选择连接 --"
-          size="small"
-          class="flex-1"
-          @update:value="onConnectionSelected"
-        />
-        <NButton size="small" quaternary @click="$emit('open-conn-manager')">⚙ 管理</NButton>
-      </div>
-      <p v-if="connectionOptions.length === 0" class="text-xs text-amber-600 dark:text-amber-400 mt-1">
-        暂无连接，点击"管理"按钮新建数据库连接
-      </p>
-    </div>
-    <!-- Target table name -->
-    <div>
-      <label class="cf-label"><span class="cf-required">*</span> 目标表名</label>
-      <NInput v-model:value="dbConfig.targetTable" placeholder="例如：report_data" size="small" />
-    </div>
-    <!-- Write mode -->
-    <div>
-      <label class="cf-label">写入模式</label>
-      <NSelect
-        v-model:value="dbConfig.writeMode"
-        :options="writeModeOptions"
-        size="small"
-      />
-    </div>
-    <!-- Batch size -->
-    <div>
-      <label class="cf-label">批量大小</label>
-      <NInputNumber v-model:value="dbConfig.batchSize" :min="1" :max="10000" size="small" />
-    </div>
-    <!-- Create table if not exists -->
-    <div>
-      <NCheckbox v-model:checked="dbConfig.createTableIfNotExists" size="small">自动建表</NCheckbox>
-    </div>
-    <!-- Primary key columns -->
+  <!--
+    DatabaseOutputForm — database 输出配置表单（限制①第三阶段迁移）。
+
+    迁移策略：
+    - connectionId/targetTable/writeMode/batchSize/createTableIfNotExists 迁入 SchemaForm，
+      connectionId 通过 connection-selector 命名 widget 渲染（自包含 modal）。
+    - primaryKeyColumns 保留为自定义 UI：选项来自 columns，需 reactive 更新
+      （SchemaForm 的 async loader 仅挂载时加载一次，不满足 reactivity），用 skipFields 跳过。
+    - writeMode === 'upsert' 时显示 primaryKeyColumns（条件显隐由自定义 v-if 处理）。
+  -->
+  <template v-if="store.output?.plugin === 'database' && dbOutputSchema">
+    <SchemaForm
+      :model-value="store.output.config as unknown as Record<string, unknown>"
+      :schema="dbOutputSchema"
+      :skip-fields="['columns', 'sourceTable', 'primaryKeyColumns']"
+      @update:model-value="onSchemaUpdate"
+    />
+    <!-- Primary key columns (upsert only, reactive options from columns) -->
     <div v-if="dbConfig.writeMode === 'upsert'">
       <label class="cf-label">主键列</label>
       <NSelect
@@ -56,27 +31,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useWizardStore } from '../../stores/wizard'
-import { useConnections } from '../../composables/useConnections'
+import { usePluginSchema } from '../../composables/usePluginSchema'
+import { registerWidget } from '../../composables/widgetRegistry'
+import SchemaForm from '../common/SchemaForm.vue'
+import ConnectionSelector from '../common/ConnectionSelector.vue'
 import type { DatabaseOutputConfig, ColumnMappingItem } from '../../types/wizard'
-import { NInput, NButton, NSelect, NCheckbox, NInputNumber } from 'naive-ui'
+import { NSelect } from 'naive-ui'
 
 const store = useWizardStore()
 
-defineEmits<{
-  'open-conn-manager': []
-}>()
+// 注册 connection-selector 命名 widget（database output 的 connectionId 字段引用）
+registerWidget('connection-selector', ConnectionSelector)
+
+const { getSchema, load } = usePluginSchema()
+const dbOutputSchema = computed(() => getSchema('database', 'output'))
+
+onMounted(() => {
+  load()
+})
 
 const dbConfig = computed(() => store.output!.config as DatabaseOutputConfig)
-
-const { connectionOptions } = useConnections()
-
-const writeModeOptions = [
-  { label: '追加 (INSERT)', value: 'append' },
-  { label: '替换 (DROP+CREATE+INSERT)', value: 'replace' },
-  { label: '更新插入 (UPSERT)', value: 'upsert' },
-]
 
 const primaryKeyOptions = computed(() => {
   return (store.output!.config as DatabaseOutputConfig).columns
@@ -84,7 +60,8 @@ const primaryKeyOptions = computed(() => {
     .map((c: ColumnMappingItem) => ({ label: c.target || c.source, value: c.target || c.source }))
 })
 
-function onConnectionSelected(connId: string) {
-  dbConfig.value.connectionId = connId
+/** SchemaForm update:modelValue 回调：可变更新，保留 config 对象引用。 */
+function onSchemaUpdate(updated: Record<string, unknown>): void {
+  Object.assign(store.output!.config, updated)
 }
 </script>

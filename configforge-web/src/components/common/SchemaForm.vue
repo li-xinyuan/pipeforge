@@ -44,6 +44,17 @@
           size="small"
           @update:value="onUpdate(field.key, $event)"
         />
+        <!-- multi-select → NSelect multiple -->
+        <NSelect
+          v-else-if="field.kind === 'multi-select'"
+          :value="((modelValue[field.key] ?? field.default) as string[])"
+          :options="(field.options as never)"
+          :loading="field.asyncLoading"
+          :disabled="disabled"
+          multiple
+          size="small"
+          @update:value="onUpdate(field.key, $event)"
+        />
         <!-- integer/number → NInputNumber -->
         <NInputNumber
           v-else-if="field.kind === 'number'"
@@ -88,13 +99,17 @@ interface JsonSchemaProperty {
   'x-ui-placeholder'?: string
   /** UI hint: 字段标签（默认从 title 或 key 派生）。 */
   'x-ui-label'?: string
+  /** UI hint: 条件显隐，表达式如 "writeMode == 'upsert'"。 */
+  'x-ui-visible-when'?: string
+  /** UI hint: enum 值到标签的映射（提供中文标签）。 */
+  'x-ui-enum-labels'?: Record<string, string>
 }
 
 interface JsonSchema {
   properties?: Record<string, JsonSchemaProperty>
 }
 
-type FieldKind = 'string' | 'number' | 'boolean' | 'enum' | 'async-select'
+type FieldKind = 'string' | 'number' | 'boolean' | 'enum' | 'async-select' | 'multi-select'
 
 interface RenderableField {
   key: string
@@ -137,6 +152,17 @@ const DEFAULT_SKIP_FIELDS = new Set(['type', 'file'])
 const asyncOptionsMap = ref<Record<string, SelectOption[]>>({})
 const asyncLoadingMap = ref<Record<string, boolean>>({})
 
+/**
+ * 解析 x-ui-visible-when 表达式（最小实现，仅支持 `field == 'value'` 字符串等值）。
+ * 无法解析的表达式默认返回 true（显示字段），避免配置错误导致字段永久隐藏。
+ */
+function evalVisibleWhen(expr: string, modelValue: Record<string, unknown>): boolean {
+  const match = /^(\w+)\s*==\s*'([^']*)'$/.exec(expr.trim())
+  if (!match) return true
+  const [, fieldName, expectedValue] = match
+  return String(modelValue[fieldName] ?? '') === expectedValue
+}
+
 /** 计算可渲染字段列表（顺序与 schema.properties 一致）。 */
 const renderableFields = computed<RenderableField[]>(() => {
   const properties = props.schema.properties || {}
@@ -144,15 +170,21 @@ const renderableFields = computed<RenderableField[]>(() => {
   const result: RenderableField[] = []
   for (const [key, prop] of Object.entries(properties)) {
     if (skipSet.has(key)) continue
+    // 条件显隐：解析 x-ui-visible-when 表达式，false 时跳过该字段
+    const visibleWhen = prop['x-ui-visible-when']
+    if (visibleWhen && !evalVisibleWhen(visibleWhen, props.modelValue)) continue
+
     const widgetName = prop['x-ui-widget']
     const asyncFrom = prop['x-ui-options-from']
     const widget = widgetName ? getWidget(widgetName) : undefined
     const hasEnum = Array.isArray(prop.enum) && prop.enum.length > 0
+    const enumLabels = prop['x-ui-enum-labels']
 
     let kind: FieldKind = 'string'
     if (prop.type === 'boolean') kind = 'boolean'
     else if (prop.type === 'integer' || prop.type === 'number') kind = 'number'
     else if (hasEnum) kind = 'enum'
+    else if (widgetName === 'multi-select' || (prop.type === 'array' && asyncFrom)) kind = 'multi-select'
     else if (asyncFrom) kind = 'async-select'
 
     result.push({
@@ -162,7 +194,10 @@ const renderableFields = computed<RenderableField[]>(() => {
       default: prop.default,
       kind,
       options: hasEnum
-        ? prop.enum!.map((v) => ({ label: String(v), value: v as string | number }))
+        ? prop.enum!.map((v) => ({
+            label: enumLabels?.[String(v)] ?? String(v),
+            value: v as string | number,
+          }))
         : asyncFrom
           ? (asyncOptionsMap.value[asyncFrom] || [])
           : undefined,

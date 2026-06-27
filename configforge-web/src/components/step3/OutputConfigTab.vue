@@ -31,23 +31,12 @@
           @template-uploaded="onTemplateUploaded"
         />
 
-        <!-- Database output form -->
-        <DatabaseOutputForm @open-conn-manager="showConnManager = true" />
+        <!-- Database output form (ConnectionSelector 自包含连接管理 modal) -->
+        <DatabaseOutputForm />
 
         <!-- Column mapping (self-contained component) -->
         <ColumnMappingEditor />
       </div>
-    </div>
-  </div>
-
-  <!-- Inline connection manager modal -->
-  <div v-if="showConnManager" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showConnManager = false">
-    <div class="bg-[var(--color-surface)] rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-base font-semibold">管理数据库连接</h3>
-        <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" @click="closeConnManager">✕</button>
-      </div>
-      <ConnectionManager />
     </div>
   </div>
 </template>
@@ -60,10 +49,8 @@ import type { ExcelOutputConfig, CsvOutputConfig, DatabaseOutputConfig, ColumnMa
 import { NButton, NTag, NSelect, useMessage, useDialog } from 'naive-ui'
 import ColumnMappingEditor from './ColumnMappingEditor.vue'
 import OutputTypeSelector from './OutputTypeSelector.vue'
-import ConnectionManager from '../common/ConnectionManager.vue'
 import DatabaseOutputForm from './DatabaseOutputForm.vue'
 import FileOutputForm from './FileOutputForm.vue'
-import { useConnections } from '../../composables/useConnections'
 
 const props = defineProps<{ pulseCta?: boolean }>()
 const store = useWizardStore()
@@ -74,12 +61,6 @@ const dialog = useDialog()
 const { fetchPreview } = useWizardApi()
 // Show type selector when no output plugin is selected
 const showOutputTypeChoices = ref(true)
-const showConnManager = ref(false)
-
-async function closeConnManager() {
-  showConnManager.value = false
-  await loadConnections()
-}
 
 function onOutputTypeSelect(plugin: 'excel' | 'csv' | 'database') {
   switchOutputType(plugin)
@@ -115,8 +96,6 @@ function applyAutoFilename(ext: string) {
 
 const outputConfig = computed(() => (store.output?.config ?? { columns: [], sourceTable: '' }) as ExcelOutputConfig | CsvOutputConfig | DatabaseOutputConfig)
 const excelConfig = computed(() => store.output?.config as ExcelOutputConfig | undefined)
-
-const { connectionOptions: _connectionOptions, loadConnectionOptions: loadConnections } = useConnections()
 
 const sourceTableOptions = computed(() => {
   const tables: Array<{ label: string; value: string }> = []
