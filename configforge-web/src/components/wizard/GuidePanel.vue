@@ -135,6 +135,7 @@ const currentTip = computed(() => {
   overflow: hidden;
   transition: width 0.25s ease;
   margin-left: 16px;
+  margin-top: 10px;
 }
 
 .guide-panel--collapsed { width: 36px; border-radius: var(--radius-lg); }
