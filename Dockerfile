@@ -1,10 +1,10 @@
 # === Build Stage: Frontend ===
 FROM node:20-alpine AS build-frontend
 
-ENV NODE_ENV=production
-
 WORKDIR /app/configforge-web
 COPY configforge-web/package.json configforge-web/package-lock.json ./
+# NOTE: 不在此处设 NODE_ENV=production —— npm ci 会跳过 devDependencies，
+# 而 build 脚本依赖 vue-tsc / vite（均在 devDependencies）。
 RUN npm ci
 COPY configforge-web/ ./
 RUN npm run build
