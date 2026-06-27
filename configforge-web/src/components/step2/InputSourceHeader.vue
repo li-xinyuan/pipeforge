@@ -39,7 +39,7 @@ const pluginIcon = computed(() => pluginIconMap[props.input.plugin] || '📄')
 const pluginLabel = computed(() => pluginLabelMap[props.input.plugin] || props.input.plugin)
 const pluginTagType = computed(() => pluginTagTypeMap[props.input.plugin] || 'default')
 
-// 限制③第一阶段止血：json/xml/parquet/api 输入源仅支持预览，不可执行
-const PREVIEW_ONLY_PLUGINS = ['json', 'xml', 'parquet', 'api']
+// REST API 输入源仅支持预览，不可执行
+const PREVIEW_ONLY_PLUGINS = ['api']
 const isPreviewOnly = computed(() => PREVIEW_ONLY_PLUGINS.includes(props.input.plugin))
 </script>

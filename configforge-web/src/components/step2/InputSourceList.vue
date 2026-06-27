@@ -34,20 +34,17 @@
           <span class="text-sm font-semibold">Database</span>
           <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">SQLite / MySQL / PG</span>
         </div>
-        <div class="text-center opacity-55 border-2 border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/20 rounded-lg p-3 relative cursor-not-allowed" title="此输入源当前仅支持预览，暂不可执行">
-          <NTag class="absolute top-1 right-1" size="tiny" type="warning" :bordered="false">仅预览</NTag>
+        <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-amber-900/30', 'border-amber-600 bg-amber-50']" @click="addInput('json')">
           <span class="text-2xl block mb-2">📋</span>
           <span class="text-sm font-semibold">JSON</span>
           <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.json</span>
         </div>
-        <div class="text-center opacity-55 border-2 border-dashed border-orange-300 dark:border-orange-700 bg-orange-50/50 dark:bg-orange-900/20 rounded-lg p-3 relative cursor-not-allowed" title="此输入源当前仅支持预览，暂不可执行">
-          <NTag class="absolute top-1 right-1" size="tiny" type="warning" :bordered="false">仅预览</NTag>
+        <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-orange-900/30', 'border-orange-600 bg-orange-50']" @click="addInput('xml')">
           <span class="text-2xl block mb-2">📰</span>
           <span class="text-sm font-semibold">XML</span>
           <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.xml</span>
         </div>
-        <div class="text-center opacity-55 border-2 border-dashed border-cyan-300 dark:border-cyan-700 bg-cyan-50/50 dark:bg-cyan-900/20 rounded-lg p-3 relative cursor-not-allowed" title="此输入源当前仅支持预览，暂不可执行">
-          <NTag class="absolute top-1 right-1" size="tiny" type="warning" :bordered="false">仅预览</NTag>
+        <div :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-cyan-900/30', 'border-cyan-600 bg-cyan-50']" @click="addInput('parquet')">
           <span class="text-2xl block mb-2">📦</span>
           <span class="text-sm font-semibold">Parquet</span>
           <span class="text-xs text-slate-500 dark:text-slate-400 mt-1 block">.parquet</span>
