@@ -4,7 +4,6 @@ import sqlite3
 import tempfile
 from contextlib import contextmanager
 
-
 # SQL identifier whitelist: Unicode letters, digits, underscores (supports Chinese etc.)
 _SQL_ID_RE = re.compile(r"^[\w][\w]{0,63}$", re.UNICODE)
 

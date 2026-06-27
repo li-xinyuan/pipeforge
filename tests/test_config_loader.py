@@ -1,11 +1,11 @@
-import tempfile
 import os
+import tempfile
 
 import pytest
 
-from pipeforge.config.models import SceneConfig
 from pipeforge.config import load_yaml_config
 from pipeforge.config.exceptions import ConfigError
+from pipeforge.config.models import SceneConfig
 
 
 class TestLoadYamlConfig:

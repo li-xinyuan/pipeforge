@@ -1,4 +1,3 @@
-from typing import Type
 
 from pipeforge.plugins.base import Plugin
 
@@ -14,14 +13,14 @@ class PluginNotFoundError(Exception):
 class PluginRegistry:
     """全局插件注册中心。插件通过 @register_plugin 装饰器注册。"""
 
-    _plugins: dict[tuple[str, str], Type[Plugin]] = {}
+    _plugins: dict[tuple[str, str], type[Plugin]] = {}
 
     @classmethod
-    def register(cls, name: str, plugin_type: str, plugin_cls: Type[Plugin]) -> None:
+    def register(cls, name: str, plugin_type: str, plugin_cls: type[Plugin]) -> None:
         cls._plugins[(name, plugin_type)] = plugin_cls
 
     @classmethod
-    def get(cls, name: str, plugin_type: str) -> Type[Plugin]:
+    def get(cls, name: str, plugin_type: str) -> type[Plugin]:
         key = (name, plugin_type)
         if key not in cls._plugins:
             raise PluginNotFoundError(name, plugin_type)
@@ -60,7 +59,7 @@ class PluginRegistry:
 
 def register_plugin(name: str, plugin_type: str):
     """注册插件到全局注册中心的装饰器。"""
-    def decorator(cls: Type[Plugin]) -> Type[Plugin]:
+    def decorator(cls: type[Plugin]) -> type[Plugin]:
         PluginRegistry.register(name, plugin_type, cls)
         return cls
     return decorator

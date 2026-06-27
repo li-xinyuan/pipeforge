@@ -1,12 +1,10 @@
-import tempfile
-import os
 import csv as csv_module
+import os
+import tempfile
 
 import pytest
 
-from pipeforge.config import load_yaml_config
 from pipeforge.core.engine import PipelineEngine
-from pipeforge.core.sqlite import SQLiteManager
 
 
 def _write_yaml(content, path):
@@ -74,7 +72,7 @@ output:
             assert result.processors[1].name == "第二步汇总"
             assert "filtered" in result.processors[0].tables_created
             assert "summary" in result.processors[1].tables_created
-            with open(os.path.join(output_dir, "result.csv"), "r") as f:
+            with open(os.path.join(output_dir, "result.csv")) as f:
                 rows = list(csv_module.reader(f))
                 assert rows[0] == ["数量"]
                 assert int(rows[1][0]) >= 0

@@ -1,4 +1,4 @@
-from pipeforge.core.context import Context, ExecutionResult, InputStats, ProcessorStats, OutputStats, Logger
+from pipeforge.core.context import Context, ExecutionResult, InputStats, Logger
 
 
 class TestContext:

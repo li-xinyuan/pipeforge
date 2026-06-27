@@ -284,14 +284,17 @@ def execute_pipeline(state: WizardState) -> str | None:
     engine = PipelineEngine(yaml_path)
 
     try:
-        # Set timeout alarm (Unix/macOS only)
-        old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
-        signal.alarm(PIPELINE_TIMEOUT_SECONDS)
+        # Set timeout alarm (Unix/macOS only). Windows 无 SIGALRM，跳过超时保护。
+        use_alarm = hasattr(signal, "SIGALRM")
+        if use_alarm:
+            old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+            signal.alarm(PIPELINE_TIMEOUT_SECONDS)
         try:
             result = engine.execute(params, log_dir=LOG_DIR)
         finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
+            if use_alarm:
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old_handler)
     except (PipelineTimeoutError, Exception):
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise

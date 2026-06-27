@@ -30,6 +30,7 @@ dependencies = [
     "ijson>=3.2",
     "sse-starlette>=2.0.0",
     "prometheus_client>=0.20.0",
+    "tenacity>=8.0",
 ]
 
 [project.scripts]

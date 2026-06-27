@@ -1,10 +1,9 @@
-import tempfile
 import os
+import tempfile
 
 import pytest
 
-from pipeforge.core.engine import PipelineEngine, RequiredParam
-
+from pipeforge.core.engine import PipelineEngine
 
 YAML_FIXTURE = """
 scene:
@@ -71,6 +70,7 @@ class TestPipelineEngine:
 def test_execute_dry_run_returns_intermediate_tables(tmp_path):
     """execute_dry_run should run input+processor steps, skip output, return intermediate table data."""
     from openpyxl import Workbook
+
     from pipeforge.core.engine import PipelineEngine
 
     # Create a minimal test Excel file with header row
@@ -113,8 +113,8 @@ output: null
 
 class TestTopologicalSort:
     def test_linear_chain(self):
-        from pipeforge.core.engine import PipelineEngine
         from pipeforge.config.models import ProcessorSpec, SqlProcessorConfig
+        from pipeforge.core.engine import PipelineEngine
 
         engine = PipelineEngine.__new__(PipelineEngine)
         procs = [
@@ -122,12 +122,12 @@ class TestTopologicalSort:
             ProcessorSpec(name="step2", plugin="sql", input_tables=["t1"], output_tables=["t2"], config=SqlProcessorConfig(type="sql", sql="...")),
             ProcessorSpec(name="step3", plugin="sql", input_tables=["t2"], output_tables=["t3"], config=SqlProcessorConfig(type="sql", sql="...")),
         ]
-        result = engine._topological_sort(procs, {"src"})
+        result = engine.topological_sort(procs, {"src"})
         assert [p.name for p in result] == ["step1", "step2", "step3"]
 
     def test_parallel_branches(self):
-        from pipeforge.core.engine import PipelineEngine
         from pipeforge.config.models import ProcessorSpec, SqlProcessorConfig
+        from pipeforge.core.engine import PipelineEngine
 
         engine = PipelineEngine.__new__(PipelineEngine)
         procs = [
@@ -135,15 +135,16 @@ class TestTopologicalSort:
             ProcessorSpec(name="step_a", plugin="sql", input_tables=[], output_tables=["ta"], config=SqlProcessorConfig(type="sql", sql="...")),
             ProcessorSpec(name="merge", plugin="sql", input_tables=["ta", "tb"], output_tables=["tm"], config=SqlProcessorConfig(type="sql", sql="...")),
         ]
-        result = engine._topological_sort(procs, {"src"})
+        result = engine.topological_sort(procs, {"src"})
         names = [p.name for p in result]
         assert names.index("merge") == 2
         assert set(names[:2]) == {"step_a", "step_b"}
 
     def test_detects_cycle(self):
-        from pipeforge.core.engine import PipelineEngine
-        from pipeforge.config.models import ProcessorSpec, SqlProcessorConfig
         import pytest
+
+        from pipeforge.config.models import ProcessorSpec, SqlProcessorConfig
+        from pipeforge.core.engine import PipelineEngine
 
         engine = PipelineEngine.__new__(PipelineEngine)
         procs = [
@@ -151,4 +152,4 @@ class TestTopologicalSort:
             ProcessorSpec(name="b", plugin="sql", input_tables=["ta"], output_tables=["tb"], config=SqlProcessorConfig(type="sql", sql="...")),
         ]
         with pytest.raises(ValueError, match="Circular dependency"):
-            engine._topological_sort(procs, {"src"})
+            engine.topological_sort(procs, {"src"})

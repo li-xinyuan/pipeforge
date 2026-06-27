@@ -2,15 +2,16 @@ import pytest
 
 
 def test_python_processor_registered():
-    from pipeforge.plugins.processor.python import PythonProcessorPlugin  # noqa: F401
     from pipeforge.core.registry import PluginRegistry
+    from pipeforge.plugins.processor.python import PythonProcessorPlugin  # noqa: F401
     cls = PluginRegistry.get("python", "processor")
     assert cls is not None
 
 
 def test_python_processor_executes_script(tmp_path):
-    from pipeforge.core.engine import PipelineEngine
     import openpyxl
+
+    from pipeforge.core.engine import PipelineEngine
 
     xlsx = tmp_path / "test.xlsx"
     wb = openpyxl.Workbook()
@@ -19,14 +20,14 @@ def test_python_processor_executes_script(tmp_path):
     wb.save(str(xlsx))
 
     yaml_path = tmp_path / "pipeline.yaml"
-    yaml_path.write_text(f"""
-scene: {{name: test, version: "1.0"}}
+    yaml_path.write_text("""
+scene: {name: test, version: "1.0"}
 inputs:
   - name: src
     plugin: excel
     table: raw_data
     param_key: f
-    config: {{type: excel, sheet: Sheet}}
+    config: {type: excel, sheet: Sheet}
 processors:
   - name: py_step
     plugin: python
@@ -46,10 +47,10 @@ processors:
 
 
 def test_python_processor_missing_process_fn():
-    from pipeforge.plugins.processor.python import PythonProcessorPlugin
     from pipeforge.config.models import PythonProcessorConfig
     from pipeforge.core.context import Context, Logger
     from pipeforge.core.sqlite import SQLiteManager
+    from pipeforge.plugins.processor.python import PythonProcessorPlugin
 
     db = SQLiteManager()
     ctx = Context(db=db, params={}, yaml_dir="/tmp", scene_name="test", logger=Logger())

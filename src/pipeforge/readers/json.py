@@ -5,7 +5,7 @@
 configforge/services/json_reader.py 通过 re-export 复用，保持向后兼容。
 """
 import json
-from typing import Iterator
+from collections.abc import Iterator
 
 try:
     import ijson  # type: ignore[import-untyped]

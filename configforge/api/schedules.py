@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from configforge.middleware.auth import require_role
 from configforge.models.user import User
 from configforge.scheduler import ScheduleConfig, get_next_run_time
-from configforge.services.config_store import _load_index
+from configforge.services.config_store import load_index
 from configforge.storage import get_audit_store, get_schedule_store
 from configforge.utils.security import validate_id
 
@@ -43,7 +43,7 @@ async def api_list_schedules(_user: User = Depends(require_role("viewer", "edito
     """List all schedules with config name and next run time."""
     schedule_store = get_schedule_store()
     schedules = schedule_store.list_schedules()
-    index = _load_index()
+    index = load_index()
     config_map = {e.get("id"): e for e in index}
 
     result = []
@@ -62,7 +62,7 @@ async def api_list_schedules(_user: User = Depends(require_role("viewer", "edito
 async def api_add_schedule(req: CreateScheduleRequest, _user: User = Depends(require_role("editor", "admin"))):
     """Add a new schedule."""
     # Verify config exists
-    index = _load_index()
+    index = load_index()
     if not any(e.get("id") == req.config_id for e in index):
         raise HTTPException(status_code=404, detail="配置不存在")
 

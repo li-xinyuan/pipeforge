@@ -7,10 +7,9 @@ from pydantic import BaseModel
 from pipeforge.config import load_yaml_config
 from pipeforge.config.models import SceneConfig
 from pipeforge.core.checkpoints import execute_checks
-from pipeforge.core.context import Context, InputStats, ProcessorStats, OutputStats, ExecutionResult, Logger
+from pipeforge.core.context import Context, ExecutionResult, InputStats, Logger, OutputStats, ProcessorStats
 from pipeforge.core.registry import PluginRegistry
 from pipeforge.core.sqlite import SQLiteManager
-from pipeforge.plugins.base import InputPlugin
 
 
 class RequiredParam(BaseModel):
@@ -50,12 +49,12 @@ class PipelineEngine:
 
         try:
             for inp_spec in self.config.inputs:
-                stats = self._execute_input(inp_spec, context)
+                stats = self.execute_input(inp_spec, context)
                 context.result.inputs[inp_spec.name] = stats
 
             if self.config.processors:
                 input_tables = {inp.table for inp in self.config.inputs}
-                sorted_processors = self._topological_sort(self.config.processors, input_tables)
+                sorted_processors = self.topological_sort(self.config.processors, input_tables)
                 for proc_spec in sorted_processors:
                     for table in proc_spec.input_tables:
                         if table not in context.db.list_tables():
@@ -69,7 +68,7 @@ class PipelineEngine:
                         context.result.checks.extend(check_results)
 
             if self.config.output is not None:
-                stats = self._execute_output(self.config.output, context)
+                stats = self.execute_output(self.config.output, context)
                 context.result.output = stats
 
         except Exception:
@@ -100,12 +99,12 @@ class PipelineEngine:
 
         try:
             for inp_spec in self.config.inputs:
-                stats = self._execute_input(inp_spec, context)
+                stats = self.execute_input(inp_spec, context)
                 context.result.inputs[inp_spec.name] = stats
 
             if self.config.processors:
                 input_tables = {inp.table for inp in self.config.inputs}
-                sorted_processors = self._topological_sort(self.config.processors, input_tables)
+                sorted_processors = self.topological_sort(self.config.processors, input_tables)
                 for proc_spec in sorted_processors:
                     for table in proc_spec.input_tables:
                         if table not in context.db.list_tables():
@@ -144,7 +143,7 @@ class PipelineEngine:
             "checks": [c.model_dump() for c in context.result.checks],
         }
 
-    def _topological_sort(self, processors, available_tables: set[str]) -> list:
+    def topological_sort(self, processors, available_tables: set[str]) -> list:
         """Kahn's algorithm — sort processors by input/output table dependencies."""
         remaining = list(processors)
         ordered = []
@@ -169,7 +168,7 @@ class PipelineEngine:
                 remaining.remove(p)
         return ordered
 
-    def _execute_input(self, inp_spec, context):
+    def execute_input(self, inp_spec, context):
         start = time.time()
         # Database inputs use connection_string, not file_path
         is_db_input = getattr(inp_spec.config, 'type', None) == 'database'
@@ -212,7 +211,7 @@ class PipelineEngine:
             elapsed_ms=round(elapsed, 2),
         )
 
-    def _execute_output(self, out_spec, context):
+    def execute_output(self, out_spec, context):
         start = time.time()
         plugin_cls = PluginRegistry.get(out_spec.plugin, "output")
         plugin = plugin_cls()

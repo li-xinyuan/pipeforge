@@ -1,9 +1,9 @@
 import csv
 import os
 
-from pipeforge.plugins.base import OutputPlugin
 from pipeforge.config.models import CsvOutputConfig
 from pipeforge.core.registry import register_plugin
+from pipeforge.plugins.base import OutputPlugin
 
 
 @register_plugin("csv", "output")

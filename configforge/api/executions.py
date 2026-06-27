@@ -3,124 +3,33 @@ import json
 import os
 import shutil
 import urllib.parse
-from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from configforge.models.wizard import ExecutionRecord
+from configforge.services.execution_store import (
+    DATA_DIR,  # noqa: F401  re-export for backward-compat with tests
+    EXEC_DIR,
+    EXEC_INDEX,
+    MAX_OUTPUT_FILES,  # noqa: F401  re-export
+)
+from configforge.services.execution_store import (
+    cleanup_old_outputs as _cleanup_old_outputs,  # noqa: F401  re-export
+)
+from configforge.services.execution_store import (
+    sanitize_summary as _sanitize_summary,  # noqa: F401  re-export
+)
+from configforge.services.execution_store import (
+    save_failed_execution as _save_failed_execution,  # noqa: F401  re-export
+)
+from configforge.services.execution_store import (
+    update_exec_index as _update_exec_index,  # noqa: F401  re-export
+)
 from configforge.utils.file_lock import read_json_locked, write_json_locked
-from configforge.utils.paths import get_data_dir
 from configforge.utils.security import validate_id
 
 router = APIRouter(prefix="/api/executions", tags=["执行历史"])
-
-DATA_DIR = get_data_dir()
-EXEC_DIR = os.path.join(DATA_DIR, "executions")
-EXEC_INDEX = os.path.join(EXEC_DIR, "index.json")
-MAX_OUTPUT_FILES = 50  # Keep last 50 output files
-
-
-def _cleanup_old_outputs():
-    """Remove output files beyond MAX_OUTPUT_FILES limit."""
-    if not os.path.exists(EXEC_DIR):
-        return
-    dirs = sorted(
-        [d for d in os.listdir(EXEC_DIR) if os.path.isdir(os.path.join(EXEC_DIR, d))],
-        reverse=True
-    )
-    for d in dirs[MAX_OUTPUT_FILES:]:
-        shutil.rmtree(os.path.join(EXEC_DIR, d), ignore_errors=True)
-
-
-def _sanitize_summary(summary: list[dict]) -> list[dict]:
-    """Mask sensitive fields (connection strings, passwords) in execution summaries."""
-    import re
-    sanitized = []
-    for item in summary:
-        s = dict(item)
-        for key in list(s.keys()):
-            val = str(s[key]) if s[key] is not None else ""
-            # Mask connection strings like mysql://user:pass@host/db
-            if re.search(r"://.*@", val):
-                s[key] = re.sub(r"(://[^:]+:)[^@]+(@)", r"\1***\2", val)
-        sanitized.append(s)
-    return sanitized
-
-
-def _update_exec_index(record: ExecutionRecord):
-    """Add or update an execution entry in the index file."""
-    os.makedirs(EXEC_DIR, exist_ok=True)
-    index = []
-    if os.path.exists(EXEC_INDEX):
-        index = read_json_locked(EXEC_INDEX)
-    index.insert(0, {
-        "id": record.id,
-        "config_id": record.config_id,
-        "config_version": record.config_version,
-        "scene_name": record.scene_name,
-        "status": record.status,
-        "started_at": record.started_at,
-        "finished_at": record.finished_at,
-        "duration_ms": record.duration_ms,
-        "inputs_summary": record.inputs_summary,
-        "processors_summary": record.processors_summary,
-        "output_type": record.output_type,
-        "checks_summary": record.checks_summary,
-        "error_message": record.error_message,
-        "output_file_name": record.output_file_name,
-        "diagnosis": record.diagnosis,
-    })
-    # Keep last 100 entries
-    write_json_locked(EXEC_INDEX, index[:100])
-
-    # Clean up old output directories
-    _cleanup_old_outputs()
-
-
-def _save_failed_execution(
-    exec_id: str,
-    started_at: str,
-    config_id: str,
-    config_version: int | None,
-    scene_name: str,
-    inputs_summary: list[dict],
-    processors_summary: list[dict],
-    output_type: str,
-    error_message: str,
-    checks_summary: list[dict] | None = None,
-    diagnosis: dict | None = None,
-):
-    """Persist a failed execution record."""
-    finished_at = datetime.now(UTC).isoformat()
-    start_dt = datetime.fromisoformat(started_at)
-    end_dt = datetime.fromisoformat(finished_at)
-    duration_ms = int((end_dt - start_dt).total_seconds() * 1000)
-
-    record = ExecutionRecord(
-        id=exec_id,
-        config_id=config_id,
-        config_version=config_version,
-        scene_name=scene_name,
-        status="failed",
-        started_at=started_at,
-        finished_at=finished_at,
-        duration_ms=duration_ms,
-        inputs_summary=_sanitize_summary(inputs_summary),
-        processors_summary=processors_summary,
-        output_type=output_type,
-        checks_summary=checks_summary or [],
-        error_message=error_message,
-        output_file_name=None,
-        diagnosis=diagnosis,
-    )
-
-    os.makedirs(os.path.join(EXEC_DIR, exec_id), exist_ok=True)
-    result_path = os.path.join(EXEC_DIR, exec_id, "result.json")
-    with open(result_path, "w") as f:
-        json.dump(record.model_dump(), f, ensure_ascii=False, indent=2)
-
-    _update_exec_index(record)
 
 
 @router.get("", summary="获取执行历史列表", description="分页获取 Pipeline 执行历史记录。支持按场景名称搜索和按配置 ID 筛选。返回执行状态、耗时、输入输出摘要等信息。")

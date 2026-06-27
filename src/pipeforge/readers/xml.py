@@ -5,7 +5,7 @@
 """
 import io
 import xml.etree.ElementTree as ET
-from typing import Iterator
+from collections.abc import Iterator
 
 MAX_XML_ROWS = 50000
 

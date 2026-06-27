@@ -54,8 +54,12 @@ from configforge.services.config_store import (  # noqa: F401
     INDEX_PATH,
     INDEX_SCHEMA_VERSION,
     _cache,
-    _load_index,
-    _save_index,
+)
+from configforge.services.config_store import (
+    load_index as _load_index,
+)
+from configforge.services.config_store import (
+    save_index as _save_index,
 )
 
 
@@ -547,7 +551,8 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest, _user: User 
 
 
 # Version management helpers extracted to services/config_store.py (T-5E-01)
-from configforge.services.config_store import _list_version_files, _read_version_state
+from configforge.services.config_store import list_version_files as _list_version_files
+from configforge.services.config_store import read_version_state as _read_version_state
 
 
 def _deep_diff(old: any, new: any, path: str, result: dict) -> None:

@@ -14,15 +14,21 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from configforge.api.executions import (
-    EXEC_DIR,
-    _sanitize_summary,
-    _save_failed_execution,
-    _update_exec_index,
-)
 from configforge.core.pipeline import PipelineTimeoutError, _prepare_execution, execute_pipeline
 from configforge.models.wizard import ExecutionRecord, WizardState
 from configforge.services.ai.auto_diagnose import auto_diagnose
+from configforge.services.execution_store import (
+    EXEC_DIR,
+)
+from configforge.services.execution_store import (
+    sanitize_summary as _sanitize_summary,
+)
+from configforge.services.execution_store import (
+    save_failed_execution as _save_failed_execution,
+)
+from configforge.services.execution_store import (
+    update_exec_index as _update_exec_index,
+)
 from configforge.services.notifier.dispatcher import dispatch_notifications_async
 from configforge.utils.metrics import active_connections, record_pipeline_execution
 from configforge.utils.security import sanitize_connection_string
@@ -439,7 +445,7 @@ async def execute_with_progress(
                     "event": "input_start",
                     "data": json.dumps({"stage": "input", "name": inp_spec.name}),
                 }
-                stats = await asyncio.to_thread(engine._execute_input, inp_spec, ctx)
+                stats = await asyncio.to_thread(engine.execute_input, inp_spec, ctx)
                 rows = stats.rows_loaded if stats else 0
                 ctx.result.inputs[inp_spec.name] = stats
                 yield {
@@ -450,13 +456,13 @@ async def execute_with_progress(
             # --- Processor phase ---
             if engine.config.processors:
                 input_tables = {inp.table for inp in engine.config.inputs}
-                sorted_processors = engine._topological_sort(engine.config.processors, input_tables)
+                sorted_processors = engine.topological_sort(engine.config.processors, input_tables)
                 for proc_spec in sorted_processors:
                     yield {
                         "event": "processor_start",
                         "data": json.dumps({"stage": "processor", "name": proc_spec.name}),
                     }
-                    stats = await asyncio.to_thread(engine._execute_processor, proc_spec, ctx)
+                    stats = await asyncio.to_thread(engine.execute_processor, proc_spec, ctx)
                     ctx.result.processors.append(stats)
                     tables_created = stats.tables_created if stats else []
                     yield {
@@ -478,7 +484,7 @@ async def execute_with_progress(
                     "event": "output_start",
                     "data": json.dumps({"stage": "output"}),
                 }
-                stats = await asyncio.to_thread(engine._execute_output, engine.config.output, ctx)
+                stats = await asyncio.to_thread(engine.execute_output, engine.config.output, ctx)
                 ctx.result.output = stats
                 rows_written = stats.rows_written if stats else 0
                 yield {

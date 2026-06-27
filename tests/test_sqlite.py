@@ -1,4 +1,5 @@
 import os
+
 import pytest
 
 from pipeforge.core.sqlite import SQLiteManager

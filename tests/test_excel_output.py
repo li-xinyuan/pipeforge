@@ -1,16 +1,16 @@
-import tempfile
-import os
 import copy
+import os
+import tempfile
 
 import pytest
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
-from pipeforge.plugins.output.excel import ExcelOutputPlugin, resolve_filename
-from pipeforge.plugins.output import ExcelOutputPlugin as ImportedPlugin
-from pipeforge.core.sqlite import SQLiteManager
+from pipeforge.config.models import ColumnMapping, ExcelOutputConfig
 from pipeforge.core.context import Context
-from pipeforge.config.models import ExcelOutputConfig, ColumnMapping
+from pipeforge.core.sqlite import SQLiteManager
+from pipeforge.plugins.output import ExcelOutputPlugin as ImportedPlugin
+from pipeforge.plugins.output.excel import ExcelOutputPlugin, resolve_filename
 
 
 @pytest.fixture

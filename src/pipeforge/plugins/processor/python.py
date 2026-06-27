@@ -54,6 +54,7 @@ _ALLOWED_AST_NODES = {
 
 # Add version-specific AST node types (older Python compat)
 import warnings as _warnings
+
 with _warnings.catch_warnings():
     _warnings.simplefilter("ignore", DeprecationWarning)
     for _node_name in ('Num', 'Str', 'Bytes', 'NameConstant', 'Index', 'ExtSlice', 'Ellipsis'):

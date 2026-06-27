@@ -16,7 +16,6 @@ from configforge.api.auth import router as auth_router
 from configforge.api.backup import router as backup_router
 from configforge.api.configs import router as configs_router
 from configforge.api.connections import router as connections_router
-from configforge.api.executions import _cleanup_old_outputs
 from configforge.api.executions import router as exec_router
 from configforge.api.files import cleanup_old_files, cleanup_old_logs
 from configforge.api.files import router as files_router
@@ -31,7 +30,9 @@ from configforge.middleware.auth import AuthMiddleware, require_role
 from configforge.models.user import User
 from configforge.models.wizard import ErrorResponse
 from configforge.scheduler import shutdown_scheduler, start_scheduler
+from configforge.services.execution_store import cleanup_old_outputs as _cleanup_old_outputs
 from configforge.services.template_store import ensure_builtin_templates
+from configforge.utils.env import get_env
 from configforge.utils.logging import request_id_var, setup_logging
 
 
@@ -162,8 +163,10 @@ async def block_encoded_traversal(request: Request, call_next):
 _cors_origins_env = os.environ.get("CORS_ORIGINS", "")
 _cors_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
 
-# Development fallback: allow localhost if no origins configured
-if not _cors_origins:
+# Development fallback: allow localhost if no origins configured.
+# 生产模式不在模块加载期兜底 —— 由 lifespan 强制要求显式配置 CORS_ORIGINS，
+# 避免 localhost 被静默放行。
+if not _cors_origins and get_env() != "production":
     _cors_origins = [
         "http://localhost:5173",
         "http://localhost:5174",

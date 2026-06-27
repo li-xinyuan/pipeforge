@@ -326,8 +326,8 @@ class TestRunScheduledPipeline:
         cfg_path.write_text(json.dumps(state))
 
         with patch("configforge.api.configs.CONFIGS_DIR", str(tmp_path)), \
-             patch("configforge.api.executions._update_exec_index"), \
-             patch("configforge.api.executions._save_failed_execution"):
+             patch("configforge.services.execution_store.update_exec_index"), \
+             patch("configforge.services.execution_store.save_failed_execution"):
             _run_scheduled_pipeline("sched1", "test-cfg")
 
         # Should mark as failed due to file input without file_id

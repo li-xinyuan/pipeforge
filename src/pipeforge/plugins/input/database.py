@@ -1,8 +1,9 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import NullPool
-from pipeforge.plugins.base import InputPlugin
+
 from pipeforge.config.models import DbInputConfig
 from pipeforge.core.registry import register_plugin
+from pipeforge.plugins.base import InputPlugin
 
 
 @register_plugin("database", "input")

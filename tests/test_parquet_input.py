@@ -3,10 +3,7 @@
 验证：上传 parquet 文件 → 配置输入源 → 执行 pipeline → 数据正确写入 SQLite。
 对应方案 3.4 第二阶段步骤 6。
 """
-import os
-import tempfile
 
-import pytest
 
 from pipeforge.config.models import ParquetInputConfig
 from pipeforge.core.registry import PluginRegistry
@@ -53,7 +50,7 @@ class TestParquetPipelineEndToEnd:
             "age": [30, 25, 35],
         })
 
-        yaml_content = f"""
+        yaml_content = """
 scene:
   name: parquet_test
   version: "1.0"
@@ -106,7 +103,7 @@ processors:
         file_path = tmp_path / "nulls.parquet"
         pq.write_table(table, str(file_path))
 
-        yaml_content = f"""
+        yaml_content = """
 scene:
   name: parquet_null_test
   version: "1.0"

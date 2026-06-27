@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel
 
-from pipeforge.plugins.base import Plugin, InputPlugin, ProcessorPlugin, OutputPlugin
+from pipeforge.plugins.base import InputPlugin, Plugin
 
 
 class FakeConfig(BaseModel):

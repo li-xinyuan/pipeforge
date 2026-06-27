@@ -1,8 +1,8 @@
 import pytest
 from pydantic import BaseModel
 
-from pipeforge.plugins.base import InputPlugin, ProcessorPlugin, OutputPlugin
-from pipeforge.core.registry import PluginRegistry, register_plugin, PluginNotFoundError
+from pipeforge.core.registry import PluginNotFoundError, PluginRegistry, register_plugin
+from pipeforge.plugins.base import InputPlugin, OutputPlugin, ProcessorPlugin
 
 
 class FakeConfig(BaseModel):

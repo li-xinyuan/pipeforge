@@ -2,11 +2,10 @@ import sqlite3
 
 import pytest
 
-from pipeforge.plugins.processor.sql import SqlProcessorPlugin
-from pipeforge.plugins.processor import SqlProcessorPlugin as ImportedPlugin
-from pipeforge.core.sqlite import SQLiteManager
-from pipeforge.core.context import Context
 from pipeforge.config.models import SqlProcessorConfig
+from pipeforge.core.context import Context
+from pipeforge.core.sqlite import SQLiteManager
+from pipeforge.plugins.processor.sql import SqlProcessorPlugin
 
 
 class TestSqlProcessorPlugin:

@@ -1,12 +1,13 @@
 """检查点规则注册与执行。新增规则类型：加模型 → 用 @register_check 注册执行器 → 追加到 CheckRule union。"""
 
 import re
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Callable
 
+from pipeforge.config.exceptions import CheckpointError
 from pipeforge.config.models import (
-    CheckRule,
     CheckResult,
+    CheckRule,
     CustomSqlRule,
     EnumCheckRule,
     NullRateRule,
@@ -14,7 +15,6 @@ from pipeforge.config.models import (
     UniquenessRule,
     ValueRangeRule,
 )
-from pipeforge.config.exceptions import CheckpointError
 from pipeforge.core.sqlite import SQLiteManager
 
 _CHECK_EXECUTORS: dict[str, Callable] = {}

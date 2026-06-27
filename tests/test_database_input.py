@@ -1,8 +1,10 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from pipeforge.config.models import DbInputConfig
-from pipeforge.plugins.input.database import DatabaseInputPlugin
 from pipeforge.core.context import Context
+from pipeforge.plugins.input.database import DatabaseInputPlugin
 
 
 class TestDatabaseInputPlugin:

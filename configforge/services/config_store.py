@@ -25,7 +25,7 @@ _cache = TTLCache(ttl=10.0)
 INDEX_SCHEMA_VERSION = 2
 
 
-def _load_index() -> list[dict]:
+def load_index() -> list[dict]:
     """加载配置索引，带 10s TTL 缓存。"""
     cached = _cache.get("index")
     if cached is not None:
@@ -44,7 +44,7 @@ def _load_index() -> list[dict]:
     return result
 
 
-def _save_index(data: list[dict]) -> None:
+def save_index(data: list[dict]) -> None:
     """保存配置索引，更新 configs_total 指标。"""
     wrapper = {
         "schema_version": INDEX_SCHEMA_VERSION,
@@ -56,7 +56,7 @@ def _save_index(data: list[dict]) -> None:
     configs_total.set(len(data))
 
 
-def _read_version_state(config_id: str, version: int) -> dict | None:
+def read_version_state(config_id: str, version: int) -> dict | None:
     """Read a specific version's state.json. Returns None if not found."""
     # Check versions directory first
     versions_dir = os.path.join(CONFIGS_DIR, config_id)
@@ -65,7 +65,7 @@ def _read_version_state(config_id: str, version: int) -> dict | None:
         return read_json_locked(state_path)
 
     # Check if this is the current version
-    index = _load_index()
+    index = load_index()
     entry = next((e for e in index if e.get("id") == config_id), None)
     if entry and entry.get("current_version") == version:
         current_path = os.path.join(CONFIGS_DIR, f"{config_id}.state.json")
@@ -75,7 +75,7 @@ def _read_version_state(config_id: str, version: int) -> dict | None:
     return None
 
 
-def _list_version_files(config_id: str) -> list[int]:
+def list_version_files(config_id: str) -> list[int]:
     """Return sorted list of version numbers available for a config."""
     versions_dir = os.path.join(CONFIGS_DIR, config_id)
     versions: list[int] = []
@@ -89,7 +89,7 @@ def _list_version_files(config_id: str) -> list[int]:
                     pass
 
     # Include current version from index
-    index = _load_index()
+    index = load_index()
     entry = next((e for e in index if e.get("id") == config_id), None)
     if entry and entry.get("current_version"):
         versions.append(entry["current_version"])

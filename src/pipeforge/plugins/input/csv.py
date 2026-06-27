@@ -1,9 +1,9 @@
 import csv
 import os
 
-from pipeforge.plugins.base import InputPlugin
 from pipeforge.config.models import CsvInputConfig
 from pipeforge.core.registry import register_plugin
+from pipeforge.plugins.base import InputPlugin
 
 
 @register_plugin("csv", "input")
@@ -37,7 +37,7 @@ class CsvInputPlugin(InputPlugin[CsvInputConfig]):
         self, filepath: str, config: CsvInputConfig
     ) -> tuple[list[str], list[tuple]]:
         """Read a CSV file and return (columns, rows)."""
-        with open(filepath, "r", encoding=config.encoding, newline="") as f:
+        with open(filepath, encoding=config.encoding, newline="") as f:
             reader = csv.reader(f, delimiter=config.delimiter)
 
             first_row = next(reader, None)

@@ -3,7 +3,7 @@
 限制③C：为 ReaderBackedInputPlugin 提供全量读取接口。
 纯数据工具，不依赖 configforge。
 """
-from typing import Iterator
+from collections.abc import Iterator
 
 
 def iter_parquet_rows(file_path: str) -> tuple[list[str], Iterator[tuple]]:

@@ -1,22 +1,21 @@
 """Tests for the database output plugin (SQLAlchemy-based)."""
 import os
 import tempfile
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 from pipeforge.config.models import DatabaseOutputConfig
 from pipeforge.core.context import Context, Logger
 from pipeforge.core.sqlite import SQLiteManager
 from pipeforge.plugins.output.database import (
     DatabaseOutputPlugin,
-    _detect_dialect,
-    _quote,
     _build_create_table_sql,
     _build_insert_sql,
     _build_upsert_sql,
+    _detect_dialect,
+    _quote,
 )
-
 
 # ---------------------------------------------------------------------------
 # Unit tests for helper functions

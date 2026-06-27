@@ -1,7 +1,7 @@
 import httpx
 from openai import AsyncOpenAI
 
-from configforge.services.ai.base import LlmBackend
+from configforge.services.ai.base import LlmBackend, retry_generate
 
 
 class OpenAiBackend(LlmBackend):
@@ -18,6 +18,7 @@ class OpenAiBackend(LlmBackend):
         if hasattr(self._client, "_client") and hasattr(self._client._client, "aclose"):
             await self._client._client.aclose()
 
+    @retry_generate
     async def generate(self, prompt: str) -> str:
         resp = await self._client.chat.completions.create(
             model=self._model,

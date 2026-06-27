@@ -4,10 +4,6 @@
 对应方案 3.4 第二阶段步骤 6。
 """
 import json
-import os
-import tempfile
-
-import pytest
 
 from pipeforge.config.models import JsonInputConfig
 from pipeforge.core.registry import PluginRegistry
@@ -57,7 +53,7 @@ class TestJsonPipelineEndToEnd:
         json_path = tmp_path / "input.json"
         json_path.write_text(json.dumps(data), encoding="utf-8")
 
-        yaml_content = f"""
+        yaml_content = """
 scene:
   name: json_test
   version: "1.0"
@@ -111,7 +107,7 @@ processors:
         json_path = tmp_path / "hetero.json"
         json_path.write_text(json.dumps(data), encoding="utf-8")
 
-        yaml_content = f"""
+        yaml_content = """
 scene:
   name: hetero_test
   version: "1.0"

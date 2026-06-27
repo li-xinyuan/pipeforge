@@ -1,10 +1,7 @@
-import tempfile
-import os
 import csv as csv_module
+import os
+import tempfile
 
-import pytest
-
-from pipeforge.config import load_yaml_config
 from pipeforge.core.engine import PipelineEngine
 
 
@@ -283,7 +280,7 @@ class TestCsvInputPipeline:
         output_dir = tempfile.mkdtemp()
         fd, yaml_path = tempfile.mkstemp(suffix=".yaml")
         os.close(fd)
-        yaml_content = f"""scene:
+        yaml_content = """scene:
   name: CSV场景
   description: CSV输入测试
   version: "1.0"
@@ -376,7 +373,7 @@ output:
             csv_path = os.path.join(output_dir, "output.csv")
             assert os.path.exists(csv_path)
 
-            with open(csv_path, "r", encoding="utf-8", newline="") as f:
+            with open(csv_path, encoding="utf-8", newline="") as f:
                 reader = csv_module.reader(f)
                 rows = list(reader)
                 assert rows[0] == ["姓名", "部门", "工号"]

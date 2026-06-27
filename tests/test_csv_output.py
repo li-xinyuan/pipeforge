@@ -1,11 +1,12 @@
-import os
 import csv as csv_module
+import os
 import tempfile
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
+from pipeforge.config.models import ColumnMapping, CsvOutputConfig
 from pipeforge.plugins.output.csv import CsvOutputPlugin
-from pipeforge.config.models import CsvOutputConfig, ColumnMapping
 
 
 def _make_context(db, scene_name="test_scene"):
@@ -58,7 +59,7 @@ class TestCsvOutputPlugin:
             csv_path = os.path.join(output_dir, "out.csv")
             assert os.path.exists(csv_path)
 
-            with open(csv_path, "r", encoding="utf-8", newline="") as f:
+            with open(csv_path, encoding="utf-8", newline="") as f:
                 reader = csv_module.reader(f)
                 rows = list(reader)
                 assert rows[0] == ["name", "age"]
@@ -91,7 +92,7 @@ class TestCsvOutputPlugin:
             plugin.execute(ctx, config)
 
             csv_path = os.path.join(output_dir, "out.csv")
-            with open(csv_path, "r", encoding="utf-8", newline="") as f:
+            with open(csv_path, encoding="utf-8", newline="") as f:
                 reader = csv_module.reader(f)
                 rows = list(reader)
                 assert rows[0] == ["城市", "姓名"]
@@ -124,7 +125,7 @@ class TestCsvOutputPlugin:
             plugin.execute(ctx, config)
 
             csv_path = os.path.join(output_dir, "out.csv")
-            with open(csv_path, "r", encoding="utf-8", newline="") as f:
+            with open(csv_path, encoding="utf-8", newline="") as f:
                 content = f.read()
                 assert "a;b" in content
                 assert "1;2" in content
@@ -153,7 +154,7 @@ class TestCsvOutputPlugin:
             plugin.execute(ctx, config)
 
             csv_path = os.path.join(output_dir, "out.csv")
-            with open(csv_path, "r", encoding="gbk", newline="") as f:
+            with open(csv_path, encoding="gbk", newline="") as f:
                 reader = csv_module.reader(f)
                 rows = list(reader)
                 assert rows[0] == ["姓名"]

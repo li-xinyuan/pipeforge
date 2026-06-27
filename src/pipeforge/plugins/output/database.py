@@ -6,13 +6,13 @@ Write modes:
   - replace: DROP + CREATE + INSERT
   - upsert: INSERT ON CONFLICT UPDATE (dialect-specific)
 """
-from pipeforge.plugins.base import OutputPlugin
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.pool import NullPool
+
 from pipeforge.config.models import DatabaseOutputConfig
 from pipeforge.core.registry import register_plugin
 from pipeforge.core.sqlite import safe_identifier
-
-from sqlalchemy import create_engine, text, inspect
-from sqlalchemy.pool import NullPool
+from pipeforge.plugins.base import OutputPlugin
 
 
 def _detect_dialect(conn_str: str) -> str:

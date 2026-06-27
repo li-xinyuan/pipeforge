@@ -1,8 +1,8 @@
-import tempfile
-import os
 import copy
 import csv as csv_module
+import os
 import sys
+import tempfile
 
 import pytest
 from openpyxl import Workbook

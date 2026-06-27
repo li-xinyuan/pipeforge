@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 
 from configforge.api import executions as exec_module
 from configforge.server import app
+from configforge.services import execution_store as exec_store_module
 
 
 def _make_exec_record(
@@ -58,13 +59,19 @@ def _write_index(index_path, records):
 
 @pytest.fixture(autouse=True)
 def _redirect_dirs(tmp_path, monkeypatch):
-    """Redirect DATA_DIR, EXEC_DIR, EXEC_INDEX to tmp_path."""
+    """Redirect DATA_DIR, EXEC_DIR, EXEC_INDEX to tmp_path.
+
+    Patches both api.executions (route code reads EXEC_INDEX directly) and
+    services.execution_store (where _save_failed_execution reads EXEC_DIR /
+    EXEC_INDEX from its module globals after the P0-1 extraction).
+    """
     data_dir = str(tmp_path / "data")
     exec_dir = os.path.join(data_dir, "executions")
     exec_index = os.path.join(exec_dir, "index.json")
-    monkeypatch.setattr(exec_module, "DATA_DIR", data_dir)
-    monkeypatch.setattr(exec_module, "EXEC_DIR", exec_dir)
-    monkeypatch.setattr(exec_module, "EXEC_INDEX", exec_index)
+    for mod in (exec_module, exec_store_module):
+        monkeypatch.setattr(mod, "DATA_DIR", data_dir)
+        monkeypatch.setattr(mod, "EXEC_DIR", exec_dir)
+        monkeypatch.setattr(mod, "EXEC_INDEX", exec_index)
     return {"data_dir": data_dir, "exec_dir": exec_dir, "exec_index": exec_index}
 
 

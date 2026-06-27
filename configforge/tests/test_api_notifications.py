@@ -9,13 +9,18 @@ from configforge.server import app
 
 @pytest.fixture(autouse=True)
 def _tmp_data(tmp_path, monkeypatch):
-    """Use temp directory for notification data files."""
+    """Use temp directory for notification data files.
+
+    Patches services.notifier.store (where load/save functions read
+    NOTIFICATIONS_PATH/HISTORY_PATH from module globals after the P0-1
+    extraction from api/notifications.py).
+    """
     monkeypatch.setattr(
-        "configforge.api.notifications._NOTIFICATIONS_PATH",
+        "configforge.services.notifier.store.NOTIFICATIONS_PATH",
         tmp_path / "notifications.json",
     )
     monkeypatch.setattr(
-        "configforge.api.notifications._HISTORY_PATH",
+        "configforge.services.notifier.store.HISTORY_PATH",
         tmp_path / "notification_history.json",
     )
 

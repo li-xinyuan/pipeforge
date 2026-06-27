@@ -1,11 +1,10 @@
-import tempfile
 import os
+import tempfile
 
 import pytest
 from click.testing import CliRunner
 
 from pipeforge.cli import main
-
 
 YAML_FIXTURE = """
 scene:

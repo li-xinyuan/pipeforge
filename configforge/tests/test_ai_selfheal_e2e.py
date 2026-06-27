@@ -11,17 +11,33 @@ from configforge.server import app
 
 @pytest.fixture(autouse=True)
 def _isolate_data():
-    """Use a temp directory for execution data."""
+    """Use a temp directory for execution data.
+
+    Patches both api.executions (for route code reading EXEC_INDEX directly)
+    and services.execution_store (where _save_failed_execution actually reads
+    EXEC_DIR/EXEC_INDEX from its module globals after the P0-1 extraction).
+    """
     import configforge.api.executions as exec_mod
-    orig = exec_mod.DATA_DIR
+    import configforge.services.execution_store as store_mod
+
+    orig_api = (exec_mod.DATA_DIR, exec_mod.EXEC_DIR, exec_mod.EXEC_INDEX)
+    orig_store = (store_mod.DATA_DIR, store_mod.EXEC_DIR, store_mod.EXEC_INDEX)
+
     tmp = tempfile.mkdtemp()
+    exec_dir = os.path.join(tmp, "executions")
+    exec_index = os.path.join(exec_dir, "index.json")
+
     exec_mod.DATA_DIR = tmp
-    exec_mod.EXEC_DIR = os.path.join(tmp, "executions")
-    exec_mod.EXEC_INDEX = os.path.join(exec_mod.EXEC_DIR, "index.json")
+    exec_mod.EXEC_DIR = exec_dir
+    exec_mod.EXEC_INDEX = exec_index
+    store_mod.DATA_DIR = tmp
+    store_mod.EXEC_DIR = exec_dir
+    store_mod.EXEC_INDEX = exec_index
+
     yield
-    exec_mod.DATA_DIR = orig
-    exec_mod.EXEC_DIR = os.path.join(orig, "executions")
-    exec_mod.EXEC_INDEX = os.path.join(orig, "executions", "index.json")
+
+    exec_mod.DATA_DIR, exec_mod.EXEC_DIR, exec_mod.EXEC_INDEX = orig_api
+    store_mod.DATA_DIR, store_mod.EXEC_DIR, store_mod.EXEC_INDEX = orig_store
 
 
 @pytest.fixture(autouse=True)

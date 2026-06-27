@@ -8,13 +8,15 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from configforge.api.notifications import (
-    _load_notifications,
-    _send_notification,
-    add_history_entry,
-)
 from configforge.models.notification import NotificationHistoryEntry
 from configforge.services.notifier.base import NotifyContext
+from configforge.services.notifier.sender import send_notification as _send_notification
+from configforge.services.notifier.store import (
+    add_history_entry,
+)
+from configforge.services.notifier.store import (
+    load_notifications as _load_notifications,
+)
 
 logger = logging.getLogger(__name__)
 

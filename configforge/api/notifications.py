@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-import fcntl
-import json
-import os
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -20,16 +16,23 @@ from configforge.models.notification import (
     NotificationHistoryEntry,
 )
 from configforge.models.user import User
-from configforge.services.notifier.base import NotifyContext, NotifyResult
+from configforge.services.notifier.base import NotifyContext
+from configforge.services.notifier.sender import send_notification as _send_notification
 from configforge.services.notifier.smtp_settings import (
     SmtpSettings,
     SmtpSettingsUpdate,
     mask_password,
 )
-from configforge.services.notifier.webhook import WebhookNotifier
+from configforge.services.notifier.store import (
+    load_history as _load_history,
+)
+from configforge.services.notifier.store import (
+    load_notifications as _load_notifications,
+)
+from configforge.services.notifier.store import (
+    save_notifications as _save_notifications,
+)
 from configforge.storage import get_audit_store, get_settings_store
-from configforge.utils.migration import load_with_migration
-from configforge.utils.paths import get_data_dir
 from configforge.utils.security import validate_id
 
 router = APIRouter(prefix="/api/notifications", tags=["通知管理"])
@@ -46,57 +49,6 @@ class NotifyTestResponse(BaseModel):
     ok: bool
     message: str = ""
     provider: str = ""
-
-# ─── Persistence helpers ───
-
-_DATA_DIR = get_data_dir()
-_NOTIFICATIONS_PATH = Path(_DATA_DIR) / "notifications.json"
-_HISTORY_PATH = Path(_DATA_DIR) / "notification_history.json"
-
-
-def _load_notifications() -> list[NotificationConfig]:
-    _NOTIFICATIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    data = load_with_migration(str(_NOTIFICATIONS_PATH), default=[])
-    if isinstance(data, list):
-        return [NotificationConfig(**item) for item in data]
-    return [NotificationConfig(**item) for item in data.get("notifications", [])]
-
-
-def _save_notifications(configs: list[NotificationConfig]) -> None:
-    _NOTIFICATIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = _NOTIFICATIONS_PATH.with_suffix(".tmp")
-    with open(tmp, "w") as f:
-        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-        json.dump([c.model_dump() for c in configs], f, ensure_ascii=False, indent=2)
-        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-    tmp.replace(_NOTIFICATIONS_PATH)
-
-
-def _load_history() -> list[NotificationHistoryEntry]:
-    _HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    data = load_with_migration(str(_HISTORY_PATH), default=[])
-    if isinstance(data, list):
-        return [NotificationHistoryEntry(**item) for item in data]
-    return [NotificationHistoryEntry(**item) for item in data.get("history", [])]
-
-
-def _save_history(entries: list[NotificationHistoryEntry]) -> None:
-    _HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    # Keep only last 200 entries
-    entries = entries[-200:]
-    tmp = _HISTORY_PATH.with_suffix(".tmp")
-    with open(tmp, "w") as f:
-        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-        json.dump([e.model_dump() for e in entries], f, ensure_ascii=False, indent=2)
-        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-    tmp.replace(_HISTORY_PATH)
-
-
-def add_history_entry(entry: NotificationHistoryEntry) -> None:
-    """Add a notification history entry (called by dispatcher)."""
-    history = _load_history()
-    history.append(entry)
-    _save_history(history)
 
 
 # ─── CRUD endpoints ───
@@ -331,48 +283,4 @@ async def api_test_smtp(_user: User = Depends(require_role("admin"))):
 # ─── Send helper ───
 
 
-async def _send_notification(config: NotificationConfig, context: NotifyContext) -> NotifyResult:
-    """Send a notification using the given config and context."""
-    if config.type == "webhook":
-        notifier = WebhookNotifier(
-            url=config.webhook_url,
-            provider=config.webhook_provider,
-            headers=config.webhook_headers,
-            message_template=config.message_template,
-        )
-        return await notifier.send(context)
-
-    if config.type == "email":
-        from configforge.services.notifier.email import EmailNotifier
-
-        # Read from SMTP settings file first, fall back to environment variables
-        smtp = _smtp_store.load_settings()
-        if smtp.host:
-            smtp_host = smtp.host
-            smtp_port = smtp.port
-            smtp_user = smtp.user
-            smtp_password = smtp.password
-            use_tls = smtp.use_tls
-        else:
-            smtp_host = os.environ.get("CONFIGFORGE_SMTP_HOST", "")
-            smtp_port = int(os.environ.get("CONFIGFORGE_SMTP_PORT", "587"))
-            smtp_user = os.environ.get("CONFIGFORGE_SMTP_USER", "")
-            smtp_password = os.environ.get("CONFIGFORGE_SMTP_PASSWORD", "")
-            use_tls = os.environ.get("CONFIGFORGE_SMTP_TLS", "true").lower() != "false"
-
-        if not smtp_host:
-            return NotifyResult(success=False, message="SMTP 未配置", provider="email")
-
-        notifier = EmailNotifier(
-            smtp_host=smtp_host,
-            smtp_port=smtp_port,
-            smtp_user=smtp_user,
-            smtp_password=smtp_password,
-            use_tls=use_tls,
-            recipients=config.email_to,
-            subject_template=config.email_subject_template,
-            body_template=config.email_body_template,
-        )
-        return await notifier.send(context)
-
-    return NotifyResult(success=False, message="未知推送类型", provider="unknown")
+# _send_notification 已移至 services/notifier/sender.py，此处通过顶部 import re-export

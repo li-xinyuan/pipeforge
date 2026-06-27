@@ -196,7 +196,7 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
         names = ", ".join(inp.name for inp in file_inputs_without_file)
         error_msg = f"配置包含文件输入源但文件未上传（{names}），定时任务无法自动上传文件，请改用数据库输入源"
         logger.error("Scheduled execution skipped: %s", error_msg)
-        from configforge.api.executions import _save_failed_execution
+        from configforge.services.execution_store import save_failed_execution as _save_failed_execution
         exec_id = uuid.uuid4().hex[:8]
         started_at = datetime.now(UTC).isoformat()
         _save_failed_execution(
@@ -215,8 +215,8 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
         return
 
     # Get config metadata for execution record
-    from configforge.services.config_store import _load_index
-    index = _load_index()
+    from configforge.services.config_store import load_index
+    index = load_index()
     entry = next((e for e in index if e.get("id") == config_id), None)
     config_version = entry.get("current_version") if entry else None
 

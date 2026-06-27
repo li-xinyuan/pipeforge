@@ -135,7 +135,6 @@ class ExcelOutputPlugin(OutputPlugin):
         return header_styles, column_widths, freeze_panes
 
     def _write_header(self, ws, columns, header_styles):
-        from openpyxl.styles import Font, PatternFill, Border, Alignment
         for col_idx, cm in enumerate(columns, start=1):
             cell = ws.cell(row=1, column=col_idx, value=cm.target)
             style = header_styles.get(cm.target)

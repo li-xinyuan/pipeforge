@@ -3,10 +3,7 @@
 验证：上传 xml 文件 → 配置输入源 → 执行 pipeline → 数据正确写入 SQLite。
 对应方案 3.4 第二阶段步骤 6。
 """
-import os
-import tempfile
 
-import pytest
 
 from pipeforge.config.models import XmlInputConfig
 from pipeforge.core.registry import PluginRegistry
@@ -62,7 +59,7 @@ class TestXmlPipelineEndToEnd:
         xml_path = tmp_path / "input.xml"
         xml_path.write_bytes(content)
 
-        yaml_content = f"""
+        yaml_content = """
 scene:
   name: xml_test
   version: "1.0"
@@ -116,7 +113,7 @@ processors:
         xml_path = tmp_path / "auto.xml"
         xml_path.write_bytes(content)
 
-        yaml_content = f"""
+        yaml_content = """
 scene:
   name: xml_auto_test
   version: "1.0"

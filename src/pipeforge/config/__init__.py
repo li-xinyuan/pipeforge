@@ -12,7 +12,7 @@ def load_yaml_config(yaml_path: str) -> SceneConfig:
     if not path.exists():
         raise ConfigError(f"Configuration file not found: {yaml_path}")
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
     if raw is None:

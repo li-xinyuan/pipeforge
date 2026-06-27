@@ -1,11 +1,9 @@
-import os
 import csv as csv_module
+import os
 import tempfile
 
-import pytest
-
-from pipeforge.plugins.input.csv import CsvInputPlugin
 from pipeforge.config.models import CsvInputConfig
+from pipeforge.plugins.input.csv import CsvInputPlugin
 
 
 class TestCsvInputPlugin:

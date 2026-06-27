@@ -17,7 +17,7 @@ class TestLogger:
         assert files[0].startswith("pipeforge_")
         assert files[0].endswith(".log")
 
-        with open(os.path.join(log_dir, files[0]), "r") as f:
+        with open(os.path.join(log_dir, files[0])) as f:
             content = f.read()
             assert "[INFO] test message" in content
             assert "[INFO] another message" in content
