@@ -11,6 +11,7 @@ function mapConfig(raw: Record<string, unknown>): SavedConfig {
     outputType: raw.output_type as string,
     version: raw.version as string,
     updatedAt: raw.updated_at as string,
+    currentVersion: (raw.current_version ?? 0) as number,
     inputs: ((raw.inputs || []) as Record<string, unknown>[]).map((i) => ({
       name: i.name as string,
       paramKey: i.param_key as string,

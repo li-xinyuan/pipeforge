@@ -505,7 +505,11 @@ async def execute_config(config_id: str, req: ExecuteConfigRequest, _user: User 
     for inp in state_dict.get("inputs", []):
         param_key = inp.get("param_key", "") or inp.get("paramKey", "")
         if param_key in req.files:
-            inp["file_id"] = req.files[param_key]
+            # state.json 以 by_alias=True 保存，字段名为 fileId（camelCase）。
+            # InputSource 设有 extra="forbid"，若同时存在 fileId 和 file_id 会触发
+            # extra_forbidden 错误，因此统一使用 alias fileId 写入。
+            inp["fileId"] = req.files[param_key]
+            inp.pop("file_id", None)
 
     state = WizardState(**state_dict)
 

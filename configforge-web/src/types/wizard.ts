@@ -204,6 +204,7 @@ export interface SavedConfig {
   outputType: string
   version: string
   updatedAt: string
+  currentVersion: number
   inputs: Array<{ name: string; paramKey: string; plugin: string }>
 }
 

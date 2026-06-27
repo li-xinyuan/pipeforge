@@ -106,7 +106,7 @@
       <ConfigVersionPanel
         v-if="versionModalConfigId"
         :config-id="versionModalConfigId"
-        :current-version="0"
+        :current-version="versionModalCurrentVersion"
         @refreshed="onVersionRefreshed"
       />
       <template #footer>
@@ -164,6 +164,7 @@ const executingConfig = ref<SavedConfig | null>(null)
 
 const versionModalVisible = ref(false)
 const versionModalConfigId = ref<string | null>(null)
+const versionModalCurrentVersion = ref(0)
 
 const importFileInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
@@ -274,7 +275,7 @@ async function onConfirmDelete() {
 
 function onMenuSelect(key: string, cfg: SavedConfig) {
   if (key === 'edit') onLoadConfig(cfg.id)
-  else if (key === 'versions') openVersionModal(cfg.id)
+  else if (key === 'versions') openVersionModal(cfg.id, cfg.currentVersion)
   else if (key === 'download') onDownloadYaml(cfg.id)
   else if (key === 'export_yaml') onExportConfig(cfg.id, 'yaml')
   else if (key === 'export_json') onExportConfig(cfg.id, 'json')
@@ -324,8 +325,9 @@ function onGotoStep(step: number, fixes?: { step: number; field: string; old: st
   }
 }
 
-function openVersionModal(configId: string) {
+function openVersionModal(configId: string, currentVersion: number) {
   versionModalConfigId.value = configId
+  versionModalCurrentVersion.value = currentVersion
   versionModalVisible.value = true
 }
 
