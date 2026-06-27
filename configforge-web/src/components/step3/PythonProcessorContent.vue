@@ -37,21 +37,14 @@
       />
     </div>
 
-    <!-- Python script editor -->
-    <div>
-      <label class="cf-label">
-        <span class="cf-required">*</span> Python 脚本
-      </label>
-      <CodeEditor
-        :model-value="pyProc.script"
-        language="python"
-        placeholder="def process(ctx):
-    conn = ctx.db.connection
-    conn.execute('CREATE TABLE result AS SELECT * FROM source')"
-        min-height="200px"
-        @update:model-value="(v: string) => $emit('update', { script: v })"
-      />
-    </div>
+    <!-- Python script editor — SchemaForm 驱动（限制①第三阶段迁移） -->
+    <SchemaForm
+      v-if="pythonSchema"
+      :model-value="{ script: pyProc.script }"
+      :schema="pythonSchema"
+      :widget-props="{ 'code-editor': codeEditorProps }"
+      @update:model-value="onSchemaUpdate"
+    />
 
     <!-- Quick templates -->
     <div class="flex flex-wrap gap-1">
@@ -87,13 +80,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { NButton, NTag, NInput, NSelect } from 'naive-ui'
 import ColumnPreview from '../step2/ColumnPreview.vue'
-import CodeEditor from '../common/CodeEditor.vue'
+import SchemaForm from '../common/SchemaForm.vue'
+import CodeEditorWidget from '../common/CodeEditorWidget.vue'
 import type { ProcessorStep } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi } from '../../composables/useWizardApi'
+import { usePluginSchema } from '../../composables/usePluginSchema'
+import { registerWidget } from '../../composables/widgetRegistry'
+
+// 注册 code-editor 命名 widget（python processor 的 script 字段引用）
+registerWidget('code-editor', CodeEditorWidget)
 
 const props = defineProps<{
   proc: Extract<ProcessorStep, { plugin: 'python' }>
@@ -112,6 +111,30 @@ const pyProc = computed(() => {
 
 const store = useWizardStore()
 const { dryRun: runDryRunApi, error: wizardApiError } = useWizardApi()
+
+// 限制①：python processor 用 SchemaForm 渲染 script 字段
+const { getSchema, load } = usePluginSchema()
+const pythonSchema = computed(() => getSchema('python', 'processor'))
+
+/** code-editor widget 的 per-instance props。 */
+const codeEditorProps = computed(() => ({
+  language: 'python' as const,
+  label: 'Python 脚本',
+  required: true,
+  placeholder: "def process(ctx):\n    conn = ctx.db.connection\n    conn.execute('CREATE TABLE result AS SELECT * FROM source')",
+  minHeight: '200px',
+}))
+
+onMounted(() => {
+  load()
+})
+
+/** SchemaForm update:modelValue 回调：提取 script 并向上 emit update。 */
+function onSchemaUpdate(updated: Record<string, unknown>): void {
+  if ('script' in updated) {
+    emit('update', { script: updated.script as string })
+  }
+}
 
 const templates = {
   clean: 'def process(ctx):\n    conn = ctx.db.connection\n    # 删除空行和无效数据\n    conn.execute("DELETE FROM source WHERE name IS NULL")\n    conn.execute("CREATE TABLE result AS SELECT * FROM source WHERE name IS NOT NULL")\n',

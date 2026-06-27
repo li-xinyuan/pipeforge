@@ -484,4 +484,70 @@ describe('SchemaForm', () => {
       expect((select.element as HTMLSelectElement).multiple).toBe(true)
     })
   })
+
+  describe('code-editor widget（x-ui-widget: code-editor）', () => {
+    it('渲染 code-editor 命名 widget 并透传 widgetProps（language/label/placeholder）', () => {
+      // stub 模拟 CodeEditorWidget 接口，避免引入 CodeMirror
+      const CodeEditorStub = {
+        template: '<div data-test="code-editor-widget"><span data-test="label">{{ label }}</span><span data-test="lang">{{ language }}</span><span data-test="ph">{{ placeholder }}</span><span data-test="val">{{ modelValue }}</span></div>',
+        props: ['modelValue', 'language', 'label', 'placeholder', 'minHeight', 'required'],
+        emits: ['update:modelValue'],
+      }
+      registerWidget('code-editor', CodeEditorStub)
+
+      const schema = {
+        properties: {
+          script: {
+            type: 'string',
+            default: '',
+            'x-ui-widget': 'code-editor',
+          },
+        },
+      }
+      const wrapper = mount(SchemaForm, {
+        props: {
+          modelValue: { script: 'def process(ctx): pass' },
+          schema,
+          widgetProps: {
+            'code-editor': {
+              language: 'python',
+              label: 'Python 脚本',
+              placeholder: 'def process(ctx):',
+              required: true,
+              minHeight: '200px',
+            },
+          },
+        },
+      })
+      const widget = wrapper.find('[data-test="code-editor-widget"]')
+      expect(widget.exists()).toBe(true)
+      expect(widget.find('[data-test="label"]').text()).toBe('Python 脚本')
+      expect(widget.find('[data-test="lang"]').text()).toBe('python')
+      expect(widget.find('[data-test="ph"]').text()).toBe('def process(ctx):')
+      expect(widget.find('[data-test="val"]').text()).toBe('def process(ctx): pass')
+    })
+
+    it('code-editor widget emit update:modelValue 时向上冒泡到 SchemaForm', async () => {
+      const CodeEditorStub = {
+        template: '<button data-test="code-editor-widget" @click="$emit(\'update:modelValue\', \'NEW SCRIPT\')">set</button>',
+        props: ['modelValue', 'language', 'label', 'placeholder'],
+        emits: ['update:modelValue'],
+      }
+      registerWidget('code-editor', CodeEditorStub)
+
+      const schema = {
+        properties: {
+          script: {
+            type: 'string',
+            'x-ui-widget': 'code-editor',
+          },
+        },
+      }
+      const wrapper = mountForm({ script: 'old' }, schema)
+      await wrapper.find('[data-test="code-editor-widget"]').trigger('click')
+      const events = wrapper.emitted('update:modelValue')
+      expect(events).toBeTruthy()
+      expect(events![events!.length - 1][0]).toMatchObject({ script: 'NEW SCRIPT' })
+    })
+  })
 })

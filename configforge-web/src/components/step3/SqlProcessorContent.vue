@@ -51,7 +51,13 @@
       </div>
     </div>
 
-    <!-- SQL editor -->
+    <!--
+      SQL editor — 保留直接 CodeEditor（限制①第三阶段未迁移到 SchemaForm）。
+      原因：sqlEditorRef.insertAtCursor() 用于 SQL 模板插入到光标位置，
+      pulseSql class 用于引导用户注意，二者均不兼容 SchemaForm 抽象。
+      后端 LooseSqlProcessorConfig.sql 已添加 x-ui-widget: 'code-editor' hint，
+      code-editor widget 已注册，待未来解决 cursor insertion 后可迁移。
+    -->
     <div>
       <div class="flex items-center justify-between mb-1">
         <label class="cf-label">

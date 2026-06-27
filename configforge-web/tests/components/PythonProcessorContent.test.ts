@@ -1,9 +1,39 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { NInput, NTag, NButton, NSelect } from 'naive-ui'
-import PythonProcessorContent from '../../src/components/step3/PythonProcessorContent.vue'
+import { NTag } from 'naive-ui'
 import type { ProcessorStep } from '../../src/types/wizard'
+
+/**
+ * PythonProcessorContent 测试 — 限制①第三阶段迁移后更新。
+ *
+ * 迁移后 script 字段由 SchemaForm + code-editor 命名 widget 渲染，
+ * 依赖 usePluginSchema 返回 python processor 的 schema。此处 mock
+ * usePluginSchema 提供 script 字段 + x-ui-widget: 'code-editor' hint，
+ * 使 SchemaForm 渲染 CodeEditorWidget → CodeEditor。
+ *
+ * vi.mock 被提升到文件顶部，factory 内不能引用外部变量。
+ */
+vi.mock('../../src/composables/usePluginSchema', () => ({
+  usePluginSchema: () => ({
+    getSchema: (plugin: string, type: string) => {
+      if (plugin === 'python' && type === 'processor') {
+        return {
+          properties: {
+            type: { const: 'python', default: 'python', type: 'string' },
+            script: { type: 'string', default: '', 'x-ui-widget': 'code-editor' },
+          },
+        }
+      }
+      return undefined
+    },
+    load: vi.fn().mockResolvedValue([]),
+    getSchemaAsync: vi.fn(),
+    clearCache: vi.fn(),
+  }),
+}))
+
+import PythonProcessorContent from '../../src/components/step3/PythonProcessorContent.vue'
 
 function createPythonProc(overrides: Partial<Extract<ProcessorStep, { plugin: 'python' }>> = {}): Extract<ProcessorStep, { plugin: 'python' }> {
   return {

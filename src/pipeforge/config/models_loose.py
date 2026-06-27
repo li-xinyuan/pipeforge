@@ -92,7 +92,10 @@ class LooseSqlProcessorConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     type: Literal["sql"] = "sql"
-    sql: str = ""
+    sql: str = Field(
+        default="",
+        json_schema_extra={"x-ui-widget": "code-editor"},
+    )
 
 
 class LoosePythonProcessorConfig(BaseModel):
@@ -100,7 +103,10 @@ class LoosePythonProcessorConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     type: Literal["python"] = "python"
-    script: str = ""
+    script: str = Field(
+        default="",
+        json_schema_extra={"x-ui-widget": "code-editor"},
+    )
 
 
 # === Output configs ===
