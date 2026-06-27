@@ -52,6 +52,7 @@ function onStepClick(step: number, status: StepState['status']) {
   display: flex;
   gap: 4px;
   padding: 12px 16px;
+  margin-bottom: 10px;
   background: var(--color-surface-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
