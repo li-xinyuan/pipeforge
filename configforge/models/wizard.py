@@ -3,6 +3,18 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pipeforge.config.models import CheckRule
+from pipeforge.config.models_loose import (
+    LooseColumnMapping,
+    LooseCsvInputConfig,
+    LooseCsvOutputConfig,
+    LooseDatabaseOutputConfig,
+    LooseDbInputConfig,
+    LooseExcelInputConfig,
+    LooseExcelOutputConfig,
+    LooseJsonInputConfig,
+    LooseParquetInputConfig,
+    LooseXmlInputConfig,
+)
 
 
 class SceneInfo(BaseModel):
@@ -14,52 +26,30 @@ class SceneInfo(BaseModel):
     tags: list[str] = []
 
 
-class ExcelInputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["excel"] = "excel"
-    sheet: str = "Sheet1"
+class ExcelInputConfig(LooseExcelInputConfig):
+    """限制②C：继承 loose 基类（字段定义单一数据源）。"""
 
 
-class CsvInputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-
-    type: Literal["csv"] = "csv"
-    delimiter: str = ","
-    encoding: str = "utf-8"
-    has_header: bool = Field(default=True, alias="hasHeader")
+class CsvInputConfig(LooseCsvInputConfig):
+    """限制②C：继承 loose 基类（字段定义单一数据源）。"""
 
 
-class DatabaseInputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-
-    type: Literal["database"] = "database"
+class DatabaseInputConfig(LooseDbInputConfig):
+    """限制②C：继承 loose 基类，添加 configforge 专有的 connection_id/query_type。"""
     connection_id: str = Field(default="", alias="connectionId")
-    connection_string: str = ""   # API layer fills this after resolving connectionId
-    db_type: str = ""             # API layer fills this
     query_type: Literal["table", "sql"] = Field(default="table", alias="queryType")
-    tables: list[str] = []        # max 1 element
-    sql: str = ""
 
 
-class JsonInputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["json"] = "json"
-    flatten_separator: str = "."
+class JsonInputConfig(LooseJsonInputConfig):
+    """限制②C：继承 loose 基类（字段定义单一数据源）。"""
 
 
-class XmlInputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["xml"] = "xml"
-    row_element: str = ""
+class XmlInputConfig(LooseXmlInputConfig):
+    """限制②C：继承 loose 基类（字段定义单一数据源）。"""
 
 
-class ParquetInputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["parquet"] = "parquet"
+class ParquetInputConfig(LooseParquetInputConfig):
+    """限制②C：继承 loose 基类（字段定义单一数据源）。"""
 
 
 class ApiInputConfig(BaseModel):
@@ -118,50 +108,27 @@ class ProcessorConfig(BaseModel):
         return self
 
 
-class ColumnMappingItem(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    source: str
-    target: str
-
-
-class ExcelOutputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-
-    type: Literal["excel"] = "excel"
-    template: str = ""
-    sheet: str = "Sheet1"
-    output_dir: str = Field(default="./output/", alias="outputDir")
-    source_table: str = Field(default="", alias="sourceTable")
-    filename: str
-    columns: list[ColumnMappingItem] = []
+class ColumnMappingItem(LooseColumnMapping):
+    """限制②C：继承 loose 基类，source/target 改为必填。"""
+    source: str  # 必填（覆盖 loose 默认 ""）
+    target: str  # 必填（覆盖 loose 默认 ""）
 
 
-class CsvOutputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-
-    type: Literal["csv"] = "csv"
-    source_table: str = Field(default="", alias="sourceTable")
-    output_dir: str = Field(default="./output/", alias="outputDir")
-    filename: str
-    delimiter: str = ","
-    encoding: str = "utf-8"
-    columns: list[ColumnMappingItem] = []
+class ExcelOutputConfig(LooseExcelOutputConfig):
+    """限制②C：继承 loose 基类，filename 改为必填，columns 使用 strict 子类型。"""
+    filename: str  # 必填（覆盖 loose 默认 None）
+    columns: list[ColumnMappingItem] = []  # 使用 strict 子类型
 
 
-class DatabaseOutputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+class CsvOutputConfig(LooseCsvOutputConfig):
+    """限制②C：继承 loose 基类，filename 改为必填，columns 使用 strict 子类型。"""
+    filename: str  # 必填（覆盖 loose 默认 None）
+    columns: list[ColumnMappingItem] = []  # 使用 strict 子类型
 
-    type: Literal["database"] = "database"
-    connection_id: str = Field(default="", alias="connectionId")
-    target_table: str = Field(default="", alias="targetTable")
-    write_mode: Literal["replace", "append", "upsert"] = Field(default="replace", alias="writeMode")
-    source_table: str = Field(default="", alias="sourceTable")
-    columns: list[ColumnMappingItem] = Field(default=[])
-    create_table_if_not_exists: bool = Field(default=True, alias="createTableIfNotExists")
-    primary_key_columns: list[str] = Field(default=[], alias="primaryKeyColumns")
-    batch_size: int = Field(default=1000, ge=1, le=100000)
-    connection_string: str = ""
+
+class DatabaseOutputConfig(LooseDatabaseOutputConfig):
+    """限制②C：继承 loose 基类。所有字段在 loose 已有默认，仅 columns 使用 strict 子类型。"""
+    columns: list[ColumnMappingItem] = Field(default=[])  # 使用 strict 子类型
 
 
 class OutputTarget(BaseModel):

@@ -4,6 +4,21 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from pipeforge.config.models_loose import (
+    LooseColumnMapping,
+    LooseCsvInputConfig,
+    LooseCsvOutputConfig,
+    LooseDatabaseOutputConfig,
+    LooseDbInputConfig,
+    LooseExcelInputConfig,
+    LooseExcelOutputConfig,
+    LooseJsonInputConfig,
+    LooseParquetInputConfig,
+    LoosePythonProcessorConfig,
+    LooseSqlProcessorConfig,
+    LooseXmlInputConfig,
+)
+
 
 class SceneMeta(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -13,32 +28,20 @@ class SceneMeta(BaseModel):
     version: str = "1.0"
 
 
-class ExcelInputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["excel"] = "excel"
+class ExcelInputConfig(LooseExcelInputConfig):
+    """限制②C：继承 loose 基类，添加 pipeforge 执行态的 file 字段。"""
     file: str | None = None
-    sheet: str = "Sheet1"
 
 
-class CsvInputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["csv"] = "csv"
+class CsvInputConfig(LooseCsvInputConfig):
+    """限制②C：继承 loose 基类，添加 pipeforge 执行态的 file 字段。"""
     file: str | None = None
-    delimiter: str = ","
-    encoding: str = "utf-8"
-    has_header: bool = True
 
 
-class DbInputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["database"] = "database"
-    connection_string: str
-    db_type: str = ""
-    tables: list[str] = []
-    sql: str = ""
+class DbInputConfig(LooseDbInputConfig):
+    """限制②C：继承 loose 基类，connection_string 改为必填，添加 file 字段。"""
+    file: str | None = None
+    connection_string: str  # 必填（覆盖 loose 默认 ""）
 
     @model_validator(mode="after")
     def validate_tables_sql_mutual_exclusion(self):
@@ -51,29 +54,18 @@ class DbInputConfig(BaseModel):
         return self
 
 
-class JsonInputConfig(BaseModel):
-    """限制③C：JSON 输入源配置（reader 适配器支持执行）。"""
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["json"] = "json"
+class JsonInputConfig(LooseJsonInputConfig):
+    """限制③C：JSON 输入源配置（reader 适配器支持执行）。限制②C：继承 loose。"""
     file: str | None = None
-    flatten_separator: str = "."
 
 
-class XmlInputConfig(BaseModel):
-    """限制③C：XML 输入源配置（reader 适配器支持执行）。"""
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["xml"] = "xml"
+class XmlInputConfig(LooseXmlInputConfig):
+    """限制③C：XML 输入源配置（reader 适配器支持执行）。限制②C：继承 loose。"""
     file: str | None = None
-    row_element: str = ""
 
 
-class ParquetInputConfig(BaseModel):
-    """限制③C：Parquet 输入源配置（reader 适配器支持执行）。"""
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["parquet"] = "parquet"
+class ParquetInputConfig(LooseParquetInputConfig):
+    """限制③C：Parquet 输入源配置（reader 适配器支持执行）。限制②C：继承 loose。"""
     file: str | None = None
 
 
@@ -97,11 +89,9 @@ class InputSpec(BaseModel):
         return v
 
 
-class SqlProcessorConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["sql"] = "sql"
-    sql: str
+class SqlProcessorConfig(LooseSqlProcessorConfig):
+    """限制②C：继承 loose 基类，sql 改为必填。"""
+    sql: str  # 必填（覆盖 loose 默认 ""）
 
     @field_validator("sql")
     @classmethod
@@ -111,11 +101,9 @@ class SqlProcessorConfig(BaseModel):
         return v
 
 
-class PythonProcessorConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["python"] = "python"
-    script: str
+class PythonProcessorConfig(LoosePythonProcessorConfig):
+    """限制②C：继承 loose 基类，script 改为必填。"""
+    script: str  # 必填（覆盖 loose 默认 ""）
 
     @field_validator("script")
     @classmethod
@@ -136,11 +124,10 @@ class ProcessorSpec(BaseModel):
     checkpoints: list[CheckRule] = []
 
 
-class ColumnMapping(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    source: str
-    target: str
+class ColumnMapping(LooseColumnMapping):
+    """限制②C：继承 loose 基类，source/target 改为必填。"""
+    source: str  # 必填（覆盖 loose 默认 ""）
+    target: str  # 必填（覆盖 loose 默认 ""）
 
     @field_validator("source")
     @classmethod
@@ -150,33 +137,15 @@ class ColumnMapping(BaseModel):
         return v
 
 
-class ExcelOutputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class ExcelOutputConfig(LooseExcelOutputConfig):
+    """限制②C：继承 loose 基类，template/source_table/columns 改为必填。
 
-    type: Literal["excel"] = "excel"
-    template: str
-    sheet: str = "Sheet1"
-    output_dir: str = "./output/"
-    source_table: str
-    filename: str | None = None
-    columns: list[ColumnMapping]
-
-    @field_validator("columns")
-    @classmethod
-    def columns_not_empty(cls, v: list[ColumnMapping]) -> list[ColumnMapping]:
-        return v  # Allow empty — pipeline auto-infers columns from input
-
-
-class CsvOutputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["csv"] = "csv"
-    source_table: str
-    output_dir: str = "./output/"
-    filename: str | None = None
-    delimiter: str = ","
-    encoding: str = "utf-8"
-    columns: list[ColumnMapping]
+    注意（spike Finding 2）：source_table 在 loose 父类带 alias="sourceTable"，
+    覆盖为必填时必须重新声明 alias，否则继承链丢失 alias。
+    """
+    template: str  # 必填（覆盖 loose 默认 ""）
+    source_table: str = Field(alias="sourceTable")  # 必填 + 重新声明 alias
+    columns: list[ColumnMapping]  # 必填（覆盖 loose 默认 []），使用 strict 子类型
 
     @field_validator("columns")
     @classmethod
@@ -184,19 +153,24 @@ class CsvOutputConfig(BaseModel):
         return v  # Allow empty — pipeline auto-infers columns from input
 
 
-class DatabaseOutputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class CsvOutputConfig(LooseCsvOutputConfig):
+    """限制②C：继承 loose 基类，source_table/columns 改为必填。
 
-    type: Literal["database"] = "database"
-    connection_id: str = ""
-    target_table: str = ""
-    write_mode: Literal["replace", "append", "upsert"] = "replace"
-    source_table: str = ""
-    columns: list[ColumnMapping] = Field(default=[])
-    create_table_if_not_exists: bool = True
-    primary_key_columns: list[str] = Field(default=[])
-    batch_size: int = Field(default=1000, ge=1, le=100000)
-    connection_string: str = ""
+    注意（spike Finding 2）：source_table 在 loose 父类带 alias="sourceTable"，
+    覆盖为必填时必须重新声明 alias，否则继承链丢失 alias。
+    """
+    source_table: str = Field(alias="sourceTable")  # 必填 + 重新声明 alias
+    columns: list[ColumnMapping]  # 必填（覆盖 loose 默认 []），使用 strict 子类型
+
+    @field_validator("columns")
+    @classmethod
+    def columns_not_empty(cls, v: list[ColumnMapping]) -> list[ColumnMapping]:
+        return v  # Allow empty — pipeline auto-infers columns from input
+
+
+class DatabaseOutputConfig(LooseDatabaseOutputConfig):
+    """限制②C：继承 loose 基类。所有字段在 loose 已有默认，无需覆盖字段。"""
+    columns: list[ColumnMapping] = Field(default=[])  # 使用 strict 子类型保留 validator
 
 
 OutputConfig = Annotated[
