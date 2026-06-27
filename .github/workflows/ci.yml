@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [master]
 
+# 覆盖 pyproject.toml 里的清华镜像 —— GitHub Actions runner 在海外，
+# 访问清华镜像会被限流（403）。CI 统一用官方 PyPI。
+env:
+  UV_INDEX_URL: https://pypi.org/simple
+
 jobs:
   version-check:
     runs-on: ubuntu-latest
