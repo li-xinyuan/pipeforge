@@ -5,201 +5,201 @@
     <!-- Main: steps area + Guide panel -->
     <div class="wizard__main">
       <!-- Scrollable steps -->
-      <div class="wizard__steps" ref="scrollEl">
+      <div ref="scrollEl" class="wizard__steps">
         <WizardProgress :steps="progressSteps" @step-click="scrollToStep" />
 
         <!-- Step 1: Scene Info -->
         <ErrorBoundary>
-        <WizardStepCard
-          ref="step1El"
-          title="场景信息"
-          description="告诉 ConfigForge 你想做什么"
-          icon="🎨"
-          icon-bg="#f0fdfa"
-          :status="stepStatus(1)"
-          :badge="stepBadge(1)"
-          :step="1"
-          :collapsed="isStepCollapsed(1)"
-          :summary="stepSummary(1)"
-          @header-click="onStepHeaderClick(1)"
-        >
-          <div class="wizard__form-grid">
-            <div class="wizard__form-group">
-              <label class="wizard__label">场景名称 <span class="wizard__required">*</span></label>
-              <NInput :class="{ 'pulse-cta-input': currentStep === 1 && !store.canProceed(1) }" v-model:value="store.scene.name" placeholder="例如：销售报表生成" size="small" />
-              <p v-if="currentStep === 1 && store.stepValidation(1).length" class="wizard__validation-msg">{{ store.stepValidation(1).join('；') }}</p>
+          <WizardStepCard
+            ref="step1El"
+            title="场景信息"
+            description="告诉 ConfigForge 你想做什么"
+            icon="🎨"
+            icon-bg="#f0fdfa"
+            :status="stepStatus(1)"
+            :badge="stepBadge(1)"
+            :step="1"
+            :collapsed="isStepCollapsed(1)"
+            :summary="stepSummary(1)"
+            @header-click="onStepHeaderClick(1)"
+          >
+            <div class="wizard__form-grid">
+              <div class="wizard__form-group">
+                <label class="wizard__label">场景名称 <span class="wizard__required">*</span></label>
+                <NInput v-model:value="store.scene.name" :class="{ 'pulse-cta-input': currentStep === 1 && !store.canProceed(1) }" placeholder="例如：销售报表生成" size="small" />
+                <p v-if="currentStep === 1 && store.stepValidation(1).length" class="wizard__validation-msg">{{ store.stepValidation(1).join('；') }}</p>
+              </div>
+              <div class="wizard__form-group">
+                <label class="wizard__label">版本号 (可选)</label>
+                <NInput v-model:value="store.scene.version" placeholder="1.0" size="small" />
+              </div>
+              <div class="wizard__form-group wizard__form-group--full">
+                <label class="wizard__label">场景描述 (可选)</label>
+                <NInput
+                  v-model:value="store.scene.description"
+                  type="textarea"
+                  placeholder="描述这个配置管道的用途..."
+                  :rows="3"
+                  size="small"
+                />
+              </div>
             </div>
-            <div class="wizard__form-group">
-              <label class="wizard__label">版本号 (可选)</label>
-              <NInput v-model:value="store.scene.version" placeholder="1.0" size="small" />
-            </div>
-            <div class="wizard__form-group wizard__form-group--full">
-              <label class="wizard__label">场景描述 (可选)</label>
-              <NInput
-                v-model:value="store.scene.description"
-                type="textarea"
-                placeholder="描述这个配置管道的用途..."
-                :rows="3"
-                size="small"
-              />
-            </div>
-          </div>
-          <template #footer>
-            <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 1 && store.canProceed(1) }" :disabled="!store.canProceed(1)" @click="completeStep(1)">下一步 ↓</NButton>
-          </template>
-        </WizardStepCard>
+            <template #footer>
+              <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 1 && store.canProceed(1) }" :disabled="!store.canProceed(1)" @click="completeStep(1)">下一步 ↓</NButton>
+            </template>
+          </WizardStepCard>
         </ErrorBoundary>
 
         <!-- Step 2: Input Sources -->
         <ErrorBoundary>
-        <WizardStepCard
-          ref="step2El"
-          title="输入源"
-          description="添加数据文件作为管道的输入"
-          icon="📂"
-          icon-bg="#ccfbf1"
-          :status="stepStatus(2)"
-          :badge="stepBadge(2)"
-          :step="2"
-          :collapsed="isStepCollapsed(2)"
-          :summary="stepSummary(2)"
-          @header-click="onStepHeaderClick(2)"
-        >
-          <InputSourceList :pulse-cta="currentStep === 2" />
-          <template #footer>
-            <NButton @click="onGoBack(2)">← 上一步</NButton>
-            <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 2 && store.canProceed(2) }" :disabled="!store.canProceed(2)" @click="completeStep(2)">下一步 ↓</NButton>
-            <p v-if="!store.canProceed(2)" class="wizard__validation-msg">{{ store.stepValidation(2).join('；') || '请先添加输入源并上传文件' }}</p>
-          </template>
-        </WizardStepCard>
+          <WizardStepCard
+            ref="step2El"
+            title="输入源"
+            description="添加数据文件作为管道的输入"
+            icon="📂"
+            icon-bg="#ccfbf1"
+            :status="stepStatus(2)"
+            :badge="stepBadge(2)"
+            :step="2"
+            :collapsed="isStepCollapsed(2)"
+            :summary="stepSummary(2)"
+            @header-click="onStepHeaderClick(2)"
+          >
+            <InputSourceList :pulse-cta="currentStep === 2" />
+            <template #footer>
+              <NButton @click="onGoBack(2)">← 上一步</NButton>
+              <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 2 && store.canProceed(2) }" :disabled="!store.canProceed(2)" @click="completeStep(2)">下一步 ↓</NButton>
+              <p v-if="!store.canProceed(2)" class="wizard__validation-msg">{{ store.stepValidation(2).join('；') || '请先添加输入源并上传文件' }}</p>
+            </template>
+          </WizardStepCard>
         </ErrorBoundary>
 
         <!-- Step 3: SQL Processing -->
         <ErrorBoundary>
-        <WizardStepCard
-          ref="step3El"
-          title="处理步骤"
-          description="对输入数据进行加工和转换"
-          icon="⚡"
-          icon-bg="#fef3c7"
-          :status="stepStatus(3)"
-          :badge="stepBadge(3)"
-          :step="3"
-          :collapsed="isStepCollapsed(3)"
-          :summary="stepSummary(3)"
-          @header-click="onStepHeaderClick(3)"
-        >
-          <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && !store.canProceed(3)" />
-          <template #footer>
-            <NButton @click="onGoBack(3)">← 上一步</NButton>
-            <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 3 && store.canProceed(3) }" :disabled="!store.canProceed(3)" @click="completeStep(3)">下一步 ↓</NButton>
-            <p v-if="!store.canProceed(3)" class="wizard__validation-msg">{{ store.stepValidation(3).join('；') || '请先添加处理步骤' }}</p>
-          </template>
-        </WizardStepCard>
+          <WizardStepCard
+            ref="step3El"
+            title="处理步骤"
+            description="对输入数据进行加工和转换"
+            icon="⚡"
+            icon-bg="#fef3c7"
+            :status="stepStatus(3)"
+            :badge="stepBadge(3)"
+            :step="3"
+            :collapsed="isStepCollapsed(3)"
+            :summary="stepSummary(3)"
+            @header-click="onStepHeaderClick(3)"
+          >
+            <SqlEditorTab ref="sqlEditorRef" :pulse-cta="currentStep === 3 && !store.canProceed(3)" />
+            <template #footer>
+              <NButton @click="onGoBack(3)">← 上一步</NButton>
+              <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 3 && store.canProceed(3) }" :disabled="!store.canProceed(3)" @click="completeStep(3)">下一步 ↓</NButton>
+              <p v-if="!store.canProceed(3)" class="wizard__validation-msg">{{ store.stepValidation(3).join('；') || '请先添加处理步骤' }}</p>
+            </template>
+          </WizardStepCard>
         </ErrorBoundary>
 
         <!-- Step 4: Output Config -->
         <ErrorBoundary>
-        <WizardStepCard
-          ref="step4El"
-          title="输出配置"
-          description="配置输出格式和列映射"
-          icon="📤"
-          icon-bg="#fef2f2"
-          :status="stepStatus(4)"
-          :badge="stepBadge(4)"
-          :step="4"
-          :collapsed="isStepCollapsed(4)"
-          :summary="stepSummary(4)"
-          @header-click="onStepHeaderClick(4)"
-        >
-          <OutputConfigTab :pulse-cta="currentStep === 4" />
-          <template #footer>
-            <NButton @click="onGoBack(4)">← 上一步</NButton>
-            <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 4 && store.canProceed(4) }" :disabled="!store.canProceed(4)" @click="completeStep(4)">下一步 ↓</NButton>
-            <p v-if="!store.canProceed(4)" class="wizard__validation-msg">{{ store.stepValidation(4).join('；') || '请先完成输出配置' }}</p>
-          </template>
-        </WizardStepCard>
+          <WizardStepCard
+            ref="step4El"
+            title="输出配置"
+            description="配置输出格式和列映射"
+            icon="📤"
+            icon-bg="#fef2f2"
+            :status="stepStatus(4)"
+            :badge="stepBadge(4)"
+            :step="4"
+            :collapsed="isStepCollapsed(4)"
+            :summary="stepSummary(4)"
+            @header-click="onStepHeaderClick(4)"
+          >
+            <OutputConfigTab :pulse-cta="currentStep === 4" />
+            <template #footer>
+              <NButton @click="onGoBack(4)">← 上一步</NButton>
+              <NButton :class="{ 'btn-primary': true, 'pulse-cta': currentStep === 4 && store.canProceed(4) }" :disabled="!store.canProceed(4)" @click="completeStep(4)">下一步 ↓</NButton>
+              <p v-if="!store.canProceed(4)" class="wizard__validation-msg">{{ store.stepValidation(4).join('；') || '请先完成输出配置' }}</p>
+            </template>
+          </WizardStepCard>
         </ErrorBoundary>
 
         <!-- Step 5: Preview & Export -->
         <ErrorBoundary>
-        <WizardStepCard
-          ref="step5El"
-          title="预览与导出"
-          description="查看 YAML 配置并导出"
-          icon="🚀"
-          icon-bg="#eff6ff"
-          :status="stepStatus(5)"
-          :badge="stepBadge(5)"
-          :step="5"
-          :collapsed="isStepCollapsed(5)"
-          :summary="stepSummary(5)"
-          @header-click="onStepHeaderClick(5)"
-        >
-          <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-            <div class="cf-stat-card">
-              <div class="cf-stat-card__label">输入源</div>
-              <div class="cf-stat-card__value">{{ store.inputs.length }}</div>
-              <div class="cf-stat-card__sub">{{ inputTypeSummary }}</div>
-            </div>
-            <div class="cf-stat-card">
-              <div class="cf-stat-card__label">处理步骤</div>
-              <div class="cf-stat-card__value">{{ store.processors.length }}</div>
-              <div class="cf-stat-card__sub">{{ processorTypeSummary }}</div>
-            </div>
-            <div class="cf-stat-card">
-              <div class="cf-stat-card__label">输出格式</div>
-              <div class="cf-stat-card__value">{{ outputTypeLabel }}</div>
-            </div>
-          </div>
-
-          <!-- Data Preview -->
-          <div style="margin-bottom: 16px;">
-            <div class="flex items-center justify-between mb-2">
-              <label class="cf-label" style="margin-bottom: 0;">数据预览</label>
-              <NButton size="small" :loading="dryRunLoading" @click="runDryRun">运行预览</NButton>
-            </div>
-            <div v-if="dryRunError" class="text-xs text-red-500 mb-2">{{ dryRunError }}</div>
-            <p v-if="previewColumns.length > 0" class="text-xs text-amber-500 mb-1">⚠ 预览基于样本数据，结果可能与实际执行不同</p>
-            <DataPreviewTable
-              v-if="previewColumns.length > 0"
-              :columns="previewColumns"
-              :rows="previewRows"
-            />
-            <p v-else-if="!dryRunLoading" class="text-xs text-slate-400">点击"运行预览"查看数据处理结果</p>
-          </div>
-
-          <YamlPreview ref="yamlPreviewRef" />
-
-          <!-- AI Precheck -->
-          <div style="margin-top: 16px;">
-            <div class="flex items-center gap-2 mb-2">
-              <AiTriggerButton label="AI 预检配置" :loading="precheckLoading" :disabled="precheckLoading" @click="runPrecheck" />
-            </div>
-            <div v-if="precheckResult" class="ai-precheck-result">
-              <div class="ai-precheck-result__summary" :class="precheckSummaryClass">{{ precheckResult.summary }}</div>
-              <div v-if="precheckResult.issues.length" class="ai-precheck-result__issues">
-                <div v-for="(issue, i) in precheckResult.issues" :key="i" class="ai-precheck-result__issue" :class="`ai-precheck-result__issue--${issue.severity}`">
-                  <span class="ai-precheck-result__badge">{{ issue.severity === 'error' ? '错误' : issue.severity === 'warning' ? '警告' : '提示' }}</span>
-                  <span class="ai-precheck-result__step">步骤 {{ issue.step }}</span>
-                  <span class="ai-precheck-result__msg">{{ issue.message }}</span>
-                </div>
+          <WizardStepCard
+            ref="step5El"
+            title="预览与导出"
+            description="查看 YAML 配置并导出"
+            icon="🚀"
+            icon-bg="#eff6ff"
+            :status="stepStatus(5)"
+            :badge="stepBadge(5)"
+            :step="5"
+            :collapsed="isStepCollapsed(5)"
+            :summary="stepSummary(5)"
+            @header-click="onStepHeaderClick(5)"
+          >
+            <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+              <div class="cf-stat-card">
+                <div class="cf-stat-card__label">输入源</div>
+                <div class="cf-stat-card__value">{{ store.inputs.length }}</div>
+                <div class="cf-stat-card__sub">{{ inputTypeSummary }}</div>
+              </div>
+              <div class="cf-stat-card">
+                <div class="cf-stat-card__label">处理步骤</div>
+                <div class="cf-stat-card__value">{{ store.processors.length }}</div>
+                <div class="cf-stat-card__sub">{{ processorTypeSummary }}</div>
+              </div>
+              <div class="cf-stat-card">
+                <div class="cf-stat-card__label">输出格式</div>
+                <div class="cf-stat-card__value">{{ outputTypeLabel }}</div>
               </div>
             </div>
-            <p v-if="precheckError" class="text-xs text-red-500 mt-1">{{ precheckError }}</p>
-          </div>
 
-          <!-- Notification Settings -->
-          <div style="margin-top: 16px; border-top: 1px solid var(--color-border-light); padding-top: 12px;">
-            <NotificationSettings />
-          </div>
-          <template #footer>
-            <NButton @click="onGoBack(5)">← 上一步</NButton>
-            <ExportActions ref="exportActionsRef" :yaml="yamlPreviewRef?.yamlText || ''" @goto-step="scrollToStep" />
-            <NButton class="btn-secondary" @click="saveAsTemplateVisible = true">保存为模板</NButton>
-          </template>
-        </WizardStepCard>
+            <!-- Data Preview -->
+            <div style="margin-bottom: 16px;">
+              <div class="flex items-center justify-between mb-2">
+                <label class="cf-label" style="margin-bottom: 0;">数据预览</label>
+                <NButton size="small" :loading="dryRunLoading" @click="runDryRun">运行预览</NButton>
+              </div>
+              <div v-if="dryRunError" class="text-xs text-red-500 mb-2">{{ dryRunError }}</div>
+              <p v-if="previewColumns.length > 0" class="text-xs text-amber-500 mb-1">⚠ 预览基于样本数据，结果可能与实际执行不同</p>
+              <DataPreviewTable
+                v-if="previewColumns.length > 0"
+                :columns="previewColumns"
+                :rows="previewRows"
+              />
+              <p v-else-if="!dryRunLoading" class="text-xs text-slate-400">点击"运行预览"查看数据处理结果</p>
+            </div>
+
+            <YamlPreview ref="yamlPreviewRef" />
+
+            <!-- AI Precheck -->
+            <div style="margin-top: 16px;">
+              <div class="flex items-center gap-2 mb-2">
+                <AiTriggerButton label="AI 预检配置" :loading="precheckLoading" :disabled="precheckLoading" @click="runPrecheck" />
+              </div>
+              <div v-if="precheckResult" class="ai-precheck-result">
+                <div class="ai-precheck-result__summary" :class="precheckSummaryClass">{{ precheckResult.summary }}</div>
+                <div v-if="precheckResult.issues.length" class="ai-precheck-result__issues">
+                  <div v-for="(issue, i) in precheckResult.issues" :key="i" class="ai-precheck-result__issue" :class="`ai-precheck-result__issue--${issue.severity}`">
+                    <span class="ai-precheck-result__badge">{{ issue.severity === 'error' ? '错误' : issue.severity === 'warning' ? '警告' : '提示' }}</span>
+                    <span class="ai-precheck-result__step">步骤 {{ issue.step }}</span>
+                    <span class="ai-precheck-result__msg">{{ issue.message }}</span>
+                  </div>
+                </div>
+              </div>
+              <p v-if="precheckError" class="text-xs text-red-500 mt-1">{{ precheckError }}</p>
+            </div>
+
+            <!-- Notification Settings -->
+            <div style="margin-top: 16px; border-top: 1px solid var(--color-border-light); padding-top: 12px;">
+              <NotificationSettings />
+            </div>
+            <template #footer>
+              <NButton @click="onGoBack(5)">← 上一步</NButton>
+              <ExportActions ref="exportActionsRef" :yaml="yamlPreviewRef?.yamlText || ''" @goto-step="scrollToStep" />
+              <NButton class="btn-secondary" @click="saveAsTemplateVisible = true">保存为模板</NButton>
+            </template>
+          </WizardStepCard>
         </ErrorBoundary>
 
         <div class="wizard__bottom-spacer" />
@@ -211,6 +211,20 @@
 
     <!-- Save As Template Modal -->
     <SaveAsTemplateModal v-model:show="saveAsTemplateVisible" />
+
+    <!-- Mobile bottom step navigation -->
+    <div class="wizard__mobile-nav">
+      <button
+        v-for="s in 5"
+        :key="s"
+        class="wizard__mobile-nav__step"
+        :class="{ 'wizard__mobile-nav__step--active': currentStep === s, 'wizard__mobile-nav__step--done': currentStep > s }"
+        @click="scrollToStep(s)"
+      >
+        <span class="wizard__mobile-nav__dot">{{ currentStep > s ? '✓' : s }}</span>
+        <span class="wizard__mobile-nav__label">{{ stepLabels[s - 1] }}</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -330,6 +344,7 @@ const outputTypeLabel = computed(() => {
 const currentStep = ref(1)
 const expandedStep = ref(1)
 const saveAsTemplateVisible = ref(false)
+const stepLabels = ['场景', '输入', '处理', '输出', '导出']
 
 // Sync expandedStep with currentStep
 watch(currentStep, (val) => {
@@ -727,6 +742,11 @@ onUnmounted(() => {
   height: 80px;
 }
 
+/* === Mobile bottom step nav (hidden on desktop) === */
+.wizard__mobile-nav {
+  display: none;
+}
+
 /* === AI Precheck Result === */
 .ai-precheck-result {
   border: 1px solid var(--color-border-light);
@@ -841,6 +861,67 @@ onUnmounted(() => {
   }
   .wizard__bottom-spacer {
     height: 100px;
+  }
+
+  /* Mobile bottom step navigation */
+  .wizard__mobile-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    padding: 6px 0 env(safe-area-inset-bottom, 6px);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  }
+  .wizard__mobile-nav__step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    transition: color 0.2s;
+  }
+  .wizard__mobile-nav__step--active {
+    color: var(--color-primary);
+  }
+  .wizard__mobile-nav__step--done {
+    color: var(--color-success);
+  }
+  .wizard__mobile-nav__dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    border: 2px solid var(--color-border);
+    background: var(--color-surface);
+    transition: all 0.2s;
+  }
+  .wizard__mobile-nav__step--active .wizard__mobile-nav__dot {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: #fff;
+  }
+  .wizard__mobile-nav__step--done .wizard__mobile-nav__dot {
+    border-color: var(--color-success);
+    background: var(--color-success);
+    color: #fff;
+  }
+  .wizard__mobile-nav__label {
+    font-size: 10px;
+    line-height: 1;
   }
 }
 </style>

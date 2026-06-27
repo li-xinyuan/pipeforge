@@ -24,6 +24,7 @@ from configforge.core.pipeline import PipelineTimeoutError, _prepare_execution, 
 from configforge.models.wizard import ExecutionRecord, WizardState
 from configforge.services.ai.auto_diagnose import auto_diagnose
 from configforge.services.notifier.dispatcher import dispatch_notifications_async
+from configforge.utils.metrics import record_pipeline_execution, active_connections, configs_total
 from configforge.utils.security import sanitize_connection_string
 from pipeforge.config.exceptions import CheckpointError
 
@@ -115,9 +116,11 @@ async def execute(
     started_at = datetime.now(UTC).isoformat()
 
     # --- Execute Pipeline ---
+    active_connections.inc()
     try:
         output_path = execute_pipeline(state)
     except CheckpointError as e:
+        active_connections.dec()
         return await _handle_failure(
             exec_id, started_at, context,
             error_message="数据检查点未通过",
@@ -126,14 +129,17 @@ async def execute(
             on_failed=on_failed,
         )
     except _USER_ERRORS as e:
+        active_connections.dec()
         error_msg = sanitize_connection_string(str(e)) if sanitize_errors else str(e)
         return await _handle_failure(
             exec_id, started_at, context,
             error_message=error_msg,
             sanitize_errors=False,
             on_failed=on_failed,
+            error_type=type(e).__name__,
         )
     except Exception as e:
+        active_connections.dec()
         logger.exception("Pipeline execution failed")
         error_msg = sanitize_connection_string(str(e)) if sanitize_errors else str(e)
         return await _handle_failure(
@@ -141,9 +147,11 @@ async def execute(
             error_message=error_msg,
             sanitize_errors=False,
             on_failed=on_failed,
+            error_type=type(e).__name__,
         )
 
     # --- Success ---
+    active_connections.dec()
     return _handle_success(
         exec_id, started_at, context, output_path,
         on_success=on_success,
@@ -159,6 +167,7 @@ async def _handle_failure(
     checks: list[dict] | None = None,
     sanitize_errors: bool = True,
     on_failed: Callable[[], None] | None = None,
+    error_type: str | None = None,
 ) -> ExecutionResult:
     """Handle a failed pipeline execution: diagnose, record, notify."""
     finished_at = datetime.now(UTC).isoformat()
@@ -200,10 +209,16 @@ async def _handle_failure(
         error_message=error_message,
         started_at=started_at,
         finished_at=finished_at,
+        duration_ms=_calc_duration_ms(started_at, finished_at),
+        error_type=error_type,
     )
 
     if on_failed:
         on_failed()
+
+    # Record pipeline execution metrics
+    duration_ms = _calc_duration_ms(started_at, finished_at)
+    record_pipeline_execution("failed", duration_ms / 1000.0)
 
     return ExecutionResult(
         exec_id=exec_id,
@@ -271,6 +286,9 @@ def _handle_success(
 
     _update_exec_index(record)
 
+    # Record pipeline execution metrics
+    record_pipeline_execution("success", duration_ms / 1000.0)
+
     # Dispatch success notification
     _dispatch_notification(
         exec_id=exec_id,
@@ -280,6 +298,7 @@ def _handle_success(
         output_files=[output_file_name] if output_file_name else [],
         started_at=started_at,
         finished_at=finished_at,
+        duration_ms=duration_ms,
     )
 
     if on_success:
@@ -306,8 +325,15 @@ def _dispatch_notification(
     finished_at: str,
     error_message: str | None = None,
     output_files: list[str] | None = None,
+    duration_ms: int | None = None,
+    row_count: int | None = None,
+    error_type: str | None = None,
 ) -> None:
-    """Dispatch execution notification (fire-and-forget)."""
+    """Dispatch execution notification (fire-and-forget).
+
+    Enhanced (T-5D-04): includes duration_ms, row_count, error_type for
+    richer notification templates.
+    """
     try:
         payload = {
             "execution_id": exec_id,
@@ -322,6 +348,12 @@ def _dispatch_notification(
             payload["error_message"] = error_message
         if output_files:
             payload["output_files"] = output_files
+        if duration_ms is not None:
+            payload["duration_ms"] = duration_ms
+        if row_count is not None:
+            payload["row_count"] = row_count
+        if error_type:
+            payload["error_type"] = error_type
         dispatch_notifications_async(payload)
     except Exception as notify_exc:
         logger.warning("Notification dispatch failed: %s", notify_exc)
@@ -372,6 +404,7 @@ async def execute_with_progress(
 
     yield {"event": "start", "data": json.dumps({"config_id": context.config_id, "exec_id": exec_id})}
 
+    active_connections.inc()
     try:
         # --- Prepare execution (runs sync code in thread) ---
         exec_state, tmp_dir, yaml_path, params = await asyncio.to_thread(
@@ -472,6 +505,7 @@ async def execute_with_progress(
             exec_id, started_at, context, output_path,
         )
 
+        active_connections.dec()
         yield {
             "event": "complete",
             "data": json.dumps({
@@ -483,6 +517,7 @@ async def execute_with_progress(
         }
 
     except CheckpointError as e:
+        active_connections.dec()
         result = await _handle_failure(
             exec_id, started_at, context,
             error_message="数据检查点未通过",
@@ -498,6 +533,7 @@ async def execute_with_progress(
             }),
         }
     except _USER_ERRORS as e:
+        active_connections.dec()
         error_msg = sanitize_connection_string(str(e)) if sanitize_errors else str(e)
         result = await _handle_failure(
             exec_id, started_at, context,
@@ -512,6 +548,7 @@ async def execute_with_progress(
             }),
         }
     except Exception as e:
+        active_connections.dec()
         logger.exception("Pipeline execution failed (SSE)")
         error_msg = sanitize_connection_string(str(e)) if sanitize_errors else str(e)
         result = await _handle_failure(

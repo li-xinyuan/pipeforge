@@ -6,9 +6,9 @@
         <label class="cf-label">处理步骤名称</label>
         <NInput
           :value="proc.name"
-          @update:value="(v: string) => $emit('update', { name: v })"
           size="small"
           placeholder="例如：数据清洗"
+          @update:value="(v: string) => $emit('update', { name: v })"
         />
       </div>
       <div>
@@ -31,9 +31,9 @@
       </label>
       <NInput
         :value="proc.outputTables[0] || ''"
-        @update:value="(v: string) => $emit('update', { outputTables: [v] })"
         size="small"
         placeholder="例如：clean_data"
+        @update:value="(v: string) => $emit('update', { outputTables: [v] })"
       />
     </div>
 
@@ -44,12 +44,12 @@
       </label>
       <CodeEditor
         :model-value="pyProc.script"
-        @update:model-value="(v: string) => $emit('update', { script: v })"
         language="python"
         placeholder="def process(ctx):
     conn = ctx.db.connection
     conn.execute('CREATE TABLE result AS SELECT * FROM source')"
         min-height="200px"
+        @update:model-value="(v: string) => $emit('update', { script: v })"
       />
     </div>
 

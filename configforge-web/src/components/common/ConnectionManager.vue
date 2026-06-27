@@ -73,7 +73,7 @@
         <NButton size="small" type="primary" :loading="saving" @click="onSave">
           {{ editingId ? '保存修改' : '保存' }}
         </NButton>
-        <NButton v-if="!editingId" size="small" @click="onSaveAndTest" :loading="saving">保存并测试</NButton>
+        <NButton v-if="!editingId" size="small" :loading="saving" @click="onSaveAndTest">保存并测试</NButton>
         <NButton v-if="editingId" size="small" :loading="saving" @click="onSaveAndTestEdit">保存并测试</NButton>
         <NButton v-if="editingId" size="small" @click="cancelEdit">取消</NButton>
       </div>

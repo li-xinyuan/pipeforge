@@ -3,9 +3,9 @@
     <NButton size="small" :disabled="currentPage <= 1" @click="emit('pageChange', currentPage - 1)">← 上一页</NButton>
     <span class="home__pagination-info">{{ currentPage }} / {{ totalPages }}</span>
     <NButton size="small" :disabled="currentPage >= totalPages" @click="emit('pageChange', currentPage + 1)">下一页 →</NButton>
-    <span class="home__pagination-sep"></span>
+    <span class="home__pagination-sep" />
     <NSelect :value="pageSize" :options="pageSizeOptions" size="small" class="home__page-size-select" @update:value="(val: number) => emit('pageSizeChange', val)" />
-    <span class="home__pagination-sep"></span>
+    <span class="home__pagination-sep" />
     <span class="home__pagination-jump">
       跳至
       <NInput v-model:value="jumpPage" size="small" class="home__jump-input" @keyup.enter="onJumpPage" />

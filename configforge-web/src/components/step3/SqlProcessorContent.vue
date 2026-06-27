@@ -6,10 +6,10 @@
         <label class="cf-label">处理步骤名称</label>
         <NInput
           :value="proc.name"
-          @update:value="(v: string) => emit('update', { name: v })"
           placeholder="例如：数据清洗"
           size="small"
           :data-testid="`processor-name-${index}`"
+          @update:value="(v: string) => emit('update', { name: v })"
         />
       </div>
       <div>
@@ -25,7 +25,9 @@
             :checked="currentFromTable === tbl.value"
             class="cursor-pointer"
             @click="switchTable(tbl.value)"
-          >{{ tbl.label }}</NTag>
+          >
+            {{ tbl.label }}
+          </NTag>
           <span v-if="availableTables.length === 0" class="text-xs text-slate-400 dark:text-slate-500">暂无可用表，请先在步骤 2 上传文件</span>
         </div>
       </div>
@@ -62,12 +64,12 @@
       <CodeEditor
         ref="sqlEditorRef"
         :model-value="proc.sql"
-        @update:model-value="(v: string) => emit('update', { sql: v })"
         language="sql"
         :placeholder="sqlPlaceholder"
         min-height="200px"
         :class="{ 'pulse-cta-input': pulseSql }"
         :data-testid="`processor-sql-${index}`"
+        @update:model-value="(v: string) => emit('update', { sql: v })"
       />
     </div>
 
@@ -117,9 +119,9 @@
       </label>
       <NInput
         :value="proc.outputTables[0] || ''"
-        @update:value="(v: string) => emit('update', { outputTables: [v] })"
         placeholder="例如：月度报表"
         size="small"
+        @update:value="(v: string) => emit('update', { outputTables: [v] })"
       />
       <p v-if="outputTableError" class="text-xs text-red-500 mt-1">{{ outputTableError }}</p>
       <p v-if="equivalenceSql" class="text-xs text-slate-400 dark:text-slate-500 mt-1.5 font-mono">{{ equivalenceSql }}</p>

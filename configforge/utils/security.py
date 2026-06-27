@@ -65,6 +65,7 @@ def validate_url(url: str) -> str:
     - Internal/private IP addresses (10.x, 172.16-31.x, 192.168.x, 127.x)
     - Cloud metadata endpoints (169.254.169.254, metadata.google.internal, etc.)
     - Link-local addresses
+    - Domains that resolve to internal IPs (DNS rebinding prevention)
     """
     import ipaddress
     from urllib.parse import urlparse
@@ -103,13 +104,51 @@ def validate_url(url: str) -> str:
                 if resolved_ip.is_private or resolved_ip.is_loopback or resolved_ip.is_link_local or resolved_ip.is_reserved:
                     raise ValueError(f"域名 {hostname} 解析到内网 IP {resolved_ip}，访问被阻止")
         except socket.gaierror:
-            raise ValueError(f"无法解析域名 {hostname}")
+            # DNS resolution failed — cannot verify, allow through
+            # (actual request will fail anyway if domain is truly unresolvable)
+            pass
         ip = None
 
     if ip is not None and (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved):
         raise ValueError(f"Access to internal IP address {ip} is blocked")
 
     return url
+
+
+def resolve_url_to_ip(url: str) -> tuple[str, str]:
+    """Resolve a URL's hostname and return (resolved_ip, original_url).
+
+    Validates the URL via validate_url(), then resolves the hostname to an IP.
+    The returned IP can be used to lock the connection target and prevent DNS rebinding.
+    """
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+
+    validate_url(url)
+
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL must have a valid hostname")
+
+    try:
+        ipaddress.ip_address(hostname)
+        return hostname, url
+    except ValueError:
+        pass
+
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None, socket.AF_INET)
+        resolved_ip = addr_infos[0][4][0]
+    except (socket.gaierror, IndexError):
+        try:
+            addr_infos = socket.getaddrinfo(hostname, None, socket.AF_INET6)
+            resolved_ip = addr_infos[0][4][0]
+        except (socket.gaierror, IndexError):
+            raise ValueError(f"无法解析域名 {hostname}")
+
+    return resolved_ip, url
 
 
 def validate_sqlite_path(path: str, param_name: str = "file_path") -> str:

@@ -1,0 +1,177 @@
+{
+  "common": {
+    "cancel": "取消",
+    "delete": "删除",
+    "close": "关闭",
+    "refresh": "刷新"
+  },
+  "pwa": {
+    "updateTitle": "发现新版本",
+    "updateBody": "ConfigForge 有新版本可用，刷新以获取最新功能。",
+    "updateBtn": "立即刷新",
+    "laterBtn": "稍后",
+    "offlineReady": "应用已可离线使用"
+  },
+  "nav": {
+    "myConfigs": "我的配置",
+    "templates": "模板市场",
+    "history": "执行历史",
+    "schedules": "定时任务",
+    "settings": "设置",
+    "registerUser": "注册新用户",
+    "logout": "退出登录",
+    "userMenu": "用户菜单",
+    "openNav": "打开导航菜单",
+    "toggleLight": "切换亮色模式",
+    "toggleDark": "切换暗色模式",
+    "lightMode": "☀ 亮色模式",
+    "darkMode": "☾ 暗色模式",
+    "role": {
+      "admin": "管理员",
+      "editor": "编辑者",
+      "viewer": "查看者"
+    },
+    "logoutConfirm": "确定要退出登录吗？未保存的修改将会丢失。",
+    "register": {
+      "title": "注册新用户",
+      "username": "用户名",
+      "password": "密码",
+      "role": "角色",
+      "editor": "✏️ 编辑者",
+      "viewer": "👁 查看者",
+      "create": "创建用户",
+      "emptyFields": "请输入用户名和密码",
+      "usernameExists": "用户名已存在",
+      "forbidden": "仅管理员可注册新用户",
+      "networkError": "网络连接失败",
+      "failed": "注册失败",
+      "success": "用户 \"{username}\" 创建成功"
+    }
+  },
+  "login": {
+    "tagline": "AI 驱动的数据流水线配置工具",
+    "intro": "5 步可视化向导，轻松配置从数据接入到结果输出的完整流程。支持 7 种数据源、2 种处理引擎、3 种输出方式，AI 随时待命辅助分析。",
+    "username": "用户名",
+    "password": "密码",
+    "submit": "登 录",
+    "hint": "默认账号 admin / admin123",
+    "toggleLight": "切换亮色",
+    "toggleDark": "切换暗色",
+    "emptyFields": "请输入用户名和密码",
+    "failed": "登录失败"
+  },
+  "home": {
+    "newConfig": "✏ 新建配置",
+    "importConfig": "📥 导入配置",
+    "templates": "📦 模板市场",
+    "guide": "📖 指南",
+    "recentConfigs": "最近配置",
+    "configCount": "{count} 个配置",
+    "confirmDeleteTitle": "确认删除",
+    "confirmDeleteBody": "确定要删除配置 \"{name}\" 吗？此操作不可撤销。",
+    "confirmBatchDeleteTitle": "确认批量删除",
+    "confirmBatchDeleteBody": "确定要删除选中的 {count} 个配置吗？此操作不可撤销。",
+    "versionHistoryTitle": "版本历史",
+    "deleted": "已删除",
+    "deleteFailed": "删除失败",
+    "exportedAs": "已导出为 {format} 文件",
+    "importedConfig": "已导入配置 \"{name}\"",
+    "pageSize": {
+      "10": "10 条/页",
+      "20": "20 条/页",
+      "50": "50 条/页"
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "tabs": {
+      "ai": "AI 模型",
+      "database": "数据库连接",
+      "smtp": "邮件推送",
+      "storage": "存储后端",
+      "language": "语言"
+    },
+    "storage": {
+      "hint": "显示当前系统使用的存储后端类型和配置摘要（只读）。如需切换，请修改环境变量并重启服务。",
+      "currentBackend": "当前后端",
+      "dialect": "数据库方言",
+      "tableCount": "数据表数量",
+      "configSummary": "配置摘要",
+      "switchHint": "切换方式",
+      "switchHintText": "修改环境变量 CONFIGFORGE_STORAGE_BACKEND 并重启服务。详见 docs/DEPLOYMENT.md「存储后端选择」。",
+      "needRestart": "切换后端需要重启服务才能生效，不支持运行时热切换。",
+      "availableBackends": "可选后端",
+      "pros": "优点",
+      "cons": "缺点",
+      "backendOptions": {
+        "json": {
+          "name": "JSON（默认）",
+          "envValue": "CONFIGFORGE_STORAGE_BACKEND=json",
+          "scenario": "开发 / 试用 / 小团队",
+          "pros": ["零运维，开箱即用", "无需数据库服务", "数据为可读 JSON 文件"],
+          "cons": ["无并发保护", "不支持多实例共享", "大数据量查询性能差"]
+        },
+        "sqlite": {
+          "name": "SQLite",
+          "envValue": "CONFIGFORGE_STORAGE_BACKEND=sqlite",
+          "scenario": "单机生产 / 中等数据量",
+          "pros": ["单文件数据库，零运维", "WAL 模式支持并发读", "结构化查询，性能优于 JSON"],
+          "cons": ["不支持多实例共享", "高并发写有全库锁瓶颈", "无网络访问能力"]
+        },
+        "postgresql": {
+          "name": "PostgreSQL",
+          "envValue": "CONFIGFORGE_STORAGE_BACKEND=postgresql",
+          "scenario": "多实例 / 高并发 / 生产集群",
+          "pros": ["多实例共享同一数据库", "MVCC 高并发读写", "生产级备份 / 复制 / 监控", "支持大数据量"],
+          "cons": ["需 DBA 运维", "需独立部署数据库服务", "资源消耗较高"]
+        }
+      }
+    },
+    "language": {
+      "label": "界面语言",
+      "hint": "切换界面显示语言，立即生效。",
+      "zhCN": "中文",
+      "enUS": "English"
+    },
+    "ai": {
+      "hint": "配置 AI 模型后，可在向导中使用 AI 辅助生成 SQL、自动列映射和场景描述等功能。",
+      "enable": "启用 AI",
+      "provider": "提供商",
+      "model": "模型",
+      "modelHint": "留空使用默认：{default}",
+      "apiKey": "API Key",
+      "currentKey": "当前：{key}",
+      "baseUrl": "Base URL",
+      "baseUrlPlaceholderOpenai": "https://api.openai.com/v1（默认）",
+      "baseUrlPlaceholderRequired": "必填",
+      "maxTokens": "Max Tokens",
+      "maxTokensPlaceholder": "最大令牌数",
+      "testConnection": "测试连接",
+      "saveSettings": "保存设置",
+      "testHint": "测试前将自动保存当前设置",
+      "saved": "设置已保存",
+      "connectionSuccess": "连接成功！{provider}/{model}，延迟 {latency}ms",
+      "connectionFailed": "连接失败",
+      "networkError": "网络请求失败"
+    },
+    "smtp": {
+      "hint": "配置 SMTP 邮件服务后，可在步骤 5 中添加邮件推送通知。",
+      "host": "SMTP 服务器",
+      "port": "端口",
+      "user": "用户名",
+      "password": "密码 / 授权码",
+      "passwordPlaceholder": "SMTP 密码或应用专用密码",
+      "currentKey": "当前：{key}",
+      "sender": "发件人地址",
+      "senderPlaceholder": "留空则使用用户名作为发件人",
+      "useTls": "启用 TLS",
+      "testConnection": "测试连接",
+      "saveSettings": "保存设置",
+      "testHint": "测试前将自动保存当前设置",
+      "saved": "SMTP 设置已保存",
+      "testComplete": "测试完成",
+      "testFailed": "测试失败",
+      "networkError": "网络请求失败"
+    }
+  }
+}

@@ -91,6 +91,16 @@ export function useApi() {
       }
 
       const contentType = resp.headers.get('content-type') || ''
+      const contentDisposition = resp.headers.get('content-disposition') || ''
+
+      // File download — when Content-Disposition: attachment is present, return as blob
+      // This handles JSON/YAML exports that would otherwise be parsed as JSON objects
+      if (contentDisposition.includes('attachment')) {
+        if (!resp.ok) {
+          throw new ApiError(`请求失败 (${resp.status})`, 'API_ERROR', resp.status)
+        }
+        return await resp.blob() as unknown as T
+      }
 
       // Explicitly binary content-type — return as blob
       if (contentType.includes('application/octet-stream') || contentType.includes('application/vnd.')) {
@@ -203,7 +213,7 @@ export function useApi() {
   }
 
   async function getConfigDiff(configId: string, v1: number, v2: number) {
-    return request<DiffResult>('GET', `/api/configs/${configId}/diff?v1=${v1}&v2=${v2}`)
+    return request<DiffResult>('GET', `/api/configs/${configId}/versions/diff?v1=${v1}&v2=${v2}`)
   }
 
   async function rollbackConfig(configId: string, version: number) {

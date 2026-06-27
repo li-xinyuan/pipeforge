@@ -1,0 +1,177 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "close": "Close",
+    "refresh": "Refresh"
+  },
+  "pwa": {
+    "updateTitle": "New version available",
+    "updateBody": "A new version of ConfigForge is available. Refresh to get the latest features.",
+    "updateBtn": "Refresh now",
+    "laterBtn": "Later",
+    "offlineReady": "App is ready for offline use"
+  },
+  "nav": {
+    "myConfigs": "My Configs",
+    "templates": "Templates",
+    "history": "History",
+    "schedules": "Schedules",
+    "settings": "Settings",
+    "registerUser": "Register User",
+    "logout": "Log out",
+    "userMenu": "User menu",
+    "openNav": "Open navigation menu",
+    "toggleLight": "Switch to light mode",
+    "toggleDark": "Switch to dark mode",
+    "lightMode": "☀ Light mode",
+    "darkMode": "☾ Dark mode",
+    "role": {
+      "admin": "Admin",
+      "editor": "Editor",
+      "viewer": "Viewer"
+    },
+    "logoutConfirm": "Are you sure you want to log out? Unsaved changes will be lost.",
+    "register": {
+      "title": "Register New User",
+      "username": "Username",
+      "password": "Password",
+      "role": "Role",
+      "editor": "✏️ Editor",
+      "viewer": "👁 Viewer",
+      "create": "Create User",
+      "emptyFields": "Please enter username and password",
+      "usernameExists": "Username already exists",
+      "forbidden": "Only admins can register new users",
+      "networkError": "Network connection failed",
+      "failed": "Registration failed",
+      "success": "User \"{username}\" created successfully"
+    }
+  },
+  "login": {
+    "tagline": "AI-powered data pipeline configuration tool",
+    "intro": "A 5-step visual wizard to easily configure the full flow from data ingestion to result output. Supports 7 data sources, 2 processing engines, and 3 output methods, with AI assistance on standby.",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Log in",
+    "hint": "Default account: admin / admin123",
+    "toggleLight": "Switch to light",
+    "toggleDark": "Switch to dark",
+    "emptyFields": "Please enter username and password",
+    "failed": "Login failed"
+  },
+  "home": {
+    "newConfig": "✏ New Config",
+    "importConfig": "📥 Import Config",
+    "templates": "📦 Templates",
+    "guide": "📖 Guide",
+    "recentConfigs": "Recent Configs",
+    "configCount": "{count} configs",
+    "confirmDeleteTitle": "Confirm Delete",
+    "confirmDeleteBody": "Are you sure you want to delete config \"{name}\"? This action cannot be undone.",
+    "confirmBatchDeleteTitle": "Confirm Batch Delete",
+    "confirmBatchDeleteBody": "Are you sure you want to delete {count} selected configs? This action cannot be undone.",
+    "versionHistoryTitle": "Version History",
+    "deleted": "Deleted",
+    "deleteFailed": "Delete failed",
+    "exportedAs": "Exported as {format} file",
+    "importedConfig": "Imported config \"{name}\"",
+    "pageSize": {
+      "10": "10 / page",
+      "20": "20 / page",
+      "50": "50 / page"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "ai": "AI Model",
+      "database": "Database",
+      "smtp": "Email",
+      "storage": "Storage",
+      "language": "Language"
+    },
+    "storage": {
+      "hint": "Shows the current storage backend type and config summary (read-only). To switch, modify the env var and restart.",
+      "currentBackend": "Current Backend",
+      "dialect": "Database Dialect",
+      "tableCount": "Table Count",
+      "configSummary": "Configuration Summary",
+      "switchHint": "How to Switch",
+      "switchHintText": "Modify CONFIGFORGE_STORAGE_BACKEND env var and restart. See docs/DEPLOYMENT.md.",
+      "needRestart": "Backend switching requires a service restart. Runtime hot-switch is not supported.",
+      "availableBackends": "Available Backends",
+      "pros": "Pros",
+      "cons": "Cons",
+      "backendOptions": {
+        "json": {
+          "name": "JSON (Default)",
+          "envValue": "CONFIGFORGE_STORAGE_BACKEND=json",
+          "scenario": "Dev / Trial / Small teams",
+          "pros": ["Zero ops, out of the box", "No database service needed", "Data stored as readable JSON files"],
+          "cons": ["No concurrency protection", "No multi-instance support", "Poor query performance on large data"]
+        },
+        "sqlite": {
+          "name": "SQLite",
+          "envValue": "CONFIGFORGE_STORAGE_BACKEND=sqlite",
+          "scenario": "Single-machine production / Medium data",
+          "pros": ["Single-file database, zero ops", "WAL mode supports concurrent reads", "Structured queries, faster than JSON"],
+          "cons": ["No multi-instance sharing", "Global write lock under high concurrency", "No network access"]
+        },
+        "postgresql": {
+          "name": "PostgreSQL",
+          "envValue": "CONFIGFORGE_STORAGE_BACKEND=postgresql",
+          "scenario": "Multi-instance / High concurrency / Production cluster",
+          "pros": ["Multi-instance shared database", "MVCC high-concurrency read/write", "Production-grade backup / replication / monitoring", "Handles large datasets"],
+          "cons": ["Requires DBA", "Needs separate database service", "Higher resource usage"]
+        }
+      }
+    },
+    "language": {
+      "label": "Interface Language",
+      "hint": "Switch the interface display language. Takes effect immediately.",
+      "zhCN": "中文",
+      "enUS": "English"
+    },
+    "ai": {
+      "hint": "After configuring the AI model, you can use AI-assisted SQL generation, auto column mapping, and scene description in the wizard.",
+      "enable": "Enable AI",
+      "provider": "Provider",
+      "model": "Model",
+      "modelHint": "Leave blank to use default: {default}",
+      "apiKey": "API Key",
+      "currentKey": "Current: {key}",
+      "baseUrl": "Base URL",
+      "baseUrlPlaceholderOpenai": "https://api.openai.com/v1 (default)",
+      "baseUrlPlaceholderRequired": "Required",
+      "maxTokens": "Max Tokens",
+      "maxTokensPlaceholder": "Max tokens",
+      "testConnection": "Test Connection",
+      "saveSettings": "Save Settings",
+      "testHint": "Settings will be auto-saved before testing.",
+      "saved": "Settings saved",
+      "connectionSuccess": "Connection successful! {provider}/{model}, latency {latency}ms",
+      "connectionFailed": "Connection failed",
+      "networkError": "Network request failed"
+    },
+    "smtp": {
+      "hint": "After configuring SMTP email service, you can add email notifications in step 5.",
+      "host": "SMTP Server",
+      "port": "Port",
+      "user": "Username",
+      "password": "Password / Auth Code",
+      "passwordPlaceholder": "SMTP password or app-specific password",
+      "currentKey": "Current: {key}",
+      "sender": "Sender Address",
+      "senderPlaceholder": "Leave blank to use username as sender",
+      "useTls": "Enable TLS",
+      "testConnection": "Test Connection",
+      "saveSettings": "Save Settings",
+      "testHint": "Settings will be auto-saved before testing.",
+      "saved": "SMTP settings saved",
+      "testComplete": "Test completed",
+      "testFailed": "Test failed",
+      "networkError": "Network request failed"
+    }
+  }
+}

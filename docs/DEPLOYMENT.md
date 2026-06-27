@@ -84,6 +84,89 @@ fi
 
 ---
 
+## 存储后端选择
+
+ConfigForge 支持三种存储后端，通过环境变量 `CONFIGFORGE_STORAGE_BACKEND` 切换。
+**后端类型在服务启动时确定，切换后端需要修改环境变量并重启服务。**
+
+### 三种后端对比
+
+| 维度 | JSON（默认） | SQLite | PostgreSQL |
+|------|-------------|--------|------------|
+| 适用场景 | 开发 / 试用 / 小团队 | 单机生产 / 中等数据量 | 多实例 / 高并发 / 大数据量 |
+| 部署形态 | 文件存储（`data/*.json`） | 单文件数据库（`data/configforge.db`） | 独立数据库服务 |
+| 并发能力 | 无并发保护 | WAL 模式，并发读 + 单写 | MVCC，高并发读写 |
+| 多实例共享 | 不支持 | 不支持（单文件锁） | 支持（多进程共享数据库） |
+| 运维成本 | 零 | 零（单文件备份） | 需 DBA（备份 / 监控 / 复制） |
+| 数据量建议 | < 1 万行 | < 100 万行 | 无上限 |
+| 迁移路径 | → SQLite → PostgreSQL | → PostgreSQL | 终点 |
+
+### 何时用哪个？
+
+- **JSON**：个人使用、功能试用、开发环境。零配置，开箱即用。
+- **SQLite**：单机生产部署，数据量中等（audit_log < 50 万行），并发用户 < 10。
+  比 JSON 性能更好，支持结构化查询，仍无需运维数据库。
+- **PostgreSQL**：生产环境多实例部署、高并发写入、需要数据库级备份 / 复制 / 监控。
+  团队有 PostgreSQL 运维能力。
+
+### 配置方式
+
+**JSON（默认，无需配置）：**
+```bash
+# 不设置 CONFIGFORGE_STORAGE_BACKEND，或设为 json
+# CONFIGFORGE_STORAGE_BACKEND=json
+```
+
+**SQLite：**
+```bash
+CONFIGFORGE_STORAGE_BACKEND=sqlite
+# 可选：自定义数据库文件路径（默认 data/configforge.db）
+# CONFIGFORGE_SQLITE_PATH=/var/lib/configforge/configforge.db
+```
+
+**PostgreSQL：**
+```bash
+CONFIGFORGE_STORAGE_BACKEND=postgresql
+# 必填：PostgreSQL 连接字符串
+CONFIGFORGE_DATABASE_URL=postgresql://configforge:password@localhost:5432/configforge
+```
+
+Docker Compose 启用 PostgreSQL（可选 profile）：
+```bash
+# 1. 在 .env 中设置
+echo 'CONFIGFORGE_STORAGE_BACKEND=postgresql' >> .env
+echo 'CONFIGFORGE_DATABASE_URL=postgresql://configforge:configforge@postgres:5432/configforge' >> .env
+echo 'POSTGRES_PASSWORD=your-strong-password' >> .env
+
+# 2. 启动（带 postgres profile）
+docker compose --profile postgres up -d
+```
+
+### 数据迁移
+
+从低级后端迁移到高级后端时，使用迁移脚本（幂等，可重复运行）：
+
+```bash
+# JSON → SQLite
+python -m configforge.utils.migrate_to_sqlite
+
+# SQLite → PostgreSQL
+python -m configforge.utils.migrate_to_postgres \
+    --sqlite-path data/configforge.db \
+    --database-url "postgresql://user:pass@host:5432/dbname"
+```
+
+迁移完成后，修改 `CONFIGFORGE_STORAGE_BACKEND` 环境变量并重启服务。
+
+> **注意**：Pipeline 配置（`configs/` 目录）始终使用 JSON 文件存储，不受存储后端影响。
+
+### 前端查看当前后端
+
+在 Settings 页面的「存储后端」页签可查看当前使用的后端类型和配置摘要（只读）。
+如需切换，请按上述步骤修改环境变量并重启服务。
+
+---
+
 ## Nginx HTTPS 反向代理配置
 
 完整的 Nginx 配置示例文件位于 `deploy/nginx.conf.example`，以下为配置要点说明。

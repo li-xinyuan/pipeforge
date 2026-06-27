@@ -1,20 +1,24 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test.describe('Template Market', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    await page.evaluate(() => localStorage.clear())
+    await page.evaluate(() => {
+      const locale = localStorage.getItem('configforge_locale')
+      localStorage.clear()
+      if (locale) localStorage.setItem('configforge_locale', locale)
+    })
   })
 
   test('navigate to template market', async ({ page }) => {
     // Login first
     await page.goto('/login')
-    const usernameInput = page.locator('input').first()
+    const usernameInput = page.locator('input[type="text"]').first()
     await usernameInput.waitFor({ state: 'visible', timeout: 10000 })
     await usernameInput.fill('admin')
     const passwordInput = page.locator('input[type="password"]')
-    await passwordInput.fill('newpass123')
-    const loginBtn = page.locator('button:has-text("登录"), button[type="submit"]')
+    await passwordInput.fill('admin123')
+    const loginBtn = page.locator('button[type="submit"]')
     await loginBtn.click()
     await page.waitForURL(/\/(?!login)/, { timeout: 10000 }).catch(() => {})
 
@@ -31,12 +35,12 @@ test.describe('Template Market', () => {
   test('template market shows templates or empty state', async ({ page }) => {
     // Login
     await page.goto('/login')
-    const usernameInput = page.locator('input').first()
+    const usernameInput = page.locator('input[type="text"]').first()
     await usernameInput.waitFor({ state: 'visible', timeout: 10000 })
     await usernameInput.fill('admin')
     const passwordInput = page.locator('input[type="password"]')
-    await passwordInput.fill('newpass123')
-    const loginBtn = page.locator('button:has-text("登录"), button[type="submit"]')
+    await passwordInput.fill('admin123')
+    const loginBtn = page.locator('button[type="submit"]')
     await loginBtn.click()
     await page.waitForURL(/\/(?!login)/, { timeout: 10000 }).catch(() => {})
 
@@ -52,7 +56,14 @@ test.describe('Template Market', () => {
 
 test.describe('Template API', () => {
   test('list templates API returns valid response', async ({ request }) => {
-    const resp = await request.get('http://127.0.0.1:8199/api/templates')
+    // Login to get token
+    const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+      data: { username: 'admin', password: 'admin123' },
+    })
+    const { access_token } = await loginResp.json()
+    const headers = { Authorization: `Bearer ${access_token}` }
+
+    const resp = await request.get('http://127.0.0.1:8199/api/templates', { headers })
     expect(resp.ok()).toBeTruthy()
     const data = await resp.json()
     expect(data).toHaveProperty('items')
@@ -63,10 +74,10 @@ test.describe('Template API', () => {
   test('create and delete template via API', async ({ request }) => {
     // Login to get token
     const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
-      data: { username: 'admin', password: 'newpass123' },
+      data: { username: 'admin', password: 'admin123' },
     })
-    const { token } = await loginResp.json()
-    const headers = { Authorization: `Bearer ${token}` }
+    const { access_token } = await loginResp.json()
+    const headers = { Authorization: `Bearer ${access_token}` }
 
     // Create template
     const createResp = await request.post('http://127.0.0.1:8199/api/templates', {
@@ -94,10 +105,10 @@ test.describe('Template API', () => {
   test('instantiate template via API', async ({ request }) => {
     // Login
     const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
-      data: { username: 'admin', password: 'newpass123' },
+      data: { username: 'admin', password: 'admin123' },
     })
-    const { token } = await loginResp.json()
-    const headers = { Authorization: `Bearer ${token}` }
+    const { access_token } = await loginResp.json()
+    const headers = { Authorization: `Bearer ${access_token}` }
 
     // Create template
     const createResp = await request.post('http://127.0.0.1:8199/api/templates', {

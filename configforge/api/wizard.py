@@ -205,7 +205,7 @@ async def api_execute_stream_get(
     """
     # --- JWT authentication via query parameter ---
     from configforge.middleware.jwt import decode_token, is_jwt_enabled
-    from configforge.services.user_store import get_user_by_id
+    from configforge.storage import get_user_store
 
     if is_jwt_enabled():
         if not token:
@@ -213,7 +213,7 @@ async def api_execute_stream_get(
         payload = decode_token(token)
         if not payload:
             raise HTTPException(status_code=401, detail={"error": "令牌无效或已过期", "code": "AUTH_FAILED"})
-        user = get_user_by_id(payload.get("sub", ""))
+        user = get_user_store().get_user_by_id(payload.get("sub", ""))
         if not user:
             raise HTTPException(status_code=401, detail={"error": "用户不存在", "code": "USER_NOT_FOUND"})
         if user.role not in (UserRole.editor, UserRole.admin):

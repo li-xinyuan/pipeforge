@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import re
+import time
 import uuid
 from contextlib import asynccontextmanager
 
@@ -12,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from configforge.api.ai import router as ai_router
 from configforge.api.auth import router as auth_router
+from configforge.api.backup import router as backup_router
 from configforge.api.configs import router as configs_router
 from configforge.api.connections import router as connections_router
 from configforge.api.executions import _cleanup_old_outputs
@@ -19,8 +21,10 @@ from configforge.api.executions import router as exec_router
 from configforge.api.files import cleanup_old_files, cleanup_old_logs
 from configforge.api.files import router as files_router
 from configforge.api.notifications import router as notifications_router
+from configforge.api.plugins import router as plugins_router
 from configforge.api.preview import router as preview_router
 from configforge.api.schedules import router as schedules_router
+from configforge.api.storage import router as storage_router
 from configforge.api.templates import router as templates_router
 from configforge.api.wizard import router as wizard_router
 from configforge.middleware.auth import AuthMiddleware, require_role
@@ -103,8 +107,8 @@ async def lifespan(app: FastAPI):
         _logger.warning("Index migration had errors: %s", migration_result.get("errors"))
     # Ensure default admin user when JWT auth is enabled
     if os.environ.get("CONFIGFORGE_JWT_SECRET"):
-        from configforge.services.user_store import ensure_default_admin
-        ensure_default_admin()
+        from configforge.storage import get_user_store
+        get_user_store().ensure_default_admin()
     if not os.environ.get("CONFIGFORGE_ENCRYPTION_KEY"):
         _logger.warning(
             "CONFIGFORGE_ENCRYPTION_KEY not set. Auto-generated encryption key "
@@ -178,8 +182,22 @@ app.add_middleware(
 @app.middleware("http")
 async def request_id_middleware(request, call_next):
     request_id_var.set(uuid.uuid4().hex[:12])
+    start_time = time.time()
     response = await call_next(request)
+    duration = time.time() - start_time
     response.headers["X-Request-ID"] = request_id_var.get("")
+    # Record metrics (skip /api/metrics itself to avoid recursion)
+    if not request.url.path.startswith("/api/metrics"):
+        try:
+            from configforge.utils.metrics import record_http_request
+            record_http_request(
+                method=request.method,
+                endpoint=request.url.path,
+                status=response.status_code,
+                duration=duration,
+            )
+        except Exception:
+            pass
     return response
 
 # API Key authentication (disabled when CONFIGFORGE_API_KEY is not set)
@@ -223,7 +241,10 @@ app.include_router(exec_router, tags=["执行历史"])
 app.include_router(schedules_router, tags=["调度管理"])
 app.include_router(notifications_router, tags=["通知管理"])
 app.include_router(templates_router, prefix="/api/templates", tags=["模板管理"])
+app.include_router(storage_router, tags=["存储后端"])
+app.include_router(plugins_router, tags=["插件管理"])
 app.include_router(auth_router, tags=["认证管理"])
+app.include_router(backup_router, tags=["系统"])
 
 
 @app.get("/api/audit-log", summary="获取审计日志", description="获取系统审计日志记录。支持按目标类型、操作类型、用户、时间范围筛选，默认返回最近 100 条。", tags=["认证管理"])
@@ -236,8 +257,8 @@ async def get_audit_log_api(
     limit: int = 100,
     _user: User = Depends(require_role("admin")),
 ):
-    from configforge.services.audit_logger import get_audit_log
-    return {"entries": get_audit_log(target_type, action, limit, user=user, start_time=start_time, end_time=end_time)}
+    from configforge.storage import get_audit_store
+    return {"entries": get_audit_store().get_audit_log(target_type, action, limit, user=user, start_time=start_time, end_time=end_time)}
 
 
 @app.get("/api/health", summary="健康检查", description="检查系统健康状态，包括数据目录可写性、配置目录存在性、调度器运行状态和加密密钥配置情况。", tags=["系统"])
@@ -277,6 +298,34 @@ async def health():
     checks["encryption_key_set"] = bool(os.environ.get("CONFIGFORGE_ENCRYPTION_KEY"))
 
     return checks
+
+
+@app.get("/api/metrics", summary="Prometheus 指标", description="返回 Prometheus 格式的监控指标数据，包括 HTTP 请求计数、请求延迟、Pipeline 执行统计等。可用于集成 Prometheus + Grafana 监控系统。", tags=["系统"])
+async def metrics():
+    from configforge.utils.metrics import get_metrics, get_metrics_content_type
+    from fastapi import Response
+    return Response(content=get_metrics(), media_type=get_metrics_content_type())
+
+
+@app.post("/api/error-report", summary="前端错误上报", description="接收前端 JavaScript 错误报告，用于监控前端运行时异常。", tags=["系统"])
+async def error_report(request: Request):
+    import logging
+    _logger = logging.getLogger("configforge.frontend_errors")
+    try:
+        body = await request.json()
+        reports = body.get("reports", [])
+        for report in reports:
+            _logger.error(
+                "Frontend %s: %s at %s",
+                report.get("level", "error"),
+                report.get("message", "unknown"),
+                report.get("url", "unknown"),
+                extra={"stack": report.get("stack"), "context": report.get("context")},
+            )
+    except Exception:
+        pass
+    return {"ok": True}
+
 
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles

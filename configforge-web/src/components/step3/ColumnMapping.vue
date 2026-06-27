@@ -4,7 +4,7 @@
       <tr class="bg-slate-50 dark:bg-slate-700/50">
         <th class="px-3 py-1.5 text-left text-xs font-medium text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">源列 (source)</th>
         <th class="px-3 py-1.5 text-left text-xs font-medium text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">目标列 (target)</th>
-        <th class="w-10 border border-slate-200 dark:border-slate-700"></th>
+        <th class="w-10 border border-slate-200 dark:border-slate-700" />
       </tr>
     </thead>
     <tbody>

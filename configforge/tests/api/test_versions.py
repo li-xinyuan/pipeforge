@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import configforge.api.configs as configs_mod
+import configforge.services.config_store as config_store_mod
 from configforge.server import app
 
 
@@ -12,9 +13,14 @@ from configforge.server import app
 def temp_data_dir(monkeypatch, tmp_path):
     """Use a temporary directory for config data."""
     configs_dir = str(tmp_path / "configs")
-    monkeypatch.setattr(configs_mod, "CONFIGS_DIR", configs_dir)
     os.makedirs(configs_dir, exist_ok=True)
-    monkeypatch.setattr(configs_mod, "INDEX_PATH", os.path.join(configs_dir, "index.json"))
+    index_path = os.path.join(configs_dir, "index.json")
+    # Patch both api/configs.py (backward compat) and services/config_store.py (actual logic)
+    monkeypatch.setattr(configs_mod, "CONFIGS_DIR", configs_dir)
+    monkeypatch.setattr(configs_mod, "INDEX_PATH", index_path)
+    monkeypatch.setattr(config_store_mod, "CONFIGS_DIR", configs_dir)
+    monkeypatch.setattr(config_store_mod, "INDEX_PATH", index_path)
+    config_store_mod._cache.invalidate("index")
     yield
 
 
@@ -102,7 +108,7 @@ class TestRollbackVersion:
 class TestDiffVersions:
     def test_diff_same_version(self, client):
         config_id = _save_config(client)
-        resp = client.get(f"/api/configs/{config_id}/diff?v1=1&v2=1")
+        resp = client.get(f"/api/configs/{config_id}/versions/diff?v1=1&v2=1")
         assert resp.status_code == 200
         data = resp.json()
         assert data["v1"] == 1
@@ -112,7 +118,7 @@ class TestDiffVersions:
         config_id = _save_config(client)
         _save_config(client, _base_state("Test v2"), config_id)
 
-        resp = client.get(f"/api/configs/{config_id}/diff?v1=1&v2=2")
+        resp = client.get(f"/api/configs/{config_id}/versions/diff?v1=1&v2=2")
         assert resp.status_code == 200
         data = resp.json()
         assert data["v1"] == 1
@@ -120,5 +126,5 @@ class TestDiffVersions:
 
     def test_diff_nonexistent_version(self, client):
         config_id = _save_config(client)
-        resp = client.get(f"/api/configs/{config_id}/diff?v1=1&v2=999")
+        resp = client.get(f"/api/configs/{config_id}/versions/diff?v1=1&v2=999")
         assert resp.status_code == 404

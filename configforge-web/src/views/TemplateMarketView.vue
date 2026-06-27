@@ -29,7 +29,7 @@
               accept=".json"
               style="display: none;"
               @change="onImportFile"
-            />
+            >
           </div>
         </div>
       </div>
@@ -67,42 +67,42 @@
 
       <div v-else-if="filteredTemplates.length > 0" class="market__grid">
         <ErrorBoundary>
-        <div
-          v-for="tpl in pagedTemplates"
-          :key="tpl.id"
-          class="market__card card-lift"
-          @click="onCardClick($event, tpl)"
-        >
-          <div class="market__card-header">
-            <span class="market__card-icon">{{ categoryIcon(tpl.category) }}</span>
-            <NTag v-if="tpl.isOfficial" size="small" :bordered="false" type="info" class="market__card-official">官方</NTag>
-          </div>
-          <h3 class="market__card-name">{{ tpl.name }}</h3>
-          <p class="market__card-desc">{{ tpl.description }}</p>
-          <div v-if="tpl.tags.length" class="market__card-tags">
-            <NTag v-for="tag in tpl.tags.slice(0, 3)" :key="tag" size="small" :bordered="false" class="market__card-tag">{{ tag }}</NTag>
-            <NTag v-if="tpl.tags.length > 3" size="small" :bordered="false" class="market__card-tag">+{{ tpl.tags.length - 3 }}</NTag>
-          </div>
-          <div class="market__card-footer">
-            <div class="market__card-meta-row">
-              <span class="market__card-meta">{{ tpl.author }}</span>
-              <span class="market__card-sep">·</span>
-              <span class="market__card-meta">使用 {{ tpl.usageCount }} 次</span>
+          <div
+            v-for="tpl in pagedTemplates"
+            :key="tpl.id"
+            class="market__card card-lift"
+            @click="onCardClick($event, tpl)"
+          >
+            <div class="market__card-header">
+              <span class="market__card-icon">{{ categoryIcon(tpl.category) }}</span>
+              <NTag v-if="tpl.isOfficial" size="small" :bordered="false" type="info" class="market__card-official">官方</NTag>
             </div>
-            <div class="market__card-actions" @click.stop>
-              <template v-if="pendingDeleteId === tpl.id">
-                <span class="market__card-confirm-text">确认删除？</span>
-                <NButton size="small" type="error" @click="confirmDelete(tpl)">确定</NButton>
-                <NButton size="small" quaternary @click="cancelDelete">取消</NButton>
-              </template>
-              <template v-else>
-                <NButton size="small" quaternary class="market__card-export" @click="onExport(tpl)">导出</NButton>
-                <NButton v-if="auth.isAdmin" size="small" type="error" quaternary class="market__card-delete" @click="requestDelete(tpl.id)">删除</NButton>
-                <NButton size="small" type="primary" class="btn-primary market__card-btn" @click="openPreview(tpl)">使用此模板</NButton>
-              </template>
+            <h3 class="market__card-name">{{ tpl.name }}</h3>
+            <p class="market__card-desc">{{ tpl.description }}</p>
+            <div v-if="tpl.tags.length" class="market__card-tags">
+              <NTag v-for="tag in tpl.tags.slice(0, 3)" :key="tag" size="small" :bordered="false" class="market__card-tag">{{ tag }}</NTag>
+              <NTag v-if="tpl.tags.length > 3" size="small" :bordered="false" class="market__card-tag">+{{ tpl.tags.length - 3 }}</NTag>
+            </div>
+            <div class="market__card-footer">
+              <div class="market__card-meta-row">
+                <span class="market__card-meta">{{ tpl.author }}</span>
+                <span class="market__card-sep">·</span>
+                <span class="market__card-meta">使用 {{ tpl.usageCount }} 次</span>
+              </div>
+              <div class="market__card-actions" @click.stop>
+                <template v-if="pendingDeleteId === tpl.id">
+                  <span class="market__card-confirm-text">确认删除？</span>
+                  <NButton size="small" type="error" @click="confirmDelete(tpl)">确定</NButton>
+                  <NButton size="small" quaternary @click="cancelDelete">取消</NButton>
+                </template>
+                <template v-else>
+                  <NButton size="small" quaternary class="market__card-export" @click="onExport(tpl)">导出</NButton>
+                  <NButton v-if="auth.isAdmin" size="small" type="error" quaternary class="market__card-delete" @click="requestDelete(tpl.id)">删除</NButton>
+                  <NButton size="small" type="primary" class="btn-primary market__card-btn" @click="openPreview(tpl)">使用此模板</NButton>
+                </template>
+              </div>
             </div>
           </div>
-        </div>
         </ErrorBoundary>
       </div>
 
@@ -112,13 +112,17 @@
           class="market__pagination-btn"
           :disabled="currentPage <= 1"
           @click="currentPage--"
-        >上一页</button>
+        >
+          上一页
+        </button>
         <span class="market__pagination-info">{{ currentPage }} / {{ totalPages }}</span>
         <button
           class="market__pagination-btn"
           :disabled="currentPage >= totalPages"
           @click="currentPage++"
-        >下一页</button>
+        >
+          下一页
+        </button>
       </div>
 
       <div v-else class="market__empty">

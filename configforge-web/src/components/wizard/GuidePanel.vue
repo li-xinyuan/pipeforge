@@ -9,7 +9,7 @@
     <template v-else>
       <div class="guide-panel__header">
         <span class="guide-panel__header-title">🤖 Forge · AI 助手</span>
-        <button class="guide-panel__collapse-btn" @click.stop="collapsed = true" title="收起面板" aria-label="收起面板">◀</button>
+        <button class="guide-panel__collapse-btn" title="收起面板" aria-label="收起面板" @click.stop="collapsed = true">◀</button>
       </div>
 
       <!-- Step indicator dots -->

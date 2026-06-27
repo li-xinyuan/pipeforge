@@ -19,7 +19,9 @@
         class="wizard-step-card__icon"
         :style="iconBg ? { background: iconBg } : {}"
         aria-hidden="true"
-      >{{ icon }}</div>
+      >
+        {{ icon }}
+      </div>
       <div class="wizard-step-card__titles">
         <h3 class="wizard-step-card__title">{{ title }}</h3>
         <p v-if="!collapsed" class="wizard-step-card__desc">{{ description }}</p>

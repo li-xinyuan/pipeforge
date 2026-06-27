@@ -111,6 +111,38 @@ export function useConfigApi() {
     }
   }
 
+  async function exportConfig(id: string, format: 'yaml' | 'json' = 'yaml'): Promise<void> {
+    try {
+      const blob = await requestOrThrow<Blob>('GET', `/api/configs/${id}/export?format=${format}`)
+      if (!(blob instanceof Blob)) return
+      const url = URL.createObjectURL(blob)
+      try {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `config_${id}.${format}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      } finally {
+        URL.revokeObjectURL(url)
+      }
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+    }
+  }
+
+  async function importConfig(file: File): Promise<{ id: string; sceneName: string } | null> {
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const data = await requestOrThrow<{ id: string; scene_name: string }>('POST', '/api/configs/import', formData)
+      return { id: data.id, sceneName: data.scene_name }
+    } catch (e) {
+      if (e instanceof ApiError) handleApiError(e)
+      return null
+    }
+  }
+
   async function executeConfig(id: string, files: Record<string, string>): Promise<Blob | null> {
     try {
       const result = await requestOrThrow<Blob>('POST', `/api/configs/${id}/execute`, { files })
@@ -137,7 +169,7 @@ export function useConfigApi() {
     }
   }
 
-  return { loading, error, listConfigs, saveConfig, deleteConfig, loadConfigState, downloadConfigYaml, executeConfig }
+  return { loading, error, listConfigs, saveConfig, deleteConfig, loadConfigState, downloadConfigYaml, exportConfig, importConfig, executeConfig }
 }
 
 export function useConfigVersionApi() {
@@ -164,7 +196,7 @@ export function useConfigVersionApi() {
 
   async function diffVersions(configId: string, v1: number, v2: number) {
     try {
-      return await requestOrThrow<Record<string, unknown>>('GET', `/api/configs/${configId}/diff?v1=${v1}&v2=${v2}`)
+      return await requestOrThrow<Record<string, unknown>>('GET', `/api/configs/${configId}/versions/diff?v1=${v1}&v2=${v2}`)
     } catch (e) {
       if (e instanceof ApiError) handleApiError(e)
       return null

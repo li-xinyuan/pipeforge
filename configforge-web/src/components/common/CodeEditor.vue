@@ -1,15 +1,15 @@
 <template>
   <div class="cm-editor-wrapper" :class="{ 'cm-editor-wrapper--dark': isDark }">
-    <div ref="editorRef"></div>
+    <div ref="editorRef" />
     <textarea
       v-if="fallbackMode"
       ref="fallbackRef"
       :value="modelValue"
-      @input="onFallbackInput"
       :placeholder="placeholder"
       :readonly="readOnly"
       :style="{ minHeight: minHeight || '120px' }"
       class="cf-code-editor"
+      @input="onFallbackInput"
     />
   </div>
 </template>
@@ -75,14 +75,14 @@ const lightTheme = EditorView.theme({
 // Custom dark theme
 const darkTheme = EditorView.theme({
   '&': { fontSize: '13px', border: '1px solid var(--color-border)', borderRadius: '8px', backgroundColor: 'var(--color-code-bg)' },
-  '.cm-content': { fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, Consolas, monospace', padding: '8px 0', color: '#abb2bf', caretColor: '#528bff' },
+  '.cm-content': { fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, Consolas, monospace', padding: '8px 0', color: 'var(--color-code-text)', caretColor: 'var(--color-primary-light)' },
   '.cm-focused': { outline: 'none', borderColor: 'var(--color-primary-light)' },
-  '.cm-gutters': { backgroundColor: 'var(--color-code-bg)', borderRight: '1px solid var(--color-border)', color: '#636d83' },
-  '.cm-activeLineGutter': { backgroundColor: '#2c313a' },
-  '.cm-activeLine': { backgroundColor: '#2c313a' },
+  '.cm-gutters': { backgroundColor: 'var(--color-code-bg)', borderRight: '1px solid var(--color-border)', color: 'var(--color-text-muted)' },
+  '.cm-activeLineGutter': { backgroundColor: 'var(--color-surface-hover)' },
+  '.cm-activeLine': { backgroundColor: 'var(--color-surface-hover)' },
   '.cm-selectionBackground': { backgroundColor: 'var(--color-primary-bg) !important' },
-  '.cm-cursor': { borderLeftColor: '#528bff' },
-  '.cm-placeholder': { color: '#636d83', fontStyle: 'italic' },
+  '.cm-cursor': { borderLeftColor: 'var(--color-primary-light)' },
+  '.cm-placeholder': { color: 'var(--color-text-muted)', fontStyle: 'italic' },
   '.cm-matchingBracket': { backgroundColor: 'var(--color-primary-bg)', outline: '1px solid var(--color-primary-light)' },
 }, { dark: true })
 

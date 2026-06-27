@@ -5,9 +5,9 @@
       <label class="cf-label"><span class="cf-required">*</span> URL</label>
       <NInput
         :value="config.url"
-        @update:value="updateConfig('url', $event)"
         placeholder="https://api.example.com/data"
         size="small"
+        @update:value="updateConfig('url', $event)"
       />
     </div>
 
@@ -16,9 +16,9 @@
       <label class="cf-label">请求方法</label>
       <NSelect
         :value="config.method"
-        @update:value="updateConfig('method', $event)"
         :options="methodOptions"
         size="small"
+        @update:value="updateConfig('method', $event)"
       />
     </div>
 
@@ -27,9 +27,9 @@
       <label class="cf-label">数据路径</label>
       <NInput
         :value="config.dataPath"
-        @update:value="updateConfig('dataPath', $event)"
         placeholder="data.items"
         size="small"
+        @update:value="updateConfig('dataPath', $event)"
       />
       <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">JSON 响应中数据列表的路径，如 data.items</p>
     </div>
@@ -41,17 +41,17 @@
         <div v-for="(value, key, idx) in config.headers" :key="idx" class="flex items-center gap-2">
           <NInput
             :value="String(key)"
-            @update:value="updateKeyValue('headers', String(key), $event, 'key')"
             placeholder="Header 名称"
             size="small"
             class="flex-1"
+            @update:value="updateKeyValue('headers', String(key), $event, 'key')"
           />
           <NInput
             :value="String(value)"
-            @update:value="updateKeyValue('headers', String(key), $event, 'value')"
             placeholder="Header 值"
             size="small"
             class="flex-1"
+            @update:value="updateKeyValue('headers', String(key), $event, 'value')"
           />
           <NButton text size="tiny" type="error" @click="removeKeyValue('headers', String(key))">✕</NButton>
         </div>
@@ -66,17 +66,17 @@
         <div v-for="(value, key, idx) in config.params" :key="idx" class="flex items-center gap-2">
           <NInput
             :value="String(key)"
-            @update:value="updateKeyValue('params', String(key), $event, 'key')"
             placeholder="参数名"
             size="small"
             class="flex-1"
+            @update:value="updateKeyValue('params', String(key), $event, 'key')"
           />
           <NInput
             :value="String(value)"
-            @update:value="updateKeyValue('params', String(key), $event, 'value')"
             placeholder="参数值"
             size="small"
             class="flex-1"
+            @update:value="updateKeyValue('params', String(key), $event, 'value')"
           />
           <NButton text size="tiny" type="error" @click="removeKeyValue('params', String(key))">✕</NButton>
         </div>
@@ -89,9 +89,9 @@
       <label class="cf-label">分页方式</label>
       <NSelect
         :value="config.pagination"
-        @update:value="updateConfig('pagination', $event)"
         :options="paginationOptions"
         size="small"
+        @update:value="updateConfig('pagination', $event)"
       />
     </div>
 
@@ -100,11 +100,11 @@
       <label class="cf-label">每页条数</label>
       <NInputNumber
         :value="config.pageSize"
-        @update:value="updateConfig('pageSize', $event ?? 20)"
         :min="1"
         :max="10000"
         size="small"
         class="w-full"
+        @update:value="updateConfig('pageSize', $event ?? 20)"
       />
     </div>
 
@@ -113,11 +113,11 @@
       <label class="cf-label">最大页数</label>
       <NInputNumber
         :value="config.maxPages"
-        @update:value="updateConfig('maxPages', $event ?? 1)"
         :min="1"
         :max="1000"
         size="small"
         class="w-full"
+        @update:value="updateConfig('maxPages', $event ?? 1)"
       />
     </div>
 

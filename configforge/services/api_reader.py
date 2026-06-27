@@ -1,9 +1,10 @@
 import logging
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 
-from configforge.utils.security import validate_url
+from configforge.utils.security import resolve_url_to_ip
 
 logger = logging.getLogger(__name__)
 
@@ -40,17 +41,22 @@ def read_api_info(
     """
     headers = headers or {}
     params = dict(params or {})
-    validate_url(url)
+    resolved_ip: str | None = None
+    try:
+        resolved_ip, _ = resolve_url_to_ip(url)
+    except ValueError:
+        # DNS resolution failed (e.g. test env), fall back to direct URL without IP locking
+        logger.warning("DNS resolution failed for %s, falling back to direct connection", url)
     all_items: list[dict] = []
 
     if pagination == "none":
-        items = _fetch_page(url, method, headers, params, body, data_path)
+        items = _fetch_page(url, method, headers, params, body, data_path, resolved_ip)
         all_items = items[:50000]
     elif pagination == "offset":
         for page in range(max_pages):
             params["offset"] = str(page * page_size)
             params["limit"] = str(page_size)
-            items = _fetch_page(url, method, headers, params, body, data_path)
+            items = _fetch_page(url, method, headers, params, body, data_path, resolved_ip)
             all_items.extend(items)
             if len(items) < page_size:
                 break
@@ -61,7 +67,7 @@ def read_api_info(
         for _ in range(max_pages):
             if cursor:
                 params["cursor"] = cursor
-            items, next_cursor = _fetch_page_cursor(url, method, headers, params, body, data_path)
+            items, next_cursor = _fetch_page_cursor(url, method, headers, params, body, data_path, resolved_ip)
             all_items.extend(items)
             if not next_cursor:
                 break
@@ -93,6 +99,17 @@ def read_api_info(
     }
 
 
+def _build_ip_locked_url(url: str, resolved_ip: str) -> str:
+    """Replace hostname in URL with resolved IP, preserving original Host header."""
+    parsed = urlparse(url)
+    # Replace hostname with resolved IP, keep port if present
+    if parsed.port:
+        netloc = f"{resolved_ip}:{parsed.port}"
+    else:
+        netloc = resolved_ip
+    return urlunparse(parsed._replace(netloc=netloc))
+
+
 def _fetch_page(
     url: str,
     method: str,
@@ -100,14 +117,30 @@ def _fetch_page(
     params: dict[str, str],
     body: dict[str, Any] | None,
     data_path: str,
+    resolved_ip: str | None = None,
 ) -> list[dict]:
-    """Fetch a single page from the API."""
+    """Fetch a single page from the API.
+
+    If resolved_ip is provided, connects to that IP directly to prevent DNS rebinding.
+    The original hostname is sent in the Host header for proper virtual hosting.
+    """
+    actual_url = url
+    request_headers = dict(headers)
+    if resolved_ip:
+        parsed = urlparse(url)
+        if parsed.hostname and parsed.hostname != resolved_ip:
+            # Set Host header to original hostname for virtual hosting
+            if parsed.port:
+                request_headers.setdefault("Host", f"{parsed.hostname}:{parsed.port}")
+            else:
+                request_headers.setdefault("Host", parsed.hostname)
+            actual_url = _build_ip_locked_url(url, resolved_ip)
     try:
         with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
             if method.upper() == "POST":
-                resp = client.post(url, headers=headers, params=params, json=body)
+                resp = client.post(actual_url, headers=request_headers, params=params, json=body)
             else:
-                resp = client.get(url, headers=headers, params=params)
+                resp = client.get(actual_url, headers=request_headers, params=params)
             resp.raise_for_status()
     except httpx.HTTPError as e:
         logger.error("API request failed: %s", e)
@@ -124,14 +157,28 @@ def _fetch_page_cursor(
     params: dict[str, str],
     body: dict[str, Any] | None,
     data_path: str,
+    resolved_ip: str | None = None,
 ) -> tuple[list[dict], str]:
-    """Fetch a single page and return items + next cursor."""
+    """Fetch a single page and return items + next cursor.
+
+    If resolved_ip is provided, connects to that IP directly to prevent DNS rebinding.
+    """
+    actual_url = url
+    request_headers = dict(headers)
+    if resolved_ip:
+        parsed = urlparse(url)
+        if parsed.hostname and parsed.hostname != resolved_ip:
+            if parsed.port:
+                request_headers.setdefault("Host", f"{parsed.hostname}:{parsed.port}")
+            else:
+                request_headers.setdefault("Host", parsed.hostname)
+            actual_url = _build_ip_locked_url(url, resolved_ip)
     try:
         with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
             if method.upper() == "POST":
-                resp = client.post(url, headers=headers, params=params, json=body)
+                resp = client.post(actual_url, headers=request_headers, params=params, json=body)
             else:
-                resp = client.get(url, headers=headers, params=params)
+                resp = client.get(actual_url, headers=request_headers, params=params)
             resp.raise_for_status()
     except httpx.HTTPError as e:
         logger.error("API request failed: %s", e)

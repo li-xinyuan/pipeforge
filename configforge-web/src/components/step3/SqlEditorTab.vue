@@ -32,17 +32,17 @@
 
       <!-- Processor cards -->
       <div class="space-y-3">
-      <ProcessorCard
-        v-for="(proc, i) in store.processors"
-        :key="i"
-        :proc="proc"
-        :index="i"
-        :expanded="true"
-        :available-tables="tableOptionsFor(i)"
-        :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
-        @remove="store.removeProcessor(i)"
-        @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
-      />
+        <ProcessorCard
+          v-for="(proc, i) in store.processors"
+          :key="i"
+          :proc="proc"
+          :index="i"
+          :expanded="true"
+          :available-tables="tableOptionsFor(i)"
+          :pulse-sql="pulseCta && (proc.plugin === 'sql' ? !proc.sql.trim() : !proc.script.trim()) && proc.outputTables.length === 0"
+          @remove="store.removeProcessor(i)"
+          @update="(p: Partial<ProcessorStep>) => store.updateProcessor(i, { ...store.processors[i], ...p } as ProcessorStep)"
+        />
       </div>
 
       <!-- Type selector for adding more steps -->
@@ -73,7 +73,9 @@
         class="mt-3"
         :class="{ 'pulse-cta': pulseCta && store.processors.every(p => (p.plugin === 'sql' ? p.sql.trim() : p.script.trim()) && p.outputTables.length) }"
         @click="showAddSelector = true"
-      >添加处理步骤</NButton>
+      >
+        添加处理步骤
+      </NButton>
 
       <!-- Validation -->
       <p v-if="store.stepValidation.length" class="wizard__validation-msg">

@@ -1,5 +1,7 @@
 # ConfigForge / PipeForge
 
+> **v0.8.1**
+
 让不懂代码的人也能创建可重复的数据处理流程。
 
 ## 核心价值
@@ -183,6 +185,10 @@ Input → [Python 清洗] → [SQL 过滤] → [SQL 聚合] → Output
 ├── configforge/tests/          # ConfigForge pytest
 └── docs/                       # 设计文档和规格说明 (superpowers/)
 ```
+
+## 部署
+
+生产环境部署请参考 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)，包含 HTTPS 配置、环境变量检查清单和 Docker Compose SSL 部署示例。
 
 ## 测试
 

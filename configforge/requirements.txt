@@ -13,3 +13,4 @@ apscheduler>=3.10
 deepdiff>=5.0
 pymysql>=1.1.0
 psycopg2-binary>=2.9.0
+prometheus_client>=0.20.0

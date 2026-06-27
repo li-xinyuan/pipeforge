@@ -4,8 +4,8 @@
     <div class="grid grid-cols-3 gap-3 mb-5">
       <div
         :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-green-900/30',
-          props.pulseCta ? 'pulse-cta' : '',
-          'border-green-600 bg-green-50']"
+                 props.pulseCta ? 'pulse-cta' : '',
+                 'border-green-600 bg-green-50']"
         @click="$emit('select', 'excel')"
       >
         <span class="text-2xl block mb-2">📊</span>
@@ -14,8 +14,8 @@
       </div>
       <div
         :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-blue-900/30',
-          props.pulseCta ? 'pulse-cta' : '',
-          'border-blue-600 bg-blue-50']"
+                 props.pulseCta ? 'pulse-cta' : '',
+                 'border-blue-600 bg-blue-50']"
         @click="$emit('select', 'csv')"
       >
         <span class="text-2xl block mb-2">🗄</span>
@@ -24,8 +24,8 @@
       </div>
       <div
         :class="['cursor-pointer text-center border-2 rounded-lg p-3 transition-colors hover:border-teal-400 hover:bg-teal-50/30 dark:bg-purple-900/30',
-          props.pulseCta ? 'pulse-cta' : '',
-          'border-purple-600 bg-purple-50']"
+                 props.pulseCta ? 'pulse-cta' : '',
+                 'border-purple-600 bg-purple-50']"
         @click="$emit('select', 'database')"
       >
         <span class="text-2xl block mb-2">🔌</span>

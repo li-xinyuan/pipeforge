@@ -254,8 +254,8 @@ class TestStartScheduler:
         with patch("configforge.scheduler.BackgroundScheduler", return_value=mock_bg):
             start_scheduler()
         mock_bg.start.assert_called_once()
-        # Should register 1 enabled schedule (sched1)
-        assert mock_bg.add_job.call_count == 1
+        # Should register 1 enabled schedule (sched1) + 1 daily backup job
+        assert mock_bg.add_job.call_count == 2
 
     def test_does_not_restart_if_already_running(self, monkeypatch):
         mock_scheduler = MagicMock()
@@ -281,8 +281,11 @@ class TestStartScheduler:
         mock_bg = MagicMock()
         with patch("configforge.scheduler.BackgroundScheduler", return_value=mock_bg):
             start_scheduler()
-        # Invalid cron should be skipped, no jobs added
-        mock_bg.add_job.assert_not_called()
+        # Invalid cron should be skipped; only daily_backup job is added
+        assert mock_bg.add_job.call_count == 1
+        # Verify it's the daily_backup job
+        call_kwargs = mock_bg.add_job.call_args.kwargs
+        assert call_kwargs.get("id") == "daily_backup"
 
 
 class TestShutdownScheduler:

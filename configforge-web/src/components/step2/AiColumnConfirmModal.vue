@@ -78,10 +78,10 @@
               <span class="ai-confirm__col-name">{{ col }}</span>
               <NSelect
                 :value="editableColumnTypes[col] || 'string'"
-                @update:value="editableColumnTypes[col] = $event"
                 :options="columnTypeOptions"
                 size="tiny"
                 class="ai-confirm__col-select"
+                @update:value="editableColumnTypes[col] = $event"
               />
             </div>
           </div>
@@ -98,7 +98,9 @@
               type="info"
               closable
               @close="removeParamKey(ki)"
-            >{{ key }}</NTag>
+            >
+              {{ key }}
+            </NTag>
           </div>
           <div class="ai-confirm__add-key">
             <NInput
@@ -107,7 +109,7 @@
               placeholder="新增参数键"
               @keyup.enter="addParamKey"
             />
-            <NButton size="tiny" @click="addParamKey" :disabled="!newParamKeyInput.trim()">添加</NButton>
+            <NButton size="tiny" :disabled="!newParamKeyInput.trim()" @click="addParamKey">添加</NButton>
           </div>
         </div>
       </template>
@@ -115,27 +117,33 @@
 
     <template #footer>
       <div class="ai-confirm__footer">
-        <NButton size="small" @click="$emit('close')" :disabled="analyzing">关闭</NButton>
+        <NButton size="small" :disabled="analyzing" @click="$emit('close')">关闭</NButton>
         <span class="ai-confirm__spacer" />
         <NButton
           v-if="!parsed && !analyzing"
           size="small"
           :type="rawText || errorMessage ? 'warning' : 'info'"
           @click="$emit('regenerate')"
-        >重新分析</NButton>
+        >
+          重新分析
+        </NButton>
         <NButton
           v-if="parsed && !analyzing"
           size="small"
           type="info"
           @click="$emit('regenerate')"
-        >重新生成</NButton>
+        >
+          重新生成
+        </NButton>
         <NButton
           v-if="parsed && !analyzing"
           size="small"
           type="success"
           :disabled="!!tableNameConflict"
           @click="onConfirm"
-        >确认应用</NButton>
+        >
+          确认应用
+        </NButton>
       </div>
     </template>
   </NModal>

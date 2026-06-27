@@ -78,7 +78,7 @@
           placeholder="追问诊断结果，例如：这个错误怎么避免？"
           class="diagnosis-panel__chat-field"
           @keydown.enter="sendChat"
-        />
+        >
         <button
           class="diagnosis-panel__chat-send"
           :disabled="!chatInput.trim() || chatLoading"

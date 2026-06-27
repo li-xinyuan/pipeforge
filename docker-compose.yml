@@ -12,6 +12,10 @@ services:
       - CONFIGFORGE_JWT_SECRET=${CONFIGFORGE_JWT_SECRET:-}
       - CONFIGFORGE_ENCRYPTION_KEY=${CONFIGFORGE_ENCRYPTION_KEY:-}
       - CORS_ORIGINS=http://localhost:8000
+      # === PostgreSQL 后端（启用 postgres profile 时生效，T-5E-03） ===
+      # 启动方式：docker compose --profile postgres up -d
+      - CONFIGFORGE_STORAGE_BACKEND=${CONFIGFORGE_STORAGE_BACKEND:-json}
+      - CONFIGFORGE_DATABASE_URL=${CONFIGFORGE_DATABASE_URL:-}
     env_file:
       - .env
     restart: unless-stopped
@@ -25,6 +29,37 @@ services:
         limits:
           memory: 1G
           cpus: "1.0"
+    security_opt:
+      - no-new-privileges:true
+
+  # === PostgreSQL 数据库服务（可选，T-5E-03） ===
+  # 启动方式：docker compose --profile postgres up -d
+  # 需在 .env 中设置：
+  #   CONFIGFORGE_STORAGE_BACKEND=postgresql
+  #   CONFIGFORGE_DATABASE_URL=postgresql://configforge:configforge@postgres:5432/configforge
+  postgres:
+    image: postgres:17-alpine
+    profiles: ["postgres"]
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-configforge}
+      - POSTGRES_USER=${POSTGRES_USER:-configforge}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-configforge}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # ports:
+    #   - "5432:5432"  # 仅开发调试时开放；生产环境不应暴露
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-configforge}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
     security_opt:
       - no-new-privileges:true
 
@@ -56,3 +91,7 @@ services:
           cpus: "0.5"
     security_opt:
       - no-new-privileges:true
+
+volumes:
+  postgres_data:
+    driver: local

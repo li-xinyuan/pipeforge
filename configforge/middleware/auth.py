@@ -22,7 +22,7 @@ def _get_api_key() -> str:
     return os.environ.get("CONFIGFORGE_API_KEY", "")
 
 # Paths that don't require authentication
-PUBLIC_PATHS = {"/", "/api/health"}
+PUBLIC_PATHS = {"/", "/api/health", "/api/metrics", "/api/error-report"}
 
 # Paths that are public when JWT auth is enabled (login/register)
 JWT_PUBLIC_PATHS = {"/api/auth/login", "/api/auth/register"}
@@ -96,14 +96,14 @@ async def get_current_user_dep(request: Request) -> User:
         raise HTTPException(status_code=401, detail={"error": "未认证", "code": "AUTH_REQUIRED"})
 
     from configforge.middleware.jwt import decode_token
-    from configforge.services.user_store import get_user_by_id
+    from configforge.storage import get_user_store
 
     token = auth_header[7:]
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail={"error": "令牌无效或已过期", "code": "AUTH_FAILED"})
 
-    user = get_user_by_id(payload.get("sub", ""))
+    user = get_user_store().get_user_by_id(payload.get("sub", ""))
     if not user:
         raise HTTPException(status_code=401, detail={"error": "用户不存在", "code": "USER_NOT_FOUND"})
 
@@ -116,8 +116,8 @@ def require_role(*roles: str):
         if user.role not in [UserRole(r) for r in roles]:
             # 记录权限拒绝审计日志
             try:
-                from configforge.services.audit_logger import log_audit
-                log_audit(
+                from configforge.storage import get_audit_store
+                get_audit_store().log_audit(
                     action="permission_denied",
                     target_type="auth",
                     target_id=user.id,

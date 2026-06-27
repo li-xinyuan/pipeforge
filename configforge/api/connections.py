@@ -4,11 +4,37 @@ from pydantic import BaseModel
 from configforge.middleware.auth import require_role
 from configforge.models.user import User
 from configforge.models.wizard import ErrorResponse
-from configforge.services.audit_logger import log_audit
-from configforge.services.connection_store import ConnectionStore
+from configforge.storage import get_audit_store, get_connection_store
 from configforge.utils.security import safe_identifier, sanitize_connection_string, validate_id, validate_sqlite_path
 
 router = APIRouter(tags=["连接管理"])
+
+# Storage instance (T-5E-01: uses factory for backend switching)
+_conn_store = get_connection_store()
+_audit = get_audit_store()
+
+
+class OkResponse(BaseModel):
+    ok: bool
+
+
+class TestConnectionResponse(BaseModel):
+    ok: bool
+    message: str = ""
+    error: str = ""
+
+
+class TablesResponse(BaseModel):
+    tables: list[str]
+
+
+class ColumnInfo(BaseModel):
+    name: str
+    type: str
+
+
+class ColumnsResponse(BaseModel):
+    columns: list[ColumnInfo]
 
 
 class CreateConnectionRequest(BaseModel):
@@ -32,7 +58,7 @@ class UpdateConnectionRequest(BaseModel):
     file_path: str | None = None
 
 
-@router.post("/connections", summary="创建数据库连接", description="创建一个新的数据库连接配置。支持 MySQL、PostgreSQL、SQLite 等数据库类型。SQLite 需要提供 file_path，其他类型需要提供 host、port、database、username、password。")
+@router.post("/connections", summary="创建数据库连接", description="创建一个新的数据库连接配置。支持 MySQL、PostgreSQL、SQLite 等数据库类型。SQLite 需要提供 file_path，其他类型需要提供 host、port、database、username、password。", response_model=dict)
 def create_connection(req: CreateConnectionRequest, _user: User = Depends(require_role("admin"))):
     data = {"name": req.name, "db_type": req.db_type}
     if req.db_type == "sqlite":
@@ -71,19 +97,29 @@ def create_connection(req: CreateConnectionRequest, _user: User = Depends(requir
         data["database"] = req.database
         data["username"] = req.username
         data["password"] = req.password
-    conn = ConnectionStore.create(data)
+    conn = _conn_store.create(data)
+    _audit.log_audit(
+        action="create",
+        target_type="connection",
+        target_id=conn["id"],
+        details={
+            "user": _user.username,
+            "name": conn["name"],
+            "db_type": conn["db_type"],
+        },
+    )
     return conn
 
 
-@router.get("/connections", summary="获取连接列表", description="获取所有已配置的数据库连接列表，包含连接 ID、名称、类型、主机等信息。密码字段会被脱敏处理。")
+@router.get("/connections", summary="获取连接列表", description="获取所有已配置的数据库连接列表，包含连接 ID、名称、类型、主机等信息。密码字段会被脱敏处理。", response_model=list[dict])
 def list_connections(_user: User = Depends(require_role("viewer", "editor", "admin"))):
-    return ConnectionStore.list_all()
+    return _conn_store.list_all()
 
 
-@router.get("/connections/{conn_id}", summary="获取连接详情", description="根据连接 ID 获取单个数据库连接的详细配置信息。")
+@router.get("/connections/{conn_id}", summary="获取连接详情", description="根据连接 ID 获取单个数据库连接的详细配置信息。", response_model=dict)
 def get_connection(conn_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     validate_id(conn_id, "conn_id")
-    conn = ConnectionStore.get(conn_id)
+    conn = _conn_store.get(conn_id)
     if not conn:
         raise HTTPException(404, detail=ErrorResponse(
             error="Connection not found", code="NOT_FOUND", recoverable=True,
@@ -91,7 +127,7 @@ def get_connection(conn_id: str, _user: User = Depends(require_role("viewer", "e
     return conn
 
 
-@router.put("/connections/{conn_id}", summary="更新连接配置", description="更新指定数据库连接的配置信息。支持部分更新，只需提供需要修改的字段。")
+@router.put("/connections/{conn_id}", summary="更新连接配置", description="更新指定数据库连接的配置信息。支持部分更新，只需提供需要修改的字段。", response_model=dict)
 def update_connection(conn_id: str, req: UpdateConnectionRequest, _user: User = Depends(require_role("admin"))):
     validate_id(conn_id, "conn_id")
     data = {k: v for k, v in req.model_dump().items() if v is not None}
@@ -99,46 +135,46 @@ def update_connection(conn_id: str, req: UpdateConnectionRequest, _user: User = 
         raise HTTPException(400, detail=ErrorResponse(
             error="No fields to update", code="VALIDATION_ERROR", recoverable=True,
         ).model_dump())
-    conn = ConnectionStore.update(conn_id, data)
+    conn = _conn_store.update(conn_id, data)
     if not conn:
         raise HTTPException(404, detail=ErrorResponse(
             error="Connection not found", code="NOT_FOUND", recoverable=True,
         ).model_dump())
-    log_audit("update", "connection", conn_id)
+    _audit.log_audit("update", "connection", conn_id)
     return conn
 
 
-@router.delete("/connections/{conn_id}", summary="删除连接", description="删除指定的数据库连接。如果连接仍被其他配置引用，将返回 409 冲突错误，需先解除引用关系。")
+@router.delete("/connections/{conn_id}", summary="删除连接", description="删除指定的数据库连接。如果连接仍被其他配置引用，将返回 409 冲突错误，需先解除引用关系。", response_model=OkResponse)
 def delete_connection(conn_id: str, _user: User = Depends(require_role("admin"))):
     validate_id(conn_id, "conn_id")
-    refs = ConnectionStore.count_references(conn_id)
+    refs = _conn_store.count_references(conn_id)
     if refs:
         raise HTTPException(409, detail=ErrorResponse(
             error=f"Connection is referenced by {len(refs)} config(s)",
             code="CONFLICT", recoverable=True,
         ).model_dump())
-    deleted = ConnectionStore.delete(conn_id)
+    deleted = _conn_store.delete(conn_id)
     if not deleted:
         raise HTTPException(404, detail=ErrorResponse(
             error="Connection not found", code="NOT_FOUND", recoverable=True,
         ).model_dump())
-    log_audit("delete", "connection", conn_id)
+    _audit.log_audit("delete", "connection", conn_id)
     return {"ok": True}
 
 
-@router.post("/connections/{conn_id}/test", summary="测试数据库连接", description="测试指定数据库连接是否可用。执行 SELECT 1 查询验证连接，并更新连接的验证状态。错误信息会自动脱敏以避免泄露连接字符串。")
+@router.post("/connections/{conn_id}/test", summary="测试数据库连接", description="测试指定数据库连接是否可用。执行 SELECT 1 查询验证连接，并更新连接的验证状态。错误信息会自动脱敏以避免泄露连接字符串。", response_model=TestConnectionResponse)
 def test_connection(conn_id: str, _user: User = Depends(require_role("admin"))):
     validate_id(conn_id, "conn_id")
     from sqlalchemy import create_engine, text
     from sqlalchemy.pool import NullPool
 
-    entry = ConnectionStore.get_with_plaintext_password(conn_id)
+    entry = _conn_store.get_with_plaintext_password(conn_id)
     if not entry:
         raise HTTPException(404, detail=ErrorResponse(
             error="Connection not found", code="NOT_FOUND", recoverable=True,
         ).model_dump())
     try:
-        cs = ConnectionStore.build_connection_string(entry)
+        cs = _conn_store.build_connection_string(entry)
         pool_kwargs = {"poolclass": NullPool} if entry["db_type"] == "sqlite" else {"pool_size": 1}
         engine_kwargs = dict(pool_kwargs)
         if entry["db_type"] != "sqlite":
@@ -147,28 +183,28 @@ def test_connection(conn_id: str, _user: User = Depends(require_role("admin"))):
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         engine.dispose()
-        ConnectionStore._update_verified(conn_id, True)
+        _conn_store.update_verified(conn_id, True)
         return {"ok": True, "message": "Connection successful"}
     except Exception as e:
-        ConnectionStore._update_verified(conn_id, False)
+        _conn_store.update_verified(conn_id, False)
         # Sanitize error message to avoid leaking connection strings with passwords
         error_msg = sanitize_connection_string(str(e))
         return {"ok": False, "error": error_msg}
 
 
-@router.get("/connections/{conn_id}/tables", summary="获取数据库表列表", description="获取指定数据库连接中的所有表名列表。用于在配置向导中选择数据源表。")
+@router.get("/connections/{conn_id}/tables", summary="获取数据库表列表", description="获取指定数据库连接中的所有表名列表。用于在配置向导中选择数据源表。", response_model=TablesResponse)
 def list_tables(conn_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     validate_id(conn_id, "conn_id")
     from sqlalchemy import create_engine, inspect
     from sqlalchemy.pool import NullPool
 
-    entry = ConnectionStore.get_with_plaintext_password(conn_id)
+    entry = _conn_store.get_with_plaintext_password(conn_id)
     if not entry:
         raise HTTPException(404, detail=ErrorResponse(
             error="Connection not found", code="NOT_FOUND", recoverable=True,
         ).model_dump())
     try:
-        cs = ConnectionStore.build_connection_string(entry)
+        cs = _conn_store.build_connection_string(entry)
         pool_kwargs = {"poolclass": NullPool} if entry["db_type"] == "sqlite" else {"pool_size": 1}
         engine = create_engine(cs, **pool_kwargs)
         inspector = inspect(engine)
@@ -182,20 +218,20 @@ def list_tables(conn_id: str, _user: User = Depends(require_role("viewer", "edit
         ).model_dump())
 
 
-@router.get("/connections/{conn_id}/tables/{table}/columns", summary="获取表列信息", description="获取指定数据库连接中某张表的所有列名和数据类型。用于在配置向导中自动推断列映射。")
+@router.get("/connections/{conn_id}/tables/{table}/columns", summary="获取表列信息", description="获取指定数据库连接中某张表的所有列名和数据类型。用于在配置向导中自动推断列映射。", response_model=ColumnsResponse)
 def get_table_columns(conn_id: str, table: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     validate_id(conn_id, "conn_id")
     safe_identifier(table, "table")
     from sqlalchemy import create_engine, inspect
     from sqlalchemy.pool import NullPool
 
-    entry = ConnectionStore.get_with_plaintext_password(conn_id)
+    entry = _conn_store.get_with_plaintext_password(conn_id)
     if not entry:
         raise HTTPException(404, detail=ErrorResponse(
             error="Connection not found", code="NOT_FOUND", recoverable=True,
         ).model_dump())
     try:
-        cs = ConnectionStore.build_connection_string(entry)
+        cs = _conn_store.build_connection_string(entry)
         pool_kwargs = {"poolclass": NullPool} if entry["db_type"] == "sqlite" else {"pool_size": 1}
         engine = create_engine(cs, **pool_kwargs)
         inspector = inspect(engine)

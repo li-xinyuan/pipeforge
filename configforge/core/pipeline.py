@@ -204,17 +204,18 @@ def _prepare_execution(state: WizardState, skip_output: bool = False):
             exec_state.output.config.template = gen_name
 
     # Resolve database connectionIds to connection_strings before building YAML
-    from configforge.services.connection_store import ConnectionStore
+    from configforge.storage import get_connection_store
+    _conn_store = get_connection_store()
 
     for inp in exec_state.inputs:
         cfg = inp.config
         if hasattr(cfg, 'type') and cfg.type == "database":
             if not cfg.connection_id:
                 raise RuntimeError("Database input is missing connection_id")
-            entry = ConnectionStore.get_with_plaintext_password(cfg.connection_id)
+            entry = _conn_store.get_with_plaintext_password(cfg.connection_id)
             if not entry:
                 raise RuntimeError(f"Connection '{cfg.connection_id}' not found — please reconfigure")
-            cfg.connection_string = ConnectionStore.build_connection_string(entry)
+            cfg.connection_string = _conn_store.build_connection_string(entry)
             cfg.db_type = entry["db_type"]
 
     # Resolve database output connection string
@@ -222,9 +223,9 @@ def _prepare_execution(state: WizardState, skip_output: bool = False):
         db_config = exec_state.output.config
         if hasattr(db_config, 'connection_id') and getattr(db_config, 'connection_id', ''):
             try:
-                entry = ConnectionStore.get_with_plaintext_password(db_config.connection_id)
+                entry = _conn_store.get_with_plaintext_password(db_config.connection_id)
                 if entry:
-                    db_config.connection_string = ConnectionStore.build_connection_string(entry)
+                    db_config.connection_string = _conn_store.build_connection_string(entry)
             except Exception:
                 pass  # connection might not exist yet during wizard preview
 

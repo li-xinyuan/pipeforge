@@ -43,6 +43,8 @@ def load_settings() -> SmtpSettings:
         return SmtpSettings()
     with open(SETTINGS_FILE) as f:
         raw = json.load(f)
+    # schema_version is storage metadata (added by load_with_migration), not a model field
+    raw.pop("schema_version", None)
     if raw.get("password"):
         try:
             cipher = get_cipher()

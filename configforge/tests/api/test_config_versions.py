@@ -4,7 +4,7 @@ import os
 
 from fastapi.testclient import TestClient
 
-from configforge.api.configs import CONFIGS_DIR
+from configforge.services.config_store import CONFIGS_DIR
 from configforge.server import app
 
 client = TestClient(app)
@@ -38,7 +38,7 @@ class TestConfigVersions:
         config_id = resp.json()["id"]
 
         index_resp = client.get("/api/configs", params={"page_size": 9999})
-        metas = [m for m in index_resp.json()["items"] if m["id"] == config_id]
+        metas = [m for m in index_resp.json()["configs"] if m["id"] == config_id]
         assert len(metas) == 1
         assert metas[0]["current_version"] == 1
         assert metas[0]["created_at"] != ""
@@ -71,7 +71,7 @@ class TestConfigVersions:
 
         # Check current version
         index_resp = client.get("/api/configs", params={"page_size": 9999})
-        metas = [m for m in index_resp.json()["items"] if m["id"] == config_id]
+        metas = [m for m in index_resp.json()["configs"] if m["id"] == config_id]
         assert metas[0]["current_version"] == 2
 
     def test_list_versions(self):
@@ -199,12 +199,15 @@ class TestConfigVersions:
             }
         })
 
-        diff_resp = client.get(f"/api/configs/{config_id}/diff?v1=1&v2=2")
+        diff_resp = client.get(f"/api/configs/{config_id}/versions/diff?v1=1&v2=2")
         assert diff_resp.status_code == 200
         data = diff_resp.json()
-        assert len(data["changes"]) > 0
+        # API returns added/removed/modified arrays
+        total_changes = len(data.get("added", [])) + len(data.get("removed", [])) + len(data.get("modified", []))
+        assert total_changes > 0
         # Should have at least a change for scene.name
-        name_changes = [c for c in data["changes"] if "scene" in c["path"] and "name" in c["path"]]
+        all_changes = data.get("modified", [])
+        name_changes = [c for c in all_changes if "scene" in c.get("path", "") and "name" in c.get("path", "")]
         assert len(name_changes) > 0
 
     def test_invalid_config_id_returns_400(self):

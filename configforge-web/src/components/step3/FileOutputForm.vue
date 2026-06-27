@@ -34,18 +34,18 @@
       <NSelect
         v-if="templateSheets.length > 0"
         :value="excelConfig.sheet"
-        @update:value="(v: string) => { updateExcelConfig({ sheet: v }); $emit('sheet-change', v) }"
         :options="templateSheets.map(s => ({ label: s, value: s }))"
         placeholder="选择 Sheet"
         size="small"
+        @update:value="(v: string) => { updateExcelConfig({ sheet: v }); $emit('sheet-change', v) }"
       />
       <NInput
         v-else
         :value="excelConfig.sheet"
         :disabled="!excelConfig.template"
-        @update:value="v => updateExcelConfig({ sheet: v })"
         placeholder="Sheet1"
         size="small"
+        @update:value="v => updateExcelConfig({ sheet: v })"
       />
     </div>
   </template>
@@ -68,7 +68,7 @@
         :placeholder="filenameParts.length === 0 ? '输入文件名' : ''"
         @keyup.enter="commitPlainText"
         @blur="commitPlainText"
-      />
+      >
       <NButton v-if="baseFilename" text size="tiny" type="error" class="ml-auto" aria-label="清除文件名" @click="clearFilename">✕</NButton>
     </div>
     <span class="text-sm text-slate-400 font-medium">{{ fileExtension }}</span>
@@ -79,8 +79,8 @@
     <label class="cf-label">分隔符</label>
     <NInput
       :value="csvConfig.delimiter"
-      @update:value="updateCsvConfig({ delimiter: $event })"
       size="small"
+      @update:value="updateCsvConfig({ delimiter: $event })"
     />
   </div>
 
@@ -89,9 +89,9 @@
     <label class="cf-label">编码</label>
     <NSelect
       :value="csvConfig.encoding"
-      @update:value="updateCsvConfig({ encoding: $event })"
       :options="ENCODING_OPTIONS"
       size="small"
+      @update:value="updateCsvConfig({ encoding: $event })"
     />
   </div>
 

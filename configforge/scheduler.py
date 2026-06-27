@@ -66,13 +66,59 @@ def _validate_cron(expr: str) -> None:
     CronTrigger.from_crontab(expr)
 
 
+# ── BackgroundScheduler 管理函数（不涉及持久化）──
+# T-5E-04: 分离调度器管理和存储职责，让 SQL 后端也能注册任务
+
+
+def _register_job(schedule_dict: dict) -> None:
+    """注册一个调度任务到 BackgroundScheduler（不涉及持久化）。
+
+    Args:
+        schedule_dict: 包含 id, config_id, cron_expression, enabled 的字典
+    """
+    if not _scheduler:
+        return
+    if not schedule_dict.get("enabled", True):
+        return
+    _scheduler.add_job(
+        _run_scheduled_pipeline,
+        trigger=CronTrigger.from_crontab(schedule_dict["cron_expression"]),
+        id=schedule_dict["id"],
+        args=[schedule_dict["id"], schedule_dict["config_id"]],
+        replace_existing=True,
+        coalesce=True,      # 多次错过的触发合并为一次执行
+        max_instances=1,    # 同一 job 不并发执行
+    )
+
+
+def _unregister_job(schedule_id: str) -> None:
+    """从 BackgroundScheduler 移除一个任务（不涉及持久化）。"""
+    if not _scheduler:
+        return
+    with contextlib.suppress(Exception):
+        _scheduler.remove_job(schedule_id)
+
+
 def _get_schedule_retry_config(schedule_id: str) -> tuple[int, int]:
-    """Get retry_count and retry_interval for a schedule."""
-    schedules = _load_schedules()
-    for s in schedules:
-        if s.get("id") == schedule_id:
-            return s.get("retry_count", 0), s.get("retry_interval", 300)
-    return 0, 300
+    """Get retry_count and retry_interval for a schedule.
+
+    T-5E-04: 优先从 store 层读取（支持 SQL 后端），fallback 到 schedules.json。
+    """
+    try:
+        from configforge.storage import get_schedule_store
+        store = get_schedule_store()
+        schedules = store.list_schedules()
+        for s in schedules:
+            if s.get("id") == schedule_id:
+                return s.get("retry_count", 0), s.get("retry_interval", 300)
+        return 0, 300
+    except Exception:
+        # Fallback: 读 schedules.json（JSON 后端兼容）
+        schedules = _load_schedules()
+        for s in schedules:
+            if s.get("id") == schedule_id:
+                return s.get("retry_count", 0), s.get("retry_interval", 300)
+        return 0, 300
 
 
 def _handle_retry(schedule_id: str, config_id: str, remaining_retries: int) -> None:
@@ -109,7 +155,7 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
     logger.info("Scheduled job fired: schedule=%s config=%s remaining_retries=%d", schedule_id, config_id, remaining_retries)
 
     # Import here to avoid circular imports at module level
-    from configforge.api.configs import CONFIGS_DIR
+    from configforge.services.config_store import CONFIGS_DIR
     from configforge.models.wizard import WizardState
     from configforge.services.execution_service import ExecutionContext
     from configforge.services.execution_service import execute as execute_service
@@ -169,7 +215,7 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
         return
 
     # Get config metadata for execution record
-    from configforge.api.configs import _load_index
+    from configforge.services.config_store import _load_index
     index = _load_index()
     entry = next((e for e in index if e.get("id") == config_id), None)
     config_version = entry.get("current_version") if entry else None
@@ -202,14 +248,23 @@ def _run_scheduled_pipeline(schedule_id: str, config_id: str, remaining_retries:
 
 
 def _update_schedule_last_run(schedule_id: str, status: str) -> None:
-    """Update the last_run_at and last_run_status for a schedule."""
-    schedules = _load_schedules()
-    for s in schedules:
-        if s.get("id") == schedule_id:
-            s["last_run_at"] = datetime.now(UTC).isoformat()
-            s["last_run_status"] = status
-            break
-    _save_schedules(schedules)
+    """Update the last_run_at and last_run_status for a schedule.
+
+    T-5E-04: 优先走 store 层（支持 SQL 后端），fallback 到 schedules.json。
+    """
+    try:
+        from configforge.storage import get_schedule_store
+        store = get_schedule_store()
+        store.update_last_run(schedule_id, status)
+    except Exception:
+        # Fallback: 直接写 schedules.json（JSON 后端兼容）
+        schedules = _load_schedules()
+        for s in schedules:
+            if s.get("id") == schedule_id:
+                s["last_run_at"] = datetime.now(UTC).isoformat()
+                s["last_run_status"] = status
+                break
+        _save_schedules(schedules)
 
 
 def _schedule_retry(schedule_id: str, config_id: str, remaining_retries: int, retry_interval: int) -> None:
@@ -252,14 +307,7 @@ def add_schedule(config_id: str, cron_expression: str, description: str = "", re
     schedules.append(schedule.model_dump())
     _save_schedules(schedules)
 
-    if _scheduler and schedule.enabled:
-        _scheduler.add_job(
-            _run_scheduled_pipeline,
-            trigger=CronTrigger.from_crontab(schedule.cron_expression),
-            id=schedule.id,
-            args=[schedule.id, schedule.config_id],
-            replace_existing=True,
-        )
+    _register_job(schedule.model_dump())
 
     return schedule
 
@@ -273,9 +321,7 @@ def remove_schedule(schedule_id: str) -> bool:
 
     _save_schedules(new_schedules)
 
-    if _scheduler:
-        with contextlib.suppress(Exception):
-            _scheduler.remove_job(schedule_id)
+    _unregister_job(schedule_id)
 
     return True
 
@@ -310,17 +356,10 @@ def update_schedule(schedule_id: str, cron_expression: str | None = None, descri
 
     _save_schedules(schedules)
 
-    # Re-register job if scheduler is running and schedule is enabled
-    if _scheduler and target.get("enabled", True):
-        with contextlib.suppress(Exception):
-            _scheduler.remove_job(schedule_id)
-        _scheduler.add_job(
-            _run_scheduled_pipeline,
-            trigger=CronTrigger.from_crontab(target["cron_expression"]),
-            id=schedule_id,
-            args=[schedule_id, target["config_id"]],
-            replace_existing=True,
-        )
+    # Re-register job with updated config (only if enabled — disabled schedules have no job)
+    if target.get("enabled", True):
+        _unregister_job(schedule_id)
+        _register_job(target)
 
     return ScheduleConfig(**target)
 
@@ -340,18 +379,10 @@ def toggle_schedule(schedule_id: str) -> ScheduleConfig | None:
     target["enabled"] = not target.get("enabled", True)
     _save_schedules(schedules)
 
-    if _scheduler:
-        if target["enabled"]:
-            _scheduler.add_job(
-                _run_scheduled_pipeline,
-                trigger=CronTrigger.from_crontab(target["cron_expression"]),
-                id=schedule_id,
-                args=[schedule_id, target["config_id"]],
-                replace_existing=True,
-            )
-        else:
-            with contextlib.suppress(Exception):
-                _scheduler.remove_job(schedule_id)
+    if target["enabled"]:
+        _register_job(target)
+    else:
+        _unregister_job(schedule_id)
 
     return ScheduleConfig(**target)
 
@@ -376,22 +407,48 @@ def start_scheduler() -> None:
     _scheduler = BackgroundScheduler()
     _scheduler.start()
 
-    # Register all enabled schedules from storage
-    schedules = _load_schedules()
+    # T-5E-04: 从 store 层读取调度任务（支持 JSON 和 SQL 后端）
+    try:
+        from configforge.storage import get_schedule_store
+        store = get_schedule_store()
+        schedules = store.list_schedules()
+    except Exception as e:
+        logger.warning("Failed to load schedules from store, falling back to JSON: %s", e)
+        schedules = _load_schedules()
+
     for s in schedules:
         if s.get("enabled", True):
             try:
-                _scheduler.add_job(
-                    _run_scheduled_pipeline,
-                    trigger=CronTrigger.from_crontab(s["cron_expression"]),
-                    id=s["id"],
-                    args=[s["id"], s["config_id"]],
-                    replace_existing=True,
-                )
+                _register_job(s)
             except Exception as e:
                 logger.error("Failed to register schedule %s: %s", s.get("id"), e)
 
     logger.info("Scheduler started with %d enabled schedules", sum(1 for s in schedules if s.get("enabled", True)))
+
+    # Add daily backup job at 2:00 AM
+    try:
+        from configforge.utils.backup import create_backup, save_backup_to_disk
+        import logging as _logging
+
+        _backup_logger = _logging.getLogger("configforge.backup")
+
+        def _run_daily_backup():
+            try:
+                filename, zip_bytes = create_backup()
+                save_backup_to_disk(zip_bytes, filename)
+                _backup_logger.info("Daily backup created: %s", filename)
+            except Exception as e:
+                _backup_logger.error("Daily backup failed: %s", e)
+
+        _scheduler.add_job(
+            _run_daily_backup,
+            trigger=CronTrigger(hour=2, minute=0),
+            id="daily_backup",
+            replace_existing=True,
+        )
+        logger.info("Daily backup job scheduled at 02:00")
+    except Exception as e:
+        logger.warning("Failed to schedule daily backup: %s", e)
 
 
 def shutdown_scheduler() -> None:

@@ -3,6 +3,7 @@ import re
 import sqlite3
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from configforge.models.wizard import ErrorResponse, PreviewRequest, SqlExecuteRequest, SqlExecuteResponse
 from configforge.services.reader_dispatch import infer_file_type, read_file_info
@@ -11,6 +12,13 @@ from configforge.utils.security import safe_identifier, validate_id
 
 router = APIRouter(tags=["数据预览"])
 UPLOAD_DIR = get_upload_dir()
+
+
+class FilePreviewResponse(BaseModel):
+    sheets: list[str] = []
+    columns: list[str] = []
+    rows: list[list[str]] = []
+    warning: str | None = None
 
 
 def _infer_sql_type(col_name: str, col_index: int, sample_rows: list[list]) -> str:
@@ -55,7 +63,7 @@ _DDL_DML_RE = re.compile(
 )
 
 
-@router.post("/file", summary="预览上传文件", description="预览已上传文件的内容。返回工作表列表、列名和样本行数据。支持 Excel 多工作表选择和行数限制。")
+@router.post("/file", summary="预览上传文件", description="预览已上传文件的内容。返回工作表列表、列名和样本行数据。支持 Excel 多工作表选择和行数限制。", response_model=FilePreviewResponse)
 async def preview_file(req: PreviewRequest):
     try:
         validate_id(req.file_id, "file_id")
@@ -83,7 +91,7 @@ async def preview_file(req: PreviewRequest):
     return result
 
 
-@router.post("/sql", summary="执行预览 SQL", description="在内存 SQLite 数据库中执行 SQL 查询进行数据预览。将上传的文件加载为临时表，仅允许 SELECT 查询，自动添加 LIMIT 限制结果行数。禁止 DDL/DML 语句。")
+@router.post("/sql", summary="执行预览 SQL", description="在内存 SQLite 数据库中执行 SQL 查询进行数据预览。将上传的文件加载为临时表，仅允许 SELECT 查询，自动添加 LIMIT 限制结果行数。禁止 DDL/DML 语句。", response_model=SqlExecuteResponse)
 async def execute_sql(req: SqlExecuteRequest) -> SqlExecuteResponse:
     """Execute a SQL query against uploaded files loaded into an in-memory SQLite database.
 

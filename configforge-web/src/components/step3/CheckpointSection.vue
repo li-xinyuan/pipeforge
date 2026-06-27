@@ -44,12 +44,12 @@
           <label class="text-xs font-medium text-slate-500 dark:text-slate-400 w-14 flex-shrink-0">检查表</label>
           <NSelect
             :value="getRuleTable(rule)"
-            @update:value="(v: string) => setRuleTable(rule, v)"
             :options="tableOptions"
             size="small"
             class="flex-1"
             placeholder="默认使用输出表"
             clearable
+            @update:value="(v: string) => setRuleTable(rule, v)"
           />
         </div>
 

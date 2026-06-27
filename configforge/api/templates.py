@@ -5,13 +5,46 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from configforge.middleware.auth import require_role
+from configforge.models.template import Template
 from configforge.models.user import User
 from configforge.models.wizard import ErrorResponse
-from configforge.services.audit_logger import log_audit
-from configforge.services.template_store import TemplateStore
+from configforge.storage import get_audit_store, get_template_store
 from configforge.utils.security import validate_id
 
 router = APIRouter(tags=["模板管理"])
+
+_tmpl_store = get_template_store()
+_audit = get_audit_store()
+
+
+class OkResponse(BaseModel):
+    ok: bool
+
+
+class TemplateListResponse(BaseModel):
+    items: list[dict]
+    total: int
+
+
+class InstantiateResponse(BaseModel):
+    config_state: dict
+    template_id: str
+
+
+class CompatibilityIssue(BaseModel):
+    requirement: str
+    status: str
+    suggestion: str
+
+
+class CompatibilityResponse(BaseModel):
+    compatible: bool
+    issues: list[CompatibilityIssue]
+
+
+class ImportResponse(BaseModel):
+    message: str
+    id: str
 
 
 class CreateTemplateRequest(BaseModel):
@@ -40,16 +73,16 @@ def _validate_template_id(template_id: str) -> str:
         raise HTTPException(status_code=400, detail="Invalid template_id format")
 
 
-@router.get("", summary="获取模板列表", description="获取所有可用的 Pipeline 模板列表。支持按分类筛选和按名称搜索。返回模板的基本信息和配置状态。")
+@router.get("", summary="获取模板列表", description="获取所有可用的 Pipeline 模板列表。支持按分类筛选和按名称搜索。返回模板的基本信息和配置状态。", response_model=TemplateListResponse)
 def list_templates(category: str | None = None, search: str | None = None, _user: User = Depends(require_role("viewer", "editor", "admin"))):
-    templates = TemplateStore.list_templates(category=category, search=search)
+    templates = _tmpl_store.list_templates(category=category, search=search)
     return {"items": templates, "total": len(templates)}
 
 
-@router.get("/{template_id}", summary="获取模板详情", description="根据模板 ID 获取完整的模板信息，包括名称、描述、分类、标签和配置状态。")
+@router.get("/{template_id}", summary="获取模板详情", description="根据模板 ID 获取完整的模板信息，包括名称、描述、分类、标签和配置状态。", response_model=Template)
 def get_template(template_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     _validate_template_id(template_id)
-    template = TemplateStore.get_template(template_id)
+    template = _tmpl_store.get_template(template_id)
     if not template:
         raise HTTPException(
             status_code=404,
@@ -60,9 +93,9 @@ def get_template(template_id: str, _user: User = Depends(require_role("viewer", 
     return template
 
 
-@router.post("", summary="创建模板", description="创建一个新的 Pipeline 模板。模板包含名称、描述、分类、标签和配置状态，可被其他用户复用。")
+@router.post("", summary="创建模板", description="创建一个新的 Pipeline 模板。模板包含名称、描述、分类、标签和配置状态，可被其他用户复用。", response_model=dict)
 def create_template(req: CreateTemplateRequest, _user: User = Depends(require_role("admin"))):
-    template = TemplateStore.create_template(
+    template = _tmpl_store.create_template(
         name=req.name,
         description=req.description,
         category=req.category,
@@ -70,10 +103,20 @@ def create_template(req: CreateTemplateRequest, _user: User = Depends(require_ro
         config_state=req.config_state,
         author=req.author,
     )
+    _audit.log_audit(
+        action="create",
+        target_type="template",
+        target_id=template["id"],
+        details={
+            "user": _user.username,
+            "name": req.name,
+            "category": req.category,
+        },
+    )
     return template
 
 
-@router.put("/{template_id}", summary="更新模板", description="更新指定模板的信息。支持部分更新，只需提供需要修改的字段（名称、描述、分类、标签、作者、版本、配置状态）。")
+@router.put("/{template_id}", summary="更新模板", description="更新指定模板的信息。支持部分更新，只需提供需要修改的字段（名称、描述、分类、标签、作者、版本、配置状态）。", response_model=dict)
 def update_template(template_id: str, req: UpdateTemplateRequest, _user: User = Depends(require_role("admin"))):
     _validate_template_id(template_id)
     updates = {k: v for k, v in req.model_dump().items() if v is not None}
@@ -84,7 +127,7 @@ def update_template(template_id: str, req: UpdateTemplateRequest, _user: User = 
                 error="No fields to update", code="VALIDATION_ERROR", recoverable=True
             ).model_dump(),
         )
-    template = TemplateStore.update_template(template_id, **updates)
+    template = _tmpl_store.update_template(template_id, **updates)
     if not template:
         raise HTTPException(
             status_code=404,
@@ -92,14 +135,23 @@ def update_template(template_id: str, req: UpdateTemplateRequest, _user: User = 
                 error="Template not found", code="NOT_FOUND", recoverable=True
             ).model_dump(),
         )
+    _audit.log_audit(
+        action="update",
+        target_type="template",
+        target_id=template_id,
+        details={
+            "user": _user.username,
+            "fields": list(updates.keys()),
+        },
+    )
     return template
 
 
-@router.delete("/{template_id}", summary="删除模板", description="删除指定的 Pipeline 模板。仅管理员可执行此操作。操作不可撤销。")
+@router.delete("/{template_id}", summary="删除模板", description="删除指定的 Pipeline 模板。仅管理员可执行此操作。操作不可撤销。", response_model=OkResponse)
 def delete_template(template_id: str, _user: User = Depends(require_role("admin"))):
     _validate_template_id(template_id)
 
-    deleted = TemplateStore.delete_template(template_id)
+    deleted = _tmpl_store.delete_template(template_id)
     if not deleted:
         raise HTTPException(
             status_code=404,
@@ -107,14 +159,14 @@ def delete_template(template_id: str, _user: User = Depends(require_role("admin"
                 error="Template not found", code="NOT_FOUND", recoverable=True
             ).model_dump(),
         )
-    log_audit("delete", "template", template_id)
+    _audit.log_audit("delete", "template", template_id)
     return {"ok": True}
 
 
-@router.post("/{template_id}/instantiate", summary="实例化模板", description="从指定模板创建一个新的 Pipeline 配置实例。返回模板的配置状态数据，可直接用于创建新配置。同时会增加模板的使用计数。")
+@router.post("/{template_id}/instantiate", summary="实例化模板", description="从指定模板创建一个新的 Pipeline 配置实例。返回模板的配置状态数据，可直接用于创建新配置。同时会增加模板的使用计数。", response_model=InstantiateResponse)
 def instantiate_template(template_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     _validate_template_id(template_id)
-    template = TemplateStore.get_template(template_id)
+    template = _tmpl_store.get_template(template_id)
     if not template:
         raise HTTPException(
             status_code=404,
@@ -122,14 +174,14 @@ def instantiate_template(template_id: str, _user: User = Depends(require_role("v
                 error="Template not found", code="NOT_FOUND", recoverable=True
             ).model_dump(),
         )
-    TemplateStore.increment_usage(template_id)
+    _tmpl_store.increment_usage(template_id)
     return {"config_state": template["config_state"], "template_id": template_id}
 
 
-@router.post("/{template_id}/check-compatibility", summary="检查模板兼容性", description="检查指定模板的前置依赖是否满足。验证数据库连接、AI 服务配置等需求是否已就绪，返回每个依赖项的状态和建议。")
+@router.post("/{template_id}/check-compatibility", summary="检查模板兼容性", description="检查指定模板的前置依赖是否满足。验证数据库连接、AI 服务配置等需求是否已就绪，返回每个依赖项的状态和建议。", response_model=CompatibilityResponse)
 def check_compatibility(template_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     _validate_template_id(template_id)
-    template = TemplateStore.get_template(template_id)
+    template = _tmpl_store.get_template(template_id)
     if not template:
         raise HTTPException(
             status_code=404,
@@ -146,8 +198,8 @@ def check_compatibility(template_id: str, _user: User = Depends(require_role("vi
         req_desc = req.get("description", "")
 
         if req_type == "database":
-            from configforge.services.connection_store import ConnectionStore
-            connections = ConnectionStore.list_all()
+            from configforge.storage import get_connection_store
+            connections = get_connection_store().list_all()
             if connections:
                 issues.append({
                     "requirement": req_desc,
@@ -162,8 +214,8 @@ def check_compatibility(template_id: str, _user: User = Depends(require_role("vi
                 })
 
         elif req_type == "ai":
-            from configforge.services.ai.settings import load_settings
-            ai_settings = load_settings()
+            from configforge.storage import get_settings_store
+            ai_settings = get_settings_store('ai').load_settings()
             if ai_settings.enabled and ai_settings.api_key:
                 issues.append({
                     "requirement": req_desc,
@@ -188,11 +240,11 @@ def check_compatibility(template_id: str, _user: User = Depends(require_role("vi
     return {"compatible": compatible, "issues": issues}
 
 
-@router.get("/{template_id}/export", summary="导出模板", description="将指定模板导出为 JSON 文件，可用于备份或分享。")
+@router.get("/{template_id}/export", summary="导出模板", description="将指定模板导出为 JSON 文件，可用于备份或分享。", response_model=dict)
 async def export_template(template_id: str, _user: User = Depends(require_role("viewer", "editor", "admin"))):
     """导出模板为 JSON 文件"""
     _validate_template_id(template_id)
-    template = TemplateStore.get_template(template_id)
+    template = _tmpl_store.get_template(template_id)
     if not template:
         raise HTTPException(
             status_code=404,
@@ -203,7 +255,7 @@ async def export_template(template_id: str, _user: User = Depends(require_role("
     })
 
 
-@router.post("/import", summary="导入模板", description="从 JSON 文件导入模板。会自动生成新 ID 避免与现有模板冲突。")
+@router.post("/import", summary="导入模板", description="从 JSON 文件导入模板。会自动生成新 ID 避免与现有模板冲突。", response_model=ImportResponse)
 async def import_template(file: UploadFile = File(...), _user: User = Depends(require_role("editor", "admin"))):
     """导入模板 JSON 文件"""
     content = await file.read()
@@ -224,7 +276,7 @@ async def import_template(file: UploadFile = File(...), _user: User = Depends(re
         )
 
     # create_template 会自动生成新 ID，避免冲突
-    template = TemplateStore.create_template(
+    template = _tmpl_store.create_template(
         name=template_data["name"],
         description=template_data.get("description", ""),
         category=template_data["category"],
@@ -233,5 +285,5 @@ async def import_template(file: UploadFile = File(...), _user: User = Depends(re
         author=template_data.get("author", ""),
     )
 
-    log_audit("import", "template", template["id"])
+    _audit.log_audit("import", "template", template["id"])
     return {"message": "模板导入成功", "id": template["id"]}

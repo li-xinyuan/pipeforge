@@ -8,12 +8,30 @@ const mockAuthStore = {
   mustChangePassword: true,
 }
 
+let mockRequestOrThrow: ReturnType<typeof vi.fn>
+
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
 
 vi.mock('../../src/stores/auth', () => ({
   useAuthStore: () => mockAuthStore,
+}))
+
+vi.mock('../../src/composables/useApi', () => ({
+  useApi: () => ({
+    requestOrThrow: (...args: unknown[]) => mockRequestOrThrow(...args),
+  }),
+  ApiError: class ApiError extends Error {
+    code: string
+    status: number
+    constructor(message: string, code: string, status: number) {
+      super(message)
+      this.code = code
+      this.status = status
+    }
+  },
+  handleApiError: vi.fn(),
 }))
 
 function mountComponent() {
@@ -33,6 +51,7 @@ describe('ChangePasswordView', () => {
     vi.restoreAllMocks()
     mockPush.mockClear()
     mockAuthStore.mustChangePassword = true
+    mockRequestOrThrow = vi.fn()
   })
 
   it('renders change password form with old/new/confirm fields', () => {
@@ -67,11 +86,7 @@ describe('ChangePasswordView', () => {
   })
 
   it('calls API to change password on submit', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({}),
-    })
-    vi.stubGlobal('fetch', mockFetch)
+    mockRequestOrThrow.mockResolvedValue({})
 
     const wrapper = mountComponent()
 
@@ -81,27 +96,16 @@ describe('ChangePasswordView', () => {
     await inputs[2].setValue('newpass123')
 
     await wrapper.find('form').trigger('submit')
-    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    await vi.waitFor(() => expect(mockRequestOrThrow).toHaveBeenCalled())
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/auth/change-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer test-token',
-      },
-      body: JSON.stringify({
-        old_password: 'oldpass',
-        new_password: 'newpass123',
-      }),
+    expect(mockRequestOrThrow).toHaveBeenCalledWith('POST', '/api/auth/change-password', {
+      old_password: 'oldpass',
+      new_password: 'newpass123',
     })
   })
 
   it('shows success message and redirects on success', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({}),
-    })
-    vi.stubGlobal('fetch', mockFetch)
+    mockRequestOrThrow.mockResolvedValue({})
 
     const wrapper = mountComponent()
 
@@ -117,11 +121,8 @@ describe('ChangePasswordView', () => {
   })
 
   it('shows error when old password is wrong (INVALID_PASSWORD)', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: false,
-      json: () => Promise.resolve({ code: 'INVALID_PASSWORD' }),
-    })
-    vi.stubGlobal('fetch', mockFetch)
+    const ApiErrorImpl = (await import('../../src/composables/useApi')).ApiError
+    mockRequestOrThrow.mockRejectedValue(new ApiErrorImpl('旧密码错误', 'INVALID_PASSWORD', 400))
 
     const wrapper = mountComponent()
 
@@ -135,11 +136,8 @@ describe('ChangePasswordView', () => {
   })
 
   it('shows generic error on API failure', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: false,
-      json: () => Promise.resolve({ error: '服务器内部错误' }),
-    })
-    vi.stubGlobal('fetch', mockFetch)
+    const ApiErrorImpl = (await import('../../src/composables/useApi')).ApiError
+    mockRequestOrThrow.mockRejectedValue(new ApiErrorImpl('服务器内部错误', 'API_ERROR', 500))
 
     const wrapper = mountComponent()
 
@@ -153,8 +151,7 @@ describe('ChangePasswordView', () => {
   })
 
   it('shows network error on fetch failure', async () => {
-    const mockFetch = vi.fn().mockRejectedValue(new Error('Network error'))
-    vi.stubGlobal('fetch', mockFetch)
+    mockRequestOrThrow.mockRejectedValue(new Error('Network error'))
 
     const wrapper = mountComponent()
 
@@ -194,11 +191,10 @@ describe('ChangePasswordView', () => {
   })
 
   it('disables submit while loading', async () => {
-    let resolveFetch!: () => void
-    const mockFetch = vi.fn().mockReturnValue(
-      new Promise((resolve) => { resolveFetch = resolve }),
+    let resolveRequest!: () => void
+    mockRequestOrThrow.mockReturnValue(
+      new Promise((resolve) => { resolveRequest = resolve }),
     )
-    vi.stubGlobal('fetch', mockFetch)
 
     const wrapper = mountComponent()
 
@@ -214,8 +210,8 @@ describe('ChangePasswordView', () => {
     expect(button.attributes('disabled')).toBeDefined()
     expect(wrapper.find('.change-password__spinner').exists()).toBe(true)
 
-    // Resolve the fetch to finish
-    resolveFetch()
+    // Resolve the request to finish
+    resolveRequest()
     await vi.waitFor(() => {
       expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
     })

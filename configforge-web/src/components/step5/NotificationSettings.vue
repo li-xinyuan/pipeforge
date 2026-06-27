@@ -28,10 +28,10 @@
           <div class="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5">{{ cfg.webhook_url }}</div>
         </div>
         <div class="flex items-center gap-1 flex-shrink-0">
-          <button class="cf-btn cf-btn--xs" @click="toggleEnabled(cfg)" :title="cfg.enabled ? '禁用' : '启用'">
+          <button class="cf-btn cf-btn--xs" :title="cfg.enabled ? '禁用' : '启用'" @click="toggleEnabled(cfg)">
             {{ cfg.enabled ? '禁用' : '启用' }}
           </button>
-          <button class="cf-btn cf-btn--xs" @click="testNotify(cfg)" :disabled="testingId === cfg.id || !cfg.enabled">
+          <button class="cf-btn cf-btn--xs" :disabled="testingId === cfg.id || !cfg.enabled" @click="testNotify(cfg)">
             {{ testingId === cfg.id ? '测试中...' : '测试' }}
           </button>
           <button class="cf-btn cf-btn--xs" @click="editConfig(cfg)">编辑</button>
@@ -49,7 +49,7 @@
           <!-- Name -->
           <div>
             <label class="block text-xs font-medium mb-1">名称 <span class="text-red-500">*</span></label>
-            <input v-model="form.name" class="cf-input" placeholder="如：钉钉群机器人" />
+            <input v-model="form.name" class="cf-input" placeholder="如：钉钉群机器人">
           </div>
 
           <!-- Type -->
@@ -64,7 +64,7 @@
           <!-- Webhook URL -->
           <div v-if="form.type === 'webhook'">
             <label class="block text-xs font-medium mb-1">Webhook URL <span class="text-red-500">*</span></label>
-            <input v-model="form.webhook_url" class="cf-input" placeholder="https://oapi.dingtalk.com/robot/send?access_token=..." />
+            <input v-model="form.webhook_url" class="cf-input" placeholder="https://oapi.dingtalk.com/robot/send?access_token=...">
           </div>
 
           <!-- Provider -->
@@ -81,14 +81,14 @@
           <!-- Email recipients -->
           <div v-if="form.type === 'email'">
             <label class="block text-xs font-medium mb-1">收件人 <span class="text-red-500">*</span></label>
-            <input v-model="emailToText" class="cf-input" placeholder="admin@example.com, ops@example.com" />
+            <input v-model="emailToText" class="cf-input" placeholder="admin@example.com, ops@example.com">
             <p class="text-xs text-slate-400 mt-1">多个收件人用逗号分隔</p>
           </div>
 
           <!-- Email subject template -->
           <div v-if="form.type === 'email'">
             <label class="block text-xs font-medium mb-1">邮件主题模板</label>
-            <input v-model="form.email_subject_template" class="cf-input" placeholder="ConfigForge 执行通知: {status_text}" />
+            <input v-model="form.email_subject_template" class="cf-input" placeholder="ConfigForge 执行通知: {status_text}">
             <p class="text-xs text-slate-400 mt-1">可用变量: {config_name}, {status}, {status_text}, {summary}</p>
           </div>
 
@@ -103,10 +103,10 @@
             <label class="block text-xs font-medium mb-1">触发条件</label>
             <div class="flex gap-4">
               <label class="flex items-center gap-1.5 text-xs">
-                <input type="checkbox" v-model="form.trigger_on_success" /> 执行成功时推送
+                <input v-model="form.trigger_on_success" type="checkbox"> 执行成功时推送
               </label>
               <label class="flex items-center gap-1.5 text-xs">
-                <input type="checkbox" v-model="form.trigger_on_failure" /> 执行失败时推送
+                <input v-model="form.trigger_on_failure" type="checkbox"> 执行失败时推送
               </label>
             </div>
           </div>
@@ -114,7 +114,7 @@
 
         <div class="flex justify-end gap-2 mt-5">
           <button class="cf-btn" @click="closeModal">取消</button>
-          <button class="cf-btn cf-btn--primary" @click="saveConfig" :disabled="!canSave">
+          <button class="cf-btn cf-btn--primary" :disabled="!canSave" @click="saveConfig">
             {{ editingConfig ? '保存' : '创建' }}
           </button>
         </div>
@@ -131,27 +131,27 @@
         <div class="space-y-3">
           <div>
             <label class="block text-xs font-medium mb-1">SMTP 服务器</label>
-            <input v-model="smtpForm.host" class="cf-input" placeholder="smtp.gmail.com" />
+            <input v-model="smtpForm.host" class="cf-input" placeholder="smtp.gmail.com">
           </div>
           <div>
             <label class="block text-xs font-medium mb-1">端口</label>
-            <input v-model.number="smtpForm.port" type="number" class="cf-input" placeholder="587" />
+            <input v-model.number="smtpForm.port" type="number" class="cf-input" placeholder="587">
           </div>
           <div>
             <label class="block text-xs font-medium mb-1">用户名</label>
-            <input v-model="smtpForm.user" class="cf-input" placeholder="your@gmail.com" />
+            <input v-model="smtpForm.user" class="cf-input" placeholder="your@gmail.com">
           </div>
           <div>
             <label class="block text-xs font-medium mb-1">密码 / 授权码</label>
-            <input v-model="smtpForm.password" type="password" class="cf-input" placeholder="SMTP 密码或应用专用密码" />
+            <input v-model="smtpForm.password" type="password" class="cf-input" placeholder="SMTP 密码或应用专用密码">
             <p v-if="smtpMaskedPwd" class="text-xs text-slate-400 mt-1">当前：{{ smtpMaskedPwd }}</p>
           </div>
           <div>
             <label class="block text-xs font-medium mb-1">发件人地址</label>
-            <input v-model="smtpForm.sender" class="cf-input" placeholder="留空则使用用户名作为发件人" />
+            <input v-model="smtpForm.sender" class="cf-input" placeholder="留空则使用用户名作为发件人">
           </div>
           <label class="flex items-center gap-2 text-xs">
-            <input type="checkbox" v-model="smtpForm.use_tls" /> 启用 TLS
+            <input v-model="smtpForm.use_tls" type="checkbox"> 启用 TLS
           </label>
           <div class="flex gap-2 pt-2">
             <button class="cf-btn cf-btn--sm" :disabled="smtpSaving" @click="saveSmtpInline">

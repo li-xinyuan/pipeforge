@@ -4,18 +4,18 @@
       <NButton size="tiny" :type="isEditing ? 'primary' : 'default'" @click="toggleEdit">
         {{ isEditing ? '预览模式' : '编辑模式' }}
       </NButton>
-      <NButton v-if="isEditing" size="tiny" type="primary" @click="saveEdit" :disabled="!!parseError">
+      <NButton v-if="isEditing" size="tiny" type="primary" :disabled="!!parseError" @click="saveEdit">
         保存修改
       </NButton>
       <span v-if="parseError" class="yaml-preview__error">{{ parseError }}</span>
     </div>
     <CodeEditor
       :model-value="isEditing ? editText : (yamlText || '')"
-      @update:model-value="onEditorChange"
       language="yaml"
       :read-only="!isEditing"
       min-height="300px"
       placeholder="YAML 配置内容..."
+      @update:model-value="onEditorChange"
     />
   </div>
 </template>

@@ -25,6 +25,10 @@ class NotificationConfig(BaseModel):
     email_subject_template: str = ""
     email_body_template: str = ""
 
+    # Custom message template (T-5D-04). Empty = use default formatter.
+    # Supports variables: {{config_name}}, {{status}}, {{duration}}, {{rows}}, {{error}}, etc.
+    message_template: str = ""
+
     # Trigger conditions
     trigger_on_success: bool = True
     trigger_on_failure: bool = True
@@ -51,6 +55,9 @@ class NotificationConfigCreate(BaseModel):
     email_subject_template: str = ""
     email_body_template: str = ""
 
+    # Custom message template
+    message_template: str = ""
+
     # Trigger
     trigger_on_success: bool = True
     trigger_on_failure: bool = True
@@ -75,6 +82,9 @@ class NotificationConfigUpdate(BaseModel):
     email_to: list[str] | None = None
     email_subject_template: str | None = None
     email_body_template: str | None = None
+
+    # Custom message template
+    message_template: str | None = None
 
     # Trigger
     trigger_on_success: bool | None = None

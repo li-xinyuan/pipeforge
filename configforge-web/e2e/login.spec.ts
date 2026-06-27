@@ -1,9 +1,14 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test.describe('Login Flow', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    await page.evaluate(() => localStorage.clear())
+    await page.evaluate(() => {
+      // Clear auth state but preserve locale
+      const locale = localStorage.getItem('configforge_locale')
+      localStorage.clear()
+      if (locale) localStorage.setItem('configforge_locale', locale)
+    })
   })
 
   test('redirects to login page when not authenticated', async ({ page }) => {
@@ -16,7 +21,7 @@ test.describe('Login Flow', () => {
 
   test('login page has username and password fields', async ({ page }) => {
     await page.goto('/login')
-    const usernameInput = page.locator('input').first()
+    const usernameInput = page.locator('input[type="text"]').first()
     await expect(usernameInput).toBeVisible({ timeout: 10000 })
     const passwordInput = page.locator('input[type="password"]')
     await expect(passwordInput).toBeVisible({ timeout: 10000 })
@@ -25,16 +30,16 @@ test.describe('Login Flow', () => {
   test('login with default admin credentials', async ({ page }) => {
     await page.goto('/login')
     // Fill username
-    const usernameInput = page.locator('input').first()
+    const usernameInput = page.locator('input[type="text"]').first()
     await usernameInput.waitFor({ state: 'visible', timeout: 10000 })
     await usernameInput.fill('admin')
 
     // Fill password
     const passwordInput = page.locator('input[type="password"]')
-    await passwordInput.fill('newpass123')
+    await passwordInput.fill('admin123')
 
     // Click login button
-    const loginBtn = page.locator('button:has-text("登录"), button[type="submit"]')
+    const loginBtn = page.locator('button[type="submit"]')
     await loginBtn.click()
 
     // Should navigate away from login page
@@ -45,20 +50,19 @@ test.describe('Login Flow', () => {
 
   test('login with wrong password shows error', async ({ page }) => {
     await page.goto('/login')
-    const usernameInput = page.locator('input').first()
+    const usernameInput = page.locator('input[type="text"]').first()
     await usernameInput.waitFor({ state: 'visible', timeout: 10000 })
     await usernameInput.fill('admin')
 
     const passwordInput = page.locator('input[type="password"]')
     await passwordInput.fill('wrongpassword')
 
-    const loginBtn = page.locator('button:has-text("登录"), button[type="submit"]')
+    const loginBtn = page.locator('button[type="submit"]')
     await loginBtn.click()
 
-    // Should show error message
+    // Should show error message or remain on login page
     await page.waitForTimeout(2000)
     const errorVisible = await page.locator('text=密码错误, text=登录失败, text=用户名或密码, .n-message').first().isVisible().catch(() => false)
-    // Either error message appears or still on login page
     const stillOnLogin = page.url().includes('login')
     expect(errorVisible || stillOnLogin).toBeTruthy()
   })
@@ -66,12 +70,12 @@ test.describe('Login Flow', () => {
   test('logout returns to login page', async ({ page }) => {
     // Login first
     await page.goto('/login')
-    const usernameInput = page.locator('input').first()
+    const usernameInput = page.locator('input[type="text"]').first()
     await usernameInput.waitFor({ state: 'visible', timeout: 10000 })
     await usernameInput.fill('admin')
     const passwordInput = page.locator('input[type="password"]')
-    await passwordInput.fill('newpass123')
-    const loginBtn = page.locator('button:has-text("登录"), button[type="submit"]')
+    await passwordInput.fill('admin123')
+    const loginBtn = page.locator('button[type="submit"]')
     await loginBtn.click()
     await page.waitForURL(/\/(?!login)/, { timeout: 10000 }).catch(() => {})
 
@@ -88,11 +92,11 @@ test.describe('Login Flow', () => {
 test.describe('Login API', () => {
   test('login API returns token', async ({ request }) => {
     const resp = await request.post('http://127.0.0.1:8199/api/auth/login', {
-      data: { username: 'admin', password: 'newpass123' },
+      data: { username: 'admin', password: 'admin123' },
     })
     expect(resp.ok()).toBeTruthy()
     const data = await resp.json()
-    expect(data).toHaveProperty('token')
+    expect(data).toHaveProperty('access_token')
   })
 
   test('login API rejects wrong password', async ({ request }) => {

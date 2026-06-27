@@ -8,17 +8,17 @@
       <span v-if="badge" class="app-nav-bar__badge">{{ badge }}</span>
     </div>
     <div class="app-nav-bar__right">
-      <router-link to="/" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'home' }" :aria-current="currentRoute === 'home' ? 'page' : undefined">我的配置</router-link>
-      <router-link to="/templates" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'templates' }" :aria-current="currentRoute === 'templates' ? 'page' : undefined">模板市场</router-link>
-      <router-link to="/history" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'history' }" :aria-current="currentRoute === 'history' ? 'page' : undefined">执行历史</router-link>
-      <router-link to="/schedules" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'schedules' }" :aria-current="currentRoute === 'schedules' ? 'page' : undefined">定时任务</router-link>
-      <router-link to="/settings" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'settings' }" :aria-current="currentRoute === 'settings' ? 'page' : undefined">设置</router-link>
-      <button class="app-nav-bar__theme-btn" @click="toggleTheme" :title="isDark ? '切换亮色模式' : '切换暗色模式'" :aria-label="isDark ? '切换亮色模式' : '切换暗色模式'">
+      <router-link to="/" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'home' }" :aria-current="currentRoute === 'home' ? 'page' : undefined">{{ t('nav.myConfigs') }}</router-link>
+      <router-link to="/templates" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'templates' }" :aria-current="currentRoute === 'templates' ? 'page' : undefined">{{ t('nav.templates') }}</router-link>
+      <router-link to="/history" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'history' }" :aria-current="currentRoute === 'history' ? 'page' : undefined">{{ t('nav.history') }}</router-link>
+      <router-link to="/schedules" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'schedules' }" :aria-current="currentRoute === 'schedules' ? 'page' : undefined">{{ t('nav.schedules') }}</router-link>
+      <router-link to="/settings" class="app-nav-bar__link" :class="{ 'app-nav-bar__link--active': currentRoute === 'settings' }" :aria-current="currentRoute === 'settings' ? 'page' : undefined">{{ t('nav.settings') }}</router-link>
+      <button class="app-nav-bar__theme-btn" :title="isDark ? t('nav.toggleLight') : t('nav.toggleDark')" :aria-label="isDark ? t('nav.toggleLight') : t('nav.toggleDark')" @click="toggleTheme">
         {{ isDark ? '☀' : '☾' }}
       </button>
       <!-- User menu (only when JWT auth is enabled) -->
       <div v-if="auth.isAuthenticated" class="app-nav-bar__user">
-        <button class="app-nav-bar__user-btn" @click="showUserMenu = !showUserMenu" :aria-label="'用户菜单'">
+        <button class="app-nav-bar__user-btn" :aria-label="t('nav.userMenu')" @click="showUserMenu = !showUserMenu">
           <span class="app-nav-bar__user-avatar">{{ auth.user?.username?.charAt(0).toUpperCase() }}</span>
           <span class="app-nav-bar__user-name">{{ auth.user?.username }}</span>
         </button>
@@ -27,29 +27,29 @@
             <div class="app-nav-bar__user-info">
               <span class="app-nav-bar__user-role">{{ roleLabel }}</span>
             </div>
-            <button v-if="auth.isAdmin" class="app-nav-bar__user-menu-item" @click="onOpenRegister">注册新用户</button>
-            <button class="app-nav-bar__user-menu-item app-nav-bar__user-menu-item--danger" @click="onLogout">退出登录</button>
+            <button v-if="auth.isAdmin" class="app-nav-bar__user-menu-item" @click="onOpenRegister">{{ t('nav.registerUser') }}</button>
+            <button class="app-nav-bar__user-menu-item app-nav-bar__user-menu-item--danger" @click="onLogout">{{ t('nav.logout') }}</button>
           </div>
         </Transition>
       </div>
     </div>
     <!-- Mobile hamburger button (visible ≤767px) -->
-    <button class="app-nav-bar__hamburger" @click="showMobileDrawer = true" aria-label="打开导航菜单">
-      <span class="app-nav-bar__hamburger-icon" :class="{ 'app-nav-bar__hamburger-icon--open': showMobileDrawer }"></span>
+    <button class="app-nav-bar__hamburger" :aria-label="t('nav.openNav')" @click="showMobileDrawer = true">
+      <span class="app-nav-bar__hamburger-icon" :class="{ 'app-nav-bar__hamburger-icon--open': showMobileDrawer }" />
     </button>
     <!-- Mobile drawer -->
     <NDrawer v-model:show="showMobileDrawer" placement="left" :width="260" class="app-nav-bar__drawer">
       <NDrawerContent :title="'ConfigForge'" closable>
         <div class="app-nav-bar__drawer-links">
-          <router-link to="/" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'home' }" @click="showMobileDrawer = false">我的配置</router-link>
-          <router-link to="/templates" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'templates' }" @click="showMobileDrawer = false">模板市场</router-link>
-          <router-link to="/history" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'history' }" @click="showMobileDrawer = false">执行历史</router-link>
-          <router-link to="/schedules" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'schedules' }" @click="showMobileDrawer = false">定时任务</router-link>
-          <router-link to="/settings" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'settings' }" @click="showMobileDrawer = false">设置</router-link>
+          <router-link to="/" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'home' }" @click="showMobileDrawer = false">{{ t('nav.myConfigs') }}</router-link>
+          <router-link to="/templates" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'templates' }" @click="showMobileDrawer = false">{{ t('nav.templates') }}</router-link>
+          <router-link to="/history" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'history' }" @click="showMobileDrawer = false">{{ t('nav.history') }}</router-link>
+          <router-link to="/schedules" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'schedules' }" @click="showMobileDrawer = false">{{ t('nav.schedules') }}</router-link>
+          <router-link to="/settings" class="app-nav-bar__drawer-link" :class="{ 'app-nav-bar__drawer-link--active': currentRoute === 'settings' }" @click="showMobileDrawer = false">{{ t('nav.settings') }}</router-link>
         </div>
         <div class="app-nav-bar__drawer-footer">
           <button class="app-nav-bar__drawer-theme-btn" @click="toggleTheme">
-            {{ isDark ? '☀ 亮色模式' : '☾ 暗色模式' }}
+            {{ isDark ? t('nav.lightMode') : t('nav.darkMode') }}
           </button>
           <template v-if="auth.isAuthenticated">
             <div class="app-nav-bar__drawer-user">
@@ -57,45 +57,45 @@
               <span class="app-nav-bar__drawer-user-name">{{ auth.user?.username }}</span>
               <span class="app-nav-bar__user-role">{{ roleLabel }}</span>
             </div>
-            <button v-if="auth.isAdmin" class="app-nav-bar__drawer-action" @click="showMobileDrawer = false; onOpenRegister()">注册新用户</button>
-            <button class="app-nav-bar__drawer-action app-nav-bar__drawer-action--danger" @click="showMobileDrawer = false; onLogout()">退出登录</button>
+            <button v-if="auth.isAdmin" class="app-nav-bar__drawer-action" @click="showMobileDrawer = false; onOpenRegister()">{{ t('nav.registerUser') }}</button>
+            <button class="app-nav-bar__drawer-action app-nav-bar__drawer-action--danger" @click="showMobileDrawer = false; onLogout()">{{ t('nav.logout') }}</button>
           </template>
         </div>
       </NDrawerContent>
     </NDrawer>
     <!-- Click-outside backdrop for user menu -->
     <Teleport to="body">
-      <div v-if="showUserMenu" class="app-nav-bar__backdrop" @click="showUserMenu = false"></div>
+      <div v-if="showUserMenu" class="app-nav-bar__backdrop" @click="showUserMenu = false" />
     </Teleport>
 
     <!-- Register user modal (admin only) -->
     <Teleport to="body">
       <div v-if="showRegisterModal" class="app-nav-bar__modal-backdrop" @click.self="showRegisterModal = false">
         <div class="app-nav-bar__modal">
-          <h3 class="app-nav-bar__modal-title">注册新用户</h3>
+          <h3 class="app-nav-bar__modal-title">{{ t('nav.register.title') }}</h3>
           <form @submit.prevent="onRegister">
             <div class="app-nav-bar__modal-field">
-              <label class="cf-label">用户名</label>
-              <input v-model="registerForm.username" type="text" class="app-nav-bar__modal-input" placeholder="输入用户名" required />
+              <label class="cf-label">{{ t('nav.register.username') }}</label>
+              <input v-model="registerForm.username" type="text" class="app-nav-bar__modal-input" :placeholder="t('nav.register.username')" required>
             </div>
             <div class="app-nav-bar__modal-field">
-              <label class="cf-label">密码</label>
-              <input v-model="registerForm.password" type="password" class="app-nav-bar__modal-input" placeholder="输入密码" required />
+              <label class="cf-label">{{ t('nav.register.password') }}</label>
+              <input v-model="registerForm.password" type="password" class="app-nav-bar__modal-input" :placeholder="t('nav.register.password')" required>
             </div>
             <div class="app-nav-bar__modal-field">
-              <label class="cf-label">角色</label>
+              <label class="cf-label">{{ t('nav.register.role') }}</label>
               <div class="app-nav-bar__role-select">
-                <button type="button" class="app-nav-bar__role-btn" :class="{ 'app-nav-bar__role-btn--active': registerForm.role === 'editor' }" @click="registerForm.role = 'editor'">✏️ 编辑者</button>
-                <button type="button" class="app-nav-bar__role-btn" :class="{ 'app-nav-bar__role-btn--active': registerForm.role === 'viewer' }" @click="registerForm.role = 'viewer'">👁 查看者</button>
+                <button type="button" class="app-nav-bar__role-btn" :class="{ 'app-nav-bar__role-btn--active': registerForm.role === 'editor' }" @click="registerForm.role = 'editor'">{{ t('nav.register.editor') }}</button>
+                <button type="button" class="app-nav-bar__role-btn" :class="{ 'app-nav-bar__role-btn--active': registerForm.role === 'viewer' }" @click="registerForm.role = 'viewer'">{{ t('nav.register.viewer') }}</button>
               </div>
             </div>
             <p v-if="registerError" class="app-nav-bar__modal-error">{{ registerError }}</p>
             <p v-if="registerSuccess" class="app-nav-bar__modal-success">{{ registerSuccess }}</p>
             <div class="app-nav-bar__modal-actions">
-              <button type="button" class="app-nav-bar__modal-cancel" @click="showRegisterModal = false">取消</button>
+              <button type="button" class="app-nav-bar__modal-cancel" @click="showRegisterModal = false">{{ t('common.cancel') }}</button>
               <button type="submit" class="app-nav-bar__modal-submit" :disabled="registerLoading">
-                <span v-if="registerLoading" class="login__spinner"></span>
-                <span v-else>创建用户</span>
+                <span v-if="registerLoading" class="login__spinner" />
+                <span v-else>{{ t('nav.register.create') }}</span>
               </button>
             </div>
           </form>
@@ -108,15 +108,18 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { NDrawer, NDrawerContent } from 'naive-ui'
 import { useTheme } from '../../composables/useTheme'
 import { useAuthStore } from '../../stores/auth'
+import { useApi, ApiError } from '../../composables/useApi'
 
 defineProps<{
   currentRoute: 'home' | 'wizard' | 'settings' | 'history' | 'schedules' | 'guide' | 'templates' | 'login'
   badge?: string
 }>()
 
+const { t } = useI18n()
 const { isDark, toggleTheme } = useTheme()
 const auth = useAuthStore()
 const showUserMenu = ref(false)
@@ -129,16 +132,16 @@ const registerForm = reactive({ username: '', password: '', role: 'editor' })
 
 const roleLabel = computed(() => {
   const role = auth.user?.role
-  if (role === 'admin') return '管理员'
-  if (role === 'editor') return '编辑者'
-  if (role === 'viewer') return '查看者'
+  if (role === 'admin') return t('nav.role.admin')
+  if (role === 'editor') return t('nav.role.editor')
+  if (role === 'viewer') return t('nav.role.viewer')
   return role || ''
 })
 
 function onLogout() {
   showUserMenu.value = false
   // Check if there's unsaved changes in the wizard
-  const confirmed = window.confirm('确定要退出登录吗？未保存的修改将会丢失。')
+  const confirmed = window.confirm(t('nav.logoutConfirm'))
   if (!confirmed) return
   auth.logout()
 }
@@ -157,35 +160,28 @@ async function onRegister() {
   registerError.value = ''
   registerSuccess.value = ''
   if (!registerForm.username.trim() || !registerForm.password) {
-    registerError.value = '请输入用户名和密码'
+    registerError.value = t('nav.register.emptyFields')
     return
   }
   registerLoading.value = true
   try {
-    const resp = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${auth.token}`,
-      },
-      body: JSON.stringify({
-        username: registerForm.username.trim(),
-        password: registerForm.password,
-        role: registerForm.role,
-      }),
+    const api = useApi()
+    const data = await api.requestOrThrow<{ username: string; code?: string }>('POST', '/api/auth/register', {
+      username: registerForm.username.trim(),
+      password: registerForm.password,
+      role: registerForm.role,
     })
-    const data = await resp.json()
-    if (!resp.ok) {
-      if (data.code === 'USERNAME_EXISTS') registerError.value = '用户名已存在'
-      else if (data.code === 'FORBIDDEN') registerError.value = '仅管理员可注册新用户'
-      else registerError.value = data.error || '注册失败'
+    registerSuccess.value = t('nav.register.success', { username: data.username })
+    registerForm.username = ''
+    registerForm.password = ''
+  } catch (e) {
+    if (e instanceof ApiError) {
+      if (e.code === 'USERNAME_EXISTS') registerError.value = t('nav.register.usernameExists')
+      else if (e.code === 'FORBIDDEN') registerError.value = t('nav.register.forbidden')
+      else registerError.value = e.message || t('nav.register.failed')
     } else {
-      registerSuccess.value = `用户 "${data.username}" 创建成功`
-      registerForm.username = ''
-      registerForm.password = ''
+      registerError.value = t('nav.register.networkError')
     }
-  } catch {
-    registerError.value = '网络连接失败'
   } finally {
     registerLoading.value = false
   }

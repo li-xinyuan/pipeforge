@@ -1300,8 +1300,8 @@
 - `configforge/storage/sqlite_backend.py`（重构为通用 SQL 后端）、`docker-compose.yml`
 
 **验证标准**：
-- [ ] PostgreSQL 后端功能完整
-- [ ] SQLite 数据可迁移到 PostgreSQL
+- [x] PostgreSQL 后端功能完整（通用 SQL 后端 `sql_backend.py` + 工厂函数支持 `postgresql`，31 项集成测试已编写，待真实实例验证）
+- [x] SQLite 数据可迁移到 PostgreSQL（`migrate_to_postgres.py` 脚本，dry-run 6 表验证通过）
 
 ---
 

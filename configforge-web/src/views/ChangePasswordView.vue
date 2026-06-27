@@ -1,8 +1,8 @@
 <template>
   <div class="change-password">
     <div class="change-password__bg">
-      <div class="change-password__orb change-password__orb--1"></div>
-      <div class="change-password__orb change-password__orb--2"></div>
+      <div class="change-password__orb change-password__orb--1" />
+      <div class="change-password__orb change-password__orb--2" />
     </div>
 
     <div class="change-password__card">
@@ -21,7 +21,7 @@
           <span class="change-password__label">旧密码</span>
           <div class="change-password__input" :class="{ 'is-error': errorMsg }">
             <span class="change-password__input-icon">🔑</span>
-            <input v-model="form.old_password" type="password" placeholder="请输入旧密码" autocomplete="current-password" required />
+            <input v-model="form.old_password" type="password" placeholder="请输入旧密码" autocomplete="current-password" required>
           </div>
         </div>
 
@@ -29,7 +29,7 @@
           <span class="change-password__label">新密码</span>
           <div class="change-password__input" :class="{ 'is-error': errorMsg }">
             <span class="change-password__input-icon">🔒</span>
-            <input v-model="form.new_password" type="password" placeholder="至少 6 个字符" autocomplete="new-password" required />
+            <input v-model="form.new_password" type="password" placeholder="至少 6 个字符" autocomplete="new-password" required>
           </div>
         </div>
 
@@ -37,7 +37,7 @@
           <span class="change-password__label">确认新密码</span>
           <div class="change-password__input" :class="{ 'is-error': errorMsg }">
             <span class="change-password__input-icon">🔒</span>
-            <input v-model="form.confirm_password" type="password" placeholder="再次输入新密码" autocomplete="new-password" required />
+            <input v-model="form.confirm_password" type="password" placeholder="再次输入新密码" autocomplete="new-password" required>
           </div>
         </div>
 
@@ -46,7 +46,7 @@
         </Transition>
 
         <button type="submit" class="change-password__btn" :disabled="loading">
-          <span v-if="loading" class="change-password__spinner"></span>
+          <span v-if="loading" class="change-password__spinner" />
           <span v-else>确认修改</span>
         </button>
       </form>
@@ -58,9 +58,11 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useApi, ApiError } from '../composables/useApi'
 
 const router = useRouter()
 const auth = useAuthStore()
+const api = useApi()
 const loading = ref(false)
 const errorMsg = ref('')
 const form = reactive({
@@ -87,32 +89,22 @@ async function onSubmit() {
 
   loading.value = true
   try {
-    const resp = await fetch('/api/auth/change-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${auth.token}`,
-      },
-      body: JSON.stringify({
-        old_password: form.old_password,
-        new_password: form.new_password,
-      }),
+    await api.requestOrThrow('POST', '/api/auth/change-password', {
+      old_password: form.old_password,
+      new_password: form.new_password,
     })
-
-    if (!resp.ok) {
-      const data = await resp.json()
-      if (data.code === 'INVALID_PASSWORD') {
-        errorMsg.value = '旧密码错误'
-      } else {
-        errorMsg.value = data.error || '修改密码失败'
-      }
-      return
-    }
-
     auth.mustChangePassword = false
     router.push('/')
-  } catch {
-    errorMsg.value = '网络连接失败'
+  } catch (e) {
+    if (e instanceof ApiError) {
+      if (e.code === 'INVALID_PASSWORD') {
+        errorMsg.value = '旧密码错误'
+      } else {
+        errorMsg.value = e.message || '修改密码失败'
+      }
+    } else {
+      errorMsg.value = '网络连接失败'
+    }
   } finally {
     loading.value = false
   }

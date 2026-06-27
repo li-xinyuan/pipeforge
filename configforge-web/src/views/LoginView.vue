@@ -1,11 +1,11 @@
 <template>
   <div class="login">
     <div class="login__bg">
-      <div class="login__orb login__orb--1"></div>
-      <div class="login__orb login__orb--2"></div>
+      <div class="login__orb login__orb--1" />
+      <div class="login__orb login__orb--2" />
     </div>
 
-    <button class="login__theme" @click="toggleTheme" :title="isDark ? '切换亮色' : '切换暗色'">
+    <button class="login__theme" :title="isDark ? t('login.toggleLight') : t('login.toggleDark')" @click="toggleTheme">
       {{ isDark ? '☀' : '☾' }}
     </button>
 
@@ -13,11 +13,11 @@
       <div class="login__brand">
         <span class="login__logo">⚡</span>
         <span class="login__logo-text">ConfigForge</span>
-        <p class="login__tagline">AI 驱动的数据流水线配置工具</p>
+        <p class="login__tagline">{{ t('login.tagline') }}</p>
       </div>
 
       <p class="login__intro">
-        5 步可视化向导，轻松配置从数据接入到结果输出的完整流程。支持 7 种数据源、2 种处理引擎、3 种输出方式，AI 随时待命辅助分析。
+        {{ t('login.intro') }}
       </p>
 
       <!-- Demo -->
@@ -28,18 +28,18 @@
       <!-- Form -->
       <form class="login__form" @submit.prevent="onLogin">
         <div class="login__field">
-          <span class="login__label">用户名</span>
+          <span class="login__label">{{ t('login.username') }}</span>
           <div class="login__input" :class="{ 'is-error': loginError }">
             <span class="login__input-icon">👤</span>
-            <input v-model="loginForm.username" type="text" placeholder="admin" autocomplete="username" required />
+            <input v-model="loginForm.username" type="text" placeholder="admin" autocomplete="username" required>
           </div>
         </div>
 
         <div class="login__field">
-          <span class="login__label">密码</span>
+          <span class="login__label">{{ t('login.password') }}</span>
           <div class="login__input" :class="{ 'is-error': loginError }">
             <span class="login__input-icon">🔑</span>
-            <input v-model="loginForm.password" :type="showPassword ? 'text' : 'password'" placeholder="······" autocomplete="current-password" required />
+            <input v-model="loginForm.password" :type="showPassword ? 'text' : 'password'" placeholder="······" autocomplete="current-password" required>
             <button type="button" class="login__eye" @click="showPassword = !showPassword">{{ showPassword ? '🙈' : '👁' }}</button>
           </div>
         </div>
@@ -49,12 +49,12 @@
         </Transition>
 
         <button type="submit" class="login__btn" :disabled="loginLoading">
-          <span v-if="loginLoading" class="login__spinner"></span>
-          <span v-else>登 录</span>
+          <span v-if="loginLoading" class="login__spinner" />
+          <span v-else>{{ t('login.submit') }}</span>
         </button>
       </form>
 
-      <p class="login__hint">默认账号 admin / admin123</p>
+      <p class="login__hint">{{ t('login.hint') }}</p>
     </div>
   </div>
 </template>
@@ -62,12 +62,14 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../composables/useTheme'
 import PipelineAnimation from '../components/PipelineAnimation.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const { t } = useI18n()
 const { isDark, toggleTheme } = useTheme()
 const showPassword = ref(false)
 const loginLoading = ref(false)
@@ -79,7 +81,7 @@ onMounted(() => {})
 async function onLogin() {
   loginError.value = ''
   if (!loginForm.username.trim() || !loginForm.password) {
-    loginError.value = '请输入用户名和密码'
+    loginError.value = t('login.emptyFields')
     return
   }
   loginLoading.value = true
@@ -88,7 +90,7 @@ async function onLogin() {
   if (result.success) {
     router.push((router.currentRoute.value.query.redirect as string) || '/')
   } else {
-    loginError.value = result.error || '登录失败'
+    loginError.value = result.error || t('login.failed')
   }
 }
 </script>

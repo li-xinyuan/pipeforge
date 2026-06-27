@@ -4,18 +4,18 @@
 
     <!-- Page content -->
     <div class="settings__body">
-      <h1 class="settings__title">设置</h1>
+      <h1 class="settings__title">{{ t('settings.title') }}</h1>
 
       <!-- Desktop: NTabs -->
       <NTabs v-if="!isMobile" type="segment" animated>
-        <NTabPane v-if="authStore.canAdmin" name="ai" tab="AI 模型">
+        <NTabPane v-if="authStore.canAdmin" name="ai" :tab="t('settings.tabs.ai')">
           <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
-            配置 AI 模型后，可在向导中使用 AI 辅助生成 SQL、自动列映射和场景描述等功能。
+            {{ t('settings.ai.hint') }}
           </p>
           <div class="settings__card">
             <!-- Enable switch -->
             <div class="settings__row">
-              <span class="settings__label">启用 AI</span>
+              <span class="settings__label">{{ t('settings.ai.enable') }}</span>
               <NSwitch :value="form.enabled" @update:value="form.enabled = $event" />
             </div>
 
@@ -23,28 +23,28 @@
 
             <!-- Provider -->
             <div class="settings__field">
-              <label class="settings__field-label">提供商</label>
+              <label class="settings__field-label">{{ t('settings.ai.provider') }}</label>
               <NSelect v-model:value="form.provider" :options="providerOptions" />
             </div>
 
             <!-- Model -->
             <div class="settings__field">
-              <label class="settings__field-label">模型</label>
+              <label class="settings__field-label">{{ t('settings.ai.model') }}</label>
               <NInput v-model:value="form.model" :placeholder="defaultModel" />
-              <p class="settings__hint">留空使用默认：{{ defaultModel }}</p>
+              <p class="settings__hint">{{ t('settings.ai.modelHint', { default: defaultModel }) }}</p>
             </div>
 
             <!-- API Key -->
             <div class="settings__field">
-              <label class="settings__field-label">API Key</label>
+              <label class="settings__field-label">{{ t('settings.ai.apiKey') }}</label>
               <NInput v-model:value="form.api_key" type="password" placeholder="sk-..." show-password-toggle />
-              <p v-if="maskedKey" class="settings__hint">当前：{{ maskedKey }}</p>
+              <p v-if="maskedKey" class="settings__hint">{{ t('settings.ai.currentKey', { key: maskedKey }) }}</p>
             </div>
 
             <!-- Base URL -->
             <div class="settings__field">
-              <label class="settings__field-label">Base URL</label>
-              <NInput v-model:value="form.base_url" :placeholder="form.provider === 'openai' ? 'https://api.openai.com/v1（默认）' : '必填'" />
+              <label class="settings__field-label">{{ t('settings.ai.baseUrl') }}</label>
+              <NInput v-model:value="form.base_url" :placeholder="baseUrlPlaceholder" />
             </div>
 
             <!-- Temperature -->
@@ -58,17 +58,17 @@
 
             <!-- Max Tokens -->
             <div class="settings__field">
-              <label class="settings__field-label">Max Tokens</label>
-              <NInputNumber v-model:value="form.max_tokens" :min="256" :max="65536" class="w-full" placeholder="最大令牌数" />
+              <label class="settings__field-label">{{ t('settings.ai.maxTokens') }}</label>
+              <NInputNumber v-model:value="form.max_tokens" :min="256" :max="65536" class="w-full" :placeholder="t('settings.ai.maxTokensPlaceholder')" />
             </div>
 
             <div class="settings__divider" />
 
             <!-- Actions -->
             <div class="settings__actions">
-              <NButton :loading="testing" @click="testConnection">测试连接</NButton>
-              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">测试前将自动保存当前设置</span>
-              <NButton type="primary" class="btn-primary" :loading="saving" @click="saveSettings">保存设置</NButton>
+              <NButton :loading="testing" @click="testConnection">{{ t('settings.ai.testConnection') }}</NButton>
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">{{ t('settings.ai.testHint') }}</span>
+              <NButton type="primary" class="btn-primary" :loading="saving" @click="saveSettings">{{ t('settings.ai.saveSettings') }}</NButton>
             </div>
             <p v-if="testResult" class="settings__result" :class="testResult.ok ? 'settings__result--ok' : 'settings__result--error'">
               {{ testResult.msg }}
@@ -77,51 +77,51 @@
           </div>
         </NTabPane>
 
-        <NTabPane v-if="authStore.canAdmin" name="database" tab="数据库连接">
+        <NTabPane v-if="authStore.canAdmin" name="database" :tab="t('settings.tabs.database')">
           <div class="settings__card">
             <ConnectionManager />
           </div>
         </NTabPane>
 
-        <NTabPane name="smtp" tab="邮件推送">
+        <NTabPane name="smtp" :tab="t('settings.tabs.smtp')">
           <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
-            配置 SMTP 邮件服务后，可在步骤 5 中添加邮件推送通知。
+            {{ t('settings.smtp.hint') }}
           </p>
           <div class="settings__card">
             <!-- Host -->
             <div class="settings__field">
-              <label class="settings__field-label">SMTP 服务器</label>
+              <label class="settings__field-label">{{ t('settings.smtp.host') }}</label>
               <NInput v-model:value="smtpForm.host" placeholder="smtp.gmail.com" />
             </div>
 
             <!-- Port -->
             <div class="settings__field">
-              <label class="settings__field-label">端口</label>
+              <label class="settings__field-label">{{ t('settings.smtp.port') }}</label>
               <NInputNumber v-model:value="smtpForm.port" :min="1" :max="65535" class="w-full" placeholder="587" />
             </div>
 
             <!-- User -->
             <div class="settings__field">
-              <label class="settings__field-label">用户名</label>
+              <label class="settings__field-label">{{ t('settings.smtp.user') }}</label>
               <NInput v-model:value="smtpForm.user" placeholder="your@gmail.com" />
             </div>
 
             <!-- Password -->
             <div class="settings__field">
-              <label class="settings__field-label">密码 / 授权码</label>
-              <NInput v-model:value="smtpForm.password" type="password" placeholder="SMTP 密码或应用专用密码" show-password-toggle />
-              <p v-if="smtpMaskedPwd" class="settings__hint">当前：{{ smtpMaskedPwd }}</p>
+              <label class="settings__field-label">{{ t('settings.smtp.password') }}</label>
+              <NInput v-model:value="smtpForm.password" type="password" :placeholder="t('settings.smtp.passwordPlaceholder')" show-password-toggle />
+              <p v-if="smtpMaskedPwd" class="settings__hint">{{ t('settings.smtp.currentKey', { key: smtpMaskedPwd }) }}</p>
             </div>
 
             <!-- Sender -->
             <div class="settings__field">
-              <label class="settings__field-label">发件人地址</label>
-              <NInput v-model:value="smtpForm.sender" placeholder="留空则使用用户名作为发件人" />
+              <label class="settings__field-label">{{ t('settings.smtp.sender') }}</label>
+              <NInput v-model:value="smtpForm.sender" :placeholder="t('settings.smtp.senderPlaceholder')" />
             </div>
 
             <!-- TLS -->
             <div class="settings__row">
-              <span class="settings__label">启用 TLS</span>
+              <span class="settings__label">{{ t('settings.smtp.useTls') }}</span>
               <NSwitch :value="smtpForm.use_tls" @update:value="smtpForm.use_tls = $event" />
             </div>
 
@@ -129,9 +129,9 @@
 
             <!-- Actions -->
             <div class="settings__actions">
-              <NButton :loading="smtpTesting" @click="testSmtpConnection">测试连接</NButton>
-              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">测试前将自动保存当前设置</span>
-              <NButton type="primary" class="btn-primary" :loading="smtpSaving" @click="saveSmtpSettings">保存设置</NButton>
+              <NButton :loading="smtpTesting" @click="testSmtpConnection">{{ t('settings.smtp.testConnection') }}</NButton>
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">{{ t('settings.smtp.testHint') }}</span>
+              <NButton type="primary" class="btn-primary" :loading="smtpSaving" @click="saveSmtpSettings">{{ t('settings.smtp.saveSettings') }}</NButton>
             </div>
             <p v-if="smtpTestResult" class="settings__result" :class="smtpTestResult.ok ? 'settings__result--ok' : 'settings__result--error'">
               {{ smtpTestResult.msg }}
@@ -139,37 +139,128 @@
             <p v-if="smtpSaveMsg" class="settings__result settings__result--ok">{{ smtpSaveMsg }}</p>
           </div>
         </NTabPane>
+
+        <NTabPane v-if="authStore.canAdmin" name="storage" :tab="t('settings.tabs.storage')">
+          <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
+            {{ t('settings.storage.hint') }}
+          </p>
+          <div class="settings__card">
+            <!-- Current backend -->
+            <div class="settings__row">
+              <span class="settings__label">{{ t('settings.storage.currentBackend') }}</span>
+              <span style="font-weight: 600; color: var(--color-primary);">{{ storageInfo.backend }}</span>
+            </div>
+            <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 4px 0 0 0;">{{ storageInfo.description }}</p>
+
+            <template v-if="storageInfo.dialect">
+              <div class="settings__divider" />
+              <div class="settings__row">
+                <span class="settings__label">{{ t('settings.storage.dialect') }}</span>
+                <span>{{ storageInfo.dialect }}</span>
+              </div>
+              <div v-if="storageInfo.table_count !== null" class="settings__row">
+                <span class="settings__label">{{ t('settings.storage.tableCount') }}</span>
+                <span>{{ storageInfo.table_count }}</span>
+              </div>
+            </template>
+
+            <div class="settings__divider" />
+
+            <!-- Config summary -->
+            <div class="settings__field">
+              <label class="settings__field-label">{{ t('settings.storage.configSummary') }}</label>
+              <div v-for="(value, key) in storageInfo.config" :key="key" class="settings__row">
+                <span class="settings__label" style="font-family: monospace; min-width: 140px;">{{ key }}</span>
+                <span style="font-family: monospace; word-break: break-all; text-align: right;">{{ value }}</span>
+              </div>
+            </div>
+
+            <div class="settings__divider" />
+
+            <!-- Switch hint -->
+            <div class="settings__field">
+              <label class="settings__field-label">{{ t('settings.storage.switchHint') }}</label>
+              <p style="font-size: var(--font-size-sm); color: var(--color-text-muted);">{{ t('settings.storage.switchHintText') }}</p>
+              <p style="font-size: var(--font-size-xs); color: #e6a23c; margin-top: 8px;">⚠ {{ t('settings.storage.needRestart') }}</p>
+            </div>
+
+            <!-- Available backends with pros/cons -->
+            <div class="settings__divider" />
+            <div class="settings__field">
+              <label class="settings__field-label">{{ t('settings.storage.availableBackends') }}</label>
+              <div v-for="opt in backendOptions" :key="opt.key"
+                :style="{
+                  border: '1px solid ' + (opt.key === storageInfo.backend ? 'var(--color-primary, #4f46e5)' : 'var(--color-border, #e0e0e0)'),
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '12px',
+                  marginBottom: '8px',
+                  backgroundColor: opt.key === storageInfo.backend ? 'var(--color-primary-bg, #eef2ff)' : 'transparent',
+                }">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <span style="font-weight: 600;">{{ opt.name }}</span>
+                  <span v-if="opt.key === storageInfo.backend" style="font-size: var(--font-size-xs); color: var(--color-primary, #4f46e5); font-weight: 600;">✓ {{ t('settings.storage.currentBackend') }}</span>
+                </div>
+                <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 0 0 8px 0;">{{ opt.scenario }}</p>
+                <code style="display: block; font-size: var(--font-size-xs); background: var(--color-bg-secondary, #f5f5f5); padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; word-break: break-all;">{{ opt.envValue }}</code>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: var(--font-size-sm);">
+                  <div>
+                    <p style="font-weight: 600; margin: 0 0 4px 0; color: #22c55e;">✅ {{ t('settings.storage.pros') }}</p>
+                    <ul style="margin: 0; padding-left: 16px; color: var(--color-text-muted);">
+                      <li v-for="(pro, i) in opt.pros" :key="i">{{ pro }}</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p style="font-weight: 600; margin: 0 0 4px 0; color: #ef4444;">❌ {{ t('settings.storage.cons') }}</p>
+                    <ul style="margin: 0; padding-left: 16px; color: var(--color-text-muted);">
+                      <li v-for="(con, i) in opt.cons" :key="i">{{ con }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </NTabPane>
+
+        <NTabPane name="language" :tab="t('settings.tabs.language')">
+          <div class="settings__card">
+            <div class="settings__field">
+              <label class="settings__field-label">{{ t('settings.language.label') }}</label>
+              <NSelect v-model:value="currentLocale" :options="localeOptions" @update:value="onLocaleChange" />
+              <p class="settings__hint">{{ t('settings.language.hint') }}</p>
+            </div>
+          </div>
+        </NTabPane>
       </NTabs>
 
       <!-- Mobile: NCollapse -->
-      <NCollapse v-else :default-expanded-names="['ai', 'database', 'smtp']">
-        <NCollapseItem v-if="authStore.canAdmin" name="ai" title="AI 模型">
+      <NCollapse v-else :default-expanded-names="['ai', 'database', 'smtp', 'storage', 'language']">
+        <NCollapseItem v-if="authStore.canAdmin" name="ai" :title="t('settings.tabs.ai')">
           <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
-            配置 AI 模型后，可在向导中使用 AI 辅助生成 SQL、自动列映射和场景描述等功能。
+            {{ t('settings.ai.hint') }}
           </p>
           <div class="settings__card">
             <div class="settings__row">
-              <span class="settings__label">启用 AI</span>
+              <span class="settings__label">{{ t('settings.ai.enable') }}</span>
               <NSwitch :value="form.enabled" @update:value="form.enabled = $event" />
             </div>
             <div class="settings__divider" />
             <div class="settings__field">
-              <label class="settings__field-label">提供商</label>
+              <label class="settings__field-label">{{ t('settings.ai.provider') }}</label>
               <NSelect v-model:value="form.provider" :options="providerOptions" />
             </div>
             <div class="settings__field">
-              <label class="settings__field-label">模型</label>
+              <label class="settings__field-label">{{ t('settings.ai.model') }}</label>
               <NInput v-model:value="form.model" :placeholder="defaultModel" />
-              <p class="settings__hint">留空使用默认：{{ defaultModel }}</p>
+              <p class="settings__hint">{{ t('settings.ai.modelHint', { default: defaultModel }) }}</p>
             </div>
             <div class="settings__field">
-              <label class="settings__field-label">API Key</label>
+              <label class="settings__field-label">{{ t('settings.ai.apiKey') }}</label>
               <NInput v-model:value="form.api_key" type="password" placeholder="sk-..." show-password-toggle />
-              <p v-if="maskedKey" class="settings__hint">当前：{{ maskedKey }}</p>
+              <p v-if="maskedKey" class="settings__hint">{{ t('settings.ai.currentKey', { key: maskedKey }) }}</p>
             </div>
             <div class="settings__field">
-              <label class="settings__field-label">Base URL</label>
-              <NInput v-model:value="form.base_url" :placeholder="form.provider === 'openai' ? 'https://api.openai.com/v1（默认）' : '必填'" />
+              <label class="settings__field-label">{{ t('settings.ai.baseUrl') }}</label>
+              <NInput v-model:value="form.base_url" :placeholder="baseUrlPlaceholder" />
             </div>
             <div class="settings__field">
               <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -179,14 +270,14 @@
               <NSlider v-model:value="form.temperature" :min="0" :max="2" :step="0.1" />
             </div>
             <div class="settings__field">
-              <label class="settings__field-label">Max Tokens</label>
-              <NInputNumber v-model:value="form.max_tokens" :min="256" :max="65536" class="w-full" placeholder="最大令牌数" />
+              <label class="settings__field-label">{{ t('settings.ai.maxTokens') }}</label>
+              <NInputNumber v-model:value="form.max_tokens" :min="256" :max="65536" class="w-full" :placeholder="t('settings.ai.maxTokensPlaceholder')" />
             </div>
             <div class="settings__divider" />
             <div class="settings__actions">
-              <NButton :loading="testing" @click="testConnection">测试连接</NButton>
-              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">测试前将自动保存当前设置</span>
-              <NButton type="primary" class="btn-primary" :loading="saving" @click="saveSettings">保存设置</NButton>
+              <NButton :loading="testing" @click="testConnection">{{ t('settings.ai.testConnection') }}</NButton>
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">{{ t('settings.ai.testHint') }}</span>
+              <NButton type="primary" class="btn-primary" :loading="saving" @click="saveSettings">{{ t('settings.ai.saveSettings') }}</NButton>
             </div>
             <p v-if="testResult" class="settings__result" :class="testResult.ok ? 'settings__result--ok' : 'settings__result--error'">
               {{ testResult.msg }}
@@ -195,52 +286,140 @@
           </div>
         </NCollapseItem>
 
-        <NCollapseItem v-if="authStore.canAdmin" name="database" title="数据库连接">
+        <NCollapseItem v-if="authStore.canAdmin" name="database" :title="t('settings.tabs.database')">
           <div class="settings__card">
             <ConnectionManager />
           </div>
         </NCollapseItem>
 
-        <NCollapseItem name="smtp" title="邮件推送">
+        <NCollapseItem name="smtp" :title="t('settings.tabs.smtp')">
           <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
-            配置 SMTP 邮件服务后，可在步骤 5 中添加邮件推送通知。
+            {{ t('settings.smtp.hint') }}
           </p>
           <div class="settings__card">
             <div class="settings__field">
-              <label class="settings__field-label">SMTP 服务器</label>
+              <label class="settings__field-label">{{ t('settings.smtp.host') }}</label>
               <NInput v-model:value="smtpForm.host" placeholder="smtp.gmail.com" />
             </div>
             <div class="settings__field">
-              <label class="settings__field-label">端口</label>
+              <label class="settings__field-label">{{ t('settings.smtp.port') }}</label>
               <NInputNumber v-model:value="smtpForm.port" :min="1" :max="65535" class="w-full" placeholder="587" />
             </div>
             <div class="settings__field">
-              <label class="settings__field-label">用户名</label>
+              <label class="settings__field-label">{{ t('settings.smtp.user') }}</label>
               <NInput v-model:value="smtpForm.user" placeholder="your@gmail.com" />
             </div>
             <div class="settings__field">
-              <label class="settings__field-label">密码 / 授权码</label>
-              <NInput v-model:value="smtpForm.password" type="password" placeholder="SMTP 密码或应用专用密码" show-password-toggle />
-              <p v-if="smtpMaskedPwd" class="settings__hint">当前：{{ smtpMaskedPwd }}</p>
+              <label class="settings__field-label">{{ t('settings.smtp.password') }}</label>
+              <NInput v-model:value="smtpForm.password" type="password" :placeholder="t('settings.smtp.passwordPlaceholder')" show-password-toggle />
+              <p v-if="smtpMaskedPwd" class="settings__hint">{{ t('settings.smtp.currentKey', { key: smtpMaskedPwd }) }}</p>
             </div>
             <div class="settings__field">
-              <label class="settings__field-label">发件人地址</label>
-              <NInput v-model:value="smtpForm.sender" placeholder="留空则使用用户名作为发件人" />
+              <label class="settings__field-label">{{ t('settings.smtp.sender') }}</label>
+              <NInput v-model:value="smtpForm.sender" :placeholder="t('settings.smtp.senderPlaceholder')" />
             </div>
             <div class="settings__row">
-              <span class="settings__label">启用 TLS</span>
+              <span class="settings__label">{{ t('settings.smtp.useTls') }}</span>
               <NSwitch :value="smtpForm.use_tls" @update:value="smtpForm.use_tls = $event" />
             </div>
             <div class="settings__divider" />
             <div class="settings__actions">
-              <NButton :loading="smtpTesting" @click="testSmtpConnection">测试连接</NButton>
-              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">测试前将自动保存当前设置</span>
-              <NButton type="primary" class="btn-primary" :loading="smtpSaving" @click="saveSmtpSettings">保存设置</NButton>
+              <NButton :loading="smtpTesting" @click="testSmtpConnection">{{ t('settings.smtp.testConnection') }}</NButton>
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">{{ t('settings.smtp.testHint') }}</span>
+              <NButton type="primary" class="btn-primary" :loading="smtpSaving" @click="saveSmtpSettings">{{ t('settings.smtp.saveSettings') }}</NButton>
             </div>
             <p v-if="smtpTestResult" class="settings__result" :class="smtpTestResult.ok ? 'settings__result--ok' : 'settings__result--error'">
               {{ smtpTestResult.msg }}
             </p>
             <p v-if="smtpSaveMsg" class="settings__result settings__result--ok">{{ smtpSaveMsg }}</p>
+          </div>
+        </NCollapseItem>
+
+        <NCollapseItem v-if="authStore.canAdmin" name="storage" :title="t('settings.tabs.storage')">
+          <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 16px; padding: 12px; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-border);">
+            {{ t('settings.storage.hint') }}
+          </p>
+          <div class="settings__card">
+            <div class="settings__row">
+              <span class="settings__label">{{ t('settings.storage.currentBackend') }}</span>
+              <span style="font-weight: 600; color: var(--color-primary);">{{ storageInfo.backend }}</span>
+            </div>
+            <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 4px 0 0 0;">{{ storageInfo.description }}</p>
+
+            <template v-if="storageInfo.dialect">
+              <div class="settings__divider" />
+              <div class="settings__row">
+                <span class="settings__label">{{ t('settings.storage.dialect') }}</span>
+                <span>{{ storageInfo.dialect }}</span>
+              </div>
+              <div v-if="storageInfo.table_count !== null" class="settings__row">
+                <span class="settings__label">{{ t('settings.storage.tableCount') }}</span>
+                <span>{{ storageInfo.table_count }}</span>
+              </div>
+            </template>
+
+            <div class="settings__divider" />
+
+            <div class="settings__field">
+              <label class="settings__field-label">{{ t('settings.storage.configSummary') }}</label>
+              <div v-for="(value, key) in storageInfo.config" :key="key" class="settings__row">
+                <span class="settings__label" style="font-family: monospace; min-width: 140px;">{{ key }}</span>
+                <span style="font-family: monospace; word-break: break-all; text-align: right;">{{ value }}</span>
+              </div>
+            </div>
+
+            <div class="settings__divider" />
+
+            <div class="settings__field">
+              <label class="settings__field-label">{{ t('settings.storage.switchHint') }}</label>
+              <p style="font-size: var(--font-size-sm); color: var(--color-text-muted);">{{ t('settings.storage.switchHintText') }}</p>
+              <p style="font-size: var(--font-size-xs); color: #e6a23c; margin-top: 8px;">⚠ {{ t('settings.storage.needRestart') }}</p>
+            </div>
+
+            <!-- Available backends with pros/cons -->
+            <div class="settings__divider" />
+            <div class="settings__field">
+              <label class="settings__field-label">{{ t('settings.storage.availableBackends') }}</label>
+              <div v-for="opt in backendOptions" :key="opt.key"
+                :style="{
+                  border: '1px solid ' + (opt.key === storageInfo.backend ? 'var(--color-primary, #4f46e5)' : 'var(--color-border, #e0e0e0)'),
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '12px',
+                  marginBottom: '8px',
+                  backgroundColor: opt.key === storageInfo.backend ? 'var(--color-primary-bg, #eef2ff)' : 'transparent',
+                }">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <span style="font-weight: 600;">{{ opt.name }}</span>
+                  <span v-if="opt.key === storageInfo.backend" style="font-size: var(--font-size-xs); color: var(--color-primary, #4f46e5); font-weight: 600;">✓ {{ t('settings.storage.currentBackend') }}</span>
+                </div>
+                <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 0 0 8px 0;">{{ opt.scenario }}</p>
+                <code style="display: block; font-size: var(--font-size-xs); background: var(--color-bg-secondary, #f5f5f5); padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; word-break: break-all;">{{ opt.envValue }}</code>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: var(--font-size-sm);">
+                  <div>
+                    <p style="font-weight: 600; margin: 0 0 4px 0; color: #22c55e;">✅ {{ t('settings.storage.pros') }}</p>
+                    <ul style="margin: 0; padding-left: 16px; color: var(--color-text-muted);">
+                      <li v-for="(pro, i) in opt.pros" :key="i">{{ pro }}</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p style="font-weight: 600; margin: 0 0 4px 0; color: #ef4444;">❌ {{ t('settings.storage.cons') }}</p>
+                    <ul style="margin: 0; padding-left: 16px; color: var(--color-text-muted);">
+                      <li v-for="(con, i) in opt.cons" :key="i">{{ con }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </NCollapseItem>
+
+        <NCollapseItem name="language" :title="t('settings.tabs.language')">
+          <div class="settings__card">
+            <div class="settings__field">
+              <label class="settings__field-label">{{ t('settings.language.label') }}</label>
+              <NSelect v-model:value="currentLocale" :options="localeOptions" @update:value="onLocaleChange" />
+              <p class="settings__hint">{{ t('settings.language.hint') }}</p>
+            </div>
           </div>
         </NCollapseItem>
       </NCollapse>
@@ -250,9 +429,11 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAiApi } from '../composables/useWizardApi'
 import { useApi } from '../composables/useApi'
 import { useAuthStore } from '../stores/auth'
+import { setLocale, AVAILABLE_LOCALES, type AppLocale } from '../i18n'
 import { NButton, NInput, NSelect, NSwitch, NSlider, NInputNumber, NTabs, NTabPane, NCollapse, NCollapseItem, useMessage } from 'naive-ui'
 import AppNavBar from '../components/common/AppNavBar.vue'
 import ConnectionManager from '../components/common/ConnectionManager.vue'
@@ -270,6 +451,21 @@ interface AiSettingsForm {
 const { getAiSettings, updateAiSettings, testAiConnection } = useAiApi()
 const message = useMessage()
 const authStore = useAuthStore()
+const { t, tm, locale } = useI18n()
+
+// ─── Available backend options (read from i18n) ───
+interface BackendOption {
+  key: string
+  name: string
+  envValue: string
+  scenario: string
+  pros: string[]
+  cons: string[]
+}
+const backendOptions = computed<BackendOption[]>(() => {
+  const raw = tm('settings.storage.backendOptions') as Record<string, Omit<BackendOption, 'key'>>
+  return Object.entries(raw).map(([key, val]) => ({ key, ...val }))
+})
 
 // ─── Mobile detection ───
 const isMobile = ref(window.innerWidth < 768)
@@ -301,6 +497,20 @@ const defaultModel = computed(() => {
   return 'gpt-4o'
 })
 
+const baseUrlPlaceholder = computed(() => {
+  return form.provider === 'openai'
+    ? t('settings.ai.baseUrlPlaceholderOpenai')
+    : t('settings.ai.baseUrlPlaceholderRequired')
+})
+
+// ─── Language switcher ───
+const currentLocale = ref<AppLocale>(locale.value as AppLocale)
+const localeOptions = AVAILABLE_LOCALES.map(l => ({ label: l.label, value: l.value }))
+function onLocaleChange(val: AppLocale) {
+  setLocale(val)
+  currentLocale.value = val
+}
+
 interface AiTestResponse {
   provider?: string
   model?: string
@@ -316,17 +526,21 @@ async function testConnection() {
     const { ok, data } = await testAiConnection()
     if (ok && data) {
       const resp = data as AiTestResponse
-      const msg = `连接成功！${resp.provider}/${resp.model}，延迟 ${resp.latency_ms}ms`
+      const msg = t('settings.ai.connectionSuccess', {
+        provider: resp.provider || '',
+        model: resp.model || '',
+        latency: resp.latency_ms ?? 0,
+      })
       testResult.value = { ok: true, msg }
       message.success(msg)
     } else {
       const resp = data as AiTestResponse | null
-      const msg = resp?.detail || '连接失败'
+      const msg = resp?.detail || t('settings.ai.connectionFailed')
       testResult.value = { ok: false, msg }
       message.error(msg)
     }
   } catch {
-    const msg = '网络请求失败'
+    const msg = t('settings.ai.networkError')
     testResult.value = { ok: false, msg }
     message.error(msg)
   } finally {
@@ -342,7 +556,7 @@ async function saveSettings() {
     if (!body.api_key) body.api_key = null
     const ok = await updateAiSettings(body)
     if (ok) {
-      saveMsg.value = '设置已保存'
+      saveMsg.value = t('settings.ai.saved')
       const data = await getAiSettings()
       if (data) maskedKey.value = data.api_key as string
       setTimeout(() => saveMsg.value = '', 3000)
@@ -374,6 +588,21 @@ const smtpSaving = ref(false)
 const smtpTestResult = ref<{ ok: boolean; msg: string } | null>(null)
 const smtpSaveMsg = ref('')
 
+// ─── Storage backend info (read-only, admin only) ───
+const { request: storageRequest } = useApi()
+
+interface StorageBackendInfo {
+  backend: string
+  description: string
+  dialect: string | null
+  table_count: number | null
+  config: Record<string, string>
+}
+
+const storageInfo = reactive<StorageBackendInfo>({
+  backend: '', description: '', dialect: null, table_count: null, config: {},
+})
+
 onMounted(async () => {
   // Load AI settings
   const data = await getAiSettings()
@@ -397,6 +626,14 @@ onMounted(async () => {
     smtpForm.use_tls = (smtpData.use_tls as boolean) ?? true
     smtpMaskedPwd.value = (smtpData.password as string) || ''
   }
+
+  // Load storage backend info (admin only)
+  if (authStore.canAdmin) {
+    const storageData = await storageRequest<StorageBackendInfo>('GET', '/api/storage-backend')
+    if (storageData) {
+      Object.assign(storageInfo, storageData)
+    }
+  }
 })
 
 async function saveSmtpSettings() {
@@ -407,7 +644,7 @@ async function saveSmtpSettings() {
     if (!body.password) body.password = null
     const result = await smtpRequest<Record<string, unknown>>('PUT', '/api/notifications/smtp-settings', body)
     if (result) {
-      smtpSaveMsg.value = 'SMTP 设置已保存'
+      smtpSaveMsg.value = t('settings.smtp.saved')
       smtpMaskedPwd.value = (result.password as string) || ''
       setTimeout(() => smtpSaveMsg.value = '', 3000)
     }
@@ -423,12 +660,12 @@ async function testSmtpConnection() {
     await saveSmtpSettings()
     const result = await smtpRequest<Record<string, unknown>>('POST', '/api/notifications/smtp-test')
     if (result) {
-      smtpTestResult.value = { ok: !!result.success, msg: (result.message as string) || '测试完成' }
+      smtpTestResult.value = { ok: !!result.success, msg: (result.message as string) || t('settings.smtp.testComplete') }
     } else {
-      smtpTestResult.value = { ok: false, msg: '测试失败' }
+      smtpTestResult.value = { ok: false, msg: t('settings.smtp.testFailed') }
     }
   } catch {
-    smtpTestResult.value = { ok: false, msg: '网络请求失败' }
+    smtpTestResult.value = { ok: false, msg: t('settings.smtp.networkError') }
   } finally {
     smtpTesting.value = false
   }

@@ -1,6 +1,6 @@
 <template>
   <div v-for="cfg in configs" :key="cfg.id" class="config-card card-lift" :class="{ 'config-card--selected': batchMode && selectedIds.has(cfg.id) }">
-    <NCheckbox v-if="batchMode" :checked="selectedIds.has(cfg.id)" @update:checked="$emit('toggle-select', cfg.id)" class="config-card-check" />
+    <NCheckbox v-if="batchMode" :checked="selectedIds.has(cfg.id)" class="config-card-check" @update:checked="$emit('toggle-select', cfg.id)" />
     <div class="config-card-left">
       <span class="config-card-icon">📋</span>
       <div class="config-card-info">

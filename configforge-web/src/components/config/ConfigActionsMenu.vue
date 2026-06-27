@@ -22,6 +22,8 @@ const menuOptions = computed(() => [
   { label: '编辑', key: 'edit' },
   { label: '版本历史', key: 'versions' },
   { label: '下载 YAML', key: 'download' },
+  { label: '导出配置', key: 'export_yaml' },
+  { label: '导出为 JSON', key: 'export_json' },
   ...(props.canEdit !== false ? [{ label: '删除', key: 'delete' }] : []),
 ])
 </script>

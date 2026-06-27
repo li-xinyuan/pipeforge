@@ -298,7 +298,7 @@ describe('useApi', () => {
       )
       await api.getConfigDiff('c1', 1, 2)
       const url = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]
-      expect(url).toBe('/api/configs/c1/diff?v1=1&v2=2')
+      expect(url).toBe('/api/configs/c1/versions/diff?v1=1&v2=2')
     })
 
     it('rollbackConfig calls POST /api/configs/:id/versions/:v/rollback', async () => {

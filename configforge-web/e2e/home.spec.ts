@@ -1,4 +1,20 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
+
+test.beforeEach(async ({ page, request }) => {
+  // Login via API to get auth token (needed for UI tests with JWT enabled)
+  const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+    data: { username: 'admin', password: 'admin123' },
+  })
+  const data = await loginResp.json()
+  await page.addInitScript((authData) => {
+    localStorage.setItem('configforge_locale', 'zh-CN')
+    localStorage.setItem('configforge_auth', JSON.stringify({
+      token: authData.access_token,
+      user: authData.user,
+      mustChangePassword: false,
+    }))
+  }, data)
+})
 
 test.describe('Home Page', () => {
   test('displays home page with title', async ({ page }) => {

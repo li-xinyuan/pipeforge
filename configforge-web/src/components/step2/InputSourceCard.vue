@@ -1,51 +1,18 @@
 <template>
   <div class="input-source-card bg-[var(--color-surface)] dark:bg-[var(--color-surface)] border border-[var(--color-border-light)] dark:border-[var(--color-border)] rounded-lg overflow-hidden relative">
-    <!-- Header: name + plugin badge + delete -->
-    <div class="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-secondary)] dark:bg-[var(--color-surface-hover)] border-b border-[var(--color-border-light)] dark:border-[var(--color-border)]">
-      <span class="text-lg">{{ pluginIcon }}</span>
-      <span class="text-sm font-medium truncate flex-1">{{ input.table || '新输入源' }}</span>
-      <NTag :type="pluginTagType" size="small">{{ pluginLabel }}</NTag>
-      <NTag v-if="analyzing" type="warning" size="small">AI 分析中...</NTag>
-      <NButton text type="error" size="tiny" class="ml-auto" @click="confirmRemove">删除</NButton>
-    </div>
+    <!-- Header -->
+    <InputSourceHeader :input="input" :analyzing="analyzing" @remove="confirmRemove" />
 
     <!-- Body: Configuration fields -->
     <div class="p-3 cf-form-grid mb-0 relative">
       <!-- File upload (shown for file-based types, not database or api) -->
-      <div v-if="isFileBasedPlugin" class="col-span-2">
-        <template v-if="input.fileId && store.uploadedFiles[input.fileId]">
-          <div class="flex items-center gap-1">
-            <NTag type="success" size="small" class="truncate">
-              {{ store.uploadedFiles[input.fileId].originalName }}
-            </NTag>
-            <NButton text size="tiny" type="error" :disabled="analyzing" @click="removeFile">移除</NButton>
-          </div>
-        </template>
-        <NUpload
-          ref="uploadRef"
-          v-else
-          :custom-request="handleUpload"
-          :show-file-list="false"
-          :accept="fileAcceptAttr"
-          class="w-full"
-        >
-          <div :class="['border-2 border-dashed rounded-lg py-5 px-6 text-center cursor-pointer transition-colors',
-               uploading ? 'border-slate-300 bg-slate-50' : 'border-slate-300 hover:border-teal-400 hover:bg-teal-50/30',
-               { 'pulse-cta': pulseUpload }]"
-          >
-              <NSpin v-if="uploading" size="small" />
-              <span v-else class="text-3xl block mb-1.5">📤</span>
-              <span class="text-sm text-slate-500 dark:text-slate-400 block">
-                <template v-if="uploading"><span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">上传中...</span></template>
-                <template v-else>将文件拖拽到此处，或点击选择文件</template>
-              </span>
-              <span class="text-xs text-slate-400 dark:text-slate-500 mt-1 block">
-                支持 {{ fileAcceptHint }} 格式
-              </span>
-          </div>
-        </NUpload>
-        <p v-if="uploadError" class="text-xs text-red-500 mt-1">{{ uploadError }}</p>
-      </div>
+      <FileUploadSection
+        v-if="isFileBasedPlugin"
+        :input="input"
+        :pulse-upload="pulseUpload"
+        @update="handleUpdate"
+        @file-ready="(fileId: string) => emit('file-ready', fileId)"
+      />
 
       <!-- API input form (shown for api type only) -->
       <template v-if="input.plugin === 'api'">
@@ -72,26 +39,17 @@
       </div>
 
       <!-- Column preview -->
-      <div v-if="input.fileId || (input.plugin === 'api' && apiPreviewData)" class="col-span-2">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="cf-label" style="margin-bottom: 0;">列预览</span>
-          <NButton
-            v-if="!previewData && !apiPreviewData"
-            text
-            size="tiny"
-            :loading="previewLoading"
-            @click="input.plugin === 'api' ? loadApiPreview() : loadPreview()"
-          >{{ previewLoading ? '加载中...' : '加载' }}</NButton>
-          <NButton
-            v-else
-            text
-            size="tiny"
-            @click="previewVisible = !previewVisible"
-          >{{ previewVisible ? '收起' : '展开' }}</NButton>
-        </div>
-        <p v-if="error && !previewLoading" class="text-xs text-red-500 mb-2">{{ error.message }}</p>
-        <ColumnPreview v-if="(previewData || apiPreviewData) && previewVisible" :columns="(previewData || apiPreviewData)!.columns" :rows="(previewData || apiPreviewData)!.rows" />
-      </div>
+      <ColumnPreviewPanel
+        :input="input"
+        :preview-data="previewData"
+        :api-preview-data="apiPreviewData"
+        :preview-visible="previewVisible"
+        :preview-loading="previewLoading"
+        :error="error"
+        @load-preview="loadPreview"
+        @load-api-preview="loadApiPreview"
+        @toggle-visible="previewVisible = !previewVisible"
+      />
 
       <!-- Table name -->
       <div>
@@ -99,11 +57,11 @@
         <NInput
           :id="`input-table-${index}`"
           :value="input.table"
-          @update:value="$emit('update', { ...input, table: $event })"
           placeholder="例如：销售数据"
           size="small"
           :status="tableNameError ? 'error' : undefined"
           :disabled="analyzing"
+          @update:value="$emit('update', { ...input, table: $event })"
         />
         <p v-if="tableNameError" class="text-xs text-red-500 mt-1">{{ tableNameError }}</p>
         <p v-else class="text-xs text-slate-400 dark:text-slate-500 mt-1">给这个数据源起个名字，方便后续引用</p>
@@ -115,45 +73,17 @@
         <NInput
           :id="`input-key-${index}`"
           :value="input.paramKey"
-          @update:value="$emit('update', { ...input, paramKey: $event })"
           placeholder="例如：date"
           size="small"
           :disabled="analyzing"
+          @update:value="$emit('update', { ...input, paramKey: $event })"
         />
         <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">可选，用于定时执行时传入参数</p>
       </div>
     </div>
 
-    <!-- Confirmed AI Analysis -->
-    <div v-if="input.confirmedAnalysis" class="mb-4 border border-blue-200 bg-blue-50/40 dark:bg-blue-900/30 rounded-md px-3 py-2">
-      <div class="flex items-center gap-2 mb-1.5">
-        <span class="text-xs font-medium text-blue-700 dark:text-blue-300">AI 分析确认</span>
-      </div>
-      <div v-if="Object.keys(input.confirmedAnalysis.columnTypes).length" class="flex flex-wrap gap-1 mb-1.5">
-        <NTag
-          v-for="(type, col) in input.confirmedAnalysis.columnTypes"
-          :key="col"
-          size="tiny"
-          :bordered="false"
-          :type="columnTypeTagType(type)"
-        >{{ col }}: {{ type }}</NTag>
-      </div>
-      <div v-if="input.confirmedAnalysis.paramKeys.length" class="flex flex-wrap gap-1">
-        <span class="text-[10px] text-slate-400 dark:text-slate-500 mr-0.5">Keys:</span>
-        <NTag
-          v-for="key in input.confirmedAnalysis.paramKeys"
-          :key="key"
-          size="tiny"
-          type="info"
-        >{{ key }}</NTag>
-      </div>
-    </div>
-
-    <!-- AI analysis overlay -->
-    <div v-if="analyzing" class="absolute inset-0 bg-[var(--color-surface)]/65 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 rounded-md" style="pointer-events: auto; cursor: wait;">
-      <NSpin size="medium" />
-      <span class="text-sm text-teal-600 font-medium">AI 分析中...</span>
-    </div>
+    <!-- Confirmed AI Analysis & overlay -->
+    <ConfirmedAnalysisPanel :confirmed-analysis="input.confirmedAnalysis ?? null" :analyzing="analyzing" />
 
     <p v-if="!input.fileId && input.plugin !== 'database' && input.plugin !== 'api'" class="text-xs text-slate-400 dark:text-slate-500 mt-2">请先上传文件以加载列预览</p>
 
@@ -179,16 +109,17 @@ import { ref, computed, onMounted, watch } from 'vue'
 import type { InputSource, ExcelInputConfig, ApiInputConfig, ConfirmedAnalysis } from '../../types/wizard'
 import { useWizardStore } from '../../stores/wizard'
 import { useWizardApi, useAiApi } from '../../composables/useWizardApi'
-import { useFileUpload } from '../../composables/useFileUpload'
 import { useApi, ApiError } from '../../composables/useApi'
-import { NInput, NButton, NTag, NUpload, NSpin, useDialog } from 'naive-ui'
-import type { UploadCustomRequestOptions } from 'naive-ui'
-import ColumnPreview from './ColumnPreview.vue'
+import { NInput, useDialog } from 'naive-ui'
 import AiColumnConfirmModal from './AiColumnConfirmModal.vue'
 import AiTriggerButton from '../common/AiTriggerButton.vue'
 import DatabaseForm from './DatabaseForm.vue'
 import ApiForm from './ApiForm.vue'
 import FileInputForm from './FileInputForm.vue'
+import InputSourceHeader from './InputSourceHeader.vue'
+import ColumnPreviewPanel from './ColumnPreviewPanel.vue'
+import FileUploadSection from './FileUploadSection.vue'
+import ConfirmedAnalysisPanel from './ConfirmedAnalysisPanel.vue'
 
 const props = defineProps<{
   input: InputSource
@@ -216,7 +147,6 @@ function confirmRemove() {
 
 const store = useWizardStore()
 const { fetchPreview, error } = useWizardApi()
-const { uploading, error: uploadError, upload } = useFileUpload()
 const { suggesting: analyzing, aiError, askSuggestion } = useAiApi()
 const { apiPreview } = useApi()
 const previewData = ref<{ columns: string[]; rows: string[][] } | null>(null)
@@ -243,64 +173,10 @@ const tableNameError = computed(() => {
   return ''
 })
 
-// Plugin metadata helpers
-const pluginIconMap: Record<string, string> = {
-  csv: '🗄',
-  database: '🔌',
-  excel: '📊',
-  json: '📋',
-  xml: '📰',
-  parquet: '📦',
-  api: '🌐',
-}
-
-const pluginLabelMap: Record<string, string> = {
-  csv: 'CSV',
-  database: 'DB',
-  excel: 'Excel',
-  json: 'JSON',
-  xml: 'XML',
-  parquet: 'Parquet',
-  api: 'API',
-}
-
-const pluginTagTypeMap: Record<string, 'info' | 'warning' | 'success' | 'default'> = {
-  csv: 'info',
-  database: 'warning',
-  excel: 'success',
-  json: 'default',
-  xml: 'default',
-  parquet: 'default',
-  api: 'info',
-}
-
-const pluginIcon = computed(() => pluginIconMap[props.input.plugin] || '📄')
-const pluginLabel = computed(() => pluginLabelMap[props.input.plugin] || props.input.plugin)
-const pluginTagType = computed(() => pluginTagTypeMap[props.input.plugin] || 'default')
-
 // File-based plugins (show file upload)
 const isFileBasedPlugin = computed(() =>
   ['excel', 'csv', 'json', 'xml', 'parquet'].includes(props.input.plugin)
 )
-
-const fileAcceptMap: Record<string, string> = {
-  csv: '.csv',
-  excel: '.xlsx,.xls',
-  json: '.json',
-  xml: '.xml',
-  parquet: '.parquet',
-}
-
-const fileAcceptHintMap: Record<string, string> = {
-  csv: '.csv / .tsv',
-  excel: '.xlsx / .xls',
-  json: '.json',
-  xml: '.xml',
-  parquet: '.parquet',
-}
-
-const fileAcceptAttr = computed(() => fileAcceptMap[props.input.plugin] || '')
-const fileAcceptHint = computed(() => fileAcceptHintMap[props.input.plugin] || '')
 
 function handleUpdate(updated: InputSource) {
   emit('update', updated)
@@ -414,16 +290,6 @@ function handleModalClose() {
   modalRawText.value = null
 }
 
-function columnTypeTagType(type: string) {
-  switch (type) {
-    case 'string': return 'success' as const
-    case 'number': return 'info' as const
-    case 'date': return 'warning' as const
-    case 'boolean': return 'error' as const
-    default: return 'default' as const
-  }
-}
-
 onMounted(async () => {
   if (props.input.fileId) {
     const data = await fetchPreview(props.input.fileId)
@@ -433,7 +299,6 @@ onMounted(async () => {
       if (existing && (!existing.columns || !existing.sampleRows)) {
         store.addFileRef(props.input.fileId, { ...existing, columns: data.columns, sampleRows: data.rows })
       }
-      // Auto-load and expand preview when file is uploaded
       previewData.value = data
       previewVisible.value = true
     }
@@ -443,69 +308,6 @@ onMounted(async () => {
 watch(() => (props.input.config as ExcelInputConfig).sheet, () => {
   if (previewVisible.value) loadPreview()
 })
-
-function generateTableName(originalName: string): string {
-  const base = originalName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9一-鿿_]/g, '_')
-  const existing = store.inputs.map(inp => inp.table.trim()).filter(Boolean)
-  let name = base
-  let seq = 0
-  while (existing.includes(name)) {
-    seq++
-    name = `${base}_${seq}`
-  }
-  return name
-}
-
-async function handleUpload({ file, onFinish, onError }: UploadCustomRequestOptions) {
-  if (!file.file) return
-  const meta = await upload(file.file)
-  if (meta) {
-    const data = await fetchPreview(meta.fileId)
-    store.addFileRef(meta.fileId, {
-      ...meta,
-      columns: data?.columns,
-      sampleRows: data?.rows,
-    })
-    if (data) {
-      sheetNames.value = data.sheets
-      previewData.value = data
-      previewVisible.value = true
-      if (props.input.plugin === 'excel') {
-        emit('update', {
-          ...props.input,
-          fileId: meta.fileId,
-          config: { ...props.input.config, sheet: data.sheets[0] || 'Sheet1' } as ExcelInputConfig,
-          table: generateTableName(meta.originalName),
-          confirmedAnalysis: undefined,
-        })
-      } else {
-        emit('update', {
-          ...props.input,
-          fileId: meta.fileId,
-          table: generateTableName(meta.originalName),
-          confirmedAnalysis: undefined,
-        })
-      }
-    } else {
-      emit('update', { ...props.input, fileId: meta.fileId, confirmedAnalysis: undefined })
-    }
-    emit('file-ready', meta.fileId)
-    onFinish()
-  } else {
-    onError()
-  }
-}
-
-function removeFile() {
-  sheetNames.value = []
-  previewData.value = null
-  previewVisible.value = false
-  if (props.input.plugin === 'excel') {
-    emit('update', { ...props.input, fileId: '', config: { ...props.input.config, sheet: '' } as ExcelInputConfig, table: '', confirmedAnalysis: undefined })
-  } else {
-    emit('update', { ...props.input, fileId: '', table: '', confirmedAnalysis: undefined })
-  }
-}
 
 async function loadPreview() {
   if (!props.input.fileId) return

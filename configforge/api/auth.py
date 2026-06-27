@@ -8,14 +8,12 @@ from configforge.middleware.jwt import (
     is_jwt_enabled,
 )
 from configforge.models.user import User
-from configforge.services.user_store import (
-    authenticate,
-    change_password,
-    create_user,
-    get_user_by_id,
-)
+from configforge.storage import get_audit_store, get_user_store
 
 router = APIRouter(prefix="/api/auth", tags=["认证管理"])
+
+_user_store = get_user_store()
+_audit = get_audit_store()
 
 
 class LoginRequest(BaseModel):
@@ -61,7 +59,7 @@ async def login(req: LoginRequest):
             detail={"error": "JWT authentication is not enabled. Set CONFIGFORGE_JWT_SECRET to enable.", "code": "AUTH_DISABLED"},
         )
 
-    user = authenticate(req.username, req.password)
+    user = _user_store.authenticate(req.username, req.password)
     if not user:
         raise HTTPException(
             status_code=401,
@@ -92,12 +90,23 @@ async def register(req: RegisterRequest, _user: User = Depends(require_role("adm
             detail={"error": "Invalid role. Must be admin, editor, or viewer", "code": "INVALID_ROLE"},
         )
 
-    user = create_user(req.username, req.password, req.role)
+    user = _user_store.create_user(req.username, req.password, req.role)
     if not user:
         raise HTTPException(
             status_code=409,
             detail={"error": "Username already exists", "code": "USERNAME_EXISTS"},
         )
+
+    _audit.log_audit(
+        action="create",
+        target_type="user",
+        target_id=user.id,
+        details={
+            "user": _user.username,
+            "new_username": user.username,
+            "role": user.role,
+        },
+    )
 
     return {"id": user.id, "username": user.username, "role": user.role, "created_at": user.created_at}
 
@@ -107,9 +116,15 @@ async def change_password_endpoint(req: ChangePasswordRequest, request: Request)
     payload = _get_current_user_from_request(request)
     if not payload:
         raise HTTPException(401, detail={"error": "Authentication required", "code": "AUTH_REQUIRED"})
-    success = change_password(payload.get("sub", ""), req.old_password, req.new_password)
+    success = _user_store.change_password(payload.get("sub", ""), req.old_password, req.new_password)
     if not success:
         raise HTTPException(400, detail={"error": "旧密码错误", "code": "INVALID_PASSWORD"})
+    _audit.log_audit(
+        action="update",
+        target_type="user",
+        target_id=payload.get("sub", ""),
+        details={"user": payload.get("username", ""), "field": "password"},
+    )
     return {"message": "密码修改成功"}
 
 
@@ -129,7 +144,7 @@ async def get_current_user(request: Request):
             detail={"error": "Invalid or expired token", "code": "AUTH_FAILED"},
         )
 
-    user = get_user_by_id(payload.get("sub", ""))
+    user = _user_store.get_user_by_id(payload.get("sub", ""))
     if not user:
         raise HTTPException(
             status_code=401,

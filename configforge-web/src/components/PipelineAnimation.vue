@@ -1,7 +1,7 @@
 <template>
   <div class="anim-frame">
     <div class="anim-frame__bar">
-      <span class="anim-frame__dots"><i></i><i></i><i></i></span>
+      <span class="anim-frame__dots"><i /><i /><i /></span>
       <span class="anim-frame__title">ConfigForge 配置向导</span>
     </div>
     <div class="anim-frame__viewport">
@@ -21,7 +21,7 @@
             <div class="a-panel">
               <div class="a-panel__title">🤖 AI 助手</div>
               <div class="a-panel__text">请填写场景名称，描述你的数据处理目标</div>
-              <div class="a-panel__dots"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="a-panel__dots"><i /><i /><i /><i /><i /></div>
             </div>
           </div>
         </div>
@@ -48,7 +48,7 @@
             <div class="a-panel">
               <div class="a-panel__title">🤖 AI 助手</div>
               <div class="a-panel__text">请选择数据来源类型。支持 7 种格式，上传后可 AI 分析列结构</div>
-              <div class="a-panel__dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+              <div class="a-panel__dots"><i class="on" /><i class="on" /><i /><i /><i /></div>
             </div>
           </div>
         </div>
@@ -78,7 +78,7 @@
             <div class="a-panel">
               <div class="a-panel__title">🤖 AI 助手</div>
               <div class="a-panel__text">已根据场景自动生成 SQL 代码。支持自然语言描述需求，AI 生成查询</div>
-              <div class="a-panel__dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <div class="a-panel__dots"><i class="on" /><i class="on" /><i class="on" /><i /><i /></div>
             </div>
           </div>
         </div>
@@ -106,7 +106,7 @@
             <div class="a-panel">
               <div class="a-panel__title">🤖 AI 助手</div>
               <div class="a-panel__text">列映射已自动完成。输出格式为 Excel，文件名自动生成</div>
-              <div class="a-panel__dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+              <div class="a-panel__dots"><i class="on" /><i class="on" /><i class="on" /><i class="on" /><i /></div>
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@
             <div class="a-panel a-panel--done">
               <div class="a-panel__title">🤖 AI 助手</div>
               <div class="a-panel__text">🎉 配置完成！5 个步骤全部就绪，可下载 YAML 或直接执行</div>
-              <div class="a-panel__dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+              <div class="a-panel__dots"><i class="on" /><i class="on" /><i class="on" /><i class="on" /><i class="on" /></div>
             </div>
           </div>
         </div>

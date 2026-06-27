@@ -6,6 +6,7 @@
           <div class="app-shell">
             <router-view />
           </div>
+          <PwaUpdatePrompt />
         </NDialogProvider>
       </NModalProvider>
     </NMessageProvider>
@@ -22,6 +23,7 @@ import {
   darkTheme,
 } from 'naive-ui'
 import { useTheme } from './composables/useTheme'
+import PwaUpdatePrompt from './components/common/PwaUpdatePrompt.vue'
 import 'highlight.js/lib/languages/yaml'
 
 const { isDark, initTheme } = useTheme()

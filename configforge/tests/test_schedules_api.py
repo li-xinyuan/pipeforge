@@ -8,6 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 import configforge.api.configs as configs_module
 import configforge.scheduler as scheduler
+import configforge.services.config_store as config_store_module
 from configforge.server import app
 
 
@@ -21,9 +22,12 @@ def _setup_test_env(tmp_path, monkeypatch):
     monkeypatch.setattr(scheduler, "SCHEDULES_PATH", os.path.join(data_dir, "schedules.json"))
     monkeypatch.setattr(scheduler, "_scheduler", None)
 
+    # Patch both api/configs.py (backward compat) and services/config_store.py (actual logic)
     monkeypatch.setattr(configs_module, "CONFIGS_DIR", configs_dir)
     monkeypatch.setattr(configs_module, "INDEX_PATH", os.path.join(configs_dir, "index.json"))
-    configs_module._cache.invalidate("index")
+    monkeypatch.setattr(config_store_module, "CONFIGS_DIR", configs_dir)
+    monkeypatch.setattr(config_store_module, "INDEX_PATH", os.path.join(configs_dir, "index.json"))
+    config_store_module._cache.invalidate("index")
 
     os.makedirs(data_dir, exist_ok=True)
     os.makedirs(configs_dir, exist_ok=True)

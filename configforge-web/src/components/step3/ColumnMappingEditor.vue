@@ -7,7 +7,9 @@
           v-if="plugin === 'csv'"
           size="small"
           @click="onInferColumns"
-        >{{ inferColumnLabel }}</NButton>
+        >
+          {{ inferColumnLabel }}
+        </NButton>
         <AiTriggerButton
           v-else
           label="AI 推断列映射"

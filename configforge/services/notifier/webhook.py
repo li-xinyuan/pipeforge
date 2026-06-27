@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 
 from .base import NotifierBase, NotifyContext, NotifyResult
-from .formatters import format_dingtalk, format_feishu, format_generic, format_wecom
+from .formatters import format_dingtalk, format_feishu, format_generic, format_wecom, render_template
 
 # Map provider name → formatter function
 FORMATTERS = {
@@ -24,16 +24,34 @@ class WebhookNotifier(NotifierBase):
         headers: dict[str, str] | None = None,
         timeout: float = 10.0,
         max_retries: int = 1,
+        message_template: str = "",
     ) -> None:
         self.url = url
         self.provider = provider
         self.headers = headers or {}
         self.timeout = timeout
         self.max_retries = max_retries
+        self.message_template = message_template
 
     def _build_payload(self, context: NotifyContext) -> dict:
         formatter = FORMATTERS.get(self.provider, format_generic)
-        return formatter(context)
+        payload = formatter(context)
+        # If a custom message template is set, override the message body
+        if self.message_template:
+            rendered = render_template(self.message_template, context)
+            if self.provider == "dingtalk" and "markdown" in payload:
+                payload["markdown"]["text"] = rendered
+            elif self.provider == "wecom" and "markdown" in payload:
+                payload["markdown"]["content"] = rendered
+            elif self.provider == "feishu" and "card" in payload:
+                # Replace elements with a single text element
+                payload["card"]["elements"] = [{
+                    "tag": "div",
+                    "text": {"tag": "lark_md", "content": rendered},
+                }]
+            elif self.provider == "generic":
+                payload["message"] = rendered
+        return payload
 
     async def send(self, context: NotifyContext) -> NotifyResult:
         payload = self._build_payload(context)

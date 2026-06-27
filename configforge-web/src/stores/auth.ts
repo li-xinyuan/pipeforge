@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import router from '../router'
-import { ApiError, handleApiError } from '../composables/useApi'
+import { ApiError, handleApiError, useApi } from '../composables/useApi'
 
 export interface AuthUser {
   id: string
@@ -25,55 +25,54 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** Check if JWT auth is enabled on the backend */
   async function checkJwtStatus(): Promise<boolean> {
+    // Use raw fetch (not useApi) so a 401 probe response does not trigger
+    // the global 401 handler that would clearAuth() + redirect to /login.
     try {
       const resp = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: '__probe__', password: '__probe__' }),
       })
-      const data = await resp.json()
-      // If AUTH_DISABLED, JWT is not enabled
-      if (data.code === 'AUTH_DISABLED') {
+      const data = await resp.json().catch(() => null) as { detail?: { code?: string } } | null
+      if (resp.status === 400 && data?.detail?.code === 'AUTH_DISABLED') {
         jwtEnabled.value = false
         return false
       }
-      // Any other response means JWT is enabled
+      // Any other response (401 AUTH_FAILED, 200, etc.) means JWT is enabled
       jwtEnabled.value = true
       return true
     } catch {
-      // Network error — assume no auth
-      jwtEnabled.value = false
-      return false
+      // Network error — assume JWT is enabled to be safe (will be re-checked on login)
+      jwtEnabled.value = true
+      return true
     }
   }
 
   /** Login with username and password */
   async function login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const resp = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+      const api = useApi()
+      const data = await api.requestOrThrow<{ access_token: string; user: AuthUser; code?: string }>('POST', '/api/auth/login', {
+        username,
+        password,
       })
-      const data = await resp.json()
-
-      if (!resp.ok) {
-        if (data.code === 'AUTH_DISABLED') {
-          jwtEnabled.value = false
-          return { success: false, error: '认证服务未启用' }
-        }
-        if (data.code === 'AUTH_FAILED') {
-          return { success: false, error: '用户名或密码错误' }
-        }
-        return { success: false, error: data.error || '登录失败' }
-      }
 
       token.value = data.access_token
       user.value = data.user
       mustChangePassword.value = data.user.must_change_password || false
       jwtEnabled.value = true
       return { success: true }
-    } catch {
+    } catch (e) {
+      if (e instanceof ApiError) {
+        if (e.code === 'AUTH_DISABLED') {
+          jwtEnabled.value = false
+          return { success: false, error: '认证服务未启用' }
+        }
+        if (e.code === 'AUTH_FAILED') {
+          return { success: false, error: '用户名或密码错误' }
+        }
+        return { success: false, error: e.message || '登录失败' }
+      }
       return { success: false, error: '网络连接失败' }
     }
   }
@@ -82,24 +81,14 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchUser(): Promise<boolean> {
     if (!token.value) return false
     try {
-      const resp = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token.value}` },
-      })
-      if (resp.status === 401) {
-        handleApiError(new ApiError('登录已过期，请重新登录', 'AUTH_FAILED', 401))
-        return false
-      }
-      if (resp.status === 403) {
-        handleApiError(new ApiError('权限不足', 'FORBIDDEN', 403))
-        return false
-      }
-      if (!resp.ok) {
-        handleApiError(new ApiError(`请求失败 (${resp.status})`, 'API_ERROR', resp.status))
-        return false
-      }
-      user.value = await resp.json()
+      const api = useApi()
+      const data = await api.requestOrThrow<AuthUser>('GET', '/api/auth/me')
+      user.value = data
       return true
-    } catch {
+    } catch (e) {
+      if (e instanceof ApiError) {
+        handleApiError(e)
+      }
       return false
     }
   }
@@ -134,9 +123,8 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth,
   }
 }, {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pinia-plugin-persistedstate pick type mismatch
   persist: {
     key: 'configforge_auth',
-    pick: ['token', 'user', 'mustChangePassword'],
-  } as any,
+    paths: ['token', 'user', 'mustChangePassword'],
+  },
 })

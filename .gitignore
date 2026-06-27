@@ -34,6 +34,10 @@ demo/screenshots/
 
 # pytest
 .pytest_cache/
+.coverage
+
+# Playwright test results
+configforge-web/test-results/
 
 # Node
 node_modules/
