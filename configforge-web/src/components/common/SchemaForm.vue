@@ -9,7 +9,7 @@
     - `type`：鉴别联合 discriminator，由父组件窄化决定
     - `file`：pipeforge 运行时注入字段，前端不收集
   -->
-  <div class="schema-form">
+  <div class="schema-form" :class="{ 'cf-form-grid': grid }">
     <div v-for="field in renderableFields" :key="field.key" class="schema-form-field">
       <!-- 命名 widget：完全委托，由 widget 自行管理 v-model -->
       <!-- widgetProps 透传 per-instance 数据（如 sheet-selector 的 options） -->
@@ -139,6 +139,8 @@ const props = defineProps<{
    * 用于跳过由其他组件处理的字段（如 output 的 columns/sourceTable）。
    */
   skipFields?: string[]
+  /** 启用 2 列网格布局（用于嵌入 cf-form-grid 时让内部字段均匀排列）。 */
+  grid?: boolean
 }>()
 
 const emit = defineEmits<{

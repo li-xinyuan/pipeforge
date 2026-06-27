@@ -62,6 +62,8 @@
   <!-- CSV/Excel 输出字段 — SchemaForm 驱动（限制①第二阶段迁移） -->
   <SchemaForm
     v-if="store.output?.plugin === 'csv' && csvOutputSchema"
+    class="cf-form-group--full"
+    grid
     :model-value="store.output.config as unknown as Record<string, unknown>"
     :schema="csvOutputSchema"
     :skip-fields="['columns', 'sourceTable']"
@@ -70,6 +72,8 @@
   />
   <SchemaForm
     v-else-if="store.output?.plugin === 'excel' && excelOutputSchema"
+    class="cf-form-group--full"
+    grid
     :model-value="store.output.config as unknown as Record<string, unknown>"
     :schema="excelOutputSchema"
     :skip-fields="['columns', 'sourceTable', 'template', 'sheet']"

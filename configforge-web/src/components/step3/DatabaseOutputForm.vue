@@ -11,6 +11,8 @@
   -->
   <template v-if="store.output?.plugin === 'database' && dbOutputSchema">
     <SchemaForm
+      class="cf-form-group--full"
+      grid
       :model-value="store.output.config as unknown as Record<string, unknown>"
       :schema="dbOutputSchema"
       :skip-fields="['columns', 'sourceTable', 'primaryKeyColumns']"
