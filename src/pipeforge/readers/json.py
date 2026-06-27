@@ -75,17 +75,28 @@ def _iter_flat_dicts(file_content: bytes, flatten_separator: str) -> Iterator[di
 
 
 def _iter_flat_dicts_streaming(file_content: bytes, flatten_separator: str) -> Iterator[dict]:
-    """ijson 流式产出。"""
+    """ijson 流式产出。
+
+    若顶层不是数组（如单个对象），ijson.items(stream, "item", ...) 不会抛
+    JSONError，只是静默产出 0 项。需自行检测并 fallback 到全量加载。
+    """
     import io as _io
 
     stream = _io.BytesIO(file_content)
+    yielded = False
     try:
         parser = ijson.items(stream, "item", use_float=True)
         for item in parser:
             if isinstance(item, dict):
+                yielded = True
                 yield _flatten(item, separator=flatten_separator)
     except ijson.JSONError:
         # 非顶层数组，回退到全量加载
+        yield from _iter_flat_dicts_fallback(file_content, flatten_separator)
+        return
+
+    # 顶层是单个对象等情况：流式未产出任何项，回退到全量加载
+    if not yielded:
         yield from _iter_flat_dicts_fallback(file_content, flatten_separator)
 
 
