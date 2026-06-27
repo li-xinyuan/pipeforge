@@ -29,7 +29,13 @@ class SQLiteManager:
         else:
             fd, self.path = tempfile.mkstemp(suffix=".db", prefix="pipeforge_")
             os.close(fd)
-        self._conn = sqlite3.connect(self.path)
+        # check_same_thread=False allows the connection to be used across threads.
+        # This is required for SSE streaming execution (execute_with_progress),
+        # where the connection is created in the async event loop thread but
+        # individual phases (input/processor/output) run in worker threads via
+        # asyncio.to_thread(). Access remains sequential (each phase is awaited),
+        # so there is no concurrent access and this is safe.
+        self._conn = sqlite3.connect(self.path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
 
