@@ -36,7 +36,7 @@ describe('CheckpointSection', () => {
   function mountComponent(checkpoints: CheckRule[] = []) {
     return mount(CheckpointSection, {
       props: {
-        checkpoints,
+        modelValue: checkpoints,
         procIndex: 1,
         availableTables: [
           { table_name: 'output', columns: ['id', 'name', 'status', 'amount'] },
@@ -83,7 +83,7 @@ describe('CheckpointSection', () => {
     expect(addRuleBtn).toBeTruthy()
     await addRuleBtn!.trigger('click')
 
-    const emitted = wrapper.emitted('update:checkpoints') as unknown as [CheckRule[]][] | undefined
+    const emitted = wrapper.emitted('update:modelValue') as unknown as [CheckRule[]][] | undefined
     expect(emitted).toBeTruthy()
     expect(emitted![0][0]).toHaveLength(1)
     expect(emitted![0][0][0].type).toBe('row_count')
@@ -98,7 +98,7 @@ describe('CheckpointSection', () => {
     expect(deleteBtn).toBeTruthy()
     await deleteBtn!.trigger('click')
 
-    const emitted = wrapper.emitted('update:checkpoints') as unknown as [CheckRule[]][] | undefined
+    const emitted = wrapper.emitted('update:modelValue') as unknown as [CheckRule[]][] | undefined
     expect(emitted).toBeTruthy()
     expect(emitted![0][0]).toHaveLength(0)
   })

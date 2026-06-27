@@ -32,9 +32,9 @@
       />
     </div>
     <CheckpointSection
-      :checkpoints="proc.checkpoints || []"
+      :model-value="proc.checkpoints || []"
       :proc-index="index"
-      @update:checkpoints="(rules: CheckRule[]) => $emit('update', { checkpoints: rules } as Partial<ProcessorStep>)"
+      @update:model-value="(rules: CheckRule[]) => $emit('update', { checkpoints: rules } as Partial<ProcessorStep>)"
     />
   </div>
 </template>
@@ -45,6 +45,10 @@ import type { ProcessorStep, CheckRule } from '../../types/wizard'
 import SqlProcessorContent from './SqlProcessorContent.vue'
 import PythonProcessorContent from './PythonProcessorContent.vue'
 import CheckpointSection from './CheckpointSection.vue'
+import { registerWidget } from '../../composables/widgetRegistry'
+
+// 注册 checkpoint-rules 命名 widget（processor 的 checkpoints 字段引用）
+registerWidget('checkpoint-rules', CheckpointSection)
 
 defineProps<{
   proc: ProcessorStep

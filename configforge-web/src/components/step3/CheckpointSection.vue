@@ -209,21 +209,33 @@ import type {
   EnumCheckRule,
 } from '../../types/wizard'
 
+/**
+ * CheckpointSection — 数据检查点规则编辑器（限制①第三阶段迁移为命名 widget）。
+ *
+ * Widget 协议：
+ * - modelValue: CheckRule[]（检查点规则数组）
+ * - update:modelValue: 规则变更时 emit
+ *
+ * 额外 props（通过 widgetProps 透传）：
+ * - procIndex: 处理器索引
+ * - availableTables: 可用表及其列（用于列选择选项）
+ */
 const props = defineProps<{
-  checkpoints: CheckRule[]
+  /** 检查点规则数组（widget 协议：modelValue）。 */
+  modelValue: CheckRule[]
   procIndex: number
   availableTables?: Array<{ table_name: string; columns: string[] }>
 }>()
 
 const emit = defineEmits<{
-  'update:checkpoints': [rules: CheckRule[]]
+  'update:modelValue': [rules: CheckRule[]]
 }>()
 
 const expanded = ref(false)
 
 const rules = computed<CheckRule[]>({
-  get: () => props.checkpoints,
-  set: (val) => emit('update:checkpoints', val),
+  get: () => props.modelValue,
+  set: (val) => emit('update:modelValue', val),
 })
 
 const ruleTypeOptions = [
@@ -287,14 +299,14 @@ function addRule() {
     max: undefined,
     on_failure: 'block',
   }
-  emit('update:checkpoints', [...rules.value, newRule])
+  emit('update:modelValue', [...rules.value, newRule])
   expanded.value = true
 }
 
 function removeRule(index: number) {
   const updated = [...rules.value]
   updated.splice(index, 1)
-  emit('update:checkpoints', updated)
+  emit('update:modelValue', updated)
 }
 
 function onRuleTypeChange(index: number, newType: string) {
@@ -327,7 +339,7 @@ function onRuleTypeChange(index: number, newType: string) {
 
   const updated = [...rules.value]
   updated[index] = newRule
-  emit('update:checkpoints', updated)
+  emit('update:modelValue', updated)
 }
 
 function enumValuesText(index: number): string {
@@ -346,7 +358,7 @@ function updateEnumValues(index: number, text: string) {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
-    emit('update:checkpoints', updated)
+    emit('update:modelValue', updated)
   }
 }
 </script>
