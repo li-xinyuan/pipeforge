@@ -654,7 +654,7 @@ onUnmounted(() => {
 .wizard__steps {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 0 0 0;
+  padding: 12px 0 0 0;
 }
 
 /* === Step 1 Form === */
