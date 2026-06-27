@@ -78,7 +78,6 @@ test.describe('Full Wizard Flow', () => {
   test('step 1 form fill -> step 2', async ({ page }) => {
     await page.goto('/config/new')
     await fillByPlaceholder(page, '例如：销售报表生成', '月度考勤报表')
-    await fillByPlaceholder(page, '1.0', '1.2')
     await fillByPlaceholder(page, '描述这个配置管道的用途...', '汇总数据生成月度统计')
     await clickNext(page)
     await page.waitForURL('**/step/2', { timeout: 10000 }).catch(() => {})

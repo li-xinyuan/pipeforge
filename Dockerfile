@@ -25,6 +25,9 @@ RUN uv pip install --system -r pyproject.toml
 COPY configforge/ ./configforge/
 COPY src/ ./src/
 
+# pipeforge 包在 src/ 下，需加入 PYTHONPATH 才能被 import
+ENV PYTHONPATH=/app/src
+
 # Copy built frontend assets
 COPY --from=build-frontend /app/configforge-web/dist ./configforge/static/
 
