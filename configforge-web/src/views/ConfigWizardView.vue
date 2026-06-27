@@ -29,10 +29,6 @@
                 <NInput v-model:value="store.scene.name" :class="{ 'pulse-cta-input': currentStep === 1 && !store.canProceed(1) }" placeholder="例如：销售报表生成" size="small" />
                 <p v-if="currentStep === 1 && store.stepValidation(1).length" class="wizard__validation-msg">{{ store.stepValidation(1).join('；') }}</p>
               </div>
-              <div class="wizard__form-group">
-                <label class="wizard__label">版本号 (可选)</label>
-                <NInput v-model:value="store.scene.version" placeholder="1.0" size="small" />
-              </div>
               <div class="wizard__form-group wizard__form-group--full">
                 <label class="wizard__label">场景描述 (可选)</label>
                 <NInput

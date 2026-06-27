@@ -6,7 +6,7 @@
       <div class="config-card-info">
         <router-link :to="batchMode ? '' : '/config/new?load=' + cfg.id" class="config-name-link" :class="{ 'config-name-link--disabled': batchMode }">{{ cfg.sceneName }}</router-link>
         <div class="config-card-meta">
-          <span class="meta-item">{{ cfg.version }}</span>
+          <span class="meta-item">v{{ cfg.currentVersion }}</span>
           <span class="meta-sep">·</span>
           <span class="meta-item">{{ cfg.inputCount }} 个数据源</span>
           <span class="meta-sep">·</span>

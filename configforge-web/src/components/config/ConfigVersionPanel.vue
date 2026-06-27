@@ -27,7 +27,6 @@
             <NTag size="tiny" :type="v.version === currentVersion ? 'success' : 'default'">
               v{{ v.version }}
             </NTag>
-            <span class="text-xs text-slate-500 dark:text-slate-400">{{ v.scene_version }}</span>
             <span v-if="v.change_summary" class="text-xs text-slate-400 dark:text-slate-500">{{ v.change_summary }}</span>
           </div>
           <div class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
@@ -49,7 +48,6 @@
       </div>
       <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 max-h-48 overflow-y-auto text-xs space-y-1">
         <div><span class="text-slate-400 dark:text-slate-500">场景:</span> {{ versionDetail.scene?.name || '-' }}</div>
-        <div><span class="text-slate-400 dark:text-slate-500">版本:</span> {{ versionDetail.scene?.version || '-' }}</div>
         <div><span class="text-slate-400 dark:text-slate-500">输入源:</span> {{ versionDetail.inputs?.length || 0 }} 个</div>
         <div v-for="(inp, i) in versionDetail.inputs" :key="i" class="ml-3 text-slate-500 dark:text-slate-400">
           {{ i + 1 }}. {{ inp.table || inp.name || '-' }} ({{ inp.plugin }})
