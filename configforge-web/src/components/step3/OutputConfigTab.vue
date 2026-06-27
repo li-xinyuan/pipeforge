@@ -139,7 +139,7 @@ function syncSourceTable() {
 watch(
   () => store.processors.map(p => [...p.outputTables]),
   () => syncSourceTable(),
-  { deep: true }
+  { deep: true, immediate: true }
 )
 
 // Auto-open template file picker when switching to Excel output.
