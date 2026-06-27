@@ -1,4 +1,5 @@
 import json
+from typing import Iterator
 
 try:
     import ijson  # type: ignore[import-untyped]
@@ -9,6 +10,89 @@ except ImportError:
 
 
 MAX_JSON_ROWS = 50000
+
+
+def iter_json_rows(
+    file_content: bytes,
+    flatten_separator: str = ".",
+) -> tuple[list[str], Iterator[tuple]]:
+    """全量读取 JSON，返回 (列名列表, 行迭代器)。
+
+    限制③C reader 适配器第一步：为 ReaderBackedInputPlugin 提供全量读取接口。
+    与 read_json_info（轻量预览）不同，本函数流式产出所有行，供 pipeline 执行。
+
+    两遍扫描（file_content 已在内存，二次解析成本低）：
+    1. 第一遍：收集所有列名（不同行可能有不同键，取并集）
+    2. 第二遍：按列名顺序产出每行为 tuple（缺失键 → ""）
+
+    Args:
+        file_content: JSON 文件原始字节
+        flatten_separator: 嵌套对象拍平分隔符（默认 "."）
+
+    Returns:
+        (columns, row_iterator): 列名列表 + 行元组迭代器
+    """
+    columns = _collect_json_columns(file_content, flatten_separator)
+    return columns, _iter_json_rows(file_content, flatten_separator, columns)
+
+
+def _collect_json_columns(file_content: bytes, flatten_separator: str) -> list[str]:
+    """第一遍：收集所有列名（键的并集）。"""
+    all_keys: list[str] = []
+    seen: set[str] = set()
+
+    for flat in _iter_flat_dicts(file_content, flatten_separator):
+        for key in flat:
+            if key not in seen:
+                seen.add(key)
+                all_keys.append(key)
+
+    return all_keys
+
+
+def _iter_json_rows(
+    file_content: bytes,
+    flatten_separator: str,
+    columns: list[str],
+) -> Iterator[tuple]:
+    """第二遍：按列名顺序产出每行为 tuple。"""
+    for flat in _iter_flat_dicts(file_content, flatten_separator):
+        yield tuple(str(flat.get(col, "")) if flat.get(col, "") is not None else "" for col in columns)
+
+
+def _iter_flat_dicts(file_content: bytes, flatten_separator: str) -> Iterator[dict]:
+    """流式产出拍平后的 dict（ijson 优先，fallback 全量加载）。"""
+    if _HAS_IJSON:
+        yield from _iter_flat_dicts_streaming(file_content, flatten_separator)
+    else:
+        yield from _iter_flat_dicts_fallback(file_content, flatten_separator)
+
+
+def _iter_flat_dicts_streaming(file_content: bytes, flatten_separator: str) -> Iterator[dict]:
+    """ijson 流式产出。"""
+    import io as _io
+
+    stream = _io.BytesIO(file_content)
+    try:
+        parser = ijson.items(stream, "item", use_float=True)
+        for item in parser:
+            if isinstance(item, dict):
+                yield _flatten(item, separator=flatten_separator)
+    except ijson.JSONError:
+        # 非顶层数组，回退到全量加载
+        yield from _iter_flat_dicts_fallback(file_content, flatten_separator)
+
+
+def _iter_flat_dicts_fallback(file_content: bytes, flatten_separator: str) -> Iterator[dict]:
+    """无 ijson 时全量加载后产出。"""
+    data = json.loads(file_content.decode("utf-8"))
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return
+    for item in data:
+        if isinstance(item, dict):
+            yield _flatten(item, separator=flatten_separator)
 
 
 def read_json_info(
