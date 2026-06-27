@@ -32,7 +32,10 @@ class LooseExcelInputConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     type: Literal["excel"] = "excel"
-    sheet: str = "Sheet1"
+    sheet: str = Field(
+        default="Sheet1",
+        json_schema_extra={"x-ui-widget": "sheet-selector"},
+    )
 
 
 class LooseCsvInputConfig(BaseModel):

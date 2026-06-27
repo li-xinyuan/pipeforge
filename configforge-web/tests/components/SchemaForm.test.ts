@@ -235,6 +235,60 @@ describe('SchemaForm', () => {
       expect(events).toBeTruthy()
       expect(events![events!.length - 1][0]).toMatchObject({ sql: 'NEW' })
     })
+
+    it('widgetProps 向命名 widget 透传 per-instance props', () => {
+      const NamedWidget = {
+        template: '<div data-test="named-widget">{{ options.length }}-{{ disabled }}</div>',
+        props: ['modelValue', 'options', 'disabled'],
+        emits: ['update:modelValue'],
+      }
+      registerWidget('my-widget', NamedWidget)
+
+      const schema = {
+        properties: {
+          sheet: {
+            type: 'string',
+            default: 'Sheet1',
+            'x-ui-widget': 'my-widget',
+          },
+        },
+      }
+      const wrapper = mount(SchemaForm, {
+        props: {
+          modelValue: { sheet: 'Sheet1' },
+          schema,
+          widgetProps: {
+            'my-widget': {
+              options: [{ label: 'Sheet1', value: 'Sheet1' }, { label: 'Sheet2', value: 'Sheet2' }],
+              disabled: true,
+            },
+          },
+        },
+      })
+      const named = wrapper.find('[data-test="named-widget"]')
+      expect(named.exists()).toBe(true)
+      expect(named.text()).toBe('2-true')
+    })
+
+    it('widgetProps 未提供时不报错', () => {
+      const NamedWidget = {
+        template: '<div data-test="named-widget">{{ modelValue }}</div>',
+        props: ['modelValue'],
+        emits: ['update:modelValue'],
+      }
+      registerWidget('my-widget', NamedWidget)
+
+      const schema = {
+        properties: {
+          sql: {
+            type: 'string',
+            'x-ui-widget': 'my-widget',
+          },
+        },
+      }
+      const wrapper = mountForm({ sql: 'SELECT 1' }, schema)
+      expect(wrapper.find('[data-test="named-widget"]').exists()).toBe(true)
+    })
   })
 
   describe('disabled 透传', () => {

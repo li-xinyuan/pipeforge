@@ -12,10 +12,12 @@
   <div class="schema-form">
     <div v-for="field in renderableFields" :key="field.key" class="schema-form-field">
       <!-- 命名 widget：完全委托，由 widget 自行管理 v-model -->
+      <!-- widgetProps 透传 per-instance 数据（如 sheet-selector 的 options） -->
       <component
         :is="field.widget"
         v-if="field.widget"
         :model-value="modelValue[field.key] ?? field.default"
+        v-bind="widgetProps?.[field.widgetName ?? '']"
         @update:model-value="onUpdate(field.key, $event)"
       />
 
@@ -35,7 +37,7 @@
         <!-- enum / async options → NSelect -->
         <NSelect
           v-if="field.kind === 'enum' || field.kind === 'async-select'"
-          :value="(modelValue[field.key] ?? field.default) as string | null"
+          :value="((modelValue[field.key] ?? field.default) as string | null)"
           :options="(field.options as never)"
           :loading="field.asyncLoading"
           :disabled="disabled"
@@ -45,7 +47,7 @@
         <!-- integer/number → NInputNumber -->
         <NInputNumber
           v-else-if="field.kind === 'number'"
-          :value="(modelValue[field.key] ?? field.default) as number | null"
+          :value="((modelValue[field.key] ?? field.default) as number | null)"
           :disabled="disabled"
           size="small"
           @update:value="onUpdate(field.key, $event)"
@@ -102,6 +104,8 @@ interface RenderableField {
   kind: FieldKind
   options?: SelectOption[]
   widget?: Component
+  /** 命名 widget 名称（用于索引 widgetProps）。 */
+  widgetName?: string
   asyncLoading: boolean
 }
 
@@ -109,6 +113,12 @@ const props = defineProps<{
   modelValue: Record<string, unknown>
   schema: JsonSchema
   disabled?: boolean
+  /**
+   * 向命名 widget 透传的 per-instance props。
+   * 键为 widget 名称（与 schema 中 x-ui-widget 对应），值为 props 对象。
+   * 例如：{ 'sheet-selector': { options: [...], disabled: false } }
+   */
+  widgetProps?: Record<string, Record<string, unknown>>
 }>()
 
 const emit = defineEmits<{
@@ -151,6 +161,7 @@ const renderableFields = computed<RenderableField[]>(() => {
           ? (asyncOptionsMap.value[asyncFrom] || [])
           : undefined,
       widget,
+      widgetName: widgetName,
       asyncLoading: asyncFrom ? Boolean(asyncLoadingMap.value[asyncFrom]) : false,
     })
   }

@@ -1,25 +1,36 @@
 <template>
-  <!-- Sheet name (Excel) -->
-  <div v-if="input.plugin === 'excel'">
-    <label class="cf-label">工作表</label>
-    <NSelect
-      v-if="sheetNames.length > 0"
-      :value="(input.config as ExcelInputConfig).sheet"
-      :options="sheetOptions"
-      size="small"
-      :disabled="analyzing"
-      @update:value="$emit('update', { ...input, config: { ...input.config, sheet: $event } as ExcelInputConfig })"
-    />
-    <NInput
-      v-else
-      :id="`input-sheet-${index}`"
-      :value="(input.config as ExcelInputConfig).sheet"
-      placeholder="Sheet1"
-      size="small"
-      :disabled="analyzing"
-      @update:value="$emit('update', { ...input, config: { ...input.config, sheet: $event } as ExcelInputConfig })"
-    />
-  </div>
+  <!-- Excel config fields — SchemaForm 驱动（限制①第二阶段迁移） -->
+  <SchemaForm
+    v-if="input.plugin === 'excel' && excelSchema"
+    :model-value="input.config as unknown as Record<string, unknown>"
+    :schema="excelSchema"
+    :disabled="analyzing"
+    :widget-props="{ 'sheet-selector': { options: sheetOptions, disabled: analyzing } }"
+    @update:model-value="$emit('update', { ...input, config: $event as unknown as ExcelInputConfig })"
+  />
+  <!-- Excel fallback：schema 未加载时使用原表单 -->
+  <template v-else-if="input.plugin === 'excel'">
+    <div>
+      <label class="cf-label">工作表</label>
+      <NSelect
+        v-if="sheetNames.length > 0"
+        :value="(input.config as ExcelInputConfig).sheet"
+        :options="sheetOptions"
+        size="small"
+        :disabled="analyzing"
+        @update:value="$emit('update', { ...input, config: { ...input.config, sheet: $event } as ExcelInputConfig })"
+      />
+      <NInput
+        v-else
+        :id="`input-sheet-${index}`"
+        :value="(input.config as ExcelInputConfig).sheet"
+        placeholder="Sheet1"
+        size="small"
+        :disabled="analyzing"
+        @update:value="$emit('update', { ...input, config: { ...input.config, sheet: $event } as ExcelInputConfig })"
+      />
+    </div>
+  </template>
 
   <!-- CSV config fields — SchemaForm 驱动（限制①第二阶段迁移） -->
   <SchemaForm
@@ -101,8 +112,9 @@ import type { InputSource, CsvInputConfig, ExcelInputConfig, JsonInputConfig, Xm
 import { NInput, NSelect, NCheckbox } from 'naive-ui'
 import { ENCODING_OPTIONS } from '../../constants/encodings'
 import SchemaForm from '../common/SchemaForm.vue'
+import SheetSelector from '../common/SheetSelector.vue'
 import { usePluginSchema } from '../../composables/usePluginSchema'
-import { registerAsyncOptionsLoader } from '../../composables/widgetRegistry'
+import { registerAsyncOptionsLoader, registerWidget } from '../../composables/widgetRegistry'
 
 const props = defineProps<{
   input: InputSource
@@ -117,12 +129,16 @@ defineEmits<{
 
 const sheetOptions = computed(() => props.sheetNames.map(s => ({ label: s, value: s })))
 
-// 限制①：csv input 用 SchemaForm 渲染，schema 从后端获取
+// 限制①：csv/excel input 用 SchemaForm 渲染，schema 从后端获取
 const { getSchema, load } = usePluginSchema()
 const csvSchema = computed(() => getSchema('csv', 'input'))
+const excelSchema = computed(() => getSchema('excel', 'input'))
 
 // 注册编码选项 loader（schema 中 encoding 字段的 x-ui-options-from: 'encodings' 引用）
 registerAsyncOptionsLoader('encodings', () => Promise.resolve(ENCODING_OPTIONS))
+
+// 注册 SheetSelector 命名 widget（schema 中 sheet 字段的 x-ui-widget: 'sheet-selector' 引用）
+registerWidget('sheet-selector', SheetSelector)
 
 onMounted(() => {
   // 确保插件 schema 已加载（模块级缓存，多次调用安全）
