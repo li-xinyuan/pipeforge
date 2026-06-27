@@ -1,3 +1,4 @@
+import pytest
 import yaml
 
 from configforge.models.wizard import (
@@ -9,10 +10,13 @@ from configforge.models.wizard import (
     ExcelInputConfig,
     ExcelOutputConfig,
     InputSource,
+    JsonInputConfig,
     OutputTarget,
+    ParquetInputConfig,
     ProcessorConfig,
     SceneInfo,
     WizardState,
+    XmlInputConfig,
 )
 from configforge.services.yaml_builder import build_yaml
 from pipeforge.config.models import RowCountRule
@@ -414,3 +418,106 @@ class TestBuildYamlEdgeCases:
         data = yaml.safe_load(result)
         assert data["scene"]["name"] == "中文场景测试"
         assert data["scene"]["description"] == "包含中文描述"
+
+
+# ---------------------------------------------------------------------------
+# 7. Bug 修复验证（限制②第一步：bug #1#2#7）
+# ---------------------------------------------------------------------------
+class TestYamlBuilderBugFixes:
+    """yaml_builder 3 个已知 bug 的修复验证。"""
+
+    @pytest.mark.parametrize("plugin,config_cls", [
+        ("json", JsonInputConfig),
+        ("xml", XmlInputConfig),
+        ("parquet", ParquetInputConfig),
+    ])
+    def test_bug1_ghost_input_raises_value_error(self, plugin, config_cls):
+        """bug #1: json/xml/parquet 输入源不再落入 else 当 excel，显式抛 ValueError。"""
+        state = WizardState(
+            scene=SceneInfo(name="S"),
+            inputs=[InputSource(
+                name="ghost_in", plugin=plugin, table="t1", param_key="p1", file_id="f1",
+                config=config_cls(),
+            )],
+        )
+        with pytest.raises(ValueError, match="仅支持预览"):
+            build_yaml(state)
+
+    def test_bug2_database_output_includes_batch_size_and_create_table(self):
+        """bug #2: database output 的 batch_size 和 create_table_if_not_exists 不再静默丢失。"""
+        state = WizardState(
+            scene=SceneInfo(name="S"),
+            output=OutputTarget(
+                plugin="database",
+                config=DatabaseOutputConfig(
+                    target_table="tgt", source_table="t1",
+                    connection_string="sqlite:///db.sqlite",
+                    batch_size=5000,
+                    create_table_if_not_exists=False,
+                ),
+            ),
+        )
+        result = build_yaml(state)
+        data = yaml.safe_load(result)
+        cfg = data["output"]["config"]
+        assert cfg["batch_size"] == 5000
+        assert cfg["create_table_if_not_exists"] is False
+
+    def test_bug2_database_output_defaults_not_lost(self):
+        """bug #2: database output 默认值 batch_size=1000, create_table_if_not_exists=True 也应输出。"""
+        state = WizardState(
+            scene=SceneInfo(name="S"),
+            output=OutputTarget(
+                plugin="database",
+                config=DatabaseOutputConfig(
+                    target_table="tgt", source_table="t1",
+                    connection_string="sqlite:///db.sqlite",
+                ),
+            ),
+        )
+        result = build_yaml(state)
+        data = yaml.safe_load(result)
+        cfg = data["output"]["config"]
+        assert cfg["batch_size"] == 1000  # 默认值
+        assert cfg["create_table_if_not_exists"] is True  # 默认值
+
+    def test_bug7_empty_sql_processor_raises_value_error(self):
+        """bug #7: 空 SQL 的 processor 翻译时抛清晰错误。
+
+        注：ProcessorConfig 模型层的 model_validator 只在 has_config=True 时校验。
+        空占位符（无 output_tables 且 sql 为空）允许通过模型校验，但 build_yaml
+        应防御性地拒绝生成无效 YAML。
+        """
+        state = WizardState(
+            scene=SceneInfo(name="S"),
+            processors=[ProcessorConfig(name="empty_step", plugin="sql")],  # 空占位符
+        )
+        with pytest.raises(ValueError, match="SQL 为空"):
+            build_yaml(state)
+
+    def test_bug7_whitespace_sql_processor_raises_value_error(self):
+        """bug #7: 纯空白 SQL 的 processor 也应被拒绝。"""
+        state = WizardState(
+            scene=SceneInfo(name="S"),
+            processors=[ProcessorConfig(name="ws_step", plugin="sql", sql="   \n  ")],  # 空占位符
+        )
+        with pytest.raises(ValueError, match="SQL 为空"):
+            build_yaml(state)
+
+    def test_bug7_empty_python_script_raises_value_error(self):
+        """bug #7: 空脚本的 python processor 翻译时抛清晰错误。"""
+        state = WizardState(
+            scene=SceneInfo(name="S"),
+            processors=[ProcessorConfig(name="empty_py", plugin="python", script="   ")],  # 空占位符
+        )
+        with pytest.raises(ValueError, match="脚本为空"):
+            build_yaml(state)
+
+    def test_bug7_processor_name_in_error_message(self):
+        """bug #7: 错误信息应包含处理器名称，方便定位。"""
+        state = WizardState(
+            scene=SceneInfo(name="S"),
+            processors=[ProcessorConfig(name="my_step", plugin="sql")],  # 空占位符
+        )
+        with pytest.raises(ValueError, match="my_step"):
+            build_yaml(state)
