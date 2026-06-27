@@ -66,6 +66,21 @@ class TestPipelineEngine:
         with pytest.raises(ValueError, match="file_a"):
             engine.execute(params={})
 
+    def test_public_execute_methods_exist(self, yaml_path):
+        """Regression: execute_input / execute_processor / execute_output must be public.
+
+        ConfigForge's execution_service.execute_with_progress() calls these methods
+        on the engine to stream SSE progress. If execute_processor is renamed back
+        to _execute_processor (private), SSE progress in the processor phase crashes
+        with AttributeError. See architecture-review-followup-2026-06-27.md Bug 1.
+        """
+        engine = PipelineEngine(yaml_path)
+        for method_name in ("execute_input", "execute_processor", "execute_output"):
+            assert callable(getattr(engine, method_name, None)), (
+                f"PipelineEngine.{method_name} must be a public method "
+                f"(execution_service.execute_with_progress depends on it)"
+            )
+
 
 def test_execute_dry_run_returns_intermediate_tables(tmp_path):
     """execute_dry_run should run input+processor steps, skip output, return intermediate table data."""

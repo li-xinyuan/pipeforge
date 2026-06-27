@@ -59,7 +59,7 @@ class PipelineEngine:
                     for table in proc_spec.input_tables:
                         if table not in context.db.list_tables():
                             raise ValueError(f"Processor '{proc_spec.name}': input table '{table}' not found. Available: {context.db.list_tables()}")
-                    stats = self._execute_processor(proc_spec, context)
+                    stats = self.execute_processor(proc_spec, context)
                     context.result.processors.append(stats)
 
                     if proc_spec.checkpoints:
@@ -109,7 +109,7 @@ class PipelineEngine:
                     for table in proc_spec.input_tables:
                         if table not in context.db.list_tables():
                             raise ValueError(f"Processor '{proc_spec.name}': input table '{table}' not found. Available: {context.db.list_tables()}")
-                    stats = self._execute_processor(proc_spec, context)
+                    stats = self.execute_processor(proc_spec, context)
                     context.result.processors.append(stats)
 
                     if proc_spec.checkpoints:
@@ -194,7 +194,7 @@ class PipelineEngine:
             elapsed_ms=round(elapsed, 2),
         )
 
-    def _execute_processor(self, proc_spec, context):
+    def execute_processor(self, proc_spec, context):
         start = time.time()
         before_tables = set(context.db.list_tables())
         plugin_cls = PluginRegistry.get(proc_spec.plugin, "processor")
