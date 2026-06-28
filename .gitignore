@@ -32,6 +32,9 @@ demo/screenshots/
 # Superpowers (brainstorming artifacts)
 .superpowers/
 
+# WorkBuddy (local tooling memory)
+.workbuddy/
+
 # pytest
 .pytest_cache/
 .coverage
