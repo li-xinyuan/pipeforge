@@ -1,53 +1,57 @@
 <template>
   <ConfettiBurst ref="confettiRef" />
-  <div class="flex gap-2">
-    <NButton @click="copyYaml">复制</NButton>
-    <NButton @click="downloadYaml">下载 YAML</NButton>
-    <NButton type="primary" class="btn-primary" :loading="executing" @click="downloadResult">下载结果文件</NButton>
-    <NButton :loading="saving" @click="saveConfigHandler">保存配置</NButton>
-  </div>
-
-  <!-- Execution progress panel -->
-  <div v-if="executionStage" class="export-actions__progress">
-    <div class="flex items-center gap-3 mb-2">
-      <NSpin v-if="executing" :size="16" />
-      <span v-else-if="execError" class="text-red-500 text-base">&#10060;</span>
-      <span v-else class="text-green-500 text-base">&#9989;</span>
-      <span class="text-sm font-medium">{{ executionMessage }}</span>
+  <div class="export-actions">
+    <div class="export-actions__buttons">
+      <NButton @click="copyYaml">复制</NButton>
+      <NButton @click="downloadYaml">下载 YAML</NButton>
+      <NButton type="primary" class="btn-primary" :loading="executing" @click="downloadResult">下载结果文件</NButton>
+      <NButton :loading="saving" @click="saveConfigHandler">保存配置</NButton>
     </div>
-    <NProgress
-      :percentage="executionProgress"
-      :status="execError ? 'error' : undefined"
-      :show-indicator="false"
-      :height="6"
-      :border-radius="3"
-    />
-    <div class="flex justify-between mt-1">
-      <span
-        v-for="s in stageSteps"
-        :key="s.key"
-        class="text-xs"
-        :class="stageStepClass(s.key)"
-      >{{ s.label }}</span>
+
+    <!-- AI Diagnosis on execution failure -->
+    <div v-if="execError || execDiagnosis" class="export-actions__diagnosis">
+      <DiagnosisPanel
+        v-if="execDiagnosis"
+        :diagnosis="execDiagnosis"
+        :autofix-loading="autofixLoading"
+        :autofix-result="autofixResult"
+        :raw-error="execError"
+        :rewrite-loading="rewriteLoading"
+        @goto-step="$emit('gotoStep', $event)"
+        @autofix="onAutofix"
+        @apply-fixes="onApplyFixes"
+        @ai-rewrite="onAiRewrite"
+      />
+      <p v-else class="text-xs text-red-500">{{ execError }}</p>
     </div>
   </div>
 
-  <!-- AI Diagnosis on execution failure -->
-  <div v-if="execError || execDiagnosis" class="export-actions__diagnosis">
-    <DiagnosisPanel
-      v-if="execDiagnosis"
-      :diagnosis="execDiagnosis"
-      :autofix-loading="autofixLoading"
-      :autofix-result="autofixResult"
-      :raw-error="execError"
-      :rewrite-loading="rewriteLoading"
-      @goto-step="$emit('gotoStep', $event)"
-      @autofix="onAutofix"
-      @apply-fixes="onApplyFixes"
-      @ai-rewrite="onAiRewrite"
-    />
-    <p v-else class="text-xs text-red-500">{{ execError }}</p>
-  </div>
+  <!-- Floating execution progress toast (fixed, 不占文档流) -->
+  <Transition name="exec-toast">
+    <div v-if="executionStage" class="exec-toast" :class="`exec-toast--${executionStage}`">
+      <div class="exec-toast__header">
+        <NSpin v-if="executing" :size="14" />
+        <span v-else-if="execError" class="exec-toast__icon">&#10060;</span>
+        <span v-else class="exec-toast__icon">&#9989;</span>
+        <span class="exec-toast__msg">{{ executionMessage }}</span>
+      </div>
+      <NProgress
+        :percentage="executionProgress"
+        :status="execError ? 'error' : undefined"
+        :show-indicator="false"
+        :height="4"
+        :border-radius="2"
+      />
+      <div class="exec-toast__steps">
+        <span
+          v-for="s in stageSteps"
+          :key="s.key"
+          class="exec-toast__step"
+          :class="stageStepClass(s.key)"
+        >{{ s.label }}</span>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -92,8 +96,11 @@ const stageSteps = [
 
 function stageStepClass(key: string): string {
   const order = ['input', 'processor', 'output']
+  // complete 状态：所有步骤都已完成，全绿
+  if (executionStage.value === 'complete') return 'text-green-500'
   const currentIdx = order.indexOf(executionStage.value)
   const stepIdx = order.indexOf(key)
+  if (currentIdx === -1) return 'text-gray-400'
   if (stepIdx < currentIdx) return 'text-green-500'
   if (stepIdx === currentIdx) return 'text-blue-500 font-semibold'
   return 'text-gray-400'
@@ -349,12 +356,24 @@ async function downloadResult() {
         URL.revokeObjectURL(url)
         message.success('结果文件下载成功')
       }
+      // 成功后延迟隐藏进度面板（失败时保留，配合 DiagnosisPanel 显示错误）
+      setTimeout(() => {
+        executionStage.value = ''
+        executionProgress.value = 0
+        executionMessage.value = ''
+      }, 5000)
     }
   } catch (e: unknown) {
     execError.value = e instanceof Error ? e.message : '执行失败'
     executionStage.value = 'error'
     executionMessage.value = '执行失败'
     execDiagnosis.value = null
+    // 失败时 toast 延迟消失（DiagnosisPanel 保留在下方继续显示）
+    setTimeout(() => {
+      executionStage.value = ''
+      executionProgress.value = 0
+      executionMessage.value = ''
+    }, 8000)
   } finally {
     executing.value = false
   }
@@ -441,15 +460,84 @@ defineExpose({
 </script>
 
 <style scoped>
-.export-actions__progress {
-  margin-top: 12px;
-  padding: 12px 16px;
-  background: var(--n-color-modal, #f9fafb);
-  border-radius: 8px;
-  border: 1px solid var(--n-border-color, #e5e7eb);
+.export-actions {
+  display: flex;
+  flex-direction: column;
 }
-
+.export-actions__buttons {
+  display: flex;
+  gap: 8px;
+}
 .export-actions__diagnosis {
   margin-top: 12px;
+}
+
+/* Floating progress toast — fixed 定位，不占文档流 */
+.exec-toast {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 2000;
+  width: 260px;
+  padding: 12px 16px;
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+  border: 1px solid var(--color-border-light, #e5e7eb);
+}
+.exec-toast--error {
+  border-color: var(--color-error-border, #fecaca);
+}
+.exec-toast--complete {
+  border-color: var(--color-success-border, #bbf7d0);
+}
+.exec-toast__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.exec-toast__icon {
+  font-size: 14px;
+  line-height: 1;
+}
+.exec-toast__msg {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text, #1f2937);
+}
+.exec-toast__steps {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+}
+.exec-toast__step {
+  font-size: 11px;
+}
+
+/* Toast enter/leave transition */
+.exec-toast-enter-active,
+.exec-toast-leave-active {
+  transition: all 0.3s ease;
+}
+.exec-toast-enter-from,
+.exec-toast-leave-to {
+  opacity: 0;
+  transform: translateX(24px);
+}
+
+/* Mobile: toast 改为底部全宽 */
+@media (max-width: 767px) {
+  .exec-toast {
+    top: auto;
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+  .exec-toast-enter-from,
+  .exec-toast-leave-to {
+    transform: translateY(24px);
+  }
 }
 </style>
