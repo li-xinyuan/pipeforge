@@ -71,7 +71,7 @@ const message = useMessage()
 const dialog = useDialog()
 const router = useRouter()
 const store = useWizardStore()
-const { executePipeline, error: _apiError } = useWizardApi()
+const { error: _apiError } = useWizardApi()
 const { saveConfig } = useConfigApi()
 const { askSuggestion } = useAiApi()
 const executing = ref(false)
@@ -146,7 +146,8 @@ function parseSSEStream(reader: ReadableStreamDefaultReader<Uint8Array>) {
         if (done) break
         buffer += decoder.decode(value, { stream: true })
 
-        const lines = buffer.split('\n')
+        // 兼容 \r\n 和 \n 两种行尾分隔符
+        const lines = buffer.split(/\r?\n/)
         buffer = lines.pop() || ''
 
         let currentEvent = ''
@@ -176,7 +177,9 @@ async function downloadResultWithProgress() {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`
 
-  const response = await fetch('/api/wizard/execute/stream', {
+  // SSE 流式响应需要直接连接后端，避免 Vite proxy 缓冲导致前端收不到流数据
+  const apiUrl = import.meta.env.DEV ? 'http://localhost:8000/api/wizard/execute/stream' : '/api/wizard/execute/stream'
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers,
     body: JSON.stringify({ state: stateToSnakeCase(state) }),
@@ -187,6 +190,11 @@ async function downloadResultWithProgress() {
     const contentType = response.headers.get('content-type') || ''
     if (contentType.includes('application/json')) {
       const errBody = await response.json()
+      // FastAPI 422 验证错误: detail 是数组 [{loc, msg, ...}]
+      if (Array.isArray(errBody.detail)) {
+        const msgs = errBody.detail.map((e: { loc?: unknown[]; msg?: string }) => `${(e.loc || []).join('.')}: ${e.msg || ''}`).join('; ')
+        throw new Error(msgs || `执行失败 (${response.status})`)
+      }
       throw new Error(errBody.detail || errBody.error || `执行失败 (${response.status})`)
     }
     throw new Error(`执行失败 (${response.status})`)
@@ -306,7 +314,8 @@ async function downloadResult() {
   executionMessage.value = ''
 
   try {
-    await downloadResultWithProgress()
+    // SSE 执行 pipeline 并返回 complete 事件的 data（含 exec_id 和 output_file_name）
+    const completeData = await downloadResultWithProgress() as { exec_id?: string; output_file_name?: string } | null
 
     const stage = executionStage.value as ExecutionStage
     if (stage === 'complete' && !execError.value) {
@@ -315,21 +324,30 @@ async function downloadResult() {
       if (store.output?.plugin === 'database') {
         message.success('执行成功，数据已写入目标数据库')
       } else {
-        // After SSE completes, download the result file using the original endpoint
-        const state = store.getWizardState()
-        const fileResult = await executePipeline(state)
-        if (fileResult) {
-          if (fileResult instanceof Blob) {
-            const url = URL.createObjectURL(fileResult)
-            const a = document.createElement('a')
-            const storedFilename = (store.output?.config as ExcelOutputConfig | CsvOutputConfig)?.filename || 'output.xlsx'
-            a.href = url; a.download = buildExecutionFilename(storedFilename); a.click()
-            URL.revokeObjectURL(url)
-            message.success('结果文件下载成功')
-          } else {
-            message.success(fileResult.message || '执行成功')
-          }
+        // SSE 执行已生成结果文件（保存在 data/executions/{exec_id}/），
+        // 通过 exec_id 下载已生成的文件，避免二次执行 pipeline
+        const execId = completeData?.exec_id
+        if (!execId) {
+          throw new Error('执行完成但未返回 exec_id，无法下载结果文件')
         }
+        const auth = useAuthStore()
+        const downloadUrl = import.meta.env.DEV
+          ? `http://localhost:8000/api/executions/${execId}/download`
+          : `/api/executions/${execId}/download`
+        const resp = await fetch(downloadUrl, {
+          headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+        })
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => '')
+          throw new Error(text || `下载结果文件失败 (${resp.status})`)
+        }
+        const blob = await resp.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        const storedFilename = (store.output?.config as ExcelOutputConfig | CsvOutputConfig)?.filename || 'output.xlsx'
+        a.href = url; a.download = buildExecutionFilename(storedFilename); a.click()
+        URL.revokeObjectURL(url)
+        message.success('结果文件下载成功')
       }
     }
   } catch (e: unknown) {

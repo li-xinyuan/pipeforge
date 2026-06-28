@@ -265,6 +265,17 @@ def _prepare_execution(state: WizardState, skip_output: bool = False):
                 dst = os.path.join(tmp_dir, dst_name)
                 shutil.copy2(src, dst)
                 params[inp.param_key] = os.path.abspath(dst)
+            else:
+                # 文件不存在：明确报错而非静默跳过（避免后续 "no such table" 困惑）
+                raise ValueError(
+                    f"输入源 '{inp.name}' 引用的文件已不存在（file_id={inp.file_id}），"
+                    "请到步骤 2 重新上传文件后再执行。"
+                )
+        else:
+            # file_id 为空：明确报错（加载已保存配置后必须重新上传文件）
+            raise ValueError(
+                f"输入源 '{inp.name}' 尚未上传文件，请到步骤 2 上传文件后再执行。"
+            )
 
     return exec_state, tmp_dir, yaml_path, params
 

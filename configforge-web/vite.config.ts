@@ -96,8 +96,19 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8199',
+        target: 'http://localhost:8000',
         timeout: 120000, // 2 minutes for long-running pipeline + AI diagnosis
+        // SSE 流式响应需要禁用缓冲，否则前端 fetch ReadableStream 收不到数据
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            // 对 text/event-stream 响应禁用压缩和缓冲
+            const ct = proxyRes.headers['content-type'] || ''
+            if (ct.includes('text/event-stream')) {
+              proxyRes.headers['cache-control'] = 'no-cache'
+              proxyRes.headers['x-accel-buffering'] = 'no'
+            }
+          })
+        },
       }
     }
   },

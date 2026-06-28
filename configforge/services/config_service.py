@@ -213,12 +213,19 @@ class ConfigService:
         }
 
     def load_config(self, config_id: str) -> dict:
-        """加载配置完整 state（含 schema 迁移）。不存在抛 KeyError。"""
+        """加载配置完整 state（含 schema 迁移）。不存在抛 KeyError。
+
+        注意：ensure_schema_version 会注入 schema_version 字段用于迁移判断，
+        但 WizardState 用 extra="forbid" 拒绝该字段，必须在返回前移除
+        （否则前端把 state 原样传回 /api/wizard/execute 时会 422）。
+        """
         state_dict = self._store.get_config(config_id)
         if state_dict is None:
             raise KeyError(config_id)
         state_path = os.path.join(self._configs_dir(), f"{config_id}.state.json")
-        return ensure_schema_version(state_dict, state_path)
+        state_dict = ensure_schema_version(state_dict, state_path)
+        state_dict.pop("schema_version", None)
+        return state_dict
 
     def get_yaml_path(self, config_id: str) -> str:
         """返回 YAML 文件路径（不校验存在性，由调用方处理）。"""
@@ -236,9 +243,9 @@ class ConfigService:
         state_path = os.path.join(self._configs_dir(), f"{config_id}.state.json")
         is_update = os.path.exists(state_path)
 
-        # 序列化 state，清除 file_id
+        # 序列化 state（保留 file_id，便于执行已保存配置时复用上传文件；
+        # 若文件已过期，执行时会报"文件不存在"的明确错误）
         state_dict = req.state.model_dump(by_alias=True)
-        self._clear_file_ids(state_dict)
         state_dict["_saved_at"] = datetime.now(UTC).isoformat()
 
         # 写 YAML（store.save_config 不写 yaml）
@@ -366,7 +373,6 @@ class ConfigService:
         # Save as a new config (always new ID)
         new_config_id = uuid.uuid4().hex
         state_dict = state.model_dump(by_alias=True)
-        self._clear_file_ids(state_dict)
         state_dict["_saved_at"] = datetime.now(UTC).isoformat()
         state_dict["change_summary"] = "Imported from external file"
 

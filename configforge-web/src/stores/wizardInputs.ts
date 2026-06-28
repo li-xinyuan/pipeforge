@@ -118,7 +118,7 @@ export const useWizardInputsStore = defineStore('wizardInputs', () => {
         plugin: (inp.plugin || 'excel') as InputSource['plugin'],
         table: (inp.table || inp.name || '') as string,
         paramKey: (inp.paramKey || '') as string,
-        fileId: '',
+        fileId: (inp.fileId || inp.file_id || '') as string,
         config: cfg as unknown as InputSource['config'],
       }
     })

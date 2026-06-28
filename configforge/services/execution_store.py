@@ -20,14 +20,23 @@ MAX_OUTPUT_FILES = 50  # Keep last 50 output files
 
 
 def cleanup_old_outputs():
-    """Remove output files beyond MAX_OUTPUT_FILES limit."""
+    """Remove output files beyond MAX_OUTPUT_FILES limit.
+
+    按修改时间倒序保留最新的 MAX_OUTPUT_FILES 个，删除更早的。
+    （此前按目录名排序，会导致新创建但名字排序靠后的目录被误删。）
+    """
     if not os.path.exists(EXEC_DIR):
         return
-    dirs = sorted(
-        [d for d in os.listdir(EXEC_DIR) if os.path.isdir(os.path.join(EXEC_DIR, d))],
-        reverse=True
+    entries = [
+        d for d in os.listdir(EXEC_DIR)
+        if os.path.isdir(os.path.join(EXEC_DIR, d))
+    ]
+    # 按修改时间倒序（最新在前）
+    entries.sort(
+        key=lambda d: os.path.getmtime(os.path.join(EXEC_DIR, d)),
+        reverse=True,
     )
-    for d in dirs[MAX_OUTPUT_FILES:]:
+    for d in entries[MAX_OUTPUT_FILES:]:
         shutil.rmtree(os.path.join(EXEC_DIR, d), ignore_errors=True)
 
 
