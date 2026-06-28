@@ -2,7 +2,7 @@
   <div class="notification-settings">
     <div class="flex items-center justify-between mb-3">
       <h4 class="text-sm font-semibold">推送设置</h4>
-      <button class="cf-btn cf-btn--sm cf-btn--primary" @click="showAddModal = true">+ 添加推送</button>
+      <NButton size="small" type="primary" @click="showAddModal = true">+ 添加推送</NButton>
     </div>
 
     <!-- Config list -->
@@ -28,14 +28,14 @@
           <div class="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5">{{ cfg.webhook_url }}</div>
         </div>
         <div class="flex items-center gap-1 flex-shrink-0">
-          <button class="cf-btn cf-btn--xs" :title="cfg.enabled ? '禁用' : '启用'" @click="toggleEnabled(cfg)">
+          <NButton size="tiny" :title="cfg.enabled ? '禁用' : '启用'" @click="toggleEnabled(cfg)">
             {{ cfg.enabled ? '禁用' : '启用' }}
-          </button>
-          <button class="cf-btn cf-btn--xs" :disabled="testingId === cfg.id || !cfg.enabled" @click="testNotify(cfg)">
+          </NButton>
+          <NButton size="tiny" :disabled="testingId === cfg.id || !cfg.enabled" @click="testNotify(cfg)">
             {{ testingId === cfg.id ? '测试中...' : '测试' }}
-          </button>
-          <button class="cf-btn cf-btn--xs" @click="editConfig(cfg)">编辑</button>
-          <button class="cf-btn cf-btn--xs cf-btn--danger" @click="confirmDelete(cfg)">删除</button>
+          </NButton>
+          <NButton size="tiny" @click="editConfig(cfg)">编辑</NButton>
+          <NButton size="tiny" type="error" @click="confirmDelete(cfg)">删除</NButton>
         </div>
       </div>
     </div>
@@ -113,10 +113,10 @@
         </div>
 
         <div class="flex justify-end gap-2 mt-5">
-          <button class="cf-btn" @click="closeModal">取消</button>
-          <button class="cf-btn cf-btn--primary" :disabled="!canSave" @click="saveConfig">
+          <NButton @click="closeModal">取消</NButton>
+          <NButton type="primary" :disabled="!canSave" @click="saveConfig">
             {{ editingConfig ? '保存' : '创建' }}
-          </button>
+          </NButton>
         </div>
       </div>
     </div>
@@ -126,7 +126,7 @@
       <div class="bg-[var(--color-surface)] rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-base font-semibold">配置 SMTP 邮件服务</h3>
-          <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" @click="showSmtpModal = false">✕</button>
+          <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" aria-label="关闭" @click="showSmtpModal = false">✕</button>
         </div>
         <div class="space-y-3">
           <div>
@@ -154,12 +154,12 @@
             <input v-model="smtpForm.use_tls" type="checkbox"> 启用 TLS
           </label>
           <div class="flex gap-2 pt-2">
-            <button class="cf-btn cf-btn--sm" :disabled="smtpSaving" @click="saveSmtpInline">
+            <NButton size="small" :disabled="smtpSaving" @click="saveSmtpInline">
               {{ smtpSaving ? '保存中...' : '保存 SMTP 设置' }}
-            </button>
-            <button class="cf-btn cf-btn--sm" :disabled="smtpTesting" @click="testSmtpInline">
+            </NButton>
+            <NButton size="small" :disabled="smtpTesting" @click="testSmtpInline">
               {{ smtpTesting ? '测试中...' : '测试连接' }}
-            </button>
+            </NButton>
           </div>
           <p v-if="smtpInlineMsg" class="text-xs" :class="smtpInlineOk ? 'text-green-600' : 'text-red-500'">{{ smtpInlineMsg }}</p>
         </div>
@@ -170,6 +170,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive, computed, watch } from 'vue'
+import { NButton } from 'naive-ui'
 import { useNotificationApi, type NotificationConfig } from '../../composables/useNotificationApi'
 import { useApi } from '../../composables/useApi'
 

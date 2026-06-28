@@ -17,6 +17,8 @@ function mapConfig(raw: Record<string, unknown>): SavedConfig {
       paramKey: i.param_key as string,
       plugin: i.plugin as string,
     })),
+    lastExecutionStatus: (raw.last_execution_status || '') as string,
+    lastExecutedAt: (raw.last_executed_at || '') as string,
   }
 }
 

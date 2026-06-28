@@ -206,6 +206,8 @@ export interface SavedConfig {
   updatedAt: string
   currentVersion: number
   inputs: Array<{ name: string; paramKey: string; plugin: string }>
+  lastExecutionStatus?: string  // "success" | "failed" | ""
+  lastExecutedAt?: string
 }
 
 export interface RowCountRule {

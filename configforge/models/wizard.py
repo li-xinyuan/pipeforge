@@ -294,6 +294,8 @@ class ConfigMeta(BaseModel):
     inputs: list[ConfigInputMeta] = []
     tags: list[str] = []
     input_types: list[str] = []
+    last_execution_status: str = ""  # "success" | "failed" | ""（从未执行）
+    last_executed_at: str = ""
 
 
 class SaveConfigRequest(BaseModel):

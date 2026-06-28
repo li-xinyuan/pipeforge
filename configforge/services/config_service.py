@@ -48,6 +48,28 @@ from configforge.utils.migration import ensure_schema_version
 logger = logging.getLogger(__name__)
 
 
+def _build_last_execution_map(config_ids: list[str]) -> dict[str, dict]:
+    """从 execution index 构建 config_id → 最近执行记录的映射。
+
+    execution index 按 started_at desc 排列（insert(0, ...)），所以第一条
+    匹配的记录即为该 config 的最近一次执行。
+    """
+    if not config_ids:
+        return {}
+    from configforge.services.execution_store import EXEC_INDEX
+    from configforge.utils.file_lock import read_json_locked
+    if not os.path.exists(EXEC_INDEX):
+        return {}
+    index = read_json_locked(EXEC_INDEX)
+    id_set = set(config_ids)
+    result: dict[str, dict] = {}
+    for entry in index:
+        cid = entry.get("config_id", "")
+        if cid in id_set and cid not in result:
+            result[cid] = entry
+    return result
+
+
 def _deep_diff(old: Any, new: Any, path: str, result: dict) -> None:
     """Recursively compare two values and collect structured diff into result."""
     if old == new:
@@ -158,7 +180,7 @@ class ConfigService:
         sort: str = "updated_at",
         order: str = "desc",
     ) -> dict:
-        """分页列出配置（搜索 + 排序 + 分页）。"""
+        """分页列出配置（搜索 + 排序 + 分页），附带最近执行状态。"""
         index = self._store.list_configs(search or "")
 
         # Sort
@@ -168,7 +190,21 @@ class ConfigService:
 
         total = len(index)
         start = (page - 1) * page_size
-        items = [ConfigMeta(**e) for e in index[start:start + page_size]]
+        page_items = index[start:start + page_size]
+
+        # 批量补充最近执行状态（execution index 按 started_at desc 排列，
+        # 第一条匹配的即为该 config 的最近一次执行）
+        last_exec_map = _build_last_execution_map([e["id"] for e in page_items])
+
+        items = []
+        for e in page_items:
+            meta = ConfigMeta(**e)
+            last = last_exec_map.get(meta.id)
+            if last:
+                meta.last_execution_status = last.get("status", "")
+                meta.last_executed_at = last.get("started_at", "")
+            items.append(meta)
+
         return {
             "configs": items,
             "total": total,

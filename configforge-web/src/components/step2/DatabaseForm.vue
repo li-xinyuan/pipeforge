@@ -84,7 +84,7 @@
     <div class="bg-[var(--color-surface)] rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto p-5">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-base font-semibold">管理数据库连接</h3>
-        <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" @click="closeConnManager">✕</button>
+        <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" aria-label="关闭" @click="closeConnManager">✕</button>
       </div>
       <ConnectionManager />
     </div>

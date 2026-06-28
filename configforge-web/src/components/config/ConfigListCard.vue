@@ -12,6 +12,10 @@
           <span class="meta-sep">·</span>
           <span class="meta-item">{{ cfg.outputType }}</span>
           <span class="meta-sep">·</span>
+          <span v-if="cfg.lastExecutionStatus" class="meta-item exec-status" :class="`exec-status--${cfg.lastExecutionStatus}`">
+            {{ cfg.lastExecutionStatus === 'success' ? '✓ 成功' : '✗ 失败' }}
+          </span>
+          <span v-if="cfg.lastExecutionStatus" class="meta-sep">·</span>
           <span class="meta-item">{{ formatTime(cfg.updatedAt) }}</span>
         </div>
       </div>
@@ -103,6 +107,23 @@ defineEmits<{
 .meta-sep {
   font-size: var(--font-size-xs);
   color: var(--color-border);
+}
+
+.exec-status {
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.exec-status--success {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.exec-status--failed {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
 }
 
 .config-card-right {

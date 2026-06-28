@@ -17,14 +17,21 @@
       class="w-full"
     >
       <div
-        :class="['border-2 border-dashed rounded-lg py-5 px-6 text-center cursor-pointer transition-colors',
-                 uploading ? 'border-slate-300 bg-slate-50' : 'border-slate-300 hover:border-teal-400 hover:bg-teal-50/30',
+        :class="['border-2 border-dashed rounded-lg py-5 px-6 text-center cursor-pointer transition-all',
+                 uploading ? 'border-slate-300 bg-slate-50'
+                 : isDragging ? 'border-teal-500 bg-teal-50/60 scale-[1.01]'
+                   : 'border-slate-300 hover:border-teal-400 hover:bg-teal-50/30',
                  { 'pulse-cta': pulseUpload }]"
+        @dragenter.prevent="isDragging = true"
+        @dragover.prevent="isDragging = true"
+        @dragleave.prevent="isDragging = false"
+        @drop.prevent="isDragging = false"
       >
         <NSpin v-if="uploading" size="small" />
         <span v-else class="text-3xl block mb-1.5">📤</span>
         <span class="text-sm text-slate-500 dark:text-slate-400 block">
           <template v-if="uploading"><span style="font-size: var(--font-size-xs); color: var(--color-text-muted);">上传中...</span></template>
+          <template v-else-if="isDragging"><span class="text-teal-600 dark:text-teal-400 font-medium">松开以上传文件</span></template>
           <template v-else>将文件拖拽到此处，或点击选择文件</template>
         </span>
         <span class="text-xs text-slate-400 dark:text-slate-500 mt-1 block">
@@ -59,6 +66,7 @@ const store = useWizardStore()
 const { fetchPreview } = useWizardApi()
 const { uploading, error: uploadError, upload } = useFileUpload()
 const uploadRef = ref()
+const isDragging = ref(false)
 
 const fileAcceptMap: Record<string, string> = {
   csv: '.csv',

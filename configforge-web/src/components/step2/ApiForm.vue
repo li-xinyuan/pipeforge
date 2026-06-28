@@ -53,7 +53,7 @@
             class="flex-1"
             @update:value="updateKeyValue('headers', String(key), $event, 'value')"
           />
-          <NButton text size="tiny" type="error" @click="removeKeyValue('headers', String(key))">✕</NButton>
+          <NButton text size="tiny" type="error" aria-label="删除请求头" @click="removeKeyValue('headers', String(key))">✕</NButton>
         </div>
         <NButton text size="tiny" type="primary" @click="addKeyValue('headers')">+ 添加请求头</NButton>
       </div>
@@ -78,7 +78,7 @@
             class="flex-1"
             @update:value="updateKeyValue('params', String(key), $event, 'value')"
           />
-          <NButton text size="tiny" type="error" @click="removeKeyValue('params', String(key))">✕</NButton>
+          <NButton text size="tiny" type="error" aria-label="删除查询参数" @click="removeKeyValue('params', String(key))">✕</NButton>
         </div>
         <NButton text size="tiny" type="primary" @click="addKeyValue('params')">+ 添加参数</NButton>
       </div>

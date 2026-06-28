@@ -40,7 +40,7 @@
           <div class="login__input" :class="{ 'is-error': loginError }">
             <span class="login__input-icon">🔑</span>
             <input v-model="loginForm.password" :type="showPassword ? 'text' : 'password'" placeholder="······" autocomplete="current-password" required>
-            <button type="button" class="login__eye" @click="showPassword = !showPassword">{{ showPassword ? '🙈' : '👁' }}</button>
+            <button type="button" class="login__eye" :aria-label="showPassword ? '隐藏密码' : '显示密码'" @click="showPassword = !showPassword">{{ showPassword ? '🙈' : '👁' }}</button>
           </div>
         </div>
 
