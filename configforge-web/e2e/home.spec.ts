@@ -2,7 +2,7 @@ import { test, expect } from './fixtures'
 
 test.beforeEach(async ({ page, request }) => {
   // Login via API to get auth token (needed for UI tests with JWT enabled)
-  const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+  const loginResp = await request.post('http://127.0.0.1:8000/api/auth/login', {
     data: { username: 'admin', password: 'admin123' },
   })
   const data = await loginResp.json()
@@ -71,7 +71,7 @@ test.describe('Theme Toggle', () => {
 
 test.describe('Health Check', () => {
   test('API health endpoint responds', async ({ request }) => {
-    const resp = await request.get('http://127.0.0.1:8199/api/health')
+    const resp = await request.get('http://127.0.0.1:8000/api/health')
     expect(resp.ok()).toBeTruthy()
     const data = await resp.json()
     expect(data.status).toBe('ok')

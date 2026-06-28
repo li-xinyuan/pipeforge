@@ -33,7 +33,7 @@ async function addCsvInput(page: Page) {
 test.describe('Full Wizard Flow', () => {
   test.beforeEach(async ({ page, request }) => {
     // Login via API to get auth token
-    const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+    const loginResp = await request.post('http://127.0.0.1:8000/api/auth/login', {
       data: { username: 'admin', password: 'admin123' },
     })
     const data = await loginResp.json()

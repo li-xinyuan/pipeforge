@@ -57,13 +57,13 @@ test.describe('Template Market', () => {
 test.describe('Template API', () => {
   test('list templates API returns valid response', async ({ request }) => {
     // Login to get token
-    const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+    const loginResp = await request.post('http://127.0.0.1:8000/api/auth/login', {
       data: { username: 'admin', password: 'admin123' },
     })
     const { access_token } = await loginResp.json()
     const headers = { Authorization: `Bearer ${access_token}` }
 
-    const resp = await request.get('http://127.0.0.1:8199/api/templates', { headers })
+    const resp = await request.get('http://127.0.0.1:8000/api/templates', { headers })
     expect(resp.ok()).toBeTruthy()
     const data = await resp.json()
     expect(data).toHaveProperty('items')
@@ -73,14 +73,14 @@ test.describe('Template API', () => {
 
   test('create and delete template via API', async ({ request }) => {
     // Login to get token
-    const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+    const loginResp = await request.post('http://127.0.0.1:8000/api/auth/login', {
       data: { username: 'admin', password: 'admin123' },
     })
     const { access_token } = await loginResp.json()
     const headers = { Authorization: `Bearer ${access_token}` }
 
     // Create template
-    const createResp = await request.post('http://127.0.0.1:8199/api/templates', {
+    const createResp = await request.post('http://127.0.0.1:8000/api/templates', {
       headers,
       data: {
         name: 'E2E Test Template',
@@ -96,7 +96,7 @@ test.describe('Template API', () => {
     expect(template.id).toBeTruthy()
 
     // Delete template
-    const deleteResp = await request.delete(`http://127.0.0.1:8199/api/templates/${template.id}`, {
+    const deleteResp = await request.delete(`http://127.0.0.1:8000/api/templates/${template.id}`, {
       headers,
     })
     expect(deleteResp.ok()).toBeTruthy()
@@ -104,14 +104,14 @@ test.describe('Template API', () => {
 
   test('instantiate template via API', async ({ request }) => {
     // Login
-    const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+    const loginResp = await request.post('http://127.0.0.1:8000/api/auth/login', {
       data: { username: 'admin', password: 'admin123' },
     })
     const { access_token } = await loginResp.json()
     const headers = { Authorization: `Bearer ${access_token}` }
 
     // Create template
-    const createResp = await request.post('http://127.0.0.1:8199/api/templates', {
+    const createResp = await request.post('http://127.0.0.1:8000/api/templates', {
       headers,
       data: {
         name: 'Instantiate Test',
@@ -124,7 +124,7 @@ test.describe('Template API', () => {
     const template = await createResp.json()
 
     // Instantiate
-    const instResp = await request.post(`http://127.0.0.1:8199/api/templates/${template.id}/instantiate`, {
+    const instResp = await request.post(`http://127.0.0.1:8000/api/templates/${template.id}/instantiate`, {
       headers,
     })
     expect(instResp.ok()).toBeTruthy()
@@ -133,6 +133,6 @@ test.describe('Template API', () => {
     expect(instData).toHaveProperty('template_id')
 
     // Cleanup
-    await request.delete(`http://127.0.0.1:8199/api/templates/${template.id}`, { headers })
+    await request.delete(`http://127.0.0.1:8000/api/templates/${template.id}`, { headers })
   })
 })

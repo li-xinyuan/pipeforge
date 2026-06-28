@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures'
 
 test.beforeEach(async ({ page, request }) => {
-  const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+  const loginResp = await request.post('http://127.0.0.1:8000/api/auth/login', {
     data: { username: 'admin', password: 'admin123' },
   })
   const data = await loginResp.json()
@@ -39,7 +39,7 @@ test.describe('Config Wizard', () => {
 
 test.describe('Config API', () => {
   async function getAuthHeaders(request: import('@playwright/test').APIRequestContext) {
-    const loginResp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+    const loginResp = await request.post('http://127.0.0.1:8000/api/auth/login', {
       data: { username: 'admin', password: 'admin123' },
     })
     const { access_token } = await loginResp.json()
@@ -48,7 +48,7 @@ test.describe('Config API', () => {
 
   test('list configs returns valid response', async ({ request }) => {
     const headers = await getAuthHeaders(request)
-    const resp = await request.get('http://127.0.0.1:8199/api/configs', { headers })
+    const resp = await request.get('http://127.0.0.1:8000/api/configs', { headers })
     expect(resp.ok()).toBeTruthy()
     const data = await resp.json()
     expect(data).toHaveProperty('configs')
@@ -57,7 +57,7 @@ test.describe('Config API', () => {
 
   test('init scene returns valid response', async ({ request }) => {
     const headers = await getAuthHeaders(request)
-    const resp = await request.post('http://127.0.0.1:8199/api/wizard/init-scene', {
+    const resp = await request.post('http://127.0.0.1:8000/api/wizard/init-scene', {
       headers,
       data: { file_ids: [] },
     })

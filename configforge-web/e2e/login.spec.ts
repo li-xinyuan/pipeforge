@@ -91,7 +91,7 @@ test.describe('Login Flow', () => {
 
 test.describe('Login API', () => {
   test('login API returns token', async ({ request }) => {
-    const resp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+    const resp = await request.post('http://127.0.0.1:8000/api/auth/login', {
       data: { username: 'admin', password: 'admin123' },
     })
     expect(resp.ok()).toBeTruthy()
@@ -100,7 +100,7 @@ test.describe('Login API', () => {
   })
 
   test('login API rejects wrong password', async ({ request }) => {
-    const resp = await request.post('http://127.0.0.1:8199/api/auth/login', {
+    const resp = await request.post('http://127.0.0.1:8000/api/auth/login', {
       data: { username: 'admin', password: 'wrongpassword' },
     })
     expect(resp.ok()).toBeFalsy()
